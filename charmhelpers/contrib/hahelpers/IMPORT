@@ -1,0 +1,14 @@
+Source: lp:~openstack-charmers/openstack-charm-helpers/ha-helpers
+
+ha-helpers/lib/openstack-common -> charm-helpers/charmhelpers/contrib/hahelpers/openstack-common
+ha-helpers/lib/apache_utils.py -> charm-helpers/charmhelpers/contrib/hahelpers/apache_utils.py
+ha-helpers/lib/openstack_common.py -> charm-helpers/charmhelpers/contrib/hahelpers/openstack_common.py
+ha-helpers/lib/nova -> charm-helpers/charmhelpers/contrib/hahelpers/nova
+ha-helpers/lib/nova/nova-common -> charm-helpers/charmhelpers/contrib/hahelpers/nova/nova-common
+ha-helpers/lib/nova/grizzly -> charm-helpers/charmhelpers/contrib/hahelpers/nova/grizzly
+ha-helpers/lib/nova/essex -> charm-helpers/charmhelpers/contrib/hahelpers/nova/essex
+ha-helpers/lib/nova/folsom -> charm-helpers/charmhelpers/contrib/hahelpers/nova/folsom
+ha-helpers/lib/cluster_utils.py -> charm-helpers/charmhelpers/contrib/hahelpers/cluster_utils.py
+ha-helpers/lib/ceph_utils.py -> charm-helpers/charmhelpers/contrib/hahelpers/ceph_utils.py
+ha-helpers/lib/haproxy_utils.py -> charm-helpers/charmhelpers/contrib/hahelpers/haproxy_utils.py
+ha-helpers/lib/utils.py -> charm-helpers/charmhelpers/contrib/hahelpers/utils.py

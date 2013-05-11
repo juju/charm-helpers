@@ -12,7 +12,7 @@ import commands
 import subprocess
 import os
 import shutil
-import lib.utils as utils
+import hahelpers.utils as utils
 
 KEYRING = '/etc/ceph/ceph.client.%s.keyring'
 KEYFILE = '/etc/ceph/ceph.client.%s.key'

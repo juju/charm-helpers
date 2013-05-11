@@ -8,7 +8,7 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
-from lib.utils import (
+from hahelpers.utils import (
     relation_ids,
     relation_list,
     relation_get,
@@ -19,7 +19,7 @@ from lib.utils import (
     get_host_ip,
     restart
     )
-from lib.cluster_utils import https
+from hahelpers.cluster_utils import https
 
 import os
 import subprocess
