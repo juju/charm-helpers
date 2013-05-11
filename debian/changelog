@@ -1,0 +1,19 @@
+charmsupport (0.1.2.1) precise; urgency=low
+
+  * Fix relation timing bug 
+
+ -- David Ames <david.ames@canonical.com>  Mon, 06 May 2013 11:52:47 -0700
+
+charmsupport (0.1.2) precise; urgency=low
+
+  * Fix dictionary check for volume_map
+  * Allow non-relation context runs
+  * Fixed unit test for no relation set
+
+ -- David Ames <david.ames@canonical.com>  Wed, 24 Apr 2013 11:36:54 -0700
+
+charmsupport (0.1.1dev-1) precise; urgency=low
+
+  * Initial release - new version scheme.
+
+ -- Matthew Wedgwood <matthew.wedgwood@ubuntu.com>  Fri, 04 Jan 2013 15:14:11 -0600

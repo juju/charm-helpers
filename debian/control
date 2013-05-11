@@ -1,0 +1,21 @@
+Source: charmsupport
+Maintainer: Matthew Wedgwood <matthew.wedgwood@ubuntu.com>
+Section: python
+Priority: optional
+Build-Depends: python-all (>= 2.6.6-3), debhelper (>= 7)
+Standards-Version: 3.9.1
+
+Package: python-charmsupport
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+Description: UNKNOWN
+ ============
+ CharmSupport
+ ============
+ .
+ CharmSupport provides an opinionated set of tools for building Juju
+ Charms that work together. In addition to basic tasks like interact-
+ ing with the Charm environment and the machine it runs on, it also
+ lets you easily add support for things like persistent storage and
+ NRPE.
+ .

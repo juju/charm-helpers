@@ -1,0 +1,11 @@
+#!/bin/bash
+VERSION=$(cat VERSION)
+REVNO=$(bzr revno)
+bzr di &>/dev/null
+if [ $? ]; then
+    REVNO="${REVNO}+"
+fi
+cat << EOF > charmsupport/version.py
+CHARMSUPPORT_VERSION='${VERSION}'
+CHARMSUPPORT_BZRREVNO='${REVNO}'
+EOF
