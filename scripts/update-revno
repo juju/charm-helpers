@@ -5,7 +5,7 @@ bzr di &>/dev/null
 if [ $? ]; then
     REVNO="${REVNO}+"
 fi
-cat << EOF > charmsupport/version.py
-CHARMSUPPORT_VERSION='${VERSION}'
-CHARMSUPPORT_BZRREVNO='${REVNO}'
+cat << EOF > charmhelpers/version.py
+CHARMHELPERS_VERSION='${VERSION}'
+CHARMHELPERS_BZRREVNO='${REVNO}'
 EOF

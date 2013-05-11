@@ -1,4 +1,4 @@
-PROJECT=charmsupport
+PROJECT=charmhelpers
 SUITE=unstable
 TESTS=tests/
 
@@ -32,7 +32,7 @@ userinstall:
 
 test:
 	@echo Starting tests...
-	@nosetests tests/
+	@nosetests --nologcapture tests/
 
 lint:
 	@echo Checking for Python syntax...

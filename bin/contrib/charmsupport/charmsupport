@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
-import charmsupport.execd
+from charmhelpers.contrib.charmsupport import execd
 
 
-def execd(args):
-    charmsupport.execd.execd_run(args.module, args.dir, die_on_error=True)
+def run_execd(args):
+    execd.execd_run(args.module, args.dir, die_on_error=True)
 
 
 def parse_args():
@@ -18,7 +18,7 @@ def parse_args():
                               help='module to run (default: charm-pre-install)')
     execd_parser.add_argument('--dir',
                               help="Override the exec.d directory path")
-    execd_parser.set_defaults(func=execd)
+    execd_parser.set_defaults(func=run_execd)
 
     return parser.parse_args()
 

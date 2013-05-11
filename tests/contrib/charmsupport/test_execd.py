@@ -5,7 +5,7 @@ import shutil
 
 from tempfile import mkdtemp
 
-from charmsupport import execd
+from charmhelpers.contrib.charmsupport import execd
 
 class ExecDBaseTestCase(TestCase):
     def setUp(self):
@@ -30,7 +30,7 @@ class ExecDTestCase(ExecDBaseTestCase):
 
         self.assertEqual(expected, default_dir)
 
-    @patch('charmsupport.execd.execd_run')
+    @patch('charmhelpers.contrib.charmsupport.execd.execd_run')
     def test_execd_preinstall_calls_charm_pre_install(self, mock_execd_run):
         execd_dir = 'testdir'
         execd.execd_preinstall(execd_dir)
@@ -38,7 +38,7 @@ class ExecDTestCase(ExecDBaseTestCase):
         mock_execd_run.assert_called_with(execd_dir, 'charm-pre-install')
 
 
-    @patch('charmsupport.execd.default_execd_dir', return_value='foo')
+    @patch('charmhelpers.contrib.charmsupport.execd.default_execd_dir', return_value='foo')
     @patch('os.listdir', return_value=['a','b','c'])
     @patch('os.path.isdir', return_value=True)
     def test_execd_module_list_from_env(self, mock_isdir, mock_listdir,
@@ -55,7 +55,7 @@ class ExecDTestCase(ExecDBaseTestCase):
         mock_isdir.assert_has_calls([call(d) for d in expected])
 
 
-    @patch('charmsupport.execd.default_execd_dir')
+    @patch('charmhelpers.contrib.charmsupport.execd.default_execd_dir')
     @patch('os.listdir', return_value=['a','b','c'])
     @patch('os.path.isdir', return_value=True)
     def test_execd_module_list_with_dir(self, mock_isdir, mock_listdir,
@@ -74,10 +74,10 @@ class ExecDTestCase(ExecDBaseTestCase):
 
 
     @patch('subprocess.check_call')
-    @patch('charmsupport.hookenv.log')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.log')
     @patch('os.path.isfile', return_value=True)
     @patch('os.access', return_value=True)
-    @patch('charmsupport.execd.execd_modules', return_value=['a','b'])
+    @patch('charmhelpers.contrib.charmsupport.execd.execd_modules', return_value=['a','b'])
     def test_execd_run(self, mock_modules, mock_access, mock_isfile,
                        mock_log, mock_call):
         submodule = 'charm-foo'

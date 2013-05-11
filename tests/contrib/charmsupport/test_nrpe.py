@@ -5,7 +5,7 @@ import subprocess
 from testtools import TestCase
 from mock import patch, call
 
-from charmsupport import nrpe
+from charmhelpers.contrib.charmsupport import nrpe
 
 
 class NRPEBaseTestCase(TestCase):

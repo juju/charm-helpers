@@ -9,14 +9,14 @@ with open(version_file) as v:
 
 
 SETUP = {
-    'name': "charmsupport",
+    'name': "charmhelpers",
     'version': VERSION,
-    'author': "Matthew Wedgwood",
-    'author_email': "matthew.wedgwood@ubuntu.com",
-    'url': "https://code.launchpad.net/charmsupport",
-    'packages': ["charmsupport"],
-    'scripts': ["bin/charmsupport"],
-    'license': "Lesser GNU Public License v3",
+    'author': "Ubuntu Developers",
+    'author_email': "ubuntu-devel-discuss@lists.ubuntu.com",
+    'url': "https://code.launchpad.net/charm-helpers",
+    'packages': ["charmhelpers"],
+    'scripts': ["bin/contrib/charmsupport/charmsupport"],
+    'license': "Affero GNU Public License v3",
     'long_description': open('README.txt').read(),
 }
 

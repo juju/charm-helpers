@@ -114,8 +114,6 @@ def relation_get(attribute=None, unit=None, rid=None):
         _args.append(rid)
     if attribute is not None:
         _args.append(attribute)
-    else:
-        _args.append('-')
     if unit:
         _args.append(unit)
     return json.loads(subprocess.check_output(_args))
@@ -136,9 +134,7 @@ def relation_ids(reltype=None):
     relid_cmd_line = ['relation-ids', '--format=json']
     if reltype is not None:
         relid_cmd_line.append(reltype)
-        return json.loads(subprocess.check_output(relid_cmd_line))
-    else:
-        return []
+    return json.loads(subprocess.check_output(relid_cmd_line))
 
 
 def related_units(relid=None):
@@ -147,10 +143,7 @@ def related_units(relid=None):
     units_cmd_line = ['relation-list', '--format=json']
     if relid is not None:
         units_cmd_line.extend(('-r', relid))
-    result = json.loads(subprocess.check_output(units_cmd_line))
-    if not result:
-        return []
-    return result
+    return json.loads(subprocess.check_output(units_cmd_line))
 
 
 def relation_for_unit(unit=None, rid=None):
@@ -167,7 +160,7 @@ def relation_for_unit(unit=None, rid=None):
 def relations_for_id(relid=None):
     "Get relations of a specific relation ID"
     relation_data = []
-    relid = relid or relation_id()
+    relid = relid or relation_ids()
     for unit in related_units(relid):
         unit_data = relation_for_unit(unit, relid)
         unit_data['__relid__'] = relid
@@ -179,8 +172,6 @@ def relations_of_type(reltype=None):
     "Get relations of a specific type"
     relation_data = []
     reltype = reltype or relation_type()
-    if reltype is None:
-        return []
     for relid in relation_ids(reltype):
         for relation in relations_for_id(relid):
             relation['__relid__'] = relid

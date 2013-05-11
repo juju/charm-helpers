@@ -4,7 +4,7 @@ from mock import patch, call, MagicMock
 from testtools import TestCase
 import yaml
 
-from charmsupport import hookenv
+from charmhelpers.contrib.charmsupport import hookenv
 
 
 class SerializableTest(TestCase):
@@ -105,14 +105,14 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['config-get', 'baz', '--format=json'])
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.log')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.log')
     def test_logs_and_reraises_on_config_error(self, log, check_output):
         error = 'some error'
         check_output.side_effect = ValueError(error)
 
         self.assertRaisesRegexp(ValueError, error, hookenv.config)
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_gets_the_local_unit(self, os_):
         os_.environ = {
             'JUJU_UNIT_NAME': 'foo',
@@ -120,7 +120,7 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.local_unit(), 'foo')
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_checks_that_is_running_in_relation_hook(self, os_):
         os_.environ = {
             'JUJU_RELATION': 'foo',
@@ -128,7 +128,7 @@ class HelpersTest(TestCase):
 
         self.assertTrue(hookenv.in_relation_hook())
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_checks_that_is_not_running_in_relation_hook(self, os_):
         os_.environ = {
             'bar': 'foo',
@@ -136,7 +136,7 @@ class HelpersTest(TestCase):
 
         self.assertFalse(hookenv.in_relation_hook())
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_gets_the_relation_type(self, os_):
         os_.environ = {
             'JUJU_RELATION': 'foo',
@@ -144,13 +144,13 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.relation_type(), 'foo')
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_relation_type_none_if_not_in_environment(self, os_):
         os_.environ = {}
         self.assertEqual(hookenv.relation_type(), None)
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.relation_type')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_type')
     def test_gets_relation_ids(self, relation_type, check_output):
         ids = [1, 2, 3]
         check_output.return_value = json.dumps(ids)
@@ -164,17 +164,19 @@ class HelpersTest(TestCase):
                                          reltype])
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.relation_type')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_type')
     def test_relation_ids_no_relation_type(self, relation_type, check_output):
+        ids = [1, 2, 3]
+        check_output.return_value = json.dumps(ids)
         relation_type.return_value = None
 
         result = hookenv.relation_ids()
 
-        self.assertEqual([], result)
-        check_output.assert_not_called()
+        self.assertEqual(result, ids)
+        check_output.assert_called_with(['relation-ids', '--format=json'])
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.relation_type')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_type')
     def test_gets_relation_ids_for_type(self, relation_type, check_output):
         ids = [1, 2, 3]
         check_output.return_value = json.dumps(ids)
@@ -188,7 +190,7 @@ class HelpersTest(TestCase):
         self.assertFalse(relation_type.called)
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.relation_id')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_id')
     def test_gets_related_units(self, relation_id, check_output):
         relid = 123
         units = ['foo', 'bar']
@@ -202,7 +204,7 @@ class HelpersTest(TestCase):
                                          '-r', relid])
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.relation_id')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_id')
     def test_related_units_no_relation(self, relation_id, check_output):
         units = ['foo', 'bar']
         relation_id.return_value = None
@@ -214,7 +216,7 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-list', '--format=json'])
 
     @patch('subprocess.check_output')
-    @patch('charmsupport.hookenv.relation_id')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_id')
     def test_gets_related_units_for_id(self, relation_id, check_output):
         relid = 123
         units = ['foo', 'bar']
@@ -227,7 +229,7 @@ class HelpersTest(TestCase):
                                          '-r', relid])
         self.assertFalse(relation_id.called)
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_gets_the_remote_unit(self, os_):
         os_.environ = {
             'JUJU_REMOTE_UNIT': 'foo',
@@ -235,8 +237,8 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.remote_unit(), 'foo')
 
-    @patch('charmsupport.hookenv.remote_unit')
-    @patch('charmsupport.hookenv.relation_get')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.remote_unit')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_get')
     def test_gets_relation_for_unit(self, relation_get, remote_unit):
         unit = 'foo-unit'
         raw_relation = {
@@ -252,8 +254,8 @@ class HelpersTest(TestCase):
         self.assertEqual(getattr(result, 'baz-list'), ['1', '2', '3'])
         relation_get.assert_called_with(unit=unit, rid=None)
 
-    @patch('charmsupport.hookenv.remote_unit')
-    @patch('charmsupport.hookenv.relation_get')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.remote_unit')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_get')
     def test_gets_relation_for_specific_unit(self, relation_get, remote_unit):
         unit = 'foo-unit'
         raw_relation = {
@@ -269,18 +271,18 @@ class HelpersTest(TestCase):
         relation_get.assert_called_with(unit=unit, rid=None)
         self.assertFalse(remote_unit.called)
 
-    @patch('charmsupport.hookenv.relation_id')
-    @patch('charmsupport.hookenv.related_units')
-    @patch('charmsupport.hookenv.relation_for_unit')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_ids')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.related_units')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_for_unit')
     def test_gets_relations_for_id(self, relation_for_unit, related_units,
-                                   relation_id):
+                                   relation_ids):
         relid = 123
         units = ['foo', 'bar']
         unit_data = [
             {'foo-item': 'bar-item'},
             {'foo-item2': 'bar-item2'},
         ]
-        relation_id.return_value = relid
+        relation_ids.return_value = relid
         related_units.return_value = units
         relation_for_unit.side_effect = unit_data
 
@@ -296,9 +298,9 @@ class HelpersTest(TestCase):
             call('bar', relid),
         ])
 
-    @patch('charmsupport.hookenv.relation_ids')
-    @patch('charmsupport.hookenv.related_units')
-    @patch('charmsupport.hookenv.relation_for_unit')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_ids')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.related_units')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_for_unit')
     def test_gets_relations_for_specific_id(self, relation_for_unit,
                                             related_units, relation_ids):
         relid = 123
@@ -323,10 +325,10 @@ class HelpersTest(TestCase):
         ])
         self.assertFalse(relation_ids.called)
 
-    @patch('charmsupport.hookenv.in_relation_hook')
-    @patch('charmsupport.hookenv.relation_type')
-    @patch('charmsupport.hookenv.relation_ids')
-    @patch('charmsupport.hookenv.relations_for_id')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.in_relation_hook')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_type')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relation_ids')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relations_for_id')
     def test_gets_relations_for_type(self, relations_for_id, relation_ids,
                                      relation_type, in_relation_hook):
         reltype = 'foo-type'
@@ -364,10 +366,10 @@ class HelpersTest(TestCase):
             call(234),
         ])
 
-    @patch('charmsupport.hookenv.config')
-    @patch('charmsupport.hookenv.local_unit')
-    @patch('charmsupport.hookenv.relations_of_type')
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.config')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.local_unit')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.relations_of_type')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_gets_execution_environment(self, os_, relations_of_type,
                                         local_unit, config):
         config.return_value = 'some-config'
@@ -384,7 +386,7 @@ class HelpersTest(TestCase):
             'env': 'some-environment',
         })
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_gets_the_relation_id(self, os_):
         os_.environ = {
             'JUJU_RELATION_ID': 'foo',
@@ -392,7 +394,7 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.relation_id(), 'foo')
 
-    @patch('charmsupport.hookenv.os')
+    @patch('charmhelpers.contrib.charmsupport.hookenv.os')
     def test_relation_id_none_if_no_env(self, os_):
         os_.environ = {}
         self.assertEqual(hookenv.relation_id(), None)
@@ -405,7 +407,7 @@ class HelpersTest(TestCase):
         result = hookenv.relation_get()
 
         self.assertEqual(result['foo'], 'BAR')
-        check_output.assert_called_with(['relation-get', '--format=json', '-'])
+        check_output.assert_called_with(['relation-get', '--format=json'])
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):

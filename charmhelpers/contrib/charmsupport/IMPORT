@@ -1,0 +1,14 @@
+Source: lp:charmsupport/trunk
+
+charmsupport/charmsupport/execd.py -> charm-helpers/charmhelpers/contrib/charmsupport/execd.py
+charmsupport/charmsupport/hookenv.py -> charm-helpers/charmhelpers/contrib/charmsupport/hookenv.py
+charmsupport/charmsupport/host.py -> charm-helpers/charmhelpers/contrib/charmsupport/host.py
+charmsupport/charmsupport/nrpe.py -> charm-helpers/charmhelpers/contrib/charmsupport/nrpe.py
+charmsupport/charmsupport/volumes.py -> charm-helpers/charmhelpers/contrib/charmsupport/volumes.py
+
+charmsupport/tests/test_execd.py -> charm-helpers/tests/contrib/charmsupport/test_execd.py
+charmsupport/tests/test_hookenv.py -> charm-helpers/tests/contrib/charmsupport/test_hookenv.py
+charmsupport/tests/test_host.py -> charm-helpers/tests/contrib/charmsupport/test_host.py
+charmsupport/tests/test_nrpe.py -> charm-helpers/tests/contrib/charmsupport/test_nrpe.py
+
+charmsupport/bin/charmsupport -> charm-helpers/bin/contrib/charmsupport/charmsupport

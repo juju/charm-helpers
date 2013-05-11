@@ -5,7 +5,7 @@ import subprocess
 from mock import patch, call, MagicMock
 from testtools import TestCase
 
-from charmsupport import host
+from charmhelpers.contrib.charmsupport import host
 
 
 MOUNT_LINES = ("""

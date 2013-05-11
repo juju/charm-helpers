@@ -74,7 +74,7 @@ def get_config():
     if volume_map is None:
         # probably an empty string
         volume_map = {}
-    elif not isinstance(volume_map, dict):
+    elif isinstance(volume_map, dict):
         hookenv.log("Volume-map should be a dictionary, not {}".format(
             type(volume_map)))
         errors = True
