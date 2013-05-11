@@ -1,0 +1,4 @@
+Source lp:charm-tools/trunk
+
+charm-tools/helpers/python/charmhelpers/__init__.py -> charmhelpers/charmhelpers/contrib/charmhelpers/__init__.py
+charm-tools/helpers/python/charmhelpers/tests/test_charmhelpers.py -> charmhelpers/tests/contrib/charmhelpers/test_charmhelpers.py

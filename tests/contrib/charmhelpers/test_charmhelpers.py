@@ -12,7 +12,7 @@ import sys
 # /usr/local/lib.  This is necessary since /usr/local/lib is prepended before
 # what is specified in PYTHONPATH.
 sys.path.insert(0, 'helpers/python')
-import charmhelpers
+from charmhelpers.contrib import charmhelpers
 
 from subprocess import CalledProcessError
 
