@@ -1,0 +1,147 @@
+#!/bin/bash -e
+
+# Common utility functions used across all nova charms.
+
+CONFIG_CHANGED=False
+
+# Load the common OpenStack helper library.
+if [[ -e $CHARM_DIR/lib/openstack-common ]] ; then
+  . $CHARM_DIR/lib/openstack-common
+else
+  juju-log "Couldn't load $CHARM_DIR/lib/opentack-common." && exit 1
+fi
+
+set_or_update() {
+  # Update config flags in nova.conf or api-paste.ini.
+  # Config layout changed in Folsom, so this is now OpenStack release specific.
+  local rel=$(get_os_codename_package "nova-common")
+  . $CHARM_DIR/lib/nova/$rel
+  nova_set_or_update $@
+}
+
+function set_config_flags() {
+  # Set user-defined nova.conf flags from deployment config
+  juju-log "$CHARM: Processing config-flags."
+  flags=$(config-get config-flags)
+  if [[ "$flags" != "None" && -n "$flags" ]] ; then
+    for f in $(echo $flags | sed -e 's/,/ /g') ; do
+      k=$(echo $f | cut -d= -f1)
+      v=$(echo $f | cut -d= -f2)
+      set_or_update "$k" "$v"
+    done
+  fi
+}
+
+configure_volume_service() {
+  local svc="$1"
+  local cur_vers="$(get_os_codename_package "nova-common")"
+  case "$svc" in
+    "cinder")
+      set_or_update "volume_api_class" "nova.volume.cinder.API" ;;
+    "nova-volume")
+      # nova-volume only supported before grizzly.
+      [[ "$cur_vers" == "essex" ]] || [[ "$cur_vers" == "folsom" ]] &&
+        set_or_update "volume_api_class" "nova.volume.api.API"
+      ;;
+    *) juju-log "$CHARM ERROR - configure_volume_service: Invalid service $svc"
+       return 1 ;;
+  esac
+}
+
+function configure_network_manager {
+  local manager="$1"
+  echo "$CHARM: configuring $manager network manager"
+  case $1 in
+    "FlatManager")
+      set_or_update "network_manager" "nova.network.manager.FlatManager"
+      ;;
+    "FlatDHCPManager")
+      set_or_update "network_manager" "nova.network.manager.FlatDHCPManager"
+
+      if [[ "$CHARM" == "nova-compute" ]] ; then
+        local flat_interface=$(config-get flat-interface)
+        local ec2_host=$(relation-get ec2_host)
+        set_or_update flat_inteface "$flat_interface"
+        set_or_update ec2_dmz_host "$ec2_host"
+
+        # Ensure flat_interface has link.
+        if ip link show $flat_interface >/dev/null 2>&1 ; then
+          ip link set $flat_interface up
+        fi
+
+        # work around (LP: #1035172)
+        if [[ -e /dev/vhost-net ]] ; then
+          iptables -A POSTROUTING -t mangle -p udp --dport 68 -j CHECKSUM \
+            --checksum-fill
+        fi
+      fi
+
+      ;;
+    "Quantum")
+      local local_ip=$(get_ip `unit-get private-address`)
+      [[ -n $local_ip ]] || {
+        juju-log "Unable to resolve local IP address"
+        exit 1
+      }
+      set_or_update "network_api_class" "nova.network.quantumv2.api.API"
+      set_or_update "quantum_auth_strategy" "keystone"
+      set_or_update "core_plugin" "$QUANTUM_CORE_PLUGIN" "$QUANTUM_CONF"
+      set_or_update "bind_host" "0.0.0.0" "$QUANTUM_CONF"
+      if [ "$QUANTUM_PLUGIN" == "ovs" ]; then
+          set_or_update "tenant_network_type" "gre" $QUANTUM_PLUGIN_CONF "OVS"
+          set_or_update "enable_tunneling" "True" $QUANTUM_PLUGIN_CONF "OVS"
+          set_or_update "tunnel_id_ranges" "1:1000" $QUANTUM_PLUGIN_CONF "OVS"
+          set_or_update "local_ip" "$local_ip" $QUANTUM_PLUGIN_CONF "OVS"
+      fi
+      ;;
+    *) juju-log "ERROR: Invalid network manager $1" && exit 1 ;;
+  esac
+}
+
+function trigger_remote_service_restarts() {
+  # Trigger a service restart on all other nova nodes that have a relation
+  # via the cloud-controller interface.
+
+  # possible relations to other nova services.
+  local relations="cloud-compute nova-volume-service"
+
+  for rel in $relations; do
+    local r_ids=$(relation-ids $rel)
+    for r_id in $r_ids ; do
+      juju-log "$CHARM: Triggering a service restart on relation $r_id."
+      relation-set -r $r_id restart-trigger=$(uuid)
+    done
+  done
+}
+
+do_openstack_upgrade() {
+  # update openstack components to those provided by a new installation source
+  # it is assumed the calling hook has confirmed that the upgrade is sane.
+  local rel="$1"
+  shift
+  local packages=$@
+
+  orig_os_rel=$(get_os_codename_package "nova-common")
+  new_rel=$(get_os_codename_install_source "$rel")
+
+  # Backup the config directory.
+  local stamp=$(date +"%Y%m%d%M%S")
+  tar -pcf /var/lib/juju/$CHARM-backup-$stamp.tar $CONF_DIR
+
+  # load the release helper library for pre/post upgrade hooks specific to the
+  # release we are upgrading to.
+  . $CHARM_DIR/lib/nova/$new_rel
+
+  # new release specific pre-upgrade hook
+  nova_pre_upgrade "$orig_os_rel"
+
+  # Setup apt repository access and kick off the actual package upgrade.
+  configure_install_source "$rel"
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get --option Dpkg::Options::=--force-confold -y \
+     install --no-install-recommends $packages
+
+  # new release sepcific post-upgrade hook
+  nova_post_upgrade "$orig_os_rel"
+
+}

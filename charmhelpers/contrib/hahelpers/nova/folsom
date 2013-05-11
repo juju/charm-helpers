@@ -1,0 +1,81 @@
+#!/bin/bash -e
+
+# Folsom-specific functions
+
+nova_set_or_update() {
+  # TODO: This needs to be shared among folsom, grizzly and beyond.
+  # Set a config option in nova.conf or api-paste.ini, depending
+  # Defaults to updating nova.conf
+  local key="$1"
+  local value="$2"
+  local conf_file="$3"
+  local section="${4:-DEFAULT}"
+
+  local nova_conf=${NOVA_CONF:-/etc/nova/nova.conf}
+  local api_conf=${API_CONF:-/etc/nova/api-paste.ini}
+  local quantum_conf=${QUANTUM_CONF:-/etc/quantum/quantum.conf}
+  local quantum_api_conf=${QUANTUM_API_CONF:-/etc/quantum/api-paste.ini}
+  local quantum_plugin_conf=${QUANTUM_PLUGIN_CONF:-/etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini}
+  local libvirtd_conf=${LIBVIRTD_CONF:-/etc/libvirt/libvirtd.conf}
+
+  [[ -z $key ]] && juju-log "$CHARM: set_or_update: value $value missing key" && exit 1
+  [[ -z $value ]] && juju-log "$CHARM: set_or_update: key $key missing value" && exit 1
+
+  [[ -z "$conf_file" ]] && conf_file=$nova_conf
+
+  local pattern=""
+  case "$conf_file" in
+    "$nova_conf") match="^$key="
+                  pattern="$key="
+                  out=$pattern
+                  ;;
+    "$api_conf"|"$quantum_conf"|"$quantum_api_conf"|"$quantum_plugin_conf"| \
+    "$libvirtd_conf")
+                 match="^$key = "
+                 pattern="$match"
+                 out="$key = "
+                 ;;
+    *) juju-log "$CHARM ERROR: set_or_update: Invalid conf_file ($conf_file)"
+  esac
+
+  cat $conf_file | grep "$match$value" >/dev/null &&
+    juju-log "$CHARM: $key=$value already in set in $conf_file" \
+      && return 0
+
+  case $conf_file in
+    "$quantum_conf"|"$quantum_api_conf"|"$quantum_plugin_conf")
+        python -c "
+import ConfigParser
+config = ConfigParser.RawConfigParser()
+config.read('$conf_file')
+config.set('$section','$key','$value')
+with open('$conf_file', 'wb') as configfile:
+    config.write(configfile)
+"
+      ;;
+    *)
+      if cat $conf_file | grep "$match" >/dev/null ; then
+        juju-log "$CHARM: Updating $conf_file, $key=$value"
+        sed -i "s|\($pattern\).*|\1$value|" $conf_file
+      else
+        juju-log "$CHARM: Setting new option $key=$value in $conf_file"
+        echo "$out$value" >>$conf_file
+      fi
+      ;;
+  esac
+  CONFIG_CHANGED="True"
+}
+
+# Upgrade Helpers
+nova_pre_upgrade() {
+  # Pre-upgrade helper.  Caller should pass the version of OpenStack we are
+  # upgrading from.
+  return 0 # Nothing to do here, yet.
+}
+
+nova_post_upgrade() {
+  # Post-upgrade helper.  Caller should pass the version of OpenStack we are
+  # upgrading from.
+  juju-log "$CHARM: Running post-upgrade hook: $upgrade_from -> folsom."
+  # nothing to do here yet.
+}
