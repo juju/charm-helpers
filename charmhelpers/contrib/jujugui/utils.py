@@ -64,7 +64,7 @@ from shelltoolbox import (
     search_file,
     su,
 )
-from charmhelpers import (
+from charmhelpers.contrib.charmhelpers import (
     START,
     get_config,
     log,
@@ -250,8 +250,7 @@ def render_to_file(template_name, context, destination):
     The argument *destination* is a file path.
     The argument *context* is a dict-like object.
     """
-    template_path = os.path.join(
-        os.path.dirname(__file__), '..', 'config', template_name)
+    template_path = os.path.abspath(template_name)
     template = tempita.Template.from_filename(template_path)
     with open(destination, 'w') as stream:
         stream.write(template.substitute(context))
@@ -293,7 +292,7 @@ def start_improv(staging_env, ssl_cert_path,
         'port': API_PORT,
         'staging_env': staging_env,
     }
-    render_to_file('juju-api-improv.conf.template', context, config_path)
+    render_to_file('config/juju-api-improv.conf.template', context, config_path)
     log('Starting the staging backend.')
     with su('root'):
         service_control(IMPROV, START)
@@ -315,7 +314,7 @@ def start_agent(
         'zookeeper': zookeeper,
         'read_only': read_only
     }
-    render_to_file('juju-api-agent.conf.template', context, config_path)
+    render_to_file('config/juju-api-agent.conf.template', context, config_path)
     log('Starting API agent.')
     with su('root'):
         service_control(AGENT, START)
@@ -368,7 +367,7 @@ def start_gui(
     if config_js_path is None:
         config_js_path = os.path.join(
             build_dir, 'juju-ui', 'assets', 'config.js')
-    render_to_file('config.js.template', context, config_js_path)
+    render_to_file('config/config.js.template', context, config_js_path)
 
     write_apache_config(build_dir, serve_tests)
 
@@ -391,7 +390,7 @@ def start_gui(
         'web_port': WEB_PORT,
         'secure': secure
     }
-    render_to_file('haproxy.cfg.template', context, haproxy_path)
+    render_to_file('config/haproxy.cfg.template', context, haproxy_path)
     log('Starting Juju GUI.')
 
 
@@ -403,8 +402,8 @@ def write_apache_config(build_dir, serve_tests=False):
         'server_root': build_dir,
         'tests_root': os.path.join(JUJU_GUI_DIR, 'test', ''),
     }
-    render_to_file('apache-ports.template', context, JUJU_GUI_PORTS)
-    render_to_file('apache-site.template', context, JUJU_GUI_SITE)
+    render_to_file('config/apache-ports.template', context, JUJU_GUI_PORTS)
+    render_to_file('config/apache-site.template', context, JUJU_GUI_SITE)
 
 
 def get_npm_cache_archive_url(Launchpad=Launchpad):

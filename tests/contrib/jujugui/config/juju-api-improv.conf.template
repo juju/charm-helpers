@@ -1,0 +1,12 @@
+description "Juju API staging"
+author "Canonical"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+setuid ubuntu
+env PYTHONPATH={{juju_dir}}:$PYTHONPATH
+
+exec /usr/bin/python {{juju_dir}}/improv.py --port {{port}} \
+    -f {{juju_dir}}/{{staging_env}}.json \
+    --secure --keys {{keys}}

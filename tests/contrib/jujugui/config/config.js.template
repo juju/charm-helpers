@@ -1,0 +1,26 @@
+var juju_config = {
+  // These are blacklisted config items not passed into subapps mounted into
+  // the main App.
+  serverRouting: false,
+  html5: true,
+  container: '#main',
+  viewContainer: '#main',
+  transitions: false,
+
+  // These are the main application config items used and passed down into all
+  // SubApps.
+  consoleEnabled: {{console_enabled}},
+  charm_store_url: 'https://jujucharms.com/',
+  charmworldURL: {{charmworld_url}},
+  // socket_url is only honored in older versions of the GUI.
+  socket_url: '{{raw_protocol}}://{{address}}/ws',
+  // socket_protocol is used instead by newer versions of the GUI to
+  // dynamically generate the websocket address.
+  socket_protocol: {{protocol}},
+  user: {{user}},
+  password: {{password}},
+  apiBackend: {{api_backend}}, // Value can be 'python' or 'go'.
+  readOnly: {{readonly}},
+  sandbox: {{sandbox}},
+  login_help: {{login_help}}
+};

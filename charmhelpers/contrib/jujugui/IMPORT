@@ -1,0 +1,4 @@
+Source: lp:charms/juju-gui
+
+juju-gui/hooks/utils.py -> charm-helpers/charmhelpers/contrib/jujugui/utils.py
+juju-gui/tests/test_utils.py -> charm-helpers/tests/contrib/jujugui/test_utils.py
