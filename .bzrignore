@@ -2,7 +2,7 @@
 dist/
 build/
 MANIFEST
-charmsupport/version.py
+charmhelpers/version.py
 .coverage
 .env/
 coverage.xml
