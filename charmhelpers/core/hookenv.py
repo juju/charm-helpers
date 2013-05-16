@@ -179,30 +179,20 @@ def relations_of_type(reltype=None):
     return relation_data
 
 
-class UnregisteredHookError(Exception):
-    pass
+def open_port(port, protocol="TCP"):
+    "Open a service network port"
+    _args = ['open-port']
+    _args.append('{}/{}'.format(port, protocol))
+    subprocess.check_call(_args)
 
 
-class Hooks(object):
-    def __init__(self):
-        super(Hooks, self).__init__()
-        self._hooks = {}
+def close_port(port, protocol="TCP"):
+    "Close a service network port"
+    _args = ['close-port']
+    _args.append('{}/{}'.format(port, protocol))
+    subprocess.check_call(_args)
 
-    def register(self, name, function):
-        self._hooks[name] = function
 
-    def execute(self, args):
-        hook_name = os.path.basename(args[0])
-        if hook_name in self._hooks:
-            self._hooks[hook_name]()
-        else:
-            raise UnregisteredHookError(hook_name)
-
-    def hook(self, *hook_names):
-        def wrapper(decorated):
-            for hook_name in hook_names:
-                self.register(hook_name, decorated)
-            else:
-                self.register(decorated.__name__, decorated)
-            return decorated
-        return wrapper
+def unit_get(attribute):
+    _args = ('unit-get', attribute)
+    return subprocess.check_output(_args).strip()

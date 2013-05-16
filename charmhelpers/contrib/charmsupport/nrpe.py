@@ -12,8 +12,14 @@ import re
 import shlex
 import yaml
 
-from hookenv import config, local_unit, log, relation_ids, relation_set
-from host import service
+from charmhelpers.core.hookenv import (
+        config,
+        local_unit,
+        log,
+        relation_ids,
+        relation_set,
+    )
+from charmhelpers.core.host import service
 
 # This module adds compatibility with the nrpe-external-master and plain nrpe
 # subordinate charms. To use it in your charm:

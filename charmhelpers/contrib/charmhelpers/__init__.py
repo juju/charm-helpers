@@ -1,27 +1,30 @@
 # Copyright 2012 Canonical Ltd.  This software is licensed under the
 # GNU Affero General Public License version 3 (see the file LICENSE).
 
+import warnings
+warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
+
 """Helper functions for writing Juju charms in Python."""
 
 __metaclass__ = type
-__all__ = ['get_config',
-           'log',
-           'log_entry',
-           'log_exit',
-           'relation_get',
-           'relation_set',
-           'relation_ids',
-           'relation_list',
-           'config_get',
-           'unit_get',
-           'open_port',
-           'close_port',
-           'service_control',
-           'unit_info',
-           'wait_for_machine',
-           'wait_for_page_contents',
-           'wait_for_relation',
-           'wait_for_unit',
+__all__ = ['get_config',             # core.hookenv.config()
+           'log',                    # core.hookenv.log()
+           'log_entry',              # core.hookenv.log()
+           'log_exit',               # core.hookenv.log()
+           'relation_get',           # core.hookenv.relation_get()
+           'relation_set',           # core.hookenv.relation_set()
+           'relation_ids',           # core.hookenv.relation_ids()
+           'relation_list',          # core.hookenv.relation_units()
+           'config_get',             # core.hookenv.config()
+           'unit_get',               # core.hookenv.unit_get()
+           'open_port',              # core.hookenv.open_port()
+           'close_port',             # core.hookenv.close_port()
+           'service_control',        # core.host.service()
+           'unit_info',              # client-side, NOT IMPLEMENTED
+           'wait_for_machine',       # client-side, NOT IMPLEMENTED
+           'wait_for_page_contents', # client-side, NOT IMPLEMENTED
+           'wait_for_relation',      # client-side, NOT IMPLEMENTED
+           'wait_for_unit',          # client-side, NOT IMPLEMENTED
            ]
 
 from collections import namedtuple

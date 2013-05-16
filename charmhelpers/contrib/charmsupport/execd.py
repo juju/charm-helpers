@@ -3,7 +3,7 @@
 import os
 import sys
 import subprocess
-import hookenv
+from charmhelpers.core import hookenv
 
 
 def default_execd_dir():

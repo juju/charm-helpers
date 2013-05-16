@@ -74,7 +74,7 @@ class ExecDTestCase(ExecDBaseTestCase):
 
 
     @patch('subprocess.check_call')
-    @patch('charmhelpers.contrib.charmsupport.hookenv.log')
+    @patch('charmhelpers.core.hookenv.log')
     @patch('os.path.isfile', return_value=True)
     @patch('os.access', return_value=True)
     @patch('charmhelpers.contrib.charmsupport.execd.execd_modules', return_value=['a','b'])
