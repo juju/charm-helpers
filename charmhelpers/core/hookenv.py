@@ -1,8 +1,8 @@
 "Interactions with the Juju environment"
-# Copyright 2012 Canonical Ltd.
+# Copyright 2013 Canonical Ltd.
 #
 # Authors:
-#  Matthew Wedgwood <matthew.wedgwood@canonical.com>
+#  Charm Helpers Developers <juju@lists.ubuntu.com>
 
 import os
 import json
@@ -179,6 +179,20 @@ def relations_of_type(reltype=None):
     return relation_data
 
 
+def relation_types():
+    "Get a list of relation types supported by this charm"
+    charmdir = os.environ.get('CHARM_DIR', '')
+    mdf = open(os.path.join(charmdir, 'metadata.yaml'))
+    md = yaml.safe_load(mdf)
+    rel_types = []
+    for key in ('provides','requires','peers'):
+        section = md.get(key)
+        if section:
+            rel_types.extend(section.keys())
+    mdf.close()
+    return rel_types
+
+
 def open_port(port, protocol="TCP"):
     "Open a service network port"
     _args = ['open-port']
@@ -194,5 +208,5 @@ def close_port(port, protocol="TCP"):
 
 
 def unit_get(attribute):
-    _args = ('unit-get', attribute)
+    _args = ['unit-get', attribute]
     return subprocess.check_output(_args).strip()

@@ -1,11 +1,25 @@
 import json
 
-from mock import patch, call
+from mock import patch, call, mock_open
+from StringIO import StringIO
 from testtools import TestCase
 import yaml
 
 from charmhelpers.core import hookenv
 
+CHARM_METADATA = """name: testmock
+summary: test mock summary
+description: test mock description
+requires:
+    testreqs:
+        interface: mock
+provides:
+    testprov:
+        interface: mock
+peers:
+    testpeer:
+        interface: mock
+"""
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
@@ -442,3 +456,54 @@ class HelpersTest(TestCase):
         self.assertEqual(result['foo'], 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
+
+    @patch('subprocess.check_call')
+    def test_sets_relation(self, check_call_):
+        hookenv.relation_set(foo="bar")
+        check_call_.assert_called_with(['relation-set','foo=bar'])
+
+
+    @patch('subprocess.check_call')
+    def test_sets_relation_with_relation_id(self, check_call_):
+        hookenv.relation_set(relation_id="foo", bar="baz")
+        check_call_.assert_called_with(['relation-set', '-r', 'foo',
+                                         'bar=baz'])
+
+
+    def test_lists_relation_types(self):
+        open_ = mock_open()
+        open_.return_value = StringIO(CHARM_METADATA)
+        with patch('charmhelpers.core.hookenv.open', open_, create=True):
+            with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+                reltypes = set(hookenv.relation_types())
+        open_.assert_called_once_with('/var/empty/metadata.yaml')
+        self.assertEqual(set(('testreqs','testprov','testpeer')), reltypes)
+
+
+    @patch('subprocess.check_call')
+    def test_opens_port(self, check_call_):
+        hookenv.open_port(443, "TCP")
+        hookenv.open_port(80)
+        hookenv.open_port(100, "UDP")
+        calls = [call(['open-port','443/TCP']),
+                 call(['open-port','80/TCP']),
+                 call(['open-port','100/UDP']),
+                ]
+        check_call_.assert_has_calls(calls)
+
+
+    @patch('subprocess.check_call')
+    def test_closes_port(self, check_call_):
+        hookenv.close_port(443, "TCP")
+        hookenv.close_port(80)
+        hookenv.close_port(100, "UDP")
+        calls = [call(['close-port','443/TCP']),
+                 call(['close-port','80/TCP']),
+                 call(['close-port','100/UDP']),
+                ]
+        check_call_.assert_has_calls(calls)
+
+    @patch('subprocess.check_output')
+    def test_gets_unit_attribute(self, check_output_):
+        hookenv.unit_get('foo')
+        check_output_.assert_called_with(['unit-get', 'foo'])
