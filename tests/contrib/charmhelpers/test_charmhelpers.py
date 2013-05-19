@@ -3,7 +3,6 @@
 import unittest
 import yaml
 
-from simplejson import dumps
 from StringIO import StringIO
 from testtools import TestCase
 
@@ -13,8 +12,6 @@ import sys
 # what is specified in PYTHONPATH.
 sys.path.insert(0, 'helpers/python')
 from charmhelpers.contrib import charmhelpers
-
-from subprocess import CalledProcessError
 
 
 class CharmHelpersTestCase(TestCase):
@@ -73,145 +70,6 @@ class CharmHelpersTestCase(TestCase):
             self._make_juju_status_dict(
                 num_units, service_name, unit_state, machine_state))
 
-    def test_get_config(self):
-        # get_config returns the contents of the current charm
-        # configuration, as returned by config-get --format=json.
-        mock_config = {'key': 'value'}
-
-        # Monkey-patch shelltoolbox.command to avoid having to call out
-        # to config-get.
-        self._patch_command(lambda: dumps(mock_config))
-        self.assertEqual(mock_config, charmhelpers.get_config())
-
-    def test_config_get(self):
-        # config_get is used to retrieve individual configuration elements
-        mock_config = {'key': 'value'}
-
-        # Monkey-patch shelltoolbox.command to avoid having to call out
-        # to config-get.
-        self._patch_command(lambda *args: mock_config[args[0]])
-        self.assertEqual(mock_config['key'], charmhelpers.config_get('key'))
-
-    def test_unit_get(self):
-        # unit_get is used to retrieve individual configuration elements
-        mock_config = {'key': 'value'}
-
-        # Monkey-patch shelltoolbox.command to avoid having to call out
-        # to unit-get.
-        self._patch_command(lambda *args: mock_config[args[0]])
-        self.assertEqual(mock_config['key'], charmhelpers.unit_get('key'))
-
-    def test_relation_get(self):
-        # relation_get returns the value of a given relation variable,
-        # as returned by relation-get $VAR.
-        mock_relation_values = {
-            'foo': 'bar',
-            'spam': 'eggs'}
-        self._patch_command(lambda *args: mock_relation_values[args[0]])
-        self.assertEqual('bar', charmhelpers.relation_get('foo'))
-        self.assertEqual('eggs', charmhelpers.relation_get('spam'))
-
-        self._patch_command(lambda *args: mock_relation_values[args[2]])
-        self.assertEqual('bar',
-                         charmhelpers.relation_get('foo', 'test', 'test:1'))
-        self.assertEqual('eggs',
-                         charmhelpers.relation_get('spam', 'test', 'test:1'))
-
-        self._patch_command(lambda *args: '%s' % mock_relation_values)
-        self.assertEqual("{'foo': 'bar', 'spam': 'eggs'}",
-                         charmhelpers.relation_get())
-
-    def test_relation_set(self):
-        # relation_set calls out to relation-set and passes key=value
-        # pairs to it.
-        items_set = {}
-
-        def mock_relation_set(*args):
-            for arg in args:
-                key, value = arg.split("=")
-                items_set[key] = value
-        self._patch_command(mock_relation_set)
-        charmhelpers.relation_set(foo='bar', spam='eggs')
-        self.assertEqual('bar', items_set.get('foo'))
-        self.assertEqual('eggs', items_set.get('spam'))
-
-    def test_relation_ids(self):
-        # relation_ids returns a list of relations id for the given
-        # named relation
-        mock_relation_ids = {'test': 'test:1 test:2'}
-        self._patch_command(lambda *args: mock_relation_ids[args[0]])
-        self.assertEqual(mock_relation_ids['test'].split(),
-                         charmhelpers.relation_ids('test'))
-
-    def test_relation_list(self):
-        # relation_list returns a list of unit names either for the current
-        # context or for the provided relation ID
-        mock_unit_names = {'test:1': 'test/0 test/1 test/2',
-                           'test:2': 'test/3 test/4 test/5'}
-
-        # Patch command for current context use base - context = test:1
-        self._patch_command(lambda: mock_unit_names['test:1'])
-        self.assertEqual(mock_unit_names['test:1'].split(),
-                         charmhelpers.relation_list())
-        # Patch command for provided relation-id
-        self._patch_command(lambda *args: mock_unit_names[args[1]])
-        self.assertEqual(mock_unit_names['test:2'].split(),
-                         charmhelpers.relation_list(rid='test:2'))
-
-    def test_open_close_port(self):
-        # expose calls open-port with port/protocol parameters
-        ports_set = []
-
-        def mock_open_port(*args):
-            for arg in args:
-                ports_set.append(arg)
-
-        def mock_close_port(*args):
-            if args[0] in ports_set:
-                ports_set.remove(args[0])
-        # Monkey patch in the open-port mock
-        self._patch_command(mock_open_port)
-        charmhelpers.open_port(80, "TCP")
-        charmhelpers.open_port(90, "UDP")
-        charmhelpers.open_port(100)
-        self.assertTrue("80/TCP" in ports_set)
-        self.assertTrue("90/UDP" in ports_set)
-        self.assertTrue("100/TCP" in ports_set)
-        # Monkey patch in the close-port mock function
-        self._patch_command(mock_close_port)
-        charmhelpers.close_port(80, "TCP")
-        charmhelpers.close_port(90, "UDP")
-        charmhelpers.close_port(100)
-        # ports_set should now be empty
-        self.assertEquals(len(ports_set), 0)
-
-    def test_service_control(self):
-        # Collect commands that have been run
-        commands_set = {}
-
-        def mock_service(*args):
-            service = args[0]
-            action = args[1]
-            if service not in commands_set:
-                commands_set[service] = []
-            if ((len(commands_set[service]) > 1 and
-                 commands_set[service][-1] == 'stop' and
-                 action == 'restart')):
-                # Service is stopped - so needs 'start'
-                # action as restart will fail
-                commands_set[service].append(action)
-                raise CalledProcessError(1, repr(args))
-            else:
-                commands_set[service].append(action)
-
-        result = ['start', 'stop', 'restart', 'start']
-
-        # Monkey patch service command
-        self._patch_command(mock_service)
-        charmhelpers.service_control('myservice', 'start')
-        charmhelpers.service_control('myservice', 'stop')
-        charmhelpers.service_control('myservice', 'restart')
-        self.assertEquals(result, commands_set['myservice'])
 
     def test_make_charm_config_file(self):
         # make_charm_config_file() writes the passed configuration to a
@@ -427,48 +285,6 @@ class CharmHelpersTestCase(TestCase):
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_page_contents,
             'http://example.com', "This will error", timeout=0)
-
-    def test_log(self):
-        # The "log" function forwards a string on to the juju-log command.
-        logged = []
-
-        def juju_log(*args):
-            logged.append(args)
-        charmhelpers.log('This is a log message', juju_log)
-        # Since we only logged one message, juju-log was only called once..
-        self.assertEqual(len(logged), 1)
-        # The message was included in the arguments passed to juju-log.
-        self.assertIn('This is a log message', logged[0])
-
-    def test_log_escapes_message(self):
-        # The Go version of juju-log interprets any string begining with two
-        # hyphens ("--") as a command-line switch, even if the third character
-        # is non-alphanumeric.  This is different behavior than the Python
-        # version of juju-log.  Therefore we signfiy the end of options by
-        # inserting the string " -- " just before the log message.
-        logged = []
-
-        def juju_log(*args):
-            logged.append(args)
-        charmhelpers.log('This is a log message', juju_log)
-        # The call to juju-log includes the " -- " string before the message.
-        self.assertEqual([('--', 'This is a log message')], logged)
-
-    def test_log_entry(self):
-        # The log_entry function logs a message about the script starting.
-        logged = []
-        self.patch(charmhelpers, 'log', logged.append)
-        self.patch(charmhelpers, 'script_name', lambda: 'SCRIPT-NAME')
-        charmhelpers.log_entry()
-        self.assertEqual(['--> Entering SCRIPT-NAME'], logged)
-
-    def test_log_exit(self):
-        # The log_exit function logs a message about the script ending.
-        logged = []
-        self.patch(charmhelpers, 'log', logged.append)
-        self.patch(charmhelpers, 'script_name', lambda: 'SCRIPT-NAME')
-        charmhelpers.log_exit()
-        self.assertEqual(['<-- Exiting SCRIPT-NAME'], logged)
 
 
 if __name__ == '__main__':

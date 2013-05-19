@@ -7,19 +7,20 @@ warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
 """Helper functions for writing Juju charms in Python."""
 
 __metaclass__ = type
-__all__ = ['get_config',             # core.hookenv.config()
-           'log',                    # core.hookenv.log()
-           'log_entry',              # core.hookenv.log()
-           'log_exit',               # core.hookenv.log()
-           'relation_get',           # core.hookenv.relation_get()
-           'relation_set',           # core.hookenv.relation_set()
-           'relation_ids',           # core.hookenv.relation_ids()
-           'relation_list',          # core.hookenv.relation_units()
-           'config_get',             # core.hookenv.config()
-           'unit_get',               # core.hookenv.unit_get()
-           'open_port',              # core.hookenv.open_port()
-           'close_port',             # core.hookenv.close_port()
-           'service_control',        # core.host.service()
+__all__ = [
+           #'get_config',             # core.hookenv.config()
+           #'log',                    # core.hookenv.log()
+           #'log_entry',              # core.hookenv.log()
+           #'log_exit',               # core.hookenv.log()
+           #'relation_get',           # core.hookenv.relation_get()
+           #'relation_set',           # core.hookenv.relation_set()
+           #'relation_ids',           # core.hookenv.relation_ids()
+           #'relation_list',          # core.hookenv.relation_units()
+           #'config_get',             # core.hookenv.config()
+           #'unit_get',               # core.hookenv.unit_get()
+           #'open_port',              # core.hookenv.open_port()
+           #'close_port',             # core.hookenv.close_port()
+           #'service_control',        # core.host.service()
            'unit_info',              # client-side, NOT IMPLEMENTED
            'wait_for_machine',       # client-side, NOT IMPLEMENTED
            'wait_for_page_contents', # client-side, NOT IMPLEMENTED
@@ -27,137 +28,33 @@ __all__ = ['get_config',             # core.hookenv.config()
            'wait_for_unit',          # client-side, NOT IMPLEMENTED
            ]
 
-from collections import namedtuple
-import json
 import operator
 from shelltoolbox import (
     command,
-    script_name,
-    run,
 )
 import tempfile
 import time
 import urllib2
 import yaml
-from subprocess import CalledProcessError
-
 
 SLEEP_AMOUNT = 0.1
-Env = namedtuple('Env', 'uid gid home')
 # We create a juju_status Command here because it makes testing much,
 # much easier.
 juju_status = lambda: command('juju')('status')
 
+# re-implemented as charmhelpers.fetch.configure_sources()
+#def configure_source(update=False):
+#    source = config_get('source')
+#    if ((source.startswith('ppa:') or
+#         source.startswith('cloud:') or
+#         source.startswith('http:'))):
+#        run('add-apt-repository', source)
+#    if source.startswith("http:"):
+#        run('apt-key', 'import', config_get('key'))
+#    if update:
+#        run('apt-get', 'update')
 
-def log(message, juju_log=command('juju-log')):
-    return juju_log('--', message)
-
-
-def log_entry():
-    log("--> Entering {}".format(script_name()))
-
-
-def log_exit():
-    log("<-- Exiting {}".format(script_name()))
-
-
-def get_config():
-    _config_get = command('config-get', '--format=json')
-    return json.loads(_config_get())
-
-
-def relation_get(attribute=None, unit=None, rid=None):
-    cmd = command('relation-get')
-    if attribute is None and unit is None and rid is None:
-        return cmd().strip()
-    _args = []
-    if rid:
-        _args.append('-r')
-        _args.append(rid)
-    if attribute is not None:
-        _args.append(attribute)
-    if unit:
-        _args.append(unit)
-    return cmd(*_args).strip()
-
-
-def relation_set(**kwargs):
-    cmd = command('relation-set')
-    args = ['{}={}'.format(k, v) for k, v in kwargs.items()]
-    cmd(*args)
-
-
-def relation_ids(relation_name):
-    cmd = command('relation-ids')
-    args = [relation_name]
-    return cmd(*args).split()
-
-
-def relation_list(rid=None):
-    cmd = command('relation-list')
-    args = []
-    if rid:
-        args.append('-r')
-        args.append(rid)
-    return cmd(*args).split()
-
-
-def config_get(attribute):
-    cmd = command('config-get')
-    args = [attribute]
-    return cmd(*args).strip()
-
-
-def unit_get(attribute):
-    cmd = command('unit-get')
-    args = [attribute]
-    return cmd(*args).strip()
-
-
-def open_port(port, protocol="TCP"):
-    cmd = command('open-port')
-    args = ['{}/{}'.format(port, protocol)]
-    cmd(*args)
-
-
-def close_port(port, protocol="TCP"):
-    cmd = command('close-port')
-    args = ['{}/{}'.format(port, protocol)]
-    cmd(*args)
-
-START = "start"
-RESTART = "restart"
-STOP = "stop"
-RELOAD = "reload"
-
-
-def service_control(service_name, action):
-    cmd = command('service')
-    args = [service_name, action]
-    try:
-        if action == RESTART:
-            try:
-                cmd(*args)
-            except CalledProcessError:
-                service_control(service_name, START)
-        else:
-            cmd(*args)
-    except CalledProcessError:
-        log("Failed to perform {} on service {}".format(action, service_name))
-
-
-def configure_source(update=False):
-    source = config_get('source')
-    if ((source.startswith('ppa:') or
-         source.startswith('cloud:') or
-         source.startswith('http:'))):
-        run('add-apt-repository', source)
-    if source.startswith("http:"):
-        run('apt-key', 'import', config_get('key'))
-    if update:
-        run('apt-get', 'update')
-
-
+# DEPRECATED: client-side only
 def make_charm_config_file(charm_config):
     charm_config_file = tempfile.NamedTemporaryFile()
     charm_config_file.write(yaml.dump(charm_config))
@@ -168,6 +65,7 @@ def make_charm_config_file(charm_config):
     return charm_config_file
 
 
+# DEPRECATED: client-side only
 def unit_info(service_name, item_name, data=None, unit=None):
     if data is None:
         data = yaml.safe_load(juju_status())
@@ -192,10 +90,12 @@ def unit_info(service_name, item_name, data=None, unit=None):
     return item
 
 
+# DEPRECATED: client-side only
 def get_machine_data():
     return yaml.safe_load(juju_status())['machines']
 
 
+# DEPRECATED: client-side only
 def wait_for_machine(num_machines=1, timeout=300):
     """Wait `timeout` seconds for `num_machines` machines to come up.
 
@@ -235,6 +135,7 @@ def wait_for_machine(num_machines=1, timeout=300):
     return num_machines, time.time() - start_time
 
 
+# DEPRECATED: client-side only
 def wait_for_unit(service_name, timeout=480):
     """Wait `timeout` seconds for a given service name to come up."""
     wait_for_machine(num_machines=1)
@@ -250,6 +151,7 @@ def wait_for_unit(service_name, timeout=480):
         raise RuntimeError('unit did not start, agent-state: ' + state)
 
 
+# DEPRECATED: client-side only
 def wait_for_relation(service_name, relation_name, timeout=120):
     """Wait `timeout` seconds for a given relation to come up."""
     start_time = time.time()
@@ -262,6 +164,7 @@ def wait_for_relation(service_name, relation_name, timeout=120):
         time.sleep(SLEEP_AMOUNT)
 
 
+# DEPRECATED: client-side only
 def wait_for_page_contents(url, contents, timeout=120, validate=None):
     if validate is None:
         validate = operator.contains

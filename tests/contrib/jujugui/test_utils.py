@@ -468,17 +468,17 @@ class TestSaveOrCreateCertificates(unittest.TestCase):
 class TestCmdLog(unittest.TestCase):
 
     def setUp(self):
-        # Patch the charmhelpers 'command', which powers get_config.  The
+        # Patch the utils 'config', which powers get_config.  The
         # result of this is the mock_config dictionary will be returned.
         # The monkey patch is undone in the tearDown.
-        self.command = charmhelpers.command
+        self.config = utils.config
         fd, self.log_file_name = tempfile.mkstemp()
         os.close(fd)
         mock_config = {'command-log-file': self.log_file_name}
-        charmhelpers.command = lambda *args: lambda: dumps(mock_config)
+        utils.config = lambda *args: mock_config
 
     def tearDown(self):
-        charmhelpers.command = self.command
+        utils.config = self.config
         os.unlink(self.log_file_name)
 
     def test_contents_logged(self):
@@ -491,16 +491,14 @@ class TestStartStop(unittest.TestCase):
 
     def setUp(self):
         self.service_names = []
-        self.actions = []
         self.svc_ctl_call_count = 0
         self.fake_zk_address = '192.168.5.26'
         # Monkey patches.
         self.command = charmhelpers.command
 
-        def service_control_mock(service_name, action):
+        def service_start_mock(service_name):
             self.svc_ctl_call_count += 1
             self.service_names.append(service_name)
-            self.actions.append(action)
 
         def noop(*args):
             pass
@@ -522,7 +520,7 @@ class TestStartStop(unittest.TestCase):
                 self.files[os.path.basename(dest)] = fp.read()
 
         self.functions = dict(
-            service_control=(utils.service_control, service_control_mock),
+            service_start=(utils.service_start, service_start_mock),
             log=(utils.log, noop),
             su=(utils.su, su),
             run=(utils.run, noop),
@@ -555,7 +553,6 @@ class TestStartStop(unittest.TestCase):
         self.assertTrue(self.ssl_cert_path in conf)
         self.assertEqual(self.svc_ctl_call_count, 1)
         self.assertEqual(self.service_names, ['juju-api-improv'])
-        self.assertEqual(self.actions, [charmhelpers.START])
 
     def test_start_agent(self):
         start_agent(self.ssl_cert_path, 'config')
@@ -565,7 +562,6 @@ class TestStartStop(unittest.TestCase):
         self.assertTrue(self.ssl_cert_path in conf)
         self.assertEqual(self.svc_ctl_call_count, 1)
         self.assertEqual(self.service_names, ['juju-api-agent'])
-        self.assertEqual(self.actions, [charmhelpers.START])
 
     def test_start_gui(self):
         ssl_cert_path = '/tmp/certificates/'

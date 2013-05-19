@@ -64,11 +64,12 @@ from shelltoolbox import (
     search_file,
     su,
 )
-from charmhelpers.contrib.charmhelpers import (
-    START,
-    get_config,
+from charmhelpers.core.host import (
+    service_start,
+)
+from charmhelpers.core.hookenv import (
     log,
-    service_control,
+    config,
     unit_get,
 )
 
@@ -263,9 +264,9 @@ def _setupLogging():
     global results_log
     if results_log is not None:
         return
-    config = get_config()
+    cfg = config()
     logging.basicConfig(
-        filename=config['command-log-file'],
+        filename=cfg['command-log-file'],
         level=logging.INFO,
         format="%(asctime)s: %(name)s@%(levelname)s %(message)s")
     results_log = logging.getLogger('juju-gui')
@@ -295,7 +296,7 @@ def start_improv(staging_env, ssl_cert_path,
     render_to_file('config/juju-api-improv.conf.template', context, config_path)
     log('Starting the staging backend.')
     with su('root'):
-        service_control(IMPROV, START)
+        service_start(IMPROV)
 
 
 def start_agent(
@@ -317,7 +318,7 @@ def start_agent(
     render_to_file('config/juju-api-agent.conf.template', context, config_path)
     log('Starting API agent.')
     with su('root'):
-        service_control(AGENT, START)
+        service_start(AGENT)
 
 
 def start_gui(
