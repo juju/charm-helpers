@@ -187,8 +187,7 @@ class HelpersTest(TestCase):
 
         result = hookenv.relation_ids()
 
-        self.assertEqual(result, ids)
-        check_output.assert_called_with(['relation-ids', '--format=json'])
+        self.assertEqual(result, [])
 
     @patch('subprocess.check_output')
     @patch('charmhelpers.core.hookenv.relation_type')
@@ -381,23 +380,62 @@ class HelpersTest(TestCase):
             call(234),
         ])
 
+    @patch('charmhelpers.core.hookenv.relation_types')
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_gets_relations(self, relation_get, related_units,
+                            relation_ids, relation_types):
+        relation_types.return_value = ['t1','t2']
+        relation_ids.return_value = ['i1']
+        related_units.return_value = ['u1','u2']
+        relation_get.return_value = {'key': 'val'}
+
+        result = hookenv.relations()
+
+        self.assertEqual(result, {
+            't1': {
+                'i1': {
+                    'u1': {'key': 'val'},
+                    'u2': {'key': 'val'},
+                 },
+            },
+            't2': {
+                'i1': {
+                    'u1': {'key': 'val'},
+                    'u2': {'key': 'val'},
+                 },
+            },
+       })
+
+
     @patch('charmhelpers.core.hookenv.config')
+    @patch('charmhelpers.core.hookenv.relation_type')
     @patch('charmhelpers.core.hookenv.local_unit')
-    @patch('charmhelpers.core.hookenv.relations_of_type')
+    @patch('charmhelpers.core.hookenv.relation_id')
+    @patch('charmhelpers.core.hookenv.relations')
+    @patch('charmhelpers.core.hookenv.relation_get')
     @patch('charmhelpers.core.hookenv.os')
-    def test_gets_execution_environment(self, os_, relations_of_type,
-                                        local_unit, config):
+    def test_gets_execution_environment(self, os_, relations_get,
+                                        relations, relation_id, local_unit,
+                                        relation_type, config):
         config.return_value = 'some-config'
+        relation_type.return_value = 'some-type'
         local_unit.return_value = 'some-unit'
-        relations_of_type.return_value = 'some-relations'
+        relation_id.return_value = 'some-id'
+        relations.return_value = 'all-relations'
+        relations_get.return_value = 'some-relations'
         os_.environ = 'some-environment'
 
         result = hookenv.execution_environment()
 
         self.assertEqual(result, {
             'conf': 'some-config',
+            'reltype': 'some-type',
             'unit': 'some-unit',
+            'relid': 'some-id',
             'rel': 'some-relations',
+            'rels': 'all-relations',
             'env': 'some-environment',
         })
 
@@ -422,7 +460,7 @@ class HelpersTest(TestCase):
         result = hookenv.relation_get()
 
         self.assertEqual(result['foo'], 'BAR')
-        check_output.assert_called_with(['relation-get', '--format=json'])
+        check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
