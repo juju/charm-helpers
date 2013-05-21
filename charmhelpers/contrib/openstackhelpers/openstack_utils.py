@@ -5,6 +5,7 @@
 import apt_pkg as apt
 import subprocess
 import os
+import sys
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
@@ -42,7 +43,7 @@ def juju_log(msg):
 
 def error_out(msg):
     juju_log("FATAL ERROR: %s" % msg)
-    exit(1)
+    sys.exit(1)
 
 
 def lsb_release():
@@ -64,8 +65,8 @@ def get_os_codename_install_source(src):
         try:
             rel = ubuntu_openstack_release[ubuntu_rel]
         except KeyError:
-            e = 'Code not derive openstack release for '\
-                'this Ubuntu release: %s' % rel
+            e = 'Could not derive openstack release for '\
+                'this Ubuntu release: %s' % ubuntu_rel
             error_out(e)
         return rel
 
@@ -95,7 +96,7 @@ def get_os_version_codename(codename):
     for k, v in openstack_codenames.iteritems():
         if v == codename:
             return k
-    e = 'Code not derive OpenStack version for '\
+    e = 'Could not derive OpenStack version for '\
         'codename: %s' % codename
     error_out(e)
 
@@ -104,6 +105,7 @@ def get_os_codename_package(pkg):
     '''Derive OpenStack release codename from an installed package.'''
     apt.init()
     cache = apt.Cache()
+
     try:
         pkg = cache[pkg]
     except:
@@ -136,8 +138,8 @@ def get_os_version_package(pkg):
     for version, cname in vers_map.iteritems():
         if cname == codename:
             return version
-    e = "Could not determine OpenStack version for package: %s" % pkg
-    error_out(e)
+    #e = "Could not determine OpenStack version for package: %s" % pkg
+    #error_out(e)
 
 
 def configure_installation_source(rel):
