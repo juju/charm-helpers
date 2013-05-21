@@ -48,7 +48,22 @@ FAKE_REPO = {
     }
 }
 
+
 class OpenStackHelpersTestCase(TestCase):
+    def _apt_cache(self):
+        # mocks out the apt cache
+        def cache_get(package):
+            pkg = MagicMock()
+            if package in FAKE_REPO:
+                pkg.name = package
+                pkg.current_ver.ver_str = FAKE_REPO[package]['pkg_vers']
+            else:
+                raise
+            return pkg
+        cache = MagicMock()
+        cache.__getitem__.side_effect = cache_get
+        return cache
+
     @patch('charmhelpers.contrib.openstackhelpers.openstack_utils.lsb_release')
     def test_os_codename_from_install_source(self, mocked_lsb):
         '''Test mapping install source to OpenStack release name'''
@@ -88,7 +103,6 @@ class OpenStackHelpersTestCase(TestCase):
                    'release: natty')
             mocked_err.assert_called_with(_er)
 
-
     def test_os_codename_from_version(self):
         '''Test mapping OpenStack numerical versions to code name'''
         self.assertEquals(openstack.get_os_codename_version('2013.1'),
@@ -102,12 +116,10 @@ class OpenStackHelpersTestCase(TestCase):
                         'version 2014.5.5')
         mocked_error.assert_called_with(expected_err)
 
-
     def test_os_version_from_codename(self):
         '''Test mapping a OpenStack codename to numerical version'''
         self.assertEquals(openstack.get_os_version_codename('folsom'),
                           '2012.2')
-
 
     @patch('charmhelpers.contrib.openstackhelpers.openstack_utils.error_out')
     def test_os_version_from_bad_codename(self, mocked_error):
@@ -116,47 +128,30 @@ class OpenStackHelpersTestCase(TestCase):
         expected_err = 'Could not derive OpenStack version for codename: foo'
         mocked_error.assert_called_with(expected_err)
 
-    def _cache(self):
-        # mocks out the apt cache
-        def cache_get(package):
-            pkg = MagicMock()
-            if package in FAKE_REPO:
-                pkg.name = package
-                pkg.current_ver.ver_str = FAKE_REPO[package]['pkg_vers']
-            else:
-                raise
-            return pkg
-        cache = MagicMock()
-        cache.__getitem__.side_effect = cache_get
-        return cache
-
-
     def test_os_codename_from_package(self):
         '''Test deriving OpenStack codename from an installed package'''
         with patch('apt_pkg.Cache') as cache:
-            cache.return_value = self._cache()
+            cache.return_value = self._apt_cache()
             for pkg, vers in FAKE_REPO.iteritems():
                 if pkg.startswith('bad-'):
                     continue
                 self.assertEquals(openstack.get_os_codename_package(pkg),
                                   vers['os_release'])
 
-
     @patch('charmhelpers.contrib.openstackhelpers.openstack_utils.error_out')
     def test_os_codename_from_bad_package_vrsion(self, mocked_error):
         '''Test deriving OpenStack codename for a poorly versioned package'''
         with patch('apt_pkg.Cache') as cache:
-            cache.return_value = self._cache()
+            cache.return_value = self._apt_cache()
             openstack.get_os_codename_package('bad-version')
             _e = ('Could not determine OpenStack codename for version 2016.1')
             mocked_error.assert_called_with(_e)
-
 
     @patch('charmhelpers.contrib.openstackhelpers.openstack_utils.error_out')
     def test_os_codename_from_bad_package(self, mocked_error):
         '''Test deriving OpenStack codename from an uninstalled package'''
         with patch('apt_pkg.Cache') as cache:
-            cache.return_value = self._cache()
+            cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_codename_package('foo')
             except:
@@ -170,19 +165,18 @@ class OpenStackHelpersTestCase(TestCase):
     def test_os_version_from_package(self, mocked_error):
         '''Test deriving OpenStack version from an installed package'''
         with patch('apt_pkg.Cache') as cache:
-            cache.return_value = self._cache()
+            cache.return_value = self._apt_cache()
             for pkg, vers in FAKE_REPO.iteritems():
                 if pkg.startswith('bad-'):
                     continue
                 self.assertEquals(openstack.get_os_version_package(pkg),
                                   vers['os_version'])
 
-
     @patch('charmhelpers.contrib.openstackhelpers.openstack_utils.error_out')
     def test_os_version_from_bad_package(self, mocked_error):
         '''Test deriving OpenStack version from an uninstalled package'''
         with patch('apt_pkg.Cache') as cache:
-            cache.return_value = self._cache()
+            cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_version_package('foo')
             except:
@@ -191,10 +185,6 @@ class OpenStackHelpersTestCase(TestCase):
                 pass
             _err = 'Could not determine version of installed package: foo'
             mocked_error.assert_called_with(_err)
-
-
-
-
 
     def test_juju_log(self):
         '''Test shelling out to juju-log'''
@@ -214,4 +204,3 @@ class OpenStackHelpersTestCase(TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
