@@ -23,7 +23,7 @@ def service_stop(service_name):
 
 def service(action, service_name):
     cmd = None
-    if os.path.exists(os.path.join('/etc/init', service_name)):
+    if os.path.exists(os.path.join('/etc/init', '%s.conf' % service_name)):
         cmd = ['initctl', action, service_name]
     elif os.path.exists(os.path.join('/etc/init.d', service_name)):
         cmd = [os.path.join('/etc/init.d', service_name), action]

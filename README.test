@@ -2,3 +2,6 @@ Required Packages for Running Tests
 -----------------------------------
 python-shelltoolbox
 python-tempita
+python-nose
+python-mock
+python-testtools
