@@ -6,3 +6,4 @@ charmhelpers/version.py
 .coverage
 .env/
 coverage.xml
+.venv
