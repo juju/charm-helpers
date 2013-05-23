@@ -52,7 +52,7 @@ class HelpersTest(TestCase):
         self.assertTrue(result)
         mock_call.assert_called_with(['initctl', action, service_name])
         exists.assert_has_calls([
-            call(os.path.join('/etc/init', service_name)),
+            call(os.path.join('/etc/init', '%s.conf' % service_name)),
         ])
 
     @patch('subprocess.call')
@@ -71,7 +71,6 @@ class HelpersTest(TestCase):
         mock_call.assert_called_with([os.path.join('/etc/init.d',
                                                    service_name), action])
         exists.assert_has_calls([
-            call(os.path.join('/etc/init', service_name)),
             call(os.path.join('/etc/init.d', service_name)),
         ])
 
