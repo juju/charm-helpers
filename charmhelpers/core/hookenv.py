@@ -1,8 +1,8 @@
 "Interactions with the Juju environment"
-# Copyright 2012 Canonical Ltd.
+# Copyright 2013 Canonical Ltd.
 #
 # Authors:
-#  Matthew Wedgwood <matthew.wedgwood@canonical.com>
+#  Charm Helpers Developers <juju@lists.ubuntu.com>
 
 import os
 import json
@@ -62,8 +62,11 @@ def execution_environment():
     """A convenient bundling of the current execution context"""
     context = {}
     context['conf'] = config()
+    context['reltype'] = relation_type()
+    context['relid'] = relation_id()
     context['unit'] = local_unit()
-    context['rel'] = relations_of_type()
+    context['rels'] = relations()
+    context['rel'] = relation_get()
     context['env'] = os.environ
     return context
 
@@ -112,11 +115,13 @@ def relation_get(attribute=None, unit=None, rid=None):
     if rid:
         _args.append('-r')
         _args.append(rid)
-    if attribute is not None:
-        _args.append(attribute)
+    _args.append(attribute or '-')
     if unit:
         _args.append(unit)
-    return json.loads(subprocess.check_output(_args))
+    try:
+        return json.loads(subprocess.check_output(_args))
+    except ValueError:
+        return None
 
 
 def relation_set(relation_id=None, **kwargs):
@@ -134,7 +139,8 @@ def relation_ids(reltype=None):
     relid_cmd_line = ['relation-ids', '--format=json']
     if reltype is not None:
         relid_cmd_line.append(reltype)
-    return json.loads(subprocess.check_output(relid_cmd_line))
+        return json.loads(subprocess.check_output(relid_cmd_line))
+    return []
 
 
 def related_units(relid=None):
@@ -177,6 +183,53 @@ def relations_of_type(reltype=None):
             relation['__relid__'] = relid
             relation_data.append(relation)
     return relation_data
+
+
+def relation_types():
+    "Get a list of relation types supported by this charm"
+    charmdir = os.environ.get('CHARM_DIR', '')
+    mdf = open(os.path.join(charmdir, 'metadata.yaml'))
+    md = yaml.safe_load(mdf)
+    rel_types = []
+    for key in ('provides','requires','peers'):
+        section = md.get(key)
+        if section:
+            rel_types.extend(section.keys())
+    mdf.close()
+    return rel_types
+
+
+def relations():
+    rels = {}
+    for reltype in relation_types():
+        relids = {}
+        for relid in relation_ids(reltype):
+            units = {}
+            for unit in related_units(relid):
+                reldata = relation_get(unit=unit, rid=relid)
+                units[unit] = reldata
+            relids[relid] = units
+        rels[reltype] = relids
+    return rels
+
+
+def open_port(port, protocol="TCP"):
+    "Open a service network port"
+    _args = ['open-port']
+    _args.append('{}/{}'.format(port, protocol))
+    subprocess.check_call(_args)
+
+
+def close_port(port, protocol="TCP"):
+    "Close a service network port"
+    _args = ['close-port']
+    _args.append('{}/{}'.format(port, protocol))
+    subprocess.check_call(_args)
+
+
+def unit_get(attribute):
+    _args = ['unit-get', attribute]
+    return subprocess.check_output(_args).strip()
 
 
 class UnregisteredHookError(Exception):
