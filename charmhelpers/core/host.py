@@ -73,7 +73,7 @@ def rsync(from_path, to_path, flags='-r', options=None):
     cmd.append(from_path.format(**context))
     cmd.append(to_path.format(**context))
     log(" ".join(cmd))
-    return subprocess.check_output(cmd).output.strip()
+    return subprocess.check_output(cmd).strip()
 
 
 def symlink(source, destination):
