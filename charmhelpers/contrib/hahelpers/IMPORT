@@ -1,0 +1,7 @@
+Source: lp:~openstack-charmers/openstack-charm-helpers/ha-helpers
+
+ha-helpers/lib/apache_utils.py -> charm-helpers/charmhelpers/contrib/openstackhelpers/apache_utils.py
+ha-helpers/lib/cluster_utils.py -> charm-helpers/charmhelpers/contrib/openstackhelpers/cluster_utils.py
+ha-helpers/lib/ceph_utils.py -> charm-helpers/charmhelpers/contrib/openstackhelpers/ceph_utils.py
+ha-helpers/lib/haproxy_utils.py -> charm-helpers/charmhelpers/contrib/openstackhelpers/haproxy_utils.py
+ha-helpers/lib/utils.py -> charm-helpers/charmhelpers/contrib/openstackhelpers/utils.py
