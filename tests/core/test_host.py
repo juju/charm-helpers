@@ -207,7 +207,7 @@ class HelpersTest(TestCase):
         }
         from_path = '/from/this/path/{foo}'
         to_path = '/to/this/path/{bar}'
-        check_output.return_value.output = ' some output '
+        check_output.return_value = ' some output '
 
         result = host.rsync(from_path, to_path)
 
