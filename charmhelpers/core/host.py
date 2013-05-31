@@ -106,9 +106,10 @@ def mkdir(path, owner='root', group='root', perms=0555, force=False):
     os.chown(realpath, uid, gid)
 
 
-def write_file(path, fmtstr, owner='root', group='root', perms=0444):
+def write_file(path, fmtstr, owner='root', group='root', perms=0444, **kwargs):
     """Create or overwrite a file with the contents of a string"""
     context = execution_environment()
+    context.update(kwargs)
     log("Writing file {} {}:{} {:o}".format(path, owner, group,
         perms))
     uid = pwd.getpwnam(owner.format(**context)).pw_uid
