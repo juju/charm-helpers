@@ -124,10 +124,12 @@ def relation_get(attribute=None, unit=None, rid=None):
         return None
 
 
-def relation_set(relation_id=None, **kwargs):
+def relation_set(relation_id=None, relation_settings={}, **kwargs):
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
+    for k, v in relation_settings.items():
+        relation_cmd_line.append('{}={}'.format(k, v))
     for k, v in kwargs.items():
         relation_cmd_line.append('{}={}'.format(k, v))
     subprocess.check_call(relation_cmd_line)
