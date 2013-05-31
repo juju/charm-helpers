@@ -16,6 +16,9 @@ SETUP = {
     'url': "https://code.launchpad.net/charm-helpers",
     'packages': [
         "charmhelpers",
+        "charmhelpers.core",
+        "charmhelpers.fetch",
+        "charmhelpers.payload",
         "charmhelpers.contrib.charmhelpers",
         "charmhelpers.contrib.charmsupport",
         "charmhelpers.contrib.hahelpers",
