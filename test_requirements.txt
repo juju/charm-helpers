@@ -1,0 +1,18 @@
+# If you don't have the required packages on your system and prefer
+# to keep your system clean, you can do the following to run the
+# charm-helper test suite:
+# $ virtualenv .env
+# $ . .env/bin/activate
+# $ pip install -r test_requirements.txt
+# Then `make test` should find all its dependencies.
+coverage==3.6
+launchpadlib==1.10.2
+mock==1.0.1
+nose==1.1.2
+PyYAML==3.10
+# Note: This is compiled and will require libapt-pkg-dev for headers.
+python-apt
+simplejson==3.3.0
+testtools==0.9.31
+Tempita==0.5.1
+bzr+http://bazaar.launchpad.net/~yellow/python-shelltoolbox/trunk@17#egg=shelltoolbox

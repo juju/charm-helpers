@@ -1,4 +1,5 @@
 PROJECT=charmhelpers
+PYTHON := /usr/bin/env python
 SUITE=unstable
 TESTS=tests/
 
@@ -32,7 +33,7 @@ userinstall:
 
 test:
 	@echo Starting tests...
-	@nosetests --nologcapture tests/
+	@$(PYTHON) /usr/bin/nosetests --nologcapture tests/
 
 lint:
 	@echo Checking for Python syntax...
