@@ -135,11 +135,11 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.local_unit(), 'foo')
 
-    @patch('subprocess.check_output')
-    def test_gets_unit_private_ip(self, _chkoutput):
-        _chkoutput.return_value = 'foo'
+    @patch('charmhelpers.core.hookenv.unit_get')
+    def test_gets_unit_private_ip(self, _unitget):
+        _unitget.return_value = 'foo'
         self.assertEqual("foo", hookenv.unit_private_ip())
-        _chkoutput.assert_called_with(['unit-get','private-address'])
+        _unitget.assert_called_with('private-address')
 
     @patch('charmhelpers.core.hookenv.os')
     def test_checks_that_is_running_in_relation_hook(self, os_):

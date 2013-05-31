@@ -235,7 +235,7 @@ def unit_get(attribute):
 
 
 def unit_private_ip():
-    return subprocess.check_output(['unit-get','private-address'])
+    return unit_get('private-address')
 
 
 class UnregisteredHookError(Exception):
