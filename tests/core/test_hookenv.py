@@ -497,8 +497,14 @@ class HelpersTest(TestCase):
                                          123, 'baz-scope', 'baz-unit'])
 
     @patch('subprocess.check_call')
-    def test_sets_relation(self, check_call_):
+    def test_sets_relation_with_kwargs(self, check_call_):
         hookenv.relation_set(foo="bar")
+        check_call_.assert_called_with(['relation-set','foo=bar'])
+
+
+    @patch('subprocess.check_call')
+    def test_sets_relation_with_dict(self, check_call_):
+        hookenv.relation_set(relation_settings={"foo":"bar"})
         check_call_.assert_called_with(['relation-set','foo=bar'])
 
 
