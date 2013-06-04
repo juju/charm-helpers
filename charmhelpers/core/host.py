@@ -23,7 +23,7 @@ def service_stop(service_name):
 
 def service(action, service_name):
     cmd = None
-    if os.path.exists(os.path.join('/etc/init', service_name)):
+    if os.path.exists(os.path.join('/etc/init', '%s.conf' % service_name)):
         cmd = ['initctl', action, service_name]
     elif os.path.exists(os.path.join('/etc/init.d', service_name)):
         cmd = [os.path.join('/etc/init.d', service_name), action]
@@ -73,7 +73,7 @@ def rsync(from_path, to_path, flags='-r', options=None):
     cmd.append(from_path.format(**context))
     cmd.append(to_path.format(**context))
     log(" ".join(cmd))
-    return subprocess.check_output(cmd).output.strip()
+    return subprocess.check_output(cmd).strip()
 
 
 def symlink(source, destination):
@@ -106,9 +106,10 @@ def mkdir(path, owner='root', group='root', perms=0555, force=False):
     os.chown(realpath, uid, gid)
 
 
-def write_file(path, fmtstr, owner='root', group='root', perms=0444):
+def write_file(path, fmtstr, owner='root', group='root', perms=0444, **kwargs):
     """Create or overwrite a file with the contents of a string"""
     context = execution_environment()
+    context.update(kwargs)
     log("Writing file {} {}:{} {:o}".format(path, owner, group,
         perms))
     uid = pwd.getpwnam(owner.format(**context)).pw_uid
