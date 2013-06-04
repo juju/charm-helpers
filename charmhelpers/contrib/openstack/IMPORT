@@ -1,0 +1,9 @@
+Source: lp:~openstack-charmers/openstack-charm-helpers/ha-helpers
+
+ha-helpers/lib/openstack-common -> charm-helpers/charmhelpers/contrib/openstackhelpers/openstack-common
+ha-helpers/lib/openstack_common.py -> charm-helpers/charmhelpers/contrib/openstackhelpers/openstack_common.py
+ha-helpers/lib/nova -> charm-helpers/charmhelpers/contrib/openstackhelpers/nova
+ha-helpers/lib/nova/nova-common -> charm-helpers/charmhelpers/contrib/openstackhelpers/nova/nova-common
+ha-helpers/lib/nova/grizzly -> charm-helpers/charmhelpers/contrib/openstackhelpers/nova/grizzly
+ha-helpers/lib/nova/essex -> charm-helpers/charmhelpers/contrib/openstackhelpers/nova/essex
+ha-helpers/lib/nova/folsom -> charm-helpers/charmhelpers/contrib/openstackhelpers/nova/folsom
