@@ -22,11 +22,6 @@ class ExecDTestCase(TestCase):
         env_patcher.start()
         self.addCleanup(env_patcher.stop)
 
-        # We don't want to see stderr messages in test output.
-        patcher = patch('sys.stdout')
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
     def test_default_execd_dir(self):
         expected = os.path.join(self.test_charm_dir, 'exec.d')
         default_dir = execd.default_execd_dir()
@@ -129,7 +124,8 @@ class ExecDTestCase(TestCase):
         self.make_preinstall_executable(module_dir='basenode',
                                         error_on_preinstall=True)
 
-        execd.execd_run('charm-pre-install')
+        with open(os.devnull, 'wb') as devnull:
+            execd.execd_run('charm-pre-install', stderr=devnull)
 
         expected_log = ('Error (126) running  {}/exec.d/basenode/'
                         'charm-pre-install. Output: None'.format(
@@ -143,7 +139,9 @@ class ExecDTestCase(TestCase):
         self.make_preinstall_executable(module_dir='basenode',
                                         error_on_preinstall=True)
 
-        execd.execd_run('charm-pre-install', die_on_error=True)
+        with open(os.devnull, 'wb') as devnull:
+            execd.execd_run('charm-pre-install', die_on_error=True,
+                            stderr=devnull)
 
         # 126: Command invoked cannot execute
         exit_.assert_called_with(126)

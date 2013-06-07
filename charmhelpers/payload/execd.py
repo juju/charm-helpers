@@ -26,10 +26,10 @@ def execd_submodule_paths(command, execd_dir=None):
             yield path
 
 
-def execd_run(command, execd_dir=None, die_on_error=False):
+def execd_run(command, execd_dir=None, die_on_error=False, stderr=None):
     for submodule_path in execd_submodule_paths(command, execd_dir):
         try:
-            subprocess.check_call(submodule_path, shell=True)
+            subprocess.check_call(submodule_path, shell=True, stderr=stderr)
         except subprocess.CalledProcessError as e:
             hookenv.log("Error ({}) running  {}. Output: {}".format(
                 e.returncode, e.cmd, e.output))
