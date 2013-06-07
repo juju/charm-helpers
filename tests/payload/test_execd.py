@@ -96,6 +96,12 @@ class ExecDTestCase(TestCase):
             for module in modules]
         self.assertSetEqual(set(actual_mod_paths), set(expected_mod_paths))
 
+    def test_execd_module_paths_no_execd_dir(self):
+        """Empty list is returned when the exec.d doesn't exist."""
+        actual_mod_paths = list(execd.execd_module_paths())
+
+        self.assertEqual(actual_mod_paths, [])
+
     def test_execd_submodule_list(self):
         modules = ['basenode', 'mod2', 'c']
         for module in modules:

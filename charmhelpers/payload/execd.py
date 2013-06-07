@@ -13,6 +13,10 @@ def default_execd_dir():
 def execd_module_paths(execd_dir=None):
     if not execd_dir:
         execd_dir = default_execd_dir()
+
+    if not os.path.exists(execd_dir):
+        return
+
     for subpath in os.listdir(execd_dir):
         module = os.path.join(execd_dir, subpath)
         if os.path.isdir(module):
