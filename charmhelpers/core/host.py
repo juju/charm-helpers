@@ -151,6 +151,10 @@ def apt_install(packages, options=None, fatal=False):
         subprocess.call(cmd)
 
 
+def apt_update():
+    subprocess.check_call(['apt-get', 'update'])
+
+
 def mount(device, mountpoint, options=None, persist=False):
     '''Mount a filesystem'''
     cmd_args = ['mount']
