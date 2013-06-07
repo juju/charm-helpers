@@ -8,22 +8,18 @@ from tempfile import mkdtemp
 
 from charmhelpers.payload import execd
 
-class ExecDBaseTestCase(TestCase):
+class ExecDTestCase(TestCase):
+
     def setUp(self):
-        super(ExecDBaseTestCase, self).setUp()
+        super(ExecDTestCase, self).setUp()
         charm_dir = mkdtemp()
+        self.addCleanup(shutil.rmtree, self.test_charm_dir)
         self.test_charm_dir = charm_dir
 
         env_patcher = patch.dict('os.environ',
                                 {'CHARM_DIR': self.test_charm_dir})
         env_patcher.start()
         self.addCleanup(env_patcher.stop)
-
-
-    def cleanUp(self):
-        shutil.rmtree(self.test_charm_dir)
-
-class ExecDTestCase(ExecDBaseTestCase):
 
     def test_default_execd_dir(self):
         expected = os.path.join(self.test_charm_dir, 'exec.d')
