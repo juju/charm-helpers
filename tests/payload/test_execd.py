@@ -42,8 +42,8 @@ class ExecDTestCase(TestCase):
                                               'charm-pre-install')
         pre_install_success_path = os.path.join(module_path,
                                                 'charm-pre-install-success')
-        with open(charm_pre_install_path, 'w+') as fd:
-            fd.write("#!/bin/bash\n"
+        with open(charm_pre_install_path, 'w+') as f:
+            f.write("#!/bin/bash\n"
                      "/usr/bin/touch {}".format(pre_install_success_path))
         perms = stat.S_IXUSR
         # If the charm-pre-install should run without errors,
