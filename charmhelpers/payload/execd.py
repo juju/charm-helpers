@@ -11,6 +11,7 @@ def default_execd_dir():
 
 
 def execd_module_paths(execd_dir=None):
+    """Generate a list of full paths to modules within execd_dir."""
     if not execd_dir:
         execd_dir = default_execd_dir()
 
@@ -24,6 +25,8 @@ def execd_module_paths(execd_dir=None):
 
 
 def execd_submodule_paths(command, execd_dir=None):
+    """Generate a list of full paths to the specified command within exec_dir.
+    """
     for module_path in execd_module_paths(execd_dir):
         path = os.path.join(module_path, command)
         if os.access(path, os.X_OK) and os.path.isfile(path):
@@ -31,6 +34,7 @@ def execd_submodule_paths(command, execd_dir=None):
 
 
 def execd_run(command, execd_dir=None, die_on_error=False, stderr=None):
+    """Run command for each module within execd_dir which defines it."""
     for submodule_path in execd_submodule_paths(command, execd_dir):
         try:
             subprocess.check_call(submodule_path, shell=True, stderr=stderr)
@@ -42,4 +46,5 @@ def execd_run(command, execd_dir=None, die_on_error=False, stderr=None):
 
 
 def execd_preinstall(execd_dir=None):
+    """Run charm-pre-install for each module within execd_dir."""
     execd_run('charm-pre-install', execd_dir=execd_dir)
