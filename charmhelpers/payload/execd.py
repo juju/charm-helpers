@@ -7,7 +7,7 @@ from charmhelpers.core import hookenv
 
 
 def default_execd_dir():
-    return os.path.join(os.environ['CHARM_DIR'],'exec.d')
+    return os.path.join(os.environ['CHARM_DIR'], 'exec.d')
 
 
 def execd_module_paths(execd_dir=None):
@@ -28,11 +28,11 @@ def execd_submodule_paths(command, execd_dir=None):
 
 def execd_run(command, execd_dir=None, die_on_error=False):
     for submodule_path in execd_submodule_paths(command, execd_dir):
-        subprocess.check_call(submodule_path, shell=True)
         try:
             subprocess.check_call(submodule_path, shell=True)
         except subprocess.CalledProcessError as e:
-            hookenv.log(e.output)
+            hookenv.log("Error ({}) running  {}. Output: {}".format(
+                e.returncode, e.cmd, e.output))
             if die_on_error:
                 sys.exit(e.returncode)
 
