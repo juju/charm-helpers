@@ -1,7 +1,8 @@
 from testtools import TestCase
-from mock import patch, call
+from mock import patch
 import os
 import shutil
+import stat
 from subprocess import CalledProcessError
 
 from tempfile import mkdtemp
@@ -13,7 +14,7 @@ class ExecDTestCase(TestCase):
     def setUp(self):
         super(ExecDTestCase, self).setUp()
         charm_dir = mkdtemp()
-        self.addCleanup(shutil.rmtree, self.test_charm_dir)
+        self.addCleanup(shutil.rmtree, charm_dir)
         self.test_charm_dir = charm_dir
 
         env_patcher = patch.dict('os.environ',
@@ -27,6 +28,42 @@ class ExecDTestCase(TestCase):
 
         self.assertEqual(expected, default_dir)
 
+    def make_preinstall_executable(self, module_dir, execd_dir='exec.d'):
+        """Add a charm-pre-install to module dir.
+        
+        When executed, the charm-pre-install will create a second
+        file in the same directory, charm-pre-install-success.
+        """
+        module_path = os.path.join(self.test_charm_dir, execd_dir, module_dir) 
+        os.makedirs(module_path)
+
+        charm_pre_install_path = os.path.join(module_path,
+                                              'charm-pre-install')
+        pre_install_success_path = os.path.join(module_path,
+                                                'charm-pre-install-success')
+        with open(charm_pre_install_path, 'w+') as fd:
+            fd.write("#!/bin/bash\n"
+                     "/usr/bin/touch {}".format(pre_install_success_path))
+        os.chmod(charm_pre_install_path, stat.S_IXUSR | stat.S_IRUSR)
+
+    def assert_preinstall_called_for_mod(self, module_dir,
+                                         execd_dir='exec.d'):
+        """Asserts that the charm-pre-install-success file exists."""
+        expected_file = os.path.join(self.test_charm_dir, execd_dir,
+                                     module_dir, 'charm-pre-install-success')
+        files = os.listdir(os.path.dirname(expected_file))
+        self.assertTrue(os.path.exists(expected_file), "files were: %s. charmdir is: %s" % (files, self.test_charm_dir))
+
+    def test_execd_preinstall(self):
+        """All charm-pre-install hooks are executed."""
+        self.make_preinstall_executable(module_dir='basenode')
+        self.make_preinstall_executable(module_dir='mod2')
+
+        execd.execd_preinstall()
+
+        self.assert_preinstall_called_for_mod('basenode')
+        self.assert_preinstall_called_for_mod('mod2')
+
     @patch('charmhelpers.payload.execd.execd_run')
     def test_execd_preinstall_calls_charm_pre_install(self, mock_execd_run):
         execd_dir = 'testdir'
@@ -35,11 +72,13 @@ class ExecDTestCase(TestCase):
         mock_execd_run.assert_called_with(execd_dir, 'charm-pre-install')
 
 
-    @patch('charmhelpers.payload.execd.default_execd_dir', return_value='foo')
-    @patch('os.listdir', return_value=['a','b','c'])
-    @patch('os.path.isdir', return_value=True)
+    @patch('charmhelpers.payload.execd.default_execd_dir')
+    @patch('os.listdir')
+    @patch('os.path.isdir')
     def test_execd_module_list_from_env(self, mock_isdir, mock_listdir,
                                         mock_defdir):
+        mock_isdir.return_value = True
+        mock_defdir.return_value = 'foo'
         module_names = ['a','b','c']
         mock_listdir.return_value = module_names
 
@@ -53,10 +92,11 @@ class ExecDTestCase(TestCase):
 
 
     @patch('charmhelpers.payload.execd.default_execd_dir')
-    @patch('os.listdir', return_value=['a','b','c'])
-    @patch('os.path.isdir', return_value=True)
+    @patch('os.listdir')
+    @patch('os.path.isdir')
     def test_execd_module_list_with_dir(self, mock_isdir, mock_listdir,
                                         mock_defdir):
+        mock_isdir.return_value = True
         module_names = ['a','b','c']
         mock_listdir.return_value = module_names
 
@@ -70,10 +110,12 @@ class ExecDTestCase(TestCase):
         mock_isdir.assert_has_calls([call(d) for d in expected])
 
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('os.access', return_value=True)
+    @patch('os.path.isfile')
+    @patch('os.access')
     @patch('charmhelpers.payload.execd.execd_module_paths')
     def test_execd_submodule_list(self, modlist_, access_, isfile_):
+        isfile_.return_value = True
+        access_.return_value = True
         module_list = ['a','b','c']
         modlist_.return_value = module_list
         submodules = [s for s in execd.execd_submodule_paths('sm')]

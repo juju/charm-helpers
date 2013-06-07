@@ -19,15 +19,16 @@ def execd_module_paths(execd_dir=None):
             yield module
 
 
-def execd_submodule_paths(submodule, execd_dir=None):
+def execd_submodule_paths(command, execd_dir=None):
     for module_path in execd_module_paths(execd_dir):
-        path = os.path.join(module_path, submodule)
+        path = os.path.join(module_path, command)
         if os.access(path, os.X_OK) and os.path.isfile(path):
             yield path
 
 
-def execd_run(submodule, execd_dir=None, die_on_error=False):
-    for submodule_path in execd_submodule_paths(submodule, execd_dir):
+def execd_run(command, execd_dir=None, die_on_error=False):
+    for submodule_path in execd_submodule_paths(command, execd_dir):
+        subprocess.check_call(submodule_path, shell=True)
         try:
             subprocess.check_call(submodule_path, shell=True)
         except subprocess.CalledProcessError as e:
@@ -37,4 +38,4 @@ def execd_run(submodule, execd_dir=None, die_on_error=False):
 
 
 def execd_preinstall(execd_dir=None):
-    execd_run(execd_dir, 'charm-pre-install')
+    execd_run('charm-pre-install', execd_dir=execd_dir)
