@@ -148,6 +148,14 @@ def apt_install(packages, options=None, fatal=False):
         subprocess.call(cmd)
 
 
+def apt_update(fatal=False):
+    """Update local apt cache"""
+    cmd = ['apt-get', 'update']
+    if fatal:
+        subprocess.check_call(cmd)
+    else:
+        subprocess.call(cmd)
+
 def mount(device, mountpoint, options=None, persist=False):
     '''Mount a filesystem'''
     cmd_args = ['mount']

@@ -465,6 +465,18 @@ class HelpersTest(TestCase):
         check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
                                        'install', 'foo', 'bar'])
 
+    @patch('subprocess.check_call')
+    def test_apt_update_fatal(self, check_call):
+        host.apt_update(fatal=True)
+        check_call.assert_called_with(['apt-get', 'update'])
+
+
+    @patch('subprocess.call')
+    def test_apt_update_nonfatal(self, call):
+        host.apt_update()
+        call.assert_called_with(['apt-get', 'update'])
+
+
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_mounts_a_device(self, log, check_output):
