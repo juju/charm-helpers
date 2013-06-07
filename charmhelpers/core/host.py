@@ -5,6 +5,7 @@
 #  Nick Moffitt <nick.moffitt@canonical.com>
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
+import apt_pkg
 import os
 import pwd
 import grp
@@ -12,6 +13,8 @@ import subprocess
 
 from hookenv import log, execution_environment
 
+class CharmHelperHostError(Exception):
+    pass
 
 def service_start(service_name):
     service('start', service_name)
@@ -130,6 +133,22 @@ def render_template_file(source, destination, **kwargs):
                    **kwargs)
 
 
+def filter_required_packages(packages):
+    """Returns a list of packages that require installation"""
+    apt_pkg.init()
+    cache = apt_pkg.Cache()
+    _pkgs = []
+    for package in packages:
+        try:
+            p = cache[package]
+            p.current_ver or _pkgs.append(package)
+        except KeyError:
+            log('Package {} has no installation candidate.'.format(package),
+                level='ERROR')
+            raise CharmHelperHostError
+    return _pkgs
+
+
 def apt_install(packages, options=None, fatal=False):
     """Install one or more packages"""
     options = options or []
@@ -155,6 +174,7 @@ def apt_update(fatal=False):
         subprocess.check_call(cmd)
     else:
         subprocess.call(cmd)
+
 
 def mount(device, mountpoint, options=None, persist=False):
     '''Mount a filesystem'''

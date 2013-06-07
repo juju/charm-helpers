@@ -17,6 +17,30 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
+FAKE_APT_CACHE = {
+    # an installed package
+    'vim': {
+        'current_ver': '2:7.3.547-6ubuntu5'
+    },
+    # a uninstalled installation candidate
+    'emacs': {
+    }
+}
+
+def fake_apt_cache():
+    def _get(package):
+        pkg = MagicMock()
+        if package not in FAKE_APT_CACHE:
+            raise KeyError
+        pkg.name = package
+        if 'current_ver' in FAKE_APT_CACHE[package]:
+            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
+        else:
+            pkg.current_ver = None
+        return pkg
+    cache = MagicMock()
+    cache.__getitem__.side_effect = _get
+    return cache
 
 @contextmanager
 def patch_open():
@@ -470,12 +494,30 @@ class HelpersTest(TestCase):
         host.apt_update(fatal=True)
         check_call.assert_called_with(['apt-get', 'update'])
 
-
     @patch('subprocess.call')
     def test_apt_update_nonfatal(self, call):
         host.apt_update()
         call.assert_called_with(['apt-get', 'update'])
 
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_missing(self, cache):
+        cache.side_effect = fake_apt_cache
+        result = host.filter_required_packages(['vim', 'emacs'])
+        self.assertEquals(result, ['emacs'])
+
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_none_missing(self, cache):
+        cache.side_effect = fake_apt_cache
+        result = host.filter_required_packages(['vim'])
+        self.assertEquals(result, [])
+
+    @patch.object(host, 'log')
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_not_available(self, cache, log):
+        cache.side_effect = fake_apt_cache
+        self.assertRaises(host.CharmHelperHostError,
+                          host.filter_required_packages,
+                          packages=['joe'])
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
