@@ -183,6 +183,26 @@ class HelpersTest(TestCase):
         ])
         getpwnam.assert_called_with(username)
 
+    @patch('pwd.getpwnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_adds_a_systemuser(self, log, check_call, getpwnam):
+        username = 'johndoe'
+        existing_user_pwnam = KeyError('user not found')
+        new_user_pwnam = 'some user pwnam'
+
+        getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
+
+        result = host.adduser(username, system_user=True)
+
+        self.assertEqual(result, new_user_pwnam)
+        check_call.assert_called_with([
+            'useradd',
+            '--system',
+            username
+        ])
+        getpwnam.assert_called_with(username)
+
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
     def test_adds_a_user_to_a_group(self, log, check_call):
@@ -421,6 +441,13 @@ class HelpersTest(TestCase):
 
             mock_open.assert_called_with('/some/path/FOO', 'r')
             write_file.assert_called_with('/some/path/BAR', content, foo2='2')
+
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_apt_update(self, log, mock_call):
+        host.apt_update()
+
+        mock_call.assert_called_with(['apt-get', 'update'])
 
     @patch('subprocess.call')
     @patch.object(host, 'log')
