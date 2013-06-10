@@ -442,13 +442,6 @@ class HelpersTest(TestCase):
             mock_open.assert_called_with('/some/path/FOO', 'r')
             write_file.assert_called_with('/some/path/BAR', content, foo2='2')
 
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_apt_update(self, log, mock_call):
-        host.apt_update()
-
-        mock_call.assert_called_with(['apt-get', 'update'])
-
     @patch('subprocess.call')
     @patch.object(host, 'log')
     def test_installs_apt_packages(self, log, mock_call):
