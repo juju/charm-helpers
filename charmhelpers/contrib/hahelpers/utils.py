@@ -14,6 +14,7 @@ import os
 import subprocess
 import socket
 import sys
+import hashlib
 
 
 def do_hooks(hooks):
@@ -322,6 +323,32 @@ def running(service):
             return True
         else:
             return False
+
+
+def file_hash(path):
+    if os.path.exists(path):
+        h = hashlib.md5()
+        with open(path, 'r') as source:
+            h.update(source.read())  # IGNORE:E1101 - it does have update
+        return h.hexdigest()
+    else:
+        return None
+
+
+def inteli_restart(restart_map):
+    def wrap(f):
+        def wrapped_f(*args):
+            checksums = {}
+            for path in restart_map:
+                checksums[path] = file_hash(path)
+            f(*args)
+            restarts = []
+            for path in restart_map:
+                if checksums[path] != file_hash(path):
+                    restarts += restart_map[path]
+            restart(*list(set(restarts)))
+        return wrapped_f
+    return wrap
 
 
 def is_relation_made(relation, key='private-address'):
