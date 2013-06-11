@@ -192,7 +192,7 @@ def mounts():
 
 
 def file_hash(path):
-    ''' Generate a md5 hash of 'path' or None if not found '''
+    ''' Generate a md5 hash of the contents of 'path' or None if not found '''
     if os.path.exists(path):
         h = hashlib.md5()
         with open(path, 'r') as source:
@@ -205,18 +205,18 @@ def file_hash(path):
 def restart_on_change(restart_map):
     ''' Restart services based on configuration files changing
 
-This function is used a decorator, for example
+    This function is used a decorator, for example
 
-    @restart_on_change({
-        '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
-        })
-    def ceph_client_changed():
-        ...
+        @restart_on_change({
+            '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
+            })
+        def ceph_client_changed():
+            ...
 
-In this example, the cinder-api and cinder-volume services
-would be restarted if /etc/ceph/ceph.conf is changed by the
-ceph_client_changed function.
-'''
+    In this example, the cinder-api and cinder-volume services
+    would be restarted if /etc/ceph/ceph.conf is changed by the
+    ceph_client_changed function.
+    '''
     def wrap(f):
         def wrapped_f(*args):
             checksums = {}
