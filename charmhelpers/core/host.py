@@ -231,4 +231,3 @@ def restart_on_change(restart_map):
                 service('restart', service_name)
         return wrapped_f
     return wrap
-

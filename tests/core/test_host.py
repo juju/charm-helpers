@@ -565,15 +565,15 @@ class HelpersTest(TestCase):
 
     _hash_files = {
         '/etc/exists.conf': 'lots of nice ceph configuration',
-        '/etc/missing.conf': None          
-        }
+        '/etc/missing.conf': None
+    }
 
     @patch('os.path.exists')
     def test_file_hash_exists(self, exists):
         filename = '/etc/exists.conf'
-        exists.side_effect = [ True ]
+        exists.side_effect = [True]
         h = hashlib.md5()
-        h.update(self._hash_files[filename]) # IGNORE:E1101 - it does have update
+        h.update(self._hash_files[filename])  # IGNORE:E1101
         digest = h.hexdigest()
         with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = self._hash_files[filename]
@@ -583,7 +583,7 @@ class HelpersTest(TestCase):
     @patch('os.path.exists')
     def test_file_hash_missing(self, exists):
         filename = '/etc/missing.conf'
-        exists.side_effect = [ False ]
+        exists.side_effect = [False]
         with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = self._hash_files[filename]
             result = host.file_hash(filename)
@@ -594,43 +594,41 @@ class HelpersTest(TestCase):
     def test_restart_no_changes(self, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
-            file_name: [ 'test-service' ]
+            file_name: ['test-service']
             }
-        exists.side_effect = [ False, False ]
+        exists.side_effect = [False, False]
 
         @host.restart_on_change(restart_map)
-        def make_some_changes():
+        def make_no_changes():
             pass
-        
-        make_some_changes()
+
+        make_no_changes()
 
         assert not service.called
 
         exists.assert_has_calls([
             call(file_name),
-        ])        
+        ])
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
     def test_restart_new_changes(self, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
-            file_name: [ 'test-service' ]
+            file_name: ['test-service']
             }
-        exists.side_effect = [ False, True ]
+        exists.side_effect = [False, True]
 
         @host.restart_on_change(restart_map)
-        def make_some_changes():
-            pass
-            
-        with patch_open() as (mock_open, mock_file):
+        def make_some_changes(mock_file):
             mock_file.read.return_value = "newstuff"
-            make_some_changes()
+
+        with patch_open() as (mock_open, mock_file):
+            make_some_changes(mock_file)
 
         for service_name in restart_map[file_name]:
             service.assert_called_with('restart', service_name)
 
         exists.assert_has_calls([
             call(file_name),
-        ])        
-            
+        ])
