@@ -1,15 +1,34 @@
 import os
 from testtools import TestCase
-from unittest import skip
 from mock import (
     patch,
     MagicMock,
-    mock_open
+    mock_open,
+    call,
 )
 from urlparse import urlparse
 
 from charmhelpers import fetch
 
+class AptRepoTest(TestCase):
+
+    @patch('charmhelpers.fetch.check_call')
+    def test_adds_repo(self, check_call_):
+        repos = ["http://example.com", "cloud:example", "ppa:example"]
+        for repo in repos:
+            fetch.add_source(repo)
+        check_call_.assert_has_calls([call('add-apt-repository', repo) for repo in repos])
+
+    @patch('charmhelpers.fetch.check_call')
+    def test_adds_repo_with_key(self, check_call_):
+        repos = ["http://example.com", "cloud:example", "ppa:example"]
+        keys = ["abcdef", "ghijkl", "mnopqr"]
+        calls = []
+        for i in range(len(repos)):
+            fetch.add_source(repos[i], key=keys[i])
+            calls.append(call('add-apt-repository', repos[i]))
+            calls.append(call('apt-key', 'import', keys[i]))
+        check_call_.assert_has_calls(calls)
 
 class InstallTest(TestCase):
 
