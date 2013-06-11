@@ -131,7 +131,7 @@ def render_template_file(source, destination, **kwargs):
                    **kwargs)
 
 
-def filter_required_packages(packages):
+def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
     apt_pkg.init()
     cache = apt_pkg.Cache()

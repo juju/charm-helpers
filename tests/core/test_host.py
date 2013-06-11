@@ -502,20 +502,20 @@ class HelpersTest(TestCase):
     @patch('apt_pkg.Cache')
     def test_filter_packages_missing(self, cache):
         cache.side_effect = fake_apt_cache
-        result = host.filter_required_packages(['vim', 'emacs'])
+        result = host.filter_installed_packages(['vim', 'emacs'])
         self.assertEquals(result, ['emacs'])
 
     @patch('apt_pkg.Cache')
     def test_filter_packages_none_missing(self, cache):
         cache.side_effect = fake_apt_cache
-        result = host.filter_required_packages(['vim'])
+        result = host.filter_installed_packages(['vim'])
         self.assertEquals(result, [])
 
     @patch.object(host, 'log')
     @patch('apt_pkg.Cache')
     def test_filter_packages_not_available(self, cache, log):
         cache.side_effect = fake_apt_cache
-        result = host.filter_required_packages(['vim', 'joe'])
+        result = host.filter_installed_packages(['vim', 'joe'])
         self.assertEquals(result, ['joe'])
         log.assert_called_with('Package joe has no installation candidate.',
                                level='WARNING')
