@@ -13,8 +13,6 @@ import subprocess
 
 from hookenv import log, execution_environment
 
-class CharmHelperHostError(Exception):
-    pass
 
 def service_start(service_name):
     service('start', service_name)
@@ -144,8 +142,8 @@ def filter_required_packages(packages):
             p.current_ver or _pkgs.append(package)
         except KeyError:
             log('Package {} has no installation candidate.'.format(package),
-                level='ERROR')
-            raise CharmHelperHostError
+                level='WARNING')
+            _pkgs.append(package)
     return _pkgs
 
 

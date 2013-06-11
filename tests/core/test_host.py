@@ -515,9 +515,10 @@ class HelpersTest(TestCase):
     @patch('apt_pkg.Cache')
     def test_filter_packages_not_available(self, cache, log):
         cache.side_effect = fake_apt_cache
-        self.assertRaises(host.CharmHelperHostError,
-                          host.filter_required_packages,
-                          packages=['joe'])
+        result = host.filter_required_packages(['vim', 'joe'])
+        self.assertEquals(result, ['joe'])
+        log.assert_called_with('Package joe has no installation candidate.',
+                               level='WARNING')
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
