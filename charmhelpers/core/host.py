@@ -33,21 +33,23 @@ def service(action, service_name):
     return False
 
 
-def adduser(username, password, shell='/bin/bash'):
+def adduser(username, password=None, shell='/bin/bash', system_user=False):
     """Add a user"""
-    # TODO: generate a password if none is given
     try:
         user_info = pwd.getpwnam(username)
         log('user {0} already exists!'.format(username))
     except KeyError:
         log('creating user {0}'.format(username))
-        cmd = [
-            'useradd',
-            '--create-home',
-            '--shell', shell,
-            '--password', password,
-            username
-        ]
+        cmd = ['useradd']
+        if system_user or password is None:
+           cmd.append('--system')
+        else:
+           cmd.extend([
+               '--create-home',
+               '--shell', shell,
+               '--password', password,
+           ])
+        cmd.append(username)
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)
     return user_info
