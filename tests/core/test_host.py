@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 import os
 import subprocess
-import hashlib
 
 from mock import patch, call, MagicMock
 from testtools import TestCase
@@ -568,17 +567,17 @@ class HelpersTest(TestCase):
         '/etc/missing.conf': None
     }
 
+    @patch('hashlib.md5')
     @patch('os.path.exists')
-    def test_file_hash_exists(self, exists):
+    def test_file_hash_exists(self, exists, md5):
         filename = '/etc/exists.conf'
         exists.side_effect = [True]
-        h = hashlib.md5()
-        h.update(self._hash_files[filename])  # IGNORE:E1101
-        digest = h.hexdigest()
+        m = md5()
+        m.hexdigest.return_value = self._hash_files[filename]
         with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = self._hash_files[filename]
             result = host.file_hash(filename)
-            self.assertEqual(result, digest)
+            self.assertEqual(result, self._hash_files[filename])
 
     @patch('os.path.exists')
     def test_file_hash_missing(self, exists):
@@ -612,7 +611,7 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_restart_new_changes(self, exists, service):
+    def test_restart_on_change(self, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
@@ -631,4 +630,32 @@ class HelpersTest(TestCase):
 
         exists.assert_has_calls([
             call(file_name),
+        ])
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    def test_multiservice_restart_on_change(self, exists, service):
+        file_name_one = '/etc/missing.conf'
+        file_name_two = '/etc/exists.conf'
+        restart_map = {
+            file_name_one: ['test-service'],
+            file_name_two: ['test-service', 'test-service2']
+            }
+        exists.side_effect = [False, True, True, True]
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            make_some_changes()
+
+        # Restart should only happen once per service
+        for service_name in ['test-service', 'test-service2']:
+            service.assert_any_call('restart', service_name)
+
+        exists.assert_has_calls([
+            call(file_name_one),
+            call(file_name_two)
         ])
