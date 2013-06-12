@@ -14,6 +14,7 @@ Goals
 =====
 
 * Single decorator to expose a function as a command.
+  * now two decorators - one "automatic" and one that allows authors to manipulate the arguments for fine-grained control.(MW)
 * Automatic analysis of function signature through ``inspect.getargspec()``
 * Command argument parser built automatically with ``argparse``
 * Interactive interpreter loop object made with ``Cmd``
@@ -30,5 +31,27 @@ Other Important Features that need writing
     - We could automatically detect arguments that default to False or True, and automatically support --no-foo for foo=True.
     - We could automatically support hyphens as alternates for underscores
     - Arguments defaulting to sequence types could support the ``append`` action.
-    
 
+
+-----------------------------------------------------
+Implementing subcommands
+-----------------------------------------------------
+
+(WIP)
+
+So as to avoid dependencies on the cli module, subcommands should be defined separately from their implementations. The recommmendation would be to place definitions into separate modules near the implementations which they expose.
+
+Some examples::
+
+    from charmhelpers.cli import CommandLine
+    from charmhelpers.payload import execd
+    from charmhelpers.foo import bar
+
+    cli = CommandLine()
+
+    cli.subcommand(execd.execd_run)
+
+    @cli.subcommand_builder("bar", help="Bar baz qux")
+    def barcmd_builder(subparser):
+        subparser.add_argument('argument1', help="yackety")
+        return bar
