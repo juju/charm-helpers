@@ -9,6 +9,7 @@ import os
 import pwd
 import grp
 import subprocess
+import hashlib
 
 from hookenv import log, execution_environment
 
@@ -188,3 +189,45 @@ def mounts():
         system_mounts = [m[1::-1] for m in [l.strip().split()
                                             for l in f.readlines()]]
     return system_mounts
+
+
+def file_hash(path):
+    ''' Generate a md5 hash of the contents of 'path' or None if not found '''
+    if os.path.exists(path):
+        h = hashlib.md5()
+        with open(path, 'r') as source:
+            h.update(source.read())  # IGNORE:E1101 - it does have update
+        return h.hexdigest()
+    else:
+        return None
+
+
+def restart_on_change(restart_map):
+    ''' Restart services based on configuration files changing
+
+    This function is used a decorator, for example
+
+        @restart_on_change({
+            '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
+            })
+        def ceph_client_changed():
+            ...
+
+    In this example, the cinder-api and cinder-volume services
+    would be restarted if /etc/ceph/ceph.conf is changed by the
+    ceph_client_changed function.
+    '''
+    def wrap(f):
+        def wrapped_f(*args):
+            checksums = {}
+            for path in restart_map:
+                checksums[path] = file_hash(path)
+            f(*args)
+            restarts = []
+            for path in restart_map:
+                if checksums[path] != file_hash(path):
+                    restarts += restart_map[path]
+            for service_name in list(set(restarts)):
+                service('restart', service_name)
+        return wrapped_f
+    return wrap
