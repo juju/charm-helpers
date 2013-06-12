@@ -21,6 +21,7 @@ SETUP = {
         "charmhelpers.payload",
         "charmhelpers.contrib.charmhelpers",
         "charmhelpers.contrib.charmsupport",
+        "charmhelpers.contrib.declarative",
         "charmhelpers.contrib.hahelpers",
         "charmhelpers.contrib.jujugui",
     ],
