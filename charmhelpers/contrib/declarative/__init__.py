@@ -54,6 +54,8 @@ TODO:
     are functionally (but not necessarily logically) correct (ie. getting
     salt to parse all state defs.
   * Add a link to a public bootstrap charm example / blogpost.
+  * Find a way to obviate the need to use the grains['charm_dir'] syntax
+    in templates.
 """
 # Copyright 2013 Canonical Ltd.
 #
