@@ -1,3 +1,7 @@
+# Copyright 2013 Canonical Ltd.
+#
+# Authors:
+#  Charm Helpers Developers <juju@lists.ubuntu.com>
 import json
 import mock
 import tempfile
