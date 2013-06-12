@@ -19,6 +19,7 @@ SETUP = {
         "charmhelpers.core",
         "charmhelpers.fetch",
         "charmhelpers.payload",
+        "charmhelpers.contrib",
         "charmhelpers.contrib.charmhelpers",
         "charmhelpers.contrib.charmsupport",
         "charmhelpers.contrib.declarative",
