@@ -21,7 +21,7 @@ class InstallDeclarativeSupportTestCase(unittest.TestCase):
         self.mock_charmhelpers_core = patcher.start()
         self.addCleanup(patcher.stop)
 
-    def test_adds_ppa(self):
+    def test_adds_ppa_by_default(self):
         charmhelpers.contrib.declarative.install_declarative_support()
 
         self.assertEqual(self.mock_subprocess.check_call.call_count, 2)
@@ -35,10 +35,14 @@ class InstallDeclarativeSupportTestCase(unittest.TestCase):
                 'update',
             ],), {})
         ], self.mock_subprocess.check_call.call_args_list)
+        self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
+            'salt-minion')
 
-    def test_installs_salt(self):
-        charmhelpers.contrib.declarative.install_declarative_support()
+    def test_no_ppa(self):
+        charmhelpers.contrib.declarative.install_declarative_support(
+            from_ppa=False)
 
+        self.assertEqual(self.mock_subprocess.check_call.call_count, 0)
         self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
             'salt-minion')
 

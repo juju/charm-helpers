@@ -10,14 +10,20 @@ charm_dir = os.environ.get('CHARM_DIR', '')
 salt_grains_path = '/etc/salt/grains'
 
 
-def install_declarative_support():
-    """Installs the salt-minion helper for machine state."""
-    subprocess.check_call([
-        '/usr/bin/add-apt-repository',
-        '--yes',
-        'ppa:saltstack/salt',
-    ])
-    subprocess.check_call(['/usr/bin/apt-get', 'update'])
+def install_declarative_support(from_ppa=True):
+    """Installs the salt-minion helper for machine state.
+    
+    By default the salt-minion package is installed from
+    the saltstack PPA. If from_ppa is False you must ensure
+    that the salt-minion package is available in the apt cache.
+    """
+    if from_ppa:
+        subprocess.check_call([
+            '/usr/bin/add-apt-repository',
+            '--yes',
+            'ppa:saltstack/salt',
+        ])
+        subprocess.check_call(['/usr/bin/apt-get', 'update'])
     charmhelpers.core.host.apt_install('salt-minion')
 
 
