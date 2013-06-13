@@ -123,6 +123,7 @@ def remote_unit():
     return os.environ['JUJU_REMOTE_UNIT']
 
 
+@cached
 def config(scope=None):
     "Juju charm configuration"
     config_cmd_line = ['config-get']
