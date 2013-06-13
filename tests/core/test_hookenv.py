@@ -46,6 +46,14 @@ class SerializableTest(TestCase):
 
         self.assertEqual(wrapped.bar, 'baz')
 
+    def test_raises_error_from_inner_object_as_dict(self):
+        foo = {
+            'bar': 'baz',
+        }
+        wrapped = hookenv.Serializable(foo)
+
+        self.assertRaises(AttributeError, getattr, wrapped, 'baz')
+
     def test_dict_methods_from_inner_object(self):
         foo = {
             'bar': 'baz',
