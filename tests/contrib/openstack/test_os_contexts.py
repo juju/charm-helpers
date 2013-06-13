@@ -48,10 +48,22 @@ AMQP_CONFIG = {
     'rabbit-vhost': 'foo',
 }
 
+# Imported in contexts.py and needs patching in setUp()
+TO_PATCH = [
+    'log',
+    'config',
+    'relation_get',
+    'relation_ids',
+    'related_units',
+]
+
 class ContextTests(unittest.TestCase):
     def setUp(self):
-        for m in ['log', 'config', 'relation_get']:
+        for m in TO_PATCH:
             setattr(self, m, self._patch(m))
+        # mock at least a single relation + unit
+        self.relation_ids.return_value = ['foo:0'],
+        self.related_units.return_value = ['foo/0']
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)

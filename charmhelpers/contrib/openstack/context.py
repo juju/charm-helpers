@@ -2,6 +2,8 @@ from charmhelpers.core.hookenv import (
     config,
     log,
     relation_get,
+    relation_ids,
+    related_units,
 )
 
 
@@ -27,12 +29,15 @@ def shared_db(relation_id=None, unit_id=None):
         log('Could not generate shared_db context. '
             'Missing required charm config options: %s.' % e)
         raise OSContextError
-    ctxt = {
-        'database_host': relation_get('db_host'),
-        'database': database,
-        'database_user': username,
-        'database_password': relation_get('password')
-    }
+    ctxt = {}
+    for rid in relation_ids('shared-db'):
+        for unit in related_units(rid):
+            ctxt = {
+                'database_host': relation_get('db_host', rid=rid, unit=unit),
+                'database': database,
+                'database_user': username,
+                'database_password': relation_get('password', rid=rid, unit=unit)
+            }
     if not context_complete(ctxt):
         return {}
     return ctxt
@@ -63,16 +68,22 @@ def amqp(relation_id=None):
         log('Could not generate shared_db context. '
             'Missing required charm config options: %s.' % e)
         raise OSContextError
-    if relation_get('clustered'):
-        rabbitmq_host = relation_get('vip')
-    else:
-        rabbitmq_host = relation_get('private-address')
-    ctxt = {
-        'rabbitmq_host': rabbitmq_host,
-        'rabbitmq_user': username,
-        'rabbitmq_password': relation_get('password'),
-        'rabbitmq_virtual_host': vhost,
-    }
+
+    ctxt = {}
+    for rid in relation_ids('amqp'):
+        for unit in related_units(rid):
+            if relation_get('clustered', rid=rid, unit=unit):
+                rabbitmq_host = relation_get('vip', rid=rid, unit=unit)
+            else:
+                rabbitmq_host = relation_get('private-address',
+                                             rid=rid, unit=unit)
+            ctxt = {
+                'rabbitmq_host': rabbitmq_host,
+                'rabbitmq_user': username,
+                'rabbitmq_password': relation_get('password', rid=rid,
+                                                   unit=unit),
+                'rabbitmq_virtual_host': vhost,
+            }
     if not context_complete(ctxt):
         return {}
     return ctxt
