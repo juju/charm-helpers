@@ -511,6 +511,20 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-get', '--format=json',
                                          'baz-scope', 'baz-unit'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('subprocess.check_call')
+    @patch('subprocess.check_output')
+    def test_relation_set_flushes_local_unit_cache(self, check_output,
+                                                   check_call, local_unit):
+        check_output.return_value = json.dumps('BAR')
+        local_unit.return_value = 'baz_unit'
+        hookenv.relation_get(attribute='baz_scope', unit='baz_unit')
+        hookenv.relation_get(attribute='bar_scope')
+        self.assertTrue(len(hookenv.cache) == 2)
+        hookenv.relation_set(baz_scope='hello')
+        # relation_set should flush any entries for local_unit
+        self.assertTrue(len(hookenv.cache) == 1)
+
     @patch('subprocess.check_output')
     def test_gets_relation_with_relation_id(self, check_output):
         check_output.return_value = json.dumps('BAR')

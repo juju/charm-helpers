@@ -45,6 +45,17 @@ def cached(func):
     return wrapper
 
 
+def flush(key):
+    ''' Flushes any entries from function cache where the
+    key is found in the function+args '''
+    flush_list = []
+    for item in cache:
+        if key in item:
+            flush_list.append(item)
+    for item in flush_list:
+        del cache[item]
+
+
 def log(message, level=None):
     "Write a message to the juju log"
     command = ['juju-log']
@@ -162,6 +173,8 @@ def relation_set(relation_id=None, relation_settings={}, **kwargs):
     for k, v in kwargs.items():
         relation_cmd_line.append('{}={}'.format(k, v))
     subprocess.check_call(relation_cmd_line)
+    # Flush cache of any relation-gets for local unit
+    flush(local_unit())
 
 
 @cached
