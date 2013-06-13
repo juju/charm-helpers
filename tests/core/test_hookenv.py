@@ -117,21 +117,22 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_charm_config_with_scope(self, check_output):
-        config_data = {'foo': 'bar'}
+        config_data = 'bar'
         check_output.return_value = json.dumps(config_data)
 
         result = hookenv.config(scope='baz')
 
-        self.assertEqual(result.foo, 'bar')
+        self.assertEqual(result, 'bar')
         check_output.assert_called_with(['config-get', 'baz', '--format=json'])
 
     @patch('subprocess.check_output')
-    @patch('charmhelpers.core.hookenv.log')
-    def test_logs_and_reraises_on_config_error(self, log, check_output):
-        error = 'some error'
-        check_output.side_effect = ValueError(error)
+    def test_gets_missing_charm_config_with_scope(self, check_output):
+        check_output.return_value = ''
 
-        self.assertRaisesRegexp(ValueError, error, hookenv.config)
+        result = hookenv.config(scope='baz')
+
+        self.assertEqual(result, None)
+        check_output.assert_called_with(['config-get', 'baz', '--format=json'])
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
@@ -465,22 +466,20 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_relation(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
-
+        data = {"foo": "BAR"}
+        check_output.return_value = json.dumps(data)
         result = hookenv.relation_get()
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result.foo, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
+        check_output.return_value = json.dumps('bar')
 
         result = hookenv.relation_get(attribute='baz-scope')
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result, 'bar')
         check_output.assert_called_with(['relation-get', '--format=json',
                                          'baz-scope'])
 
@@ -496,24 +495,22 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_unit_name(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
+        check_output.return_value = json.dumps('BAR')
 
         result = hookenv.relation_get(attribute='baz-scope', unit='baz-unit')
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json',
                                          'baz-scope', 'baz-unit'])
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_relation_id(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
+        check_output.return_value = json.dumps('BAR')
 
         result = hookenv.relation_get(attribute='baz-scope', unit='baz-unit',
                                       rid=123)
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
 

@@ -130,11 +130,11 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        config_data = json.loads(subprocess.check_output(config_cmd_line))
-    except (ValueError, OSError, subprocess.CalledProcessError) as err:
-        log(str(err), level=ERROR)
-        raise
-    return Serializable(config_data)
+        return Serializable(json.loads(
+                                subprocess.check_output(config_cmd_line)
+                                ))
+    except ValueError:
+        return None
 
 
 @cached
@@ -147,7 +147,7 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        return json.loads(subprocess.check_output(_args))
+        return Serializable(json.loads(subprocess.check_output(_args)))
     except ValueError:
         return None
 
