@@ -158,7 +158,7 @@ class ContextTests(unittest.TestCase):
     def test_amqp_context_with_missing_relation(self):
         '''Test amqp context missing relation data'''
         incomplete_relation = copy(AMQP_RELATION)
-        incomplete_relation['password'] = None
+        incomplete_relation['password'] = ''
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
         self.config.return_value = AMQP_CONFIG

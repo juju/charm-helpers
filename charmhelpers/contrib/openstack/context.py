@@ -11,7 +11,7 @@ class OSContextError(Exception):
 def context_complete(ctxt):
     _missing = []
     for k, v in ctxt.iteritems():
-        if ctxt[k] == None:
+        if v == None or v == '':
             _missing.append(k)
     if _missing:
         print 'Missing required data: %s' % ' '.join(_missing)
