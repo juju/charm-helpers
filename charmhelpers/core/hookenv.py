@@ -17,6 +17,33 @@ INFO = "INFO"
 DEBUG = "DEBUG"
 MARKER = object()
 
+cache = {}
+
+
+def cached(func):
+    ''' Cache return values for multiple executions of func + args
+
+    For example:
+
+        @cached
+        def unit_get(attribute):
+            pass
+
+        unit_get('test')
+
+    will cache the result of unit_get + 'test' for future calls.
+    '''
+    def wrapper(*args, **kwargs):
+        global cache
+        key = str((func, args, kwargs))
+        try:
+            return cache[key]
+        except KeyError:
+            res = func(*args, **kwargs)
+            cache[key] = res
+            return res
+    return wrapper
+
 
 def log(message, level=None):
     "Write a message to the juju log"
@@ -193,7 +220,7 @@ def relation_types():
     mdf = open(os.path.join(charmdir, 'metadata.yaml'))
     md = yaml.safe_load(mdf)
     rel_types = []
-    for key in ('provides','requires','peers'):
+    for key in ('provides', 'requires', 'peers'):
         section = md.get(key)
         if section:
             rel_types.extend(section.keys())
@@ -229,9 +256,13 @@ def close_port(port, protocol="TCP"):
     subprocess.check_call(_args)
 
 
+@cached
 def unit_get(attribute):
-    _args = ['unit-get', attribute]
-    return subprocess.check_output(_args).strip()
+    _args = ['unit-get', '--format=json', attribute]
+    try:
+        return json.loads(subprocess.check_output(_args))
+    except ValueError:
+        return None
 
 
 def unit_private_ip():
