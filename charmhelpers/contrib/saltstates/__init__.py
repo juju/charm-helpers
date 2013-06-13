@@ -1,12 +1,12 @@
-"""Charm Helpers declarative - declare the state of your machines.
+"""Charm Helpers saltstates - declare the state of your machines.
 
 This helper enables you to declare your machine state, rather than
 program it procedurally (and have to test each change to your procedures).
 Your install hook can be as simple as:
 
 {{{
-from charmhelpers.contrib.declarative import (
-    install_declarative_support,
+from charmhelpers.contrib.saltstates import (
+    install_salt_support,
     update_machine_state,
 )
 
@@ -20,8 +20,8 @@ def install():
 and won't need to change (nor will its tests) when you change the machine
 state.
 
-It's using a python package called salt-minion behind the scenes, which
-allows various formats for specifying resources, such as:
+It's using a python package called salt-minion which allows various formats for
+specifying resources, such as:
 
 {{{
 /srv/{{ basedir }}:
@@ -73,9 +73,9 @@ charm_dir = os.environ.get('CHARM_DIR', '')
 salt_grains_path = '/etc/salt/grains'
 
 
-def install_declarative_support(from_ppa=True):
+def install_salt_support(from_ppa=True):
     """Installs the salt-minion helper for machine state.
-    
+
     By default the salt-minion package is installed from
     the saltstack PPA. If from_ppa is False you must ensure
     that the salt-minion package is available in the apt cache.
@@ -91,6 +91,7 @@ def install_declarative_support(from_ppa=True):
 
 
 def update_machine_state(state_path):
+    """Update the machine state using the provided state declaration."""
     juju_config_2_grains()
     subprocess.check_call([
         'salt-call',
