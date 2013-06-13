@@ -137,6 +137,7 @@ def config(scope=None):
     return Serializable(config_data)
 
 
+@cached
 def relation_get(attribute=None, unit=None, rid=None):
     _args = ['relation-get', '--format=json']
     if rid:
@@ -162,6 +163,7 @@ def relation_set(relation_id=None, relation_settings={}, **kwargs):
     subprocess.check_call(relation_cmd_line)
 
 
+@cached
 def relation_ids(reltype=None):
     "A list of relation_ids"
     reltype = reltype or relation_type()
@@ -172,6 +174,7 @@ def relation_ids(reltype=None):
     return []
 
 
+@cached
 def related_units(relid=None):
     "A list of related units"
     relid = relid or relation_id()
@@ -181,6 +184,7 @@ def related_units(relid=None):
     return json.loads(subprocess.check_output(units_cmd_line))
 
 
+@cached
 def relation_for_unit(unit=None, rid=None):
     "Get the json represenation of a unit's relation"
     unit = unit or remote_unit()
@@ -192,6 +196,7 @@ def relation_for_unit(unit=None, rid=None):
     return Serializable(relation)
 
 
+@cached
 def relations_for_id(relid=None):
     "Get relations of a specific relation ID"
     relation_data = []
@@ -203,6 +208,7 @@ def relations_for_id(relid=None):
     return relation_data
 
 
+@cached
 def relations_of_type(reltype=None):
     "Get relations of a specific type"
     relation_data = []
@@ -214,6 +220,7 @@ def relations_of_type(reltype=None):
     return relation_data
 
 
+@cached
 def relation_types():
     "Get a list of relation types supported by this charm"
     charmdir = os.environ.get('CHARM_DIR', '')
@@ -228,6 +235,7 @@ def relation_types():
     return rel_types
 
 
+@cached
 def relations():
     rels = {}
     for reltype in relation_types():

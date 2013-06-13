@@ -81,6 +81,11 @@ class SerializableTest(TestCase):
 
 
 class HelpersTest(TestCase):
+    def setUp(self):
+        super(HelpersTest, self).setUp()
+        # Reset hookenv cache for each test
+        hookenv.cache = {}
+
     @patch('subprocess.call')
     def test_logs_messages_to_juju_with_default_level(self, mock_call):
         hookenv.log('foo')
@@ -568,8 +573,8 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_output')
     def test_gets_missing_unit_attribute(self, check_output_):
         check_output_.return_value = ""
-        self.assertEqual(hookenv.unit_get('bar'), None)
-        check_output_.assert_called_with(['unit-get', '--format=json', 'bar'])
+        self.assertEqual(hookenv.unit_get('foo'), None)
+        check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
 
     def test_cached_decorator(self):
         calls = []
@@ -587,6 +592,7 @@ class HelpersTest(TestCase):
         self.assertEquals(cache_function('hello'), 'world')
         self.assertEquals(cache_function('hello'), 'world')
         self.assertEquals(cache_function('foo'), 'bar')
+        self.assertEquals(cache_function('baz'), None)
         self.assertEquals(cache_function('baz'), None)
         self.assertEquals(calls, ['hello', 'foo', 'baz'])
 
