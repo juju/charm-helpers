@@ -1,5 +1,3 @@
-import os
-import urllib2
 import importlib
 from yaml import safe_load
 from subprocess import check_call
@@ -12,7 +10,7 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-from charmhelpers import fileutils
+
 
 def add_source(source, key=None):
     if ((source.startswith('ppa:') or
@@ -57,6 +55,12 @@ def configure_sources(update=False,
     if update:
         check_call(('apt-get', 'update'))
 
+# The order of this list is very important. Handlers should be listed in from
+# least- to most-specific URL matching.
+FETCH_HANDLERS = (
+    'charmhelpers.fetch.archive.UrlArchiveFetchHandler',
+)
+
 
 class UnhandledSource(Exception):
     pass
@@ -71,7 +75,9 @@ def install_remote(source):
 
     Schemes supported are based on this modules submodules
     Options supported are submodule-specific"""
-    handlers = [h for h in plugins() if h.can_handle(source) == True]
+    # We ONLY check for True here because can_handle may return a string
+    # explaining why it can't handle a given source.
+    handlers = [h for h in plugins() if h.can_handle(source) is True]
     for handler in handlers:
         try:
             installed_to = handler.install(source)
@@ -94,12 +100,15 @@ class BaseFetchHandler(object):
         """Returns True if the source can be handled. Otherwise returns
         a string explaining why it cannot"""
         return "Wrong source type"
+
     def install(self, source):
         """Try to download and unpack the source. Return the path to the
         unpacked files or raise UnhandledSource."""
         raise UnhandledSource("Wrong source type {}".format(source))
+
     def parse_url(self, url):
         return urlparse(url)
+
     def base_url(self, url):
         """Return url without querystring or fragment"""
         parts = list(self.parse_url(url))
@@ -107,50 +116,17 @@ class BaseFetchHandler(object):
         return urlunparse(parts)
 
 
-class UrlArchiveFetchHandler(BaseFetchHandler):
-    """Handler for archives via generic URLs"""
-    def can_handle(self, source):
-        url_parts = self.parse_url(source)
-        if url_parts.scheme not in ('http','https','ftp','file'):
-            return "Wrong source type"
-        if fileutils.get_archive_handler(self.base_url(source)):
-            return True
-        return False
-
-    def download(self, source, dest):
-        # propogate all exceptions
-        # URLError, OSError, etc
-        response = urllib2.urlopen(source)
-        with open(dest, 'w') as dest_file:
-            dest_file.write(response.read())
-
-    def install(self, source):
-        url_parts = self.parse_url(source)
-        dest_dir = os.path.join(os.environ.get('CHARM_DIR'), 'fetched')
-        dest_file = os.path.join(dest_dir, os.path.basename(url_parts.path))
-        try:
-            self.download(source, dest_file)
-        except urllib2.URLError as e:
-            return UnhandledSource(e.reason)
-        except OSError as e:
-            return UnhandledSource(e.strerror)
-        finally:
-            if os.path.isfile(dest_file):
-                os.unlink(dest_file)
-        return fileutils.extract(dest_file)
-
-
-def plugins():
+def plugins(fetch_handlers=None):
+    if not fetch_handlers:
+        fetch_handlers = FETCH_HANDLERS
     plugin_list = []
-    plugin_dir = os.path.dirname(os.path.abspath(__file__))
-    candidates = [c for c in os.listdir(plugin_dir)
-                  if os.path.exists(os.path.join(c, '__init__.py'))]
-    for candidate in candidates:
-        module = importlib.import_module(candidate)
+    for handler_name in fetch_handlers:
+        package, classname = handler_name.rsplit('.', 1)
         try:
-            plugin_list.append(module.FetchHander())
-        except AttributeError:
-            log("{}.FetchHandler not found, skipping plugin".format(candidate))
-        # always handle generic URLs last
-    plugin_list.append(UrlArchiveFetchHandler())
+            handler_class = getattr(importlib.import_module(package), classname)
+            plugin_list.append(handler_class())
+        except (ImportError, AttributeError):
+            # Skip missing plugins so that they can be ommitted from
+            # installation if desired
+            log("FetchHandler {} not found, skipping plugin".format(handler_name))
     return plugin_list

@@ -1,14 +1,12 @@
-import os
 from testtools import TestCase
 from mock import (
     patch,
     MagicMock,
-    mock_open,
     call,
 )
 from urlparse import urlparse
-
 from charmhelpers import fetch
+
 
 class AptRepoTest(TestCase):
 
@@ -29,6 +27,7 @@ class AptRepoTest(TestCase):
             calls.append(call('add-apt-repository', repos[i]))
             calls.append(call('apt-key', 'import', keys[i]))
         check_call_.assert_has_calls(calls)
+
 
 class InstallTest(TestCase):
 
@@ -92,6 +91,44 @@ class InstallTest(TestCase):
             _instrem.assert_called_with(url)
 
 
+class PluginTest(TestCase):
+    @patch('charmhelpers.fetch.importlib.import_module')
+    def test_imports_plugins(self, import_):
+        fetch_handlers = ['a.foo', 'b.foo', 'c.foo']
+        module = MagicMock()
+        import_.return_value = module
+        plugins = fetch.plugins(fetch_handlers)
+
+        self.assertEqual(len(fetch_handlers), len(plugins))
+        module.foo.assert_has_calls(([call()] * len(fetch_handlers)))
+
+    @patch('charmhelpers.fetch.importlib.import_module')
+    def test_imports_plugins_default(self, import_):
+        module = MagicMock()
+        import_.return_value = module
+        plugins = fetch.plugins()
+
+        self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
+        for handler in fetch.FETCH_HANDLERS:
+            classname = handler.rsplit('.', 1)[-1]
+            getattr(module, classname).assert_called_with()
+
+    @patch('charmhelpers.fetch.log')
+    @patch('charmhelpers.fetch.importlib.import_module')
+    def test_skips_and_logs_missing_plugins(self, import_, log_):
+        fetch_handlers = ['a.foo', 'b.foo', 'c.foo']
+        import_.side_effect = (ImportError, AttributeError, MagicMock())
+        plugins = fetch.plugins(fetch_handlers)
+
+        self.assertEqual(1, len(plugins))
+        self.assertEqual(2, log_.call_count)
+
+    @patch('charmhelpers.fetch.log')
+    def test_plugins_are_valid(self, log_):
+        plugins = fetch.plugins()
+        self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
+
+
 class BaseFetchHandlerTest(TestCase):
 
     def setUp(self):
@@ -126,100 +163,3 @@ class BaseFetchHandlerTest(TestCase):
         expected_url = "http://example.com/foo"
         u = self.fh.base_url(sample_url)
         self.assertEqual(u, expected_url)
-
-
-class UrlArchiveFetchHandlerTest(TestCase):
-
-    def setUp(self):
-        super(UrlArchiveFetchHandlerTest, self).setUp()
-        self.valid_urls = (
-            "http://example.com/foo.tar.gz",
-            "http://example.com/foo.tgz",
-            "http://example.com/foo.tar.bz2",
-            "http://example.com/foo.tbz2",
-            "http://example.com/foo.zip",
-            "http://example.com/foo.zip?bar=baz&x=y#whee",
-            "ftp://example.com/foo.tar.gz",
-            "https://example.com/foo.tgz",
-            "file://example.com/foo.tar.bz2",
-            )
-        self.invalid_urls = (
-            "git://example.com/foo.tar.gz",
-            "http://example.com/foo",
-            "http://example.com/foobar=baz&x=y#tar.gz",
-            "http://example.com/foobar?h=baz.zip",
-            "bzr+ssh://example.com/foo.tar.gz",
-            "lp:example/foo.tgz",
-            "file//example.com/foo.tar.bz2",
-            "garbage",
-            )
-        self.fh = fetch.UrlArchiveFetchHandler()
-
-    def test_handles_archive_urls(self):
-        for url in self.valid_urls:
-            result = self.fh.can_handle(url)
-            self.assertEqual(result, True, url)
-        for url in self.invalid_urls:
-            result = self.fh.can_handle(url)
-            self.assertNotEqual(result, True, url)
-
-    @patch('urllib2.urlopen')
-    def test_downloads(self, _urlopen):
-        for url in self.valid_urls:
-            response = MagicMock()
-            response.read.return_value = "bar"
-            _urlopen.return_value = response
-
-            _open = mock_open()
-            with patch('charmhelpers.fetch.open', _open, create=True):
-                self.fh.download(url, "foo")
-
-            response.read.assert_called_with()
-            _open.assert_called_once_with("foo", 'w')
-            _open().write.assert_called_with("bar")
-
-    @patch('charmhelpers.fileutils.extract')
-    def test_installs(self, _extract):
-        self.fh.download = MagicMock()
-
-        for url in self.valid_urls:
-            filename = urlparse(url).path
-            dest = os.path.join('foo', 'fetched', os.path.basename(filename))
-            _extract.return_value = dest
-            with patch.dict('os.environ', { 'CHARM_DIR': 'foo' }):
-                where = self.fh.install(url)
-            self.fh.download.assert_called_with(url, dest)
-            _extract.assert_called_with(dest)
-            self.assertEqual(where, dest)
-
-
-class FetchPluginTest(TestCase):
-
-    @patch('charmhelpers.fetch.log')
-    @patch('importlib.import_module')
-    @patch('os.listdir')
-    @patch('os.path.exists')
-    def test_load_skips_unimplemented(self, _exists, _listdir, _import, _log):
-        _exists.return_value = True
-        _listdir.return_value = ['foo']
-        not_implemented_mock = MagicMock(spec=[])
-        _import.return_value = not_implemented_mock
-
-        plugin_list = fetch.plugins()
-        self.assertEqual(len(plugin_list), 1)
-        self.assertIsInstance(plugin_list[-1], fetch.UrlArchiveFetchHandler)
-
-    @patch('charmhelpers.fetch.log')
-    @patch('importlib.import_module')
-    @patch('os.listdir')
-    @patch('os.path.exists')
-    def test_loads(self, _exists, _listdir, _import, _log):
-        _exists.return_value = True
-        _listdir.return_value = ['foo','bar','baz']
-        _import.return_value = MagicMock()
-
-        plugin_list = fetch.plugins()
-        self.assertEqual(len(plugin_list), 4)
-        for plugin in plugin_list[0:3]:
-            self.assertIsInstance(plugin, MagicMock)
-        self.assertIsInstance(plugin_list[-1], fetch.UrlArchiveFetchHandler)
