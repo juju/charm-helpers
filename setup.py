@@ -22,7 +22,7 @@ SETUP = {
         "charmhelpers.contrib",
         "charmhelpers.contrib.charmhelpers",
         "charmhelpers.contrib.charmsupport",
-        "charmhelpers.contrib.saltstates",
+        "charmhelpers.contrib.saltstack",
         "charmhelpers.contrib.hahelpers",
         "charmhelpers.contrib.jujugui",
     ],

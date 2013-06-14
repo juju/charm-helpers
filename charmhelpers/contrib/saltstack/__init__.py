@@ -1,11 +1,11 @@
-"""Charm Helpers saltstates - declare the state of your machines.
+"""Charm Helpers saltstack - declare the state of your machines.
 
 This helper enables you to declare your machine state, rather than
 program it procedurally (and have to test each change to your procedures).
 Your install hook can be as simple as:
 
 {{{
-from charmhelpers.contrib.saltstates import (
+from charmhelpers.contrib.saltstack import (
     install_salt_support,
     update_machine_state,
 )
