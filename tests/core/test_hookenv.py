@@ -135,6 +135,11 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.local_unit(), 'foo')
 
+    @patch('charmhelpers.core.hookenv.local_unit')
+    def test_gets_service_name(self, _unit):
+        _unit.return_value = 'mysql/3'
+        self.assertEqual(hookenv.service_name(), 'mysql')
+
     @patch('charmhelpers.core.hookenv.unit_get')
     def test_gets_unit_private_ip(self, _unitget):
         _unitget.return_value = 'foo'
