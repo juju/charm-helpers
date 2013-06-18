@@ -104,3 +104,23 @@ def amqp(relation_id=None):
     if not context_complete(ctxt):
         return {}
     return ctxt
+
+
+def ceph():
+    '''This generates context for /etc/ceph/ceph.conf templates'''
+    log('Generating tmeplate context for ceph')
+    mon_hosts = []
+    auth = None
+    for rid in relation_ids('ceph'):
+        for unit in related_units(rid):
+            mon_hosts.append(relation_get('private-address', rid=rid,
+                                          unit=unit))
+            auth = relation_get('auth', rid=rid, unit=unit)
+
+    ctxt = {
+        'mon_hosts': ' '.join(mon_hosts),
+        'auth': auth,
+    }
+    if not context_complete(ctxt):
+        return {}
+    return ctxt

@@ -6,16 +6,63 @@ from copy import copy
 
 import charmhelpers.contrib.openstack.context as context
 
+
 class FakeRelation(object):
+    '''
+    A fake relation class. Lets tests specify simple relation data
+    for a default relation + unit (foo:0, foo/0, set in setUp()), eg:
+
+        rel = {
+            'private-address': 'foo',
+            'password': 'passwd',
+        }
+        relation = FakeRelation(rel)
+        self.relation_get.side_effect = relation.get
+        passwd = self.relation_get('password')
+
+    or more complex relations meant to be addressed by explicit relation id
+    + unit id combos:
+
+        rel = {
+            'mysql:0': {
+                'mysql/0': {
+                    'private-address': 'foo',
+                    'password': 'passwd',
+                }
+            }
+        }
+        relation = FakeRelation(rel)
+        self.relation_get.side_affect = relation.get
+        passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
+    '''
     def __init__(self, relation_data):
         self.relation_data = relation_data
 
     def get(self, attr=None, unit=None, rid=None):
-        if attr == None:
-            return self.relation_data
-        elif attr in self.relation_data:
-            return self.relation_data[attr]
-        return None
+        if not rid or rid == 'foo:0':
+            if attr is None:
+                return self.relation_data
+            elif attr in self.relation_data:
+                return self.relation_data[attr]
+            return None
+        else:
+            if rid not in self.relation_data:
+                return None
+            try:
+                relation = self.relation_data[rid][unit]
+            except KeyError:
+                return None
+            if attr in relation:
+                return relation[attr]
+            return None
+
+    def relation_ids(self, relation):
+        return self.relation_data.keys()
+
+    def relation_units(self, relation_id):
+        if relation_id not in self.relation_data:
+            return None
+        return self.relation_data[relation_id].keys()
 
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
@@ -48,6 +95,20 @@ AMQP_CONFIG = {
     'rabbit-vhost': 'foo',
 }
 
+CEPH_RELATION = {
+    'ceph:0': {
+        'ceph/0': {
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+        },
+        'ceph/1': {
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+        },
+    }
+}
+
+
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
     'log',
@@ -57,12 +118,13 @@ TO_PATCH = [
     'related_units',
 ]
 
+
 class ContextTests(unittest.TestCase):
     def setUp(self):
         for m in TO_PATCH:
             setattr(self, m, self._patch(m))
         # mock at least a single relation + unit
-        self.relation_ids.return_value = ['foo:0'],
+        self.relation_ids.return_value = ['foo:0']
         self.related_units.return_value = ['foo/0']
 
     def _patch(self, method):
@@ -95,7 +157,6 @@ class ContextTests(unittest.TestCase):
         result = context.shared_db()
         self.assertEquals(result, {})
 
-
     def test_shared_db_context_with_missing_config(self):
         '''Test shared-db context missing relation data'''
         incomplete_config = copy(SHARED_DB_CONFIG)
@@ -123,7 +184,6 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-
     def test_identity_service_context_with_missing_relation(self):
         '''Test shared-db context missing relation data'''
         incomplete_relation = copy(IDENTITY_SERVICE_RELATION)
@@ -132,7 +192,6 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         result = context.identity_service()
         self.assertEquals(result, {})
-
 
     def test_amqp_context_with_data(self):
         '''Test amqp context with all required data'''
@@ -166,7 +225,6 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-
     def test_amqp_context_with_missing_relation(self):
         '''Test amqp context missing relation data'''
         incomplete_relation = copy(AMQP_RELATION)
@@ -177,7 +235,6 @@ class ContextTests(unittest.TestCase):
         result = context.amqp()
         self.assertEquals({}, result)
 
-
     def test_amqp_context_with_missing_config(self):
         '''Test amqp context missing relation data'''
         incomplete_config = copy(AMQP_CONFIG)
@@ -187,3 +244,28 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = incomplete_config
         self.assertRaises(context.OSContextError, context.amqp)
 
+    def test_ceph_context_with_data(self):
+        '''Test ceph context with all relation data'''
+        relation = FakeRelation(relation_data=CEPH_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        result = context.ceph()
+        expected = {
+            'mon_hosts': 'ceph_node2 ceph_node1',
+            'auth': 'foo'
+        }
+        self.assertEquals(result, expected)
+
+    def test_ceph_context_with_missing_data(self):
+        '''Test ceph context with missing relation data'''
+        relation = copy(CEPH_RELATION)
+        for k, v in relation.iteritems():
+            for u in v.iterkeys():
+                del relation[k][u]['auth']
+        relation = FakeRelation(relation_data=relation)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        result = context.ceph()
+        self.assertEquals(result, {})
