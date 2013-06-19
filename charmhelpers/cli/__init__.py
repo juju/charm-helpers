@@ -2,6 +2,7 @@ import inspect
 import itertools
 import argparse
 
+
 class CommandLine(object):
     argument_parser = None
     subparsers = None
@@ -19,36 +20,45 @@ class CommandLine(object):
         def wrapper(decorated):
             cmd_name = command_name or decorated.__name__
             subparser = self.subparsers.add_parser(cmd_name,
-                    help=decorated.__doc__)
+                                                   description=decorated.__doc__)
             for args, kwargs in describe_arguments(decorated):
                 subparser.add_argument(*args, **kwargs)
             subparser.set_defaults(func=decorated)
             return decorated
         return wrapper
 
-    def subcommand_builder(self, command_name, help=None):
+    def subcommand_builder(self, command_name, description=None):
         """
         Decorate a function that builds a subcommand. Builders should accept a
         single argument (the subparser instance) and return the function to be
         run as the command."""
         def wrapper(decorated):
-            def builder():
-                subparser = self.subparser.add_subparser(command_name,  help)
-                func = decorated(subparser)
-                subparser.set_defaults(func=func)
-            return builder
+            subparser = self.subparsers.add_parser(command_name)
+            func = decorated(subparser)
+            subparser.set_defaults(func=func)
+            subparser.description = description or func.__doc__
         return wrapper
 
-    def make_subparser(self, subcmd_name, function, help=None):
+    def make_subparser(self, subcmd_name, function, description=None):
         "An argparse subparser for the named subcommand."
-        subparser = self.subparsers.add_parser(subcmd_name, help)
+        subparser = self.subparsers.add_parser(subcmd_name, description)
         subparser.set_defaults(func=function)
         return subparser
 
     def run(self):
         "Run cli, processing arguments and executing subcommands."
         arguments = self.argument_parser.parse_args()
-        arguments.func(arguments)
+        argspec = inspect.getargspec(arguments.func)
+        vargs = []
+        kwargs = {}
+        if argspec.varargs:
+            vargs = getattr(arguments, argspec.vargs)
+        for arg in argspec.args:
+            kwargs[arg] = getattr(arguments, arg)
+        arguments.func(*vargs, **kwargs)
+
+
+cmdline = CommandLine()
 
 
 def describe_arguments(func):
@@ -57,6 +67,7 @@ def describe_arguments(func):
     passing in as arguments to an argparse parser's add_argument() method."""
 
     argspec = inspect.getargspec(func)
+    # we should probably raise an exception somewhere if func includes **kwargs
     if argspec.defaults:
         positional_args = argspec.args[:len(argspec.defaults)]
         keyword_names = argspec.args[-len(argspec.defaults):]
