@@ -26,7 +26,10 @@ SETUP = {
         "charmhelpers.contrib.hahelpers",
         "charmhelpers.contrib.jujugui",
     ],
-    'scripts': ["bin/contrib/charmsupport/charmsupport"],
+    'scripts': [
+        "bin/contrib/charmsupport/charmsupport",
+        "bin/contrib/saltstack/salt-call",
+    ],
     'license': "Affero GNU Public License v3",
     'long_description': open('README.txt').read(),
 }

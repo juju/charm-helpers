@@ -39,7 +39,7 @@ class InstallSaltSupportTestCase(unittest.TestCase):
             ],), {})
         ], self.mock_subprocess.check_call.call_args_list)
         self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
-            'salt-minion')
+            'salt-common')
 
     def test_no_ppa(self):
         charmhelpers.contrib.saltstack.install_salt_support(
@@ -47,7 +47,7 @@ class InstallSaltSupportTestCase(unittest.TestCase):
 
         self.assertEqual(self.mock_subprocess.check_call.call_count, 0)
         self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
-            'salt-minion')
+            'salt-common')
 
 
 class UpdateMachineStateTestCase(unittest.TestCase):
