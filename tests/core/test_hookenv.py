@@ -22,6 +22,7 @@ peers:
         interface: mock
 """
 
+
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
         foo = {
@@ -44,6 +45,14 @@ class SerializableTest(TestCase):
         wrapped = hookenv.Serializable(foo)
 
         self.assertEqual(wrapped.bar, 'baz')
+
+    def test_raises_error_from_inner_object_as_dict(self):
+        foo = {
+            'bar': 'baz',
+        }
+        wrapped = hookenv.Serializable(foo)
+
+        self.assertRaises(AttributeError, getattr, wrapped, 'baz')
 
     def test_dict_methods_from_inner_object(self):
         foo = {
@@ -80,6 +89,11 @@ class SerializableTest(TestCase):
 
 
 class HelpersTest(TestCase):
+    def setUp(self):
+        super(HelpersTest, self).setUp()
+        # Reset hookenv cache for each test
+        hookenv.cache = {}
+
     @patch('subprocess.call')
     def test_logs_messages_to_juju_with_default_level(self, mock_call):
         hookenv.log('foo')
@@ -111,21 +125,22 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_charm_config_with_scope(self, check_output):
-        config_data = {'foo': 'bar'}
+        config_data = 'bar'
         check_output.return_value = json.dumps(config_data)
 
         result = hookenv.config(scope='baz')
 
-        self.assertEqual(result.foo, 'bar')
+        self.assertEqual(result, 'bar')
         check_output.assert_called_with(['config-get', 'baz', '--format=json'])
 
     @patch('subprocess.check_output')
-    @patch('charmhelpers.core.hookenv.log')
-    def test_logs_and_reraises_on_config_error(self, log, check_output):
-        error = 'some error'
-        check_output.side_effect = ValueError(error)
+    def test_gets_missing_charm_config_with_scope(self, check_output):
+        check_output.return_value = ''
 
-        self.assertRaisesRegexp(ValueError, error, hookenv.config)
+        result = hookenv.config(scope='baz')
+
+        self.assertEqual(result, None)
+        check_output.assert_called_with(['config-get', 'baz', '--format=json'])
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
@@ -396,7 +411,7 @@ class HelpersTest(TestCase):
         local_unit.return_value = 'u0'
         relation_types.return_value = ['t1','t2']
         relation_ids.return_value = ['i1']
-        related_units.return_value = ['u1','u2']
+        related_units.return_value = ['u1', 'u2']
         relation_get.return_value = {'key': 'val'}
 
         result = hookenv.relations()
@@ -417,7 +432,6 @@ class HelpersTest(TestCase):
                  },
             },
        })
-
 
     @patch('charmhelpers.core.hookenv.config')
     @patch('charmhelpers.core.hookenv.relation_type')
@@ -464,66 +478,83 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_relation(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
-
+        data = {"foo": "BAR"}
+        check_output.return_value = json.dumps(data)
         result = hookenv.relation_get()
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result.foo, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
+        check_output.return_value = json.dumps('bar')
 
         result = hookenv.relation_get(attribute='baz-scope')
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result, 'bar')
+        check_output.assert_called_with(['relation-get', '--format=json',
+                                         'baz-scope'])
+
+    @patch('subprocess.check_output')
+    def test_gets_missing_relation_with_scope(self, check_output):
+        check_output.return_value = ""
+
+        result = hookenv.relation_get(attribute='baz-scope')
+
+        self.assertEqual(result, None)
         check_output.assert_called_with(['relation-get', '--format=json',
                                          'baz-scope'])
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_unit_name(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
+        check_output.return_value = json.dumps('BAR')
 
         result = hookenv.relation_get(attribute='baz-scope', unit='baz-unit')
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json',
                                          'baz-scope', 'baz-unit'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('subprocess.check_call')
+    @patch('subprocess.check_output')
+    def test_relation_set_flushes_local_unit_cache(self, check_output,
+                                                   check_call, local_unit):
+        check_output.return_value = json.dumps('BAR')
+        local_unit.return_value = 'baz_unit'
+        hookenv.relation_get(attribute='baz_scope', unit='baz_unit')
+        hookenv.relation_get(attribute='bar_scope')
+        self.assertTrue(len(hookenv.cache) == 2)
+        hookenv.relation_set(baz_scope='hello')
+        # relation_set should flush any entries for local_unit
+        self.assertTrue(len(hookenv.cache) == 1)
+
     @patch('subprocess.check_output')
     def test_gets_relation_with_relation_id(self, check_output):
-        json_string = '{"foo": "BAR"}'
-        check_output.return_value = json_string
+        check_output.return_value = json.dumps('BAR')
 
         result = hookenv.relation_get(attribute='baz-scope', unit='baz-unit',
                                       rid=123)
 
-        self.assertEqual(result['foo'], 'BAR')
+        self.assertEqual(result, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
 
     @patch('subprocess.check_call')
     def test_sets_relation_with_kwargs(self, check_call_):
         hookenv.relation_set(foo="bar")
-        check_call_.assert_called_with(['relation-set','foo=bar'])
-
+        check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
     @patch('subprocess.check_call')
     def test_sets_relation_with_dict(self, check_call_):
-        hookenv.relation_set(relation_settings={"foo":"bar"})
-        check_call_.assert_called_with(['relation-set','foo=bar'])
-
+        hookenv.relation_set(relation_settings={"foo": "bar"})
+        check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
     @patch('subprocess.check_call')
     def test_sets_relation_with_relation_id(self, check_call_):
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                          'bar=baz'])
-
 
     def test_lists_relation_types(self):
         open_ = mock_open()
@@ -532,36 +563,61 @@ class HelpersTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
                 reltypes = set(hookenv.relation_types())
         open_.assert_called_once_with('/var/empty/metadata.yaml')
-        self.assertEqual(set(('testreqs','testprov','testpeer')), reltypes)
-
+        self.assertEqual(set(('testreqs', 'testprov', 'testpeer')), reltypes)
 
     @patch('subprocess.check_call')
     def test_opens_port(self, check_call_):
         hookenv.open_port(443, "TCP")
         hookenv.open_port(80)
         hookenv.open_port(100, "UDP")
-        calls = [call(['open-port','443/TCP']),
-                 call(['open-port','80/TCP']),
-                 call(['open-port','100/UDP']),
+        calls = [call(['open-port', '443/TCP']),
+                 call(['open-port', '80/TCP']),
+                 call(['open-port', '100/UDP']),
                 ]
         check_call_.assert_has_calls(calls)
-
 
     @patch('subprocess.check_call')
     def test_closes_port(self, check_call_):
         hookenv.close_port(443, "TCP")
         hookenv.close_port(80)
         hookenv.close_port(100, "UDP")
-        calls = [call(['close-port','443/TCP']),
-                 call(['close-port','80/TCP']),
-                 call(['close-port','100/UDP']),
+        calls = [call(['close-port', '443/TCP']),
+                 call(['close-port', '80/TCP']),
+                 call(['close-port', '100/UDP']),
                 ]
         check_call_.assert_has_calls(calls)
 
     @patch('subprocess.check_output')
     def test_gets_unit_attribute(self, check_output_):
-        hookenv.unit_get('foo')
-        check_output_.assert_called_with(['unit-get', 'foo'])
+        check_output_.return_value = json.dumps('bar')
+        self.assertEqual(hookenv.unit_get('foo'), 'bar')
+        check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
+
+    @patch('subprocess.check_output')
+    def test_gets_missing_unit_attribute(self, check_output_):
+        check_output_.return_value = ""
+        self.assertEqual(hookenv.unit_get('foo'), None)
+        check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
+
+    def test_cached_decorator(self):
+        calls = []
+        values = {
+            'hello': 'world',
+            'foo': 'bar',
+            'baz': None
+            }
+
+        @hookenv.cached
+        def cache_function(attribute):
+            calls.append(attribute)
+            return values[attribute]
+
+        self.assertEquals(cache_function('hello'), 'world')
+        self.assertEquals(cache_function('hello'), 'world')
+        self.assertEquals(cache_function('foo'), 'bar')
+        self.assertEquals(cache_function('baz'), None)
+        self.assertEquals(cache_function('baz'), None)
+        self.assertEquals(calls, ['hello', 'foo', 'baz'])
 
 
 class HooksTest(TestCase):
@@ -608,4 +664,3 @@ class HooksTest(TestCase):
         self.assertRaises(hookenv.UnregisteredHookError, hooks.execute,
                           ['brew'])
         self.assertEqual(execs, [True])
-
