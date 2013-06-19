@@ -87,7 +87,7 @@ def install_salt_support(from_ppa=True):
             'ppa:saltstack/salt',
         ])
         subprocess.check_call(['/usr/bin/apt-get', 'update'])
-    charmhelpers.core.host.apt_install('salt-minion')
+    charmhelpers.core.host.apt_install('salt-common')
 
 
 def update_machine_state(state_path):
