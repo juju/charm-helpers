@@ -386,12 +386,14 @@ class HelpersTest(TestCase):
             call(234),
         ])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('charmhelpers.core.hookenv.relation_types')
     @patch('charmhelpers.core.hookenv.relation_ids')
     @patch('charmhelpers.core.hookenv.related_units')
     @patch('charmhelpers.core.hookenv.relation_get')
     def test_gets_relations(self, relation_get, related_units,
-                            relation_ids, relation_types):
+                            relation_ids, relation_types, local_unit):
+        local_unit.return_value = 'u0'
         relation_types.return_value = ['t1','t2']
         relation_ids.return_value = ['i1']
         related_units.return_value = ['u1','u2']
@@ -402,12 +404,14 @@ class HelpersTest(TestCase):
         self.assertEqual(result, {
             't1': {
                 'i1': {
+                    'u0': {'key': 'val'},
                     'u1': {'key': 'val'},
                     'u2': {'key': 'val'},
                  },
             },
             't2': {
                 'i1': {
+                    'u0': {'key': 'val'},
                     'u1': {'key': 'val'},
                     'u2': {'key': 'val'},
                  },
