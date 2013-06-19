@@ -62,11 +62,7 @@ def patch_open():
 
 class HelpersTest(TestCase):
     @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_runs_service_action(self, exists, mock_call):
-        init_exists = True
-        init_d_exists = False
-        exists.side_effect = [init_exists, init_d_exists]
+    def test_runs_service_action(self, mock_call):
         mock_call.return_value = 0
         action = 'some-action'
         service_name = 'foo-service'
@@ -74,50 +70,10 @@ class HelpersTest(TestCase):
         result = host.service(action, service_name)
 
         self.assertTrue(result)
-        mock_call.assert_called_with(['initctl', action, service_name])
-        exists.assert_has_calls([
-            call(os.path.join('/etc/init', '%s.conf' % service_name)),
-        ])
+        mock_call.assert_called_with(['service', service_name, action])
 
     @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_runs_service_action_on_init_d(self, exists, mock_call):
-        init_exists = False
-        init_d_exists = True
-        exists.side_effect = [init_exists, init_d_exists]
-        mock_call.return_value = 0
-        action = 'some-action'
-        service_name = 'foo-service'
-
-        result = host.service(action, service_name)
-
-        self.assertTrue(result)
-        mock_call.assert_called_with([os.path.join('/etc/init.d',
-                                                   service_name), action])
-        exists.assert_has_calls([
-            call(os.path.join('/etc/init.d', service_name)),
-        ])
-
-    @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_doesnt_run_service_if_it_doesn_exist(self, exists, mock_call):
-        init_exists = False
-        init_d_exists = False
-        exists.side_effect = [init_exists, init_d_exists]
-        action = 'some-action'
-        service_name = 'foo-service'
-
-        result = host.service(action, service_name)
-
-        self.assertFalse(result)
-        self.assertFalse(mock_call.called)
-
-    @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_returns_false_when_service_fails(self, exists, mock_call):
-        init_exists = False
-        init_d_exists = True
-        exists.side_effect = [init_exists, init_d_exists]
+    def test_returns_false_when_service_fails(self, mock_call):
         mock_call.return_value = 1
         action = 'some-action'
         service_name = 'foo-service'
@@ -125,8 +81,7 @@ class HelpersTest(TestCase):
         result = host.service(action, service_name)
 
         self.assertFalse(result)
-        mock_call.assert_called_with([os.path.join('/etc/init.d',
-                                                   service_name), action])
+        mock_call.assert_called_with(['service', service_name, action])
 
     @patch.object(host, 'service')
     def test_starts_a_service(self, service):
@@ -141,6 +96,32 @@ class HelpersTest(TestCase):
         host.service_stop(service_name)
 
         service.assert_called_with('stop', service_name)
+
+    @patch.object(host, 'service')
+    def test_restarts_a_service(self, service):
+        service_name = 'foo-service'
+        host.service_restart(service_name)
+
+        service.assert_called_with('restart', service_name)
+
+    @patch.object(host, 'service')
+    def test_reloads_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        host.service_reload(service_name)
+
+        service.assert_called_with('reload', service_name)
+
+    @patch.object(host, 'service')
+    def test_failed_reload_restarts_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False, True]
+        host.service_reload(service_name)
+
+        service.assert_has_calls([
+                            call('reload', service_name),
+                            call('restart', service_name)
+                            ])
 
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')

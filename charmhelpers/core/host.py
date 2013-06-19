@@ -23,16 +23,18 @@ def service_stop(service_name):
     service('stop', service_name)
 
 
+def service_restart(service_name):
+    service('restart', service_name)
+
+
+def service_reload(service_name):
+    if not service('reload', service_name):
+        service('restart', service_name)
+
+
 def service(action, service_name):
-    cmd = None
-    if os.path.exists(os.path.join('/etc/init', '%s.conf' % service_name)):
-        cmd = ['initctl', action, service_name]
-    elif os.path.exists(os.path.join('/etc/init.d', service_name)):
-        cmd = [os.path.join('/etc/init.d', service_name), action]
-    if cmd:
-        return_value = subprocess.call(cmd)
-        return return_value == 0
-    return False
+    cmd = ['service', service_name, action]
+    return subprocess.call(cmd) == 0
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False):
