@@ -2,7 +2,6 @@
 #
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
-import json
 import mock
 import tempfile
 import unittest
@@ -114,11 +113,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-
     def test_output_without_relation(self):
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
-           'group_code_owner': 'webops_deploy',
-           'user_code_runner': 'ubunet',
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'ubunet',
         })
         self.mock_local_unit.return_value = "click-index/3"
 
@@ -135,8 +133,8 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
 
     def test_output_with_relation(self):
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
-           'group_code_owner': 'webops_deploy',
-           'user_code_runner': 'ubunet',
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'ubunet',
         })
         self.mock_relation_get.return_value = {
             'relation_key1': 'relation_value1',
