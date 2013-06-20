@@ -146,6 +146,7 @@ class HelpersTest(TestCase):
 
         result = hookenv.config()
 
+        self.assert_(isinstance(result, hookenv.Serializable))
         self.assertEqual(result.foo, 'bar')
         check_output.assert_called_with(['config-get', '--format=json'])
 
@@ -158,6 +159,12 @@ class HelpersTest(TestCase):
 
         self.assertEqual(result, 'bar')
         check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+
+        # The result can be used like a string
+        self.assertEqual(result[1], 'a')
+
+        # ... because the result is actually a string
+        self.assert_(isinstance(result, basestring))
 
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):
