@@ -27,8 +27,8 @@ def service_restart(service_name):
     service('restart', service_name)
 
 
-def service_reload(service_name):
-    if not service('reload', service_name):
+def service_reload(service_name, restart_on_failure=False):
+    if not service('reload', service_name) and restart_on_failure:
         service('restart', service_name)
 
 

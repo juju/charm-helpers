@@ -116,12 +116,20 @@ class HelpersTest(TestCase):
     def test_failed_reload_restarts_a_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [False, True]
-        host.service_reload(service_name)
+        host.service_reload(service_name, restart_on_failure=True)
 
         service.assert_has_calls([
                             call('reload', service_name),
                             call('restart', service_name)
                             ])
+
+    @patch.object(host, 'service')
+    def test_failed_reload_without_restart(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        host.service_reload(service_name)
+
+        service.assert_called_with('reload', service_name)
 
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
