@@ -159,9 +159,13 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        return Serializable(json.loads(subprocess.check_output(_args)))
+        result = json.loads(subprocess.check_output(_args))
+        if result is not None:
+            return Serializable(result)
     except ValueError:
-        return None
+        pass
+
+    return None
 
 
 def relation_set(relation_id=None, relation_settings={}, **kwargs):
