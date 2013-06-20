@@ -142,9 +142,7 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        return Serializable(json.loads(
-                                subprocess.check_output(config_cmd_line)
-                                ))
+        return json.loads(subprocess.check_output(config_cmd_line))
     except ValueError:
         return None
 
@@ -159,7 +157,7 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        return Serializable(json.loads(subprocess.check_output(_args)))
+        return json.loads(subprocess.check_output(_args))
     except ValueError:
         return None
 
@@ -208,7 +206,7 @@ def relation_for_unit(unit=None, rid=None):
         if key.endswith('-list'):
             relation[key] = relation[key].split()
     relation['__unit__'] = unit
-    return Serializable(relation)
+    return relation
 
 
 @cached
