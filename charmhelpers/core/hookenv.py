@@ -168,10 +168,11 @@ def relation_set(relation_id=None, relation_settings={}, **kwargs):
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
-    for k, v in relation_settings.items():
-        relation_cmd_line.append('{}={}'.format(k, v))
-    for k, v in kwargs.items():
-        relation_cmd_line.append('{}={}'.format(k, v))
+    for k, v in (relation_settings.items() + kwargs.items()):
+        if v is None:
+            relation_cmd_line.append('{}='.format(k))
+        else:
+            relation_cmd_line.append('{}={}'.format(k, v))
     subprocess.check_call(relation_cmd_line)
     # Flush cache of any relation-gets for local unit
     flush(local_unit())
