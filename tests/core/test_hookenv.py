@@ -1,5 +1,6 @@
 import json
 
+import cPickle as pickle
 from mock import patch, call, mock_open
 from StringIO import StringIO
 from mock import MagicMock
@@ -87,6 +88,31 @@ class SerializableTest(TestCase):
 
         self.assertIs(wrapped.data, foo)
 
+    def test_pickle(self):
+        foo = {'bar': 'baz'}
+        wrapped = hookenv.Serializable(foo)
+        pickled = pickle.dumps(wrapped)
+        unpickled = pickle.loads(pickled)
+
+        self.assert_(isinstance(unpickled, hookenv.Serializable))
+        self.assertEqual(unpickled, foo)
+
+    def test_boolean(self):
+        true_dict = {'foo': 'bar'}
+        false_dict = {}
+
+        self.assertIs(bool(hookenv.Serializable(true_dict)), True)
+        self.assertIs(bool(hookenv.Serializable(false_dict)), False)
+
+    def test_equality(self):
+        foo = {'bar': 'baz'}
+        bar = {'baz': 'bar'}
+        wrapped_foo = hookenv.Serializable(foo)
+
+        self.assertEqual(wrapped_foo, foo)
+        self.assertEqual(wrapped_foo, wrapped_foo)
+        self.assertNotEqual(wrapped_foo, bar)
+
 
 class HelpersTest(TestCase):
     def setUp(self):
@@ -120,6 +146,7 @@ class HelpersTest(TestCase):
 
         result = hookenv.config()
 
+        self.assert_(isinstance(result, hookenv.Serializable))
         self.assertEqual(result.foo, 'bar')
         check_output.assert_called_with(['config-get', '--format=json'])
 
@@ -132,6 +159,12 @@ class HelpersTest(TestCase):
 
         self.assertEqual(result, 'bar')
         check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+
+        # The result can be used like a string
+        self.assertEqual(result[1], 'a')
+
+        # ... because the result is actually a string
+        self.assert_(isinstance(result, basestring))
 
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):

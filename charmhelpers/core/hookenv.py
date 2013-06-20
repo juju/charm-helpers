@@ -87,6 +87,14 @@ class Serializable(UserDict.IterableUserDict):
         except KeyError:
             raise AttributeError(attr)
 
+    def __getstate__(self):
+        # Pickle as a standard dictionary.
+        return self.data
+
+    def __setstate__(self, state):
+        # Unpickle into our wrapper.
+        self.data = state
+
     def json(self):
         "Serialize the object to json"
         return json.dumps(self.data)
