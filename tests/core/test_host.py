@@ -519,6 +519,52 @@ class HelpersTest(TestCase):
         host.apt_update()
         call.assert_called_with(['apt-get', 'update'])
 
+    @patch('subprocess.check_call')
+    def test_apt_add_repo_fatal_without_update(self, check_call):
+        host.apt_add_repository('deb http://example.com/ubuntu precise main',
+                                update=False, fatal=True)
+
+        check_call.assert_called_with([
+            '/usr/bin/apt-add-repository',
+            'deb http://example.com/ubuntu precise main',
+        ])
+
+    @patch('subprocess.check_call')
+    def test_apt_add_repo_fatal_with_update(self, check_call):
+        host.apt_add_repository('deb http://example.com/ubuntu precise main',
+                                fatal=True)
+
+        check_call.assert_has_calls([
+            call([
+                '/usr/bin/apt-add-repository',
+                'deb http://example.com/ubuntu precise main',
+            ]),
+            call(['apt-get', 'update']),
+        ])
+
+    @patch('subprocess.call')
+    def test_apt_add_repo_non_fatal_without_update(self, mock_call):
+        host.apt_add_repository('deb http://example.com/ubuntu precise main',
+                                update=False, fatal=False)
+
+        mock_call.assert_called_with([
+            '/usr/bin/apt-add-repository',
+            'deb http://example.com/ubuntu precise main',
+        ])
+
+    @patch('subprocess.call')
+    def test_apt_add_repo_non_fatal_with_update(self, mock_call):
+        host.apt_add_repository('deb http://example.com/ubuntu precise main',
+                                fatal=False)
+
+        mock_call.assert_has_calls([
+            call([
+                '/usr/bin/apt-add-repository',
+                'deb http://example.com/ubuntu precise main',
+            ]),
+            call(['apt-get', 'update']),
+        ])
+
     @patch('apt_pkg.Cache')
     def test_filter_packages_missing(self, cache):
         cache.side_effect = fake_apt_cache
