@@ -1,0 +1,14 @@
+# Import from remote bzr branch.
+branch: lp:charm-helpers
+# install helpers to ./hooks/charmhelpers
+destination: hooks/charmhelpers
+include:
+    # include all of charmhelpers.core
+    - core
+    # all of charmhelpers.payload
+    - payload
+    # and a subset of charmhelpers.contrib.hahelpers
+    - contrib.hahelpers:
+        - openstack_common
+        - ceph_utils
+        - utils
