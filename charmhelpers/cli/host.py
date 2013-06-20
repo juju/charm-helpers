@@ -5,9 +5,7 @@ from charmhelpers.core import host
 @cmdline.subcommand()
 def mounts():
     "List mounts"
-    for mount in host.mounts():
-        print mount
-
+    return host.mounts()
 
 @cmdline.subcommand_builder('service', description="Control system services")
 def service(subparser):

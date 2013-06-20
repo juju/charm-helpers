@@ -1,15 +1,82 @@
 import inspect
 import itertools
 import argparse
+import sys
+
+class OutputFormatter(object):
+    def __init__(self, outfile=sys.stdout):
+        self.formats = { 'raw': self.raw,
+                         'python': self.pprint,
+                         'json': self.json,
+                         'yaml': self.yaml,
+                         'csv': self.csv,
+                         'tab': self.tab,
+                       }
+        self.outfile = outfile
+
+    @property
+    def supported_formats(self):
+        return self.formats.keys()
+
+    def raw(self, output):
+        """Output data as raw string"""
+        try:
+            self.outfile.writelines(output)
+        except TypeError:
+            self.outfile.write(str(output))
+
+    def pprint(self, output):
+        """Output data as a nicely-formatted python data structure"""
+        import pprint
+        pprint.pprint(output, stream=self.outfile)
+
+    def json(self, output):
+        """Output data in JSON format"""
+        import json
+        json.dump(output, self.outfile)
+
+    def yaml(self, output):
+        """Output data in YAML format"""
+        import yaml
+        yaml.safe_dump(output, self.outfile)
+
+    def csv(self, output):
+        """Output data as excel-compatible CSV"""
+        import csv
+        csvwriter = csv.writer(self.outfile)
+        csvwriter.writerows(output)
+
+    def tab(self, output):
+        """Output data in excel-compatible tab-delimited format"""
+        import csv
+        csvwriter = csv.writer(self.outfile, dialect=csv.excel_tab)
+        csvwriter.writerows(output)
+
+    def format_output(self, output, fmt='raw'):
+        fmtfunc = self.formats[fmt]
+        fmtfunc(output)
 
 
 class CommandLine(object):
     argument_parser = None
     subparsers = None
+    formatter = None
 
     def __init__(self):
         if not self.argument_parser:
             self.argument_parser = argparse.ArgumentParser(description='Perform common charm tasks')
+        if not self.formatter:
+            self.formatter = OutputFormatter()
+            formatgroup = self.argument_parser.add_mutually_exclusive_group()
+            choices = self.formatter.supported_formats
+            formatgroup.add_argument("--format", metavar='FMT',
+                    help="Select output format for returned data, "
+                         "where FMT is one of: {}".format(choices),
+                    choices=choices, default='raw')
+            for fmt, fmtfunc in self.formatter.formats.iteritems():
+                formatgroup.add_argument("-{}".format(fmt[0]),
+                        "--{}".format(fmt), action='store_const', const=fmt,
+                        dest='format', help=fmtfunc.__doc__)
         if not self.subparsers:
             self.subparsers = self.argument_parser.add_subparsers(help='Commands')
 
@@ -55,7 +122,7 @@ class CommandLine(object):
             vargs = getattr(arguments, argspec.vargs)
         for arg in argspec.args:
             kwargs[arg] = getattr(arguments, arg)
-        arguments.func(*vargs, **kwargs)
+        self.formatter.format_output(arguments.func(*vargs, **kwargs), arguments.format)
 
 
 cmdline = CommandLine()
