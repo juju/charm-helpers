@@ -159,3 +159,30 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "wsgi-file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
             }, result)
+
+    def test_updates_existing_values(self):
+        """Data stored in grains is retained.
+
+        This may be helpful so that templates can access information
+        from relations outside the current context.
+        """
+        os.makedirs(os.path.dirname(self.grain_path))
+        with open(self.grain_path, 'w+') as grain_file:
+            yaml.dump({'solr:hostname': 'example.com'})
+        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'ubunet',
+        })
+        self.mock_local_unit.return_value = "click-index/3"
+
+        charmhelpers.contrib.saltstack.juju_config_2_grains()
+
+        with open(self.grain_path, 'r') as grain_file:
+            result = yaml.load(grain_file.read())
+            self.assertEqual({
+                "charm_dir": "/tmp/charm_dir",
+                "group_code_owner": "webops_deploy",
+                "user_code_runner": "ubunet",
+                "local_unit": "click-index/3",
+                "solr:hostname": "example.com",
+            }, result)
