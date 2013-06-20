@@ -95,6 +95,9 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         patcher = mock.patch('charmhelpers.core.hookenv.relation_get')
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
+        patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
+        self.mock_relation_type = patcher.start()
+        self.mock_relation_type.return_value = None
         self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.local_unit')
         self.mock_local_unit = patcher.start()
@@ -137,6 +140,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',
         })
+        self.mock_relation_type.return_value = 'wsgi-file'
         self.mock_relation_get.return_value = {
             'relation_key1': 'relation_value1',
             'relation_key2': 'relation_value2',
@@ -151,7 +155,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
-                "relation_key1": "relation_value1",
-                "relation_key2": "relation_value2",
+                "wsgi-file:relation_key1": "relation_value1",
+                "wsgi-file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
             }, result)
