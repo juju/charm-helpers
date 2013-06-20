@@ -122,5 +122,10 @@ def juju_config_2_grains():
     yaml.add_representer(unicode, lambda dumper,
                          value: dumper.represent_scalar(
                              u'tag:yaml.org,2002:str', value))
+
+    grains_dir = os.path.dirname(salt_grains_path)
+    if not os.path.exists(grains_dir):
+        os.makedirs(grains_dir)
+
     with open(salt_grains_path, "w+") as fp:
         fp.write(config.yaml())
