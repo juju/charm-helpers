@@ -117,7 +117,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def test_output_without_relation(self):
+    def _test_output_without_relation(self):
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',
@@ -135,7 +135,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
             }, result)
 
-    def test_output_with_relation(self):
+    def _test_output_with_relation(self):
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',
@@ -168,7 +168,8 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         """
         os.makedirs(os.path.dirname(self.grain_path))
         with open(self.grain_path, 'w+') as grain_file:
-            yaml.dump({'solr:hostname': 'example.com'})
+            grain_file.write(yaml.dump({'solr:hostname': 'example.com'}))
+
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',

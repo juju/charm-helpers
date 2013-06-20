@@ -135,5 +135,12 @@ def juju_config_2_grains():
     if not os.path.exists(grains_dir):
         os.makedirs(grains_dir)
 
+    if os.path.exists(salt_grains_path):
+        with open(salt_grains_path, "r") as grain_file:
+            grains = yaml.load(grain_file.read())
+    else:
+        grains = {}
+
+    config.update(grains)
     with open(salt_grains_path, "w+") as fp:
         fp.write(config.yaml())
