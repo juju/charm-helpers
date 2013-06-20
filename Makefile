@@ -35,6 +35,10 @@ test:
 	@echo Starting tests...
 	@$(PYTHON) /usr/bin/nosetests --nologcapture tests/
 
+ftest:
+	@echo Starting fast tests...
+	@$(PYTHON) /usr/bin/nosetests --attr '!slow' --nologcapture tests/
+
 lint:
 	@echo Checking for Python syntax...
 	@flake8 --ignore=E123 $(PROJECT) $(TESTS) && echo OK
