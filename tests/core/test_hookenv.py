@@ -272,15 +272,6 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.remote_unit(), 'foo')
 
-    @patch('charmhelpers.core.hookenv.subprocess')
-    def test_relation_get_none(self, mock_subprocess):
-        """Return None rather than Serializable(None) for 'null'."""
-        mock_subprocess.check_output.return_value = 'null'
-
-        result = hookenv.relation_get()
-
-        self.assertIsNone(result)
-
     @patch('charmhelpers.core.hookenv.remote_unit')
     @patch('charmhelpers.core.hookenv.relation_get')
     def test_gets_relation_for_unit(self, relation_get, remote_unit):
@@ -493,6 +484,15 @@ class HelpersTest(TestCase):
 
         self.assertEqual(result.foo, 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
+
+    @patch('charmhelpers.core.hookenv.subprocess')
+    def test_relation_get_none(self, mock_subprocess):
+        """Return None rather than Serializable(None) for 'null'."""
+        mock_subprocess.check_output.return_value = 'null'
+
+        result = hookenv.relation_get()
+
+        self.assertIsNone(result)
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
