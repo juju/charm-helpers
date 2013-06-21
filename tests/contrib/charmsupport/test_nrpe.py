@@ -77,7 +77,7 @@ class NRPETestCase(NRPEBaseTestCase):
 
         self.assertEqual(None, checker.write())
 
-        self.check_call_counts(config=1, getpwnam=1, getgrnam=1, exists=2)
+        self.check_call_counts(config=1, getpwnam=1, getgrnam=1, exists=1)
 
     def test_write_restarts_service(self):
         self.patched['config'].return_value = {'nagios_context': 'test'}
@@ -86,10 +86,10 @@ class NRPETestCase(NRPEBaseTestCase):
 
         self.assertEqual(None, checker.write())
 
-        expected = ['initctl', 'restart', 'nagios-nrpe-server']
+        expected = ['service', 'nagios-nrpe-server', 'restart']
         self.assertEqual(expected, self.patched['call'].call_args[0][0])
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
-                               exists=2, call=1)
+                               exists=1, call=1)
 
     def test_update_nrpe(self):
         self.patched['config'].return_value = {'nagios_context': 'a'}
@@ -139,7 +139,7 @@ define service {
         self.patched['relation_set'].assert_called_once_with(
             relation_id="local-monitors:1", monitors=monitors)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
-                               exists=4, open=2, listdir=1,
+                               exists=3, open=2, listdir=1,
                                relation_ids=1, relation_set=1)
 
 
