@@ -48,14 +48,14 @@ def db_changed():
 This would look very similar for nova/glance/etc.
 
 
-The OSTemplteLoader is responsible for creating a jinja2.ChoiceLoader that should
-help reduce fragmentation of a charms' templates across OpenStack releases, so we
-do not need to maintain many copies of templates or juggle symlinks. The constructed
-loader lets the template be loaded from the most recent OS release-specific template
-dir or a base template dir.
+The OSTemplteLoader is responsible for creating a jinja2.ChoiceLoader that
+should help reduce fragmentation of a charms' templates across OpenStack
+releases, so we do not need to maintain many copies of templates or juggle
+symlinks. The constructed loader lets the template be loaded from the most
+recent OS release-specific template dir or a base template dir.
 
-For example, say cinder has no changes in config structure across any OS releases,
-all OS releases share the same templates from the base directory:
+For example, say cinder has no changes in config structure across any OS
+releases, all OS releases share the same templates from the base directory:
 
 
 templates/api-paste.ini
@@ -76,12 +76,15 @@ templates/cinder.conf
 templates/grizzly/cinder.conf
 templates/icehouse/cinder.conf
 
-Icehouse and beyond will load from icehouse/, Grizzly + Havan from grizzly/, previous
-releases from the base templates/
+Icehouse and beyond will load from icehouse/, Grizzly + Havan from grizzly/,
+previous releases from the base templates/
 
 """
+
+
 class OSConfigException(Exception):
     pass
+
 
 def get_loader(templates_dir, os_release):
     """
@@ -116,17 +119,21 @@ def get_loader(templates_dir, os_release):
             loaders.insert(0, jinja2.FileSystemLoader(tmpl_dir))
         if rel == os_release:
             break
-    logging.info('Creating choice loader with dirs: %s' %\
+    logging.info('Creating choice loader with dirs: %s' %
                  [l.searchpath for l in loaders])
     return jinja2.ChoiceLoader(loaders)
+
 
 class OSConfigTemplate(object):
     def __init__(self, config_file, contexts):
         self.config_file = config_file
+
         if hasattr(contexts, '__call__'):
             self.contexts = [contexts]
         else:
             self.contexts = contexts
+
+        self._complete_contexts = []
 
     def context(self):
         ctxt = {}
@@ -134,7 +141,21 @@ class OSConfigTemplate(object):
             _ctxt = context()
             if _ctxt:
                 ctxt.update(_ctxt)
+                # track interfaces for every complete context.
+                [self._complete_contexts.append(interface)
+                 for interface in context.interfaces
+                 if interface not in self._complete_contexts]
         return ctxt
+
+    def complete_contexts(self):
+        '''
+        Return a list of interfaces that have atisfied contexts.
+        '''
+        if self._complete_contexts:
+            return self._complete_contexts
+        self.context()
+        return self._complete_contexts
+
 
 class OSConfigRenderer(object):
     def __init__(self, templates_dir, openstack_release):
@@ -178,3 +199,12 @@ class OSConfigRenderer(object):
 
     def write_all(self):
         [self.write(k) for k in self.templates.iterkeys()]
+
+    def complete_contexts(self):
+        '''
+        Returns a list of context interfaces that yield a complete context.
+        '''
+        interfaces = []
+        [interfaces.extend(i.complete_contexts())
+         for i in self.templates.itervalues()]
+        return interfaces
