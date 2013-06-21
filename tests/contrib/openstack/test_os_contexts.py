@@ -138,7 +138,8 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
         self.config.return_value = SHARED_DB_CONFIG
-        result = context.shared_db()
+        shared_db = context.SharedDBContext()
+        result = shared_db()
         expected = {
             'database_host': 'dbserver.local',
             'database': 'foodb',
@@ -154,7 +155,8 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
         self.config.return_value = SHARED_DB_CONFIG
-        result = context.shared_db()
+        shared_db = context.SharedDBContext()
+        result = shared_db()
         self.assertEquals(result, {})
 
     def test_shared_db_context_with_missing_config(self):
@@ -164,13 +166,15 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
         self.config.return_value = incomplete_config
-        self.assertRaises(context.OSContextError, context.shared_db)
+        shared_db = context.SharedDBContext()
+        self.assertRaises(context.OSContextError, shared_db)
 
     def test_identity_service_context_with_data(self):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION)
         self.relation_get.side_effect = relation.get
-        result = context.identity_service()
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
         expected = {
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
@@ -190,7 +194,8 @@ class ContextTests(unittest.TestCase):
         incomplete_relation['service_password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
-        result = context.identity_service()
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
         self.assertEquals(result, {})
 
     def test_amqp_context_with_data(self):
@@ -198,7 +203,8 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=AMQP_RELATION)
         self.relation_get.side_effect = relation.get
         self.config.return_value = AMQP_CONFIG
-        result = context.amqp()
+        amqp = context.AMQPContext()
+        result = amqp()
 
         expected = {
             'rabbitmq_host': 'rabbithost',
@@ -215,7 +221,8 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
         self.config.return_value = AMQP_CONFIG
-        result = context.amqp()
+        amqp = context.AMQPContext()
+        result = amqp()
 
         expected = {
             'rabbitmq_host': relation_data['vip'],
@@ -232,7 +239,8 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
         self.config.return_value = AMQP_CONFIG
-        result = context.amqp()
+        amqp = context.AMQPContext()
+        result = amqp()
         self.assertEquals({}, result)
 
     def test_amqp_context_with_missing_config(self):
@@ -242,7 +250,8 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=AMQP_RELATION)
         self.relation_get.side_effect = relation.get
         self.config.return_value = incomplete_config
-        self.assertRaises(context.OSContextError, context.amqp)
+        amqp = context.AMQPContext()
+        self.assertRaises(context.OSContextError, amqp)
 
     def test_ceph_context_with_data(self):
         '''Test ceph context with all relation data'''
@@ -250,7 +259,8 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.relation_units
-        result = context.ceph()
+        ceph = context.CephContext()
+        result = ceph()
         expected = {
             'mon_hosts': 'ceph_node2 ceph_node1',
             'auth': 'foo'
@@ -267,5 +277,6 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.relation_units
-        result = context.ceph()
+        ceph = context.CephContext()
+        result = ceph()
         self.assertEquals(result, {})
