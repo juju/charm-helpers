@@ -696,10 +696,9 @@ class HelpersTest(TestCase):
             make_some_changes()
 
         # Restart should only happen once per service
-        service.assert_has_calls([
-                            call('restart', 'test-service2'),
-                            call('restart', 'test-service')
-                            ])
+        for svc in ['test-service2', 'test-service']:
+            c = call('restart', svc)
+            self.assertEquals(1, service.call_args_list.count(c))
 
         exists.assert_has_calls([
             call(file_name_one),
