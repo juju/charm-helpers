@@ -87,6 +87,14 @@ class Serializable(UserDict.IterableUserDict):
         except KeyError:
             raise AttributeError(attr)
 
+    def __getstate__(self):
+        # Pickle as a standard dictionary.
+        return self.data
+
+    def __setstate__(self, state):
+        # Unpickle into our wrapper.
+        self.data = state
+
     def json(self):
         "Serialize the object to json"
         return json.dumps(self.data)
@@ -142,11 +150,13 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        return Serializable(json.loads(
-                                subprocess.check_output(config_cmd_line)
-                                ))
+        value = json.loads(subprocess.check_output(config_cmd_line))
     except ValueError:
         return None
+    if isinstance(value, dict):
+        return Serializable(value)
+    else:
+        return value
 
 
 @cached
@@ -159,19 +169,24 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        return Serializable(json.loads(subprocess.check_output(_args)))
+        value = json.loads(subprocess.check_output(_args))
     except ValueError:
         return None
+    if isinstance(value, dict):
+        return Serializable(value)
+    else:
+        return value
 
 
 def relation_set(relation_id=None, relation_settings={}, **kwargs):
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
-    for k, v in relation_settings.items():
-        relation_cmd_line.append('{}={}'.format(k, v))
-    for k, v in kwargs.items():
-        relation_cmd_line.append('{}={}'.format(k, v))
+    for k, v in (relation_settings.items() + kwargs.items()):
+        if v is None:
+            relation_cmd_line.append('{}='.format(k))
+        else:
+            relation_cmd_line.append('{}={}'.format(k, v))
     subprocess.check_call(relation_cmd_line)
     # Flush cache of any relation-gets for local unit
     flush(local_unit())
