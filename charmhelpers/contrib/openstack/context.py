@@ -173,4 +173,9 @@ class HAProxyContext(OSContextGenerator):
         ctxt = {
             'units': cluster_hosts,
         }
+        if len(cluster_hosts.keys()) > 1:
+            # Enable haproxy when we have enough peers.
+            log('Ensuring haproxy enabled in /etc/default/haproxy.')
+            with open('/etc/default/haproxy', 'w') as out:
+                out.write('ENABLED=1\n')
         return ctxt

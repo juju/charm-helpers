@@ -1,10 +1,31 @@
-
 import unittest
 
-from mock import patch
+from mock import patch, MagicMock, call
+
+from contextlib import contextmanager
 from copy import copy
 
 import charmhelpers.contrib.openstack.context as context
+
+
+@contextmanager
+def patch_open():
+    '''Patch open() to allow mocking both open() itself and the file that is
+    yielded.
+
+    Yields the mock for "open" and "file", respectively.'''
+    mock_open = MagicMock(spec=open)
+    mock_file = MagicMock(spec=file)
+
+    @contextmanager
+    def stub_open(*args, **kwargs):
+        mock_open(*args, **kwargs)
+        yield mock_file
+
+    with patch('__builtin__.open', stub_open):
+        yield mock_open, mock_file
+
+
 
 
 class FakeRelation(object):
@@ -302,7 +323,8 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         haproxy = context.HAProxyContext()
-        result = haproxy()
+        with patch_open() as (_open, _file):
+            result = haproxy()
         ex = {
             'units': {
                 'peer-0': 'cluster-peer0.localnet',
@@ -310,7 +332,11 @@ class ContextTests(unittest.TestCase):
                 'peer-2': 'cluster-peer2.localnet'
             }
         }
+        # the context gets generated.
         self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
 
     def test_haproxy_context_with_missing_data(self):
         '''Test haproxy context with missing relation data'''
