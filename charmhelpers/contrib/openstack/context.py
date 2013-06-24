@@ -1,9 +1,11 @@
 from charmhelpers.core.hookenv import (
     config,
+    local_unit,
     log,
     relation_get,
     relation_ids,
     related_units,
+    unit_get,
 )
 
 
@@ -143,4 +145,32 @@ class CephContext(OSContextGenerator):
         }
         if not context_complete(ctxt):
             return {}
+        return ctxt
+
+
+class HAProxyContext(OSContextGenerator):
+    interfaces = ['cluster']
+
+    def __call__(self):
+        '''
+        Builds half a context for the haproxy template, which describes
+        all peers to be included in the cluster.  Each charm needs to include
+        its own context generator that describes the port mapping.
+        '''
+        if not relation_ids('cluster'):
+            return {}
+
+        cluster_hosts = {}
+        l_unit = local_unit().replace('/', '-')
+        cluster_hosts[l_unit] = unit_get('private-address')
+
+        for rid in relation_ids('cluster'):
+            for unit in related_units(rid):
+                _unit = unit.replace('/', '-')
+                addr = relation_get('private-address', rid=rid, unit=unit)
+                cluster_hosts[_unit] = addr
+
+        ctxt = {
+            'units': cluster_hosts,
+        }
         return ctxt

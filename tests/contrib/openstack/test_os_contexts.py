@@ -280,3 +280,40 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         self.assertEquals(result, {})
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data(self, local_unit, unit_get):
+        '''Test haproxy context with all relation data'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'cluster-peer0.localnet'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        haproxy = context.HAProxyContext()
+        result = haproxy()
+        ex = {
+            'units': {
+                'peer-0': 'cluster-peer0.localnet',
+                'peer-1': 'cluster-peer1.localnet',
+                'peer-2': 'cluster-peer2.localnet'
+            }
+        }
+        self.assertEquals(ex, result)
+
+    def test_haproxy_context_with_missing_data(self):
+        '''Test haproxy context with missing relation data'''
+        self.relation_ids.return_value = []
+        haproxy = context.HAProxyContext()
+        self.assertEquals({}, haproxy())
