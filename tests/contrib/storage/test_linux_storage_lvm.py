@@ -22,6 +22,7 @@ PVDISPLAY = """
 # It's a mouthful.
 STORAGE_LINUX_LVM = 'charmhelpers.contrib.storage.linux.lvm'
 
+
 class LVMStorageUtilsTests(unittest.TestCase):
     def test_find_volume_group_on_pv(self):
         '''It determines any volume group assigned to a LVM PV'''
@@ -67,5 +68,3 @@ class LVMStorageUtilsTests(unittest.TestCase):
         with patch(STORAGE_LINUX_LVM + '.check_call') as check_call:
             lvm.create_lvm_volume_group('foo-vg', '/dev/foo')
             check_call.assert_called_with(['vgcreate', 'foo-vg', '/dev/foo'])
-
-

@@ -7,6 +7,7 @@ from subprocess import (
     check_output,
 )
 
+
 ##################################################
 # loopback device helpers.
 ##################################################
@@ -27,6 +28,7 @@ def loopback_devices():
         loopbacks[dev.replace(':', '')] = re.search('\((\S+)\)', f).groups()[0]
     return loopbacks
 
+
 def create_loopback(file_path):
     '''
     Create a loopback device for a given backing file.
@@ -35,6 +37,7 @@ def create_loopback(file_path):
     '''
     cmd = ['losetup', '--find', file_path]
     return check_output(cmd).strip()
+
 
 def ensure_loopback_device(path, size):
     '''
@@ -54,4 +57,3 @@ def ensure_loopback_device(path, size):
         check_call(cmd)
 
     return create_loopback(path)
-
