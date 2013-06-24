@@ -5,7 +5,9 @@ from charmhelpers.core.host import (
 )
 import subprocess
 
-CLOUD_ARCHIVE = 'deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main'
+CLOUD_ARCHIVE = """ # Ubuntu Cloud Archive
+deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
+"""
 
 
 def add_source(source, key=None):
