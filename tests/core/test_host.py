@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from contextlib import contextmanager
 import os
 import subprocess
@@ -696,12 +697,36 @@ class HelpersTest(TestCase):
             make_some_changes()
 
         # Restart should only happen once per service
-        service.assert_has_calls([
-                            call('restart', 'test-service2'),
-                            call('restart', 'test-service')
-                            ])
+        for svc in ['test-service2', 'test-service']:
+            c = call('restart', svc)
+            self.assertEquals(1, service.call_args_list.count(c))
 
         exists.assert_has_calls([
             call(file_name_one),
             call(file_name_two)
         ])
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    def test_multiservice_restart_on_change_in_order(self, exists, service):
+        restart_map = OrderedDict([
+            ('/etc/cinder/cinder.conf', ['some-api']),
+            ('/etc/haproxy/haproxy.conf',  ['haproxy'])
+        ])
+        exists.side_effect = [False, True, True, True]
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            make_some_changes()
+
+        # Restarts should happen in the order they are described in the
+        # restart map.
+        expected = [
+            call('restart', 'some-api'),
+            call('restart', 'haproxy')
+        ]
+        self.assertEquals(expected, service.call_args_list)
