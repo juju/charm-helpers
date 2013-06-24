@@ -12,6 +12,8 @@ import grp
 import subprocess
 import hashlib
 
+from collections import OrderedDict
+
 from hookenv import log, execution_environment
 
 
@@ -255,7 +257,7 @@ def restart_on_change(restart_map):
             for path in restart_map:
                 if checksums[path] != file_hash(path):
                     restarts += restart_map[path]
-            for service_name in list(set(restarts)):
+            for service_name in list(OrderedDict.fromkeys(restarts)):
                 service('restart', service_name)
         return wrapped_f
     return wrap
