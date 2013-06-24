@@ -46,7 +46,7 @@ class FetchTest(TestCase):
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(
-                'http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
                 ' havana-updates main'
             )
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
