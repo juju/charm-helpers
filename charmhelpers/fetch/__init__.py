@@ -1,15 +1,27 @@
 from yaml import safe_load
-from core.hookenv import config_get
-from subprocess import check_call
+from charmhelpers.core.hookenv import config
+from charmhelpers.core.host import (
+    apt_install, apt_update, filter_installed_packages
+)
+import subprocess
+
+CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
+deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
+"""
 
 
 def add_source(source, key=None):
     if ((source.startswith('ppa:') or
-         source.startswith('cloud:') or
          source.startswith('http:'))):
-        check_call('add-apt-repository', source)
+        subprocess.check_call(['add-apt-repository', source])
+    elif source.startswith('cloud:'):
+        apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
+                    fatal=True)
+        pocket = source.split(':')[-1]
+        with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
+            apt.write(CLOUD_ARCHIVE.format(pocket))
     if key:
-        check_call('apt-key', 'import', key)
+        subprocess.check_call(['apt-key', 'import', key])
 
 
 class SourceConfigError(Exception):
@@ -32,8 +44,8 @@ def configure_sources(update=False,
 
     Note that 'null' (a.k.a. None) should not be quoted.
     """
-    sources = safe_load(config_get(sources_var))
-    keys = safe_load(config_get(keys_var))
+    sources = safe_load(config(sources_var))
+    keys = safe_load(config(keys_var))
     if isinstance(sources, basestring) and isinstance(keys, basestring):
         add_source(sources, keys)
     else:
@@ -41,6 +53,6 @@ def configure_sources(update=False,
             msg = 'Install sources and keys lists are different lengths'
             raise SourceConfigError(msg)
         for src_num in range(len(sources)):
-            add_source(sources[src_num], sources[src_num])
+            add_source(sources[src_num], keys[src_num])
     if update:
-        check_call(('apt-get', 'update'))
+        apt_update(fatal=True)
