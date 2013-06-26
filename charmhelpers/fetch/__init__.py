@@ -5,7 +5,7 @@ from charmhelpers.core.host import (
 )
 import subprocess
 
-CLOUD_ARCHIVE = """ # Ubuntu Cloud Archive
+CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
 deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
 """
 
