@@ -57,8 +57,8 @@ deb http://ubuntu-cloud.archive.canonical.com/ubuntu havana-updates main
         key = "akey"
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
-              call(['add-apt-repository', source]),
-              call(['apt-key', 'import', key])
+            call(['add-apt-repository', source]),
+            call(['apt-key', 'import', key])
         ])
 
     @patch.object(fetch, 'config')
