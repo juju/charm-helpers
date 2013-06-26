@@ -58,7 +58,7 @@ def configure_sources(update=False,
 # The order of this list is very important. Handlers should be listed in from
 # least- to most-specific URL matching.
 FETCH_HANDLERS = (
-    'charmhelpers.fetch.archive.UrlArchiveFetchHandler',
+    'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
 )
 
 
