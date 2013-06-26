@@ -261,4 +261,4 @@ class Hooks(object):
         return wrapper
 
 def charm_dir():
-    return os.path.environ.get('CHARM_DIR')
+    return os.environ.get('CHARM_DIR')

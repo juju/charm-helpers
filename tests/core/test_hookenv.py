@@ -547,6 +547,10 @@ class HelpersTest(TestCase):
         hookenv.unit_get('foo')
         check_output_.assert_called_with(['unit-get', 'foo'])
 
+    def test_gets_charm_dir(self):
+        with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+            self.assertEqual(hookenv.charm_dir(), '/var/empty')
+
 
 class HooksTest(TestCase):
     def test_runs_a_registered_function(self):
@@ -592,4 +596,3 @@ class HooksTest(TestCase):
         self.assertRaises(hookenv.UnregisteredHookError, hooks.execute,
                           ['brew'])
         self.assertEqual(execs, [True])
-
