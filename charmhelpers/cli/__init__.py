@@ -139,7 +139,7 @@ def describe_arguments(func):
         positional_args = argspec.args[:len(argspec.defaults)]
         keyword_names = argspec.args[-len(argspec.defaults):]
         for arg, default in itertools.izip(keyword_names, argspec.defaults):
-            yield (arg,), {'default': default}
+            yield ('--{}'.format(arg),), {'default': default}
     else:
         positional_args = argspec.args
 

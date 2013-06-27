@@ -18,8 +18,8 @@ class FunctionSignatureTest(TestCase):
         """Function has optional parameters with default values."""
         argparams = tuple(cli.describe_arguments(
             lambda x, y=3, z="bar": False))
-        self.assertIn((('y',), {'default': 3}), argparams)
-        self.assertIn((('z',), {'default': 'bar'}), argparams)
+        self.assertIn((('--y',), {'default': 3}), argparams)
+        self.assertIn((('--z',), {'default': 'bar'}), argparams)
 
     def test_varargs(self):
         """Function has a splat-operator parameter to catch an arbitrary number
