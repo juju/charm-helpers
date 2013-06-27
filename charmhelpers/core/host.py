@@ -12,6 +12,8 @@ import grp
 import subprocess
 import hashlib
 
+from collections import OrderedDict
+
 from hookenv import log, execution_environment
 
 
@@ -23,16 +25,18 @@ def service_stop(service_name):
     service('stop', service_name)
 
 
+def service_restart(service_name):
+    service('restart', service_name)
+
+
+def service_reload(service_name, restart_on_failure=False):
+    if not service('reload', service_name) and restart_on_failure:
+        service('restart', service_name)
+
+
 def service(action, service_name):
-    cmd = None
-    if os.path.exists(os.path.join('/etc/init', '%s.conf' % service_name)):
-        cmd = ['initctl', action, service_name]
-    elif os.path.exists(os.path.join('/etc/init.d', service_name)):
-        cmd = [os.path.join('/etc/init.d', service_name), action]
-    if cmd:
-        return_value = subprocess.call(cmd)
-        return return_value == 0
-    return False
+    cmd = ['service', service_name, action]
+    return subprocess.call(cmd) == 0
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False):
@@ -253,7 +257,7 @@ def restart_on_change(restart_map):
             for path in restart_map:
                 if checksums[path] != file_hash(path):
                     restarts += restart_map[path]
-            for service_name in list(set(restarts)):
+            for service_name in list(OrderedDict.fromkeys(restarts)):
                 service('restart', service_name)
         return wrapped_f
     return wrap
