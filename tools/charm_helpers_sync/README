@@ -1,6 +1,33 @@
 Script for synchronizing charm-helpers into a charm branch.
 
-Losely based on oslo-incubator:
+This script is intended to be used by charm authors during the development
+of their charm.  It allows authors to pull in bits of a charm-helpers source
+tree and embed directly into their charm, to be deployed with the rest of
+their hooks and charm payload.  This script is not intended to be called
+by the hooks themselves, but instead by the charm author while they are
+hacking on a charm offline.  Consider it a method of compiling specific
+revision of a charm-helpers branch into a given charm source tree.
+
+Some goals and benefits to using a sync tool to manage this process:
+
+    - Reduces the burden of manually copying in upstream charm helpers code
+      into a charm and helps ensure we can easily keep a specific charm's
+      helper code up to date.
+
+    - Allows authors to hack on their own working branch of charm-helpers,
+      easily sync into their WIP charm.  Any changes they've made to charm
+      helpers can be upstreamed via a merge of their charm-helpers branch
+      into lp:charm-helpers, ideally at the same time they are upstreaming
+      the charm itself into the charm store.  Separating charm helper
+      development from charm development can help reduce cases where charms
+      are shipping locally modified helpers.
+
+    - Avoids the need to ship the *entire* lp:charm-helpers source tree with
+      a charm.  Authors can selectively pick and choose what subset of helpers
+      to include to satisfy the goals of their charm.
+
+Loosely based on OpenStack's oslo-incubator:
+
     https://github.com/openstack/oslo-incubator.git
 
 Allows specifying a list of dependencies to sync in from a charm-helpers
