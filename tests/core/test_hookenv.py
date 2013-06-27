@@ -652,6 +652,10 @@ class HelpersTest(TestCase):
         self.assertEquals(cache_function('baz'), None)
         self.assertEquals(calls, ['hello', 'foo', 'baz'])
 
+    def test_gets_charm_dir(self):
+        with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+            self.assertEqual(hookenv.charm_dir(), '/var/empty')
+
 
 class HooksTest(TestCase):
     def test_runs_a_registered_function(self):

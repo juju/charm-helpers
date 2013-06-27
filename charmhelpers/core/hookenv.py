@@ -333,3 +333,6 @@ class Hooks(object):
                 self.register(decorated.__name__, decorated)
             return decorated
         return wrapper
+
+def charm_dir():
+    return os.environ.get('CHARM_DIR')
