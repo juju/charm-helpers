@@ -19,7 +19,7 @@ def get_archive_handler(archive_name):
             return extract_zipfile
     else:
         # look at the file name
-        for ext in ('.tar.gz', '.tgz', 'tar.bz2', '.tbz2', '.tbz'):
+        for ext in ('.tar', '.tar.gz', '.tgz', 'tar.bz2', '.tbz2', '.tbz'):
             if archive_name.endswith(ext):
                 return extract_tarfile
         for ext in ('.zip', '.jar'):

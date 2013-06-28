@@ -33,13 +33,15 @@ class ArchiveTestCase(TestCase):
         zip_archive_handler = archive.extract_zipfile
         _isfile.return_value = False
 
-        for ext in ('tar.gz', 'tgz', 'tar.bz2', 'tbz2', 'tbz'):
+        for ext in ('tar', 'tar.gz', 'tgz', 'tar.bz2', 'tbz2', 'tbz'):
             handler = archive.get_archive_handler("somefile.{}".format(ext))
-            self.assertEqual(handler, tar_archive_handler)
+            msg = "handler for extension: {}".format(ext)
+            self.assertEqual(handler, tar_archive_handler, msg)
 
         for ext in ('zip', 'jar'):
             handler = archive.get_archive_handler("somefile.{}".format(ext))
-            self.assertEqual(handler, zip_archive_handler)
+            msg = "handler for extension {}".format(ext)
+            self.assertEqual(handler, zip_archive_handler, msg)
 
     @patch('zipfile.is_zipfile')
     @patch('tarfile.is_tarfile')
