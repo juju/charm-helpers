@@ -140,17 +140,6 @@ class HelpersTest(TestCase):
             mock_call.assert_called_with(['juju-log', '-l', level, 'foo'])
 
     @patch('subprocess.check_output')
-    def test_gets_charm_config_as_serializable(self, check_output):
-        config_data = {'foo': 'bar'}
-        check_output.return_value = json.dumps(config_data)
-
-        result = hookenv.config()
-
-        self.assert_(isinstance(result, hookenv.Serializable))
-        self.assertEqual(result.foo, 'bar')
-        check_output.assert_called_with(['config-get', '--format=json'])
-
-    @patch('subprocess.check_output')
     def test_gets_charm_config_with_scope(self, check_output):
         config_data = 'bar'
         check_output.return_value = json.dumps(config_data)
@@ -311,15 +300,14 @@ class HelpersTest(TestCase):
         unit = 'foo-unit'
         raw_relation = {
             'foo': 'bar',
-            'baz-list': '1 2 3',
         }
         remote_unit.return_value = unit
         relation_get.return_value = raw_relation
 
         result = hookenv.relation_for_unit()
 
-        self.assertEqual(result.__unit__, unit)
-        self.assertEqual(getattr(result, 'baz-list'), ['1', '2', '3'])
+        self.assertEqual(result['__unit__'], unit)
+        self.assertEqual(result['foo'], 'bar')
         relation_get.assert_called_with(unit=unit, rid=None)
 
     @patch('charmhelpers.core.hookenv.remote_unit')
@@ -328,14 +316,13 @@ class HelpersTest(TestCase):
         unit = 'foo-unit'
         raw_relation = {
             'foo': 'bar',
-            'baz-list': '1 2 3',
         }
         relation_get.return_value = raw_relation
 
         result = hookenv.relation_for_unit(unit)
 
-        self.assertEqual(result.__unit__, unit)
-        self.assertEqual(getattr(result, 'baz-list'), ['1', '2', '3'])
+        self.assertEqual(result['__unit__'], unit)
+        self.assertEqual(result['foo'], 'bar')
         relation_get.assert_called_with(unit=unit, rid=None)
         self.assertFalse(remote_unit.called)
 
@@ -515,7 +502,7 @@ class HelpersTest(TestCase):
         check_output.return_value = json.dumps(data)
         result = hookenv.relation_get()
 
-        self.assertEqual(result.foo, 'BAR')
+        self.assertEqual(result['foo'], 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
     @patch('subprocess.check_output')
