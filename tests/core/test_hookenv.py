@@ -496,6 +496,34 @@ class HelpersTest(TestCase):
             'env': 'some-environment',
         })
 
+    @patch('charmhelpers.core.hookenv.config')
+    @patch('charmhelpers.core.hookenv.relation_type')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.core.hookenv.relation_id')
+    @patch('charmhelpers.core.hookenv.relations')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    @patch('charmhelpers.core.hookenv.os')
+    def test_gets_execution_environment_no_relation(
+        self, os_, relations_get, relations, relation_id,
+        local_unit, relation_type, config):
+        config.return_value = 'some-config'
+        relation_type.return_value = 'some-type'
+        local_unit.return_value = 'some-unit'
+        relation_id.return_value = None
+        relations.return_value = 'all-relations'
+        relations_get.return_value = 'some-relations'
+        os_.environ = 'some-environment'
+
+        result = hookenv.execution_environment()
+
+        self.assertEqual(result, {
+            'conf': 'some-config',
+            'unit': 'some-unit',
+            'rels': 'all-relations',
+            'env': 'some-environment',
+        })
+
+
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_relation_id(self, os_):
         os_.environ = {
