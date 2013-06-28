@@ -108,11 +108,12 @@ def execution_environment():
     """A convenient bundling of the current execution context"""
     context = {}
     context['conf'] = config()
-    context['reltype'] = relation_type()
-    context['relid'] = relation_id()
+    if relation_id():
+        context['reltype'] = relation_type()
+        context['relid'] = relation_id()
+        context['rel'] = relation_get()
     context['unit'] = local_unit()
     context['rels'] = relations()
-    context['rel'] = relation_get()
     context['env'] = os.environ
     return context
 
@@ -323,5 +324,8 @@ class Hooks(object):
                 self.register(hook_name, decorated)
             else:
                 self.register(decorated.__name__, decorated)
+                if '_' in decorated.__name__:
+                    self.register(
+                        decorated.__name__.replace('_', '-'), decorated)
             return decorated
         return wrapper
