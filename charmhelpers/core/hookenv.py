@@ -108,11 +108,12 @@ def execution_environment():
     """A convenient bundling of the current execution context"""
     context = {}
     context['conf'] = config()
-    context['reltype'] = relation_type()
-    context['relid'] = relation_id()
+    if relation_id():
+        context['reltype'] = relation_type()
+        context['relid'] = relation_id()
+        context['rel'] = relation_get()
     context['unit'] = local_unit()
     context['rels'] = relations()
-    context['rel'] = relation_get()
     context['env'] = os.environ
     return context
 
