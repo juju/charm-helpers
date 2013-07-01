@@ -40,8 +40,8 @@ Usage:
 # - fstab is neither consulted nor updated
 
 import os
-import hookenv
-import host
+from charmhelpers.core import hookenv
+from charmhelpers.core import host
 import yaml
 
 
@@ -74,7 +74,7 @@ def get_config():
     if volume_map is None:
         # probably an empty string
         volume_map = {}
-    elif isinstance(volume_map, dict):
+    elif not isinstance(volume_map, dict):
         hookenv.log("Volume-map should be a dictionary, not {}".format(
             type(volume_map)))
         errors = True
