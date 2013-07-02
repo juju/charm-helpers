@@ -132,11 +132,18 @@ CEPH_RELATION = {
 
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
+    'check_call',
     'log',
     'config',
     'relation_get',
     'relation_ids',
     'related_units',
+    'unit_get',
+    'https',
+    'determine_api_port',
+    'determine_haproxy_port',
+    'peer_units',
+    'is_clustered',
 ]
 
 
@@ -343,3 +350,37 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = []
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
+
+    def test_https_context_with_no_https(self):
+        '''Test apache2 https when no https data available'''
+        apache = context.ApacheSSLContext()
+        self.https.return_value = False
+        self.assertEquals({}, apache())
+
+    def test_https_context_no_peers_no_cluster(self):
+        '''Test apache2 https on a single, unclustered unit'''
+        self.https.return_value = True
+        self.determine_api_port.return_value = 8776
+        self.unit_get.return_value = 'cinderhost1'
+        self.is_clustered.return_value = False
+        self.peer_units.return_value = None
+        apache = context.ApacheSSLContext()
+        apache.configure_cert = MagicMock
+        apache.enable_modules = MagicMock
+        apache.external_port = '8776'
+        apache.service_namespace = 'cinder'
+
+        ex = {
+            'int': 8776, 'ext': '8776',
+            'private_address': 'cinderhost1', 'namespace': 'cinder'
+        }
+        self.assertEquals(ex, apache())
+        self.assertTrue(apache.configure_cert.called)
+        self.assertTrue(apache.enable_modules.called)
+
+    def test_https_context_loads_correct_apache_mods(self):
+        '''Test apache2 context also loads required apache modules'''
+        apache = context.ApacheSSLContext()
+        apache.enable_modules()
+        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
+        self.check_call.assert_called_with(ex_cmd)
