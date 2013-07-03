@@ -331,6 +331,9 @@ class Hooks(object):
                 self.register(hook_name, decorated)
             else:
                 self.register(decorated.__name__, decorated)
+                if '_' in decorated.__name__:
+                    self.register(
+                        decorated.__name__.replace('_', '-'), decorated)
             return decorated
         return wrapper
 

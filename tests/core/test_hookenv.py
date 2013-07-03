@@ -701,3 +701,19 @@ class HooksTest(TestCase):
         self.assertRaises(hookenv.UnregisteredHookError, hooks.execute,
                           ['brew'])
         self.assertEqual(execs, [True])
+
+    def test_magic_underscores(self):
+        # Juju hook names use hypens as separators. Python functions use
+        # underscores. If explicit names have not been provided, hooks
+        # are registered with both the function name and the function
+        # name with underscores replaced with hypens for convenience.
+        execs = []
+        hooks = hookenv.Hooks()
+
+        @hooks.hook()
+        def call_me_maybe():
+            execs.append(True)
+
+        hooks.execute(['call-me-maybe'])
+        hooks.execute(['call_me_maybe'])
+        self.assertEqual(execs, [True, True])
