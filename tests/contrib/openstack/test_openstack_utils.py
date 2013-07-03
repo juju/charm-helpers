@@ -1,13 +1,14 @@
 from copy import copy
 import os
-import apt_pkg
 import unittest
 from testtools import TestCase
-from io import BytesIO
 import charmhelpers.contrib.openstack.openstack_utils as openstack
 import subprocess
 
-from mock import MagicMock, patch, Mock, call
+from mock import MagicMock, patch, call
+
+
+MODULE = 'charmhelpers.contrib.openstack.openstack_utils'
 
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
@@ -58,8 +59,9 @@ UCA_SOURCES = [
     ('cloud:precise-folsom/updates', url + ' precise-updates/folsom main'),
     ('cloud:precise-grizzly/proposed', url + ' precise-proposed/grizzly main'),
     ('cloud:precise-grizzly', url + ' precise-updates/grizzly main'),
-    ('cloud:precise-grizzly/updates',  url +  ' precise-updates/grizzly main'),
+    ('cloud:precise-grizzly/updates',  url + ' precise-updates/grizzly main'),
 ]
+
 
 class OpenStackHelpersTestCase(TestCase):
     def _apt_cache(self):
@@ -100,6 +102,13 @@ class OpenStackHelpersTestCase(TestCase):
                'precise-havana main')
         self.assertEquals(openstack.get_os_codename_install_source(src),
                           'havana')
+
+    @patch(MODULE + '.get_os_version_codename')
+    @patch(MODULE + '.get_os_codename_install_source')
+    def test_os_version_from_install_source(self, codename, version):
+        codename.return_value = 'grizzly'
+        openstack.get_os_version_install_source('cloud:precise-grizzly')
+        version.assert_called_with('grizzly')
 
     @patch('charmhelpers.contrib.openstack.openstack_utils.lsb_release')
     def test_os_codename_from_bad_install_source(self, mocked_lsb):
@@ -270,8 +279,10 @@ class OpenStackHelpersTestCase(TestCase):
         for src, url in UCA_SOURCES:
             openstack.configure_installation_source(src)
             _import.assert_called_with(openstack.CLOUD_ARCHIVE_KEY_ID)
-            _open.assert_called_with('/etc/apt/sources.list.d/cloud-archive.list',
-                                     'w')
+            _open.assert_called_with(
+                '/etc/apt/sources.list.d/cloud-archive.list',
+                'w'
+            )
             _file.__enter__().write.assert_called_with(url)
 
     @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
@@ -310,8 +321,8 @@ class OpenStackHelpersTestCase(TestCase):
     def test_save_scriptrc(self, _open):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
-                   'export setting1=foo\n',
-                   'export setting2=bar\n']
+                    'export setting1=foo\n',
+                    'export setting2=bar\n']
         _file = MagicMock(spec=file)
         _open.return_value = _file
         os.environ['JUJU_UNIT_NAME'] = 'testing-foo/0'
@@ -320,6 +331,27 @@ class OpenStackHelpersTestCase(TestCase):
         _open.assert_called_with(expected_f, 'wb')
         for line in scriptrc:
             _file.__enter__().write.assert_has_calls(call(line))
+
+    @patch(MODULE + '.lsb_release')
+    @patch(MODULE + '.get_os_version_package')
+    @patch(MODULE + '.config')
+    def test_openstack_upgrade_detection_true(self, config, vers_pkg, lsb):
+        """Test it detects when an openstack package has available upgrade"""
+        lsb.return_value = FAKE_RELEASE
+        config.return_value = 'cloud:precise-havana'
+        vers_pkg.return_value = '2013.1.1'
+        self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
+
+    @patch(MODULE + '.lsb_release')
+    @patch(MODULE + '.get_os_version_package')
+    @patch(MODULE + '.config')
+    def test_openstack_upgrade_detection_false(self, config, vers_pkg, lsb):
+        """Test it detects when an openstack upgrade is not necessary"""
+        lsb.return_value = FAKE_RELEASE
+        config.return_value = 'cloud:precise-folsom'
+        vers_pkg.return_value = '2013.1.1'
+        self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
+
 
 
 if __name__ == '__main__':
