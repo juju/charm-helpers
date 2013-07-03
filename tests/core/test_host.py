@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from contextlib import contextmanager
-import os
 import subprocess
+import io
 
 from mock import patch, call, MagicMock
 from testtools import TestCase
@@ -28,6 +28,13 @@ FAKE_APT_CACHE = {
     }
 }
 
+LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=13.10
+DISTRIB_CODENAME=saucy
+DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
+'''
+
+
 def fake_apt_cache():
     def _get(package):
         pkg = MagicMock()
@@ -42,6 +49,7 @@ def fake_apt_cache():
     cache = MagicMock()
     cache.__getitem__.side_effect = _get
     return cache
+
 
 @contextmanager
 def patch_open():
@@ -59,6 +67,18 @@ def patch_open():
 
     with patch('__builtin__.open', stub_open):
         yield mock_open, mock_file
+
+
+@contextmanager
+def mock_open(filename, contents=None):
+    ''' Slightly simpler mock of open to return contents for filename '''
+    def mock_file(*args):
+        if args[0] == filename:
+            return io.StringIO(contents)
+        else:
+            return open(*args)
+    with patch('__builtin__.open', mock_file):
+        yield
 
 
 class HelpersTest(TestCase):
@@ -120,9 +140,9 @@ class HelpersTest(TestCase):
         host.service_reload(service_name, restart_on_failure=True)
 
         service.assert_has_calls([
-                            call('reload', service_name),
-                            call('restart', service_name)
-                            ])
+            call('reload', service_name),
+            call('restart', service_name)
+        ])
 
     @patch.object(host, 'service')
     def test_failed_reload_without_restart(self, service):
@@ -711,7 +731,7 @@ class HelpersTest(TestCase):
     def test_multiservice_restart_on_change_in_order(self, exists, service):
         restart_map = OrderedDict([
             ('/etc/cinder/cinder.conf', ['some-api']),
-            ('/etc/haproxy/haproxy.conf',  ['haproxy'])
+            ('/etc/haproxy/haproxy.conf', ['haproxy'])
         ])
         exists.side_effect = [False, True, True, True]
 
@@ -730,3 +750,17 @@ class HelpersTest(TestCase):
             call('restart', 'haproxy')
         ]
         self.assertEquals(expected, service.call_args_list)
+
+    def test_lsb_release(self):
+        result = {
+            "DISTRIB_ID": "Ubuntu",
+            "DISTRIB_RELEASE": "13.10",
+            "DISTRIB_CODENAME": "saucy",
+            "DISTRIB_DESCRIPTION": "\"Ubuntu Saucy Salamander "
+                                   "(development branch)\""
+        }
+        with mock_open('/etc/lsb-release', LSB_RELEASE):
+            lsb_release = host.lsb_release()
+            for key in result:
+                print lsb_release
+                self.assertEqual(result[key], lsb_release[key])
