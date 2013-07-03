@@ -108,11 +108,12 @@ def execution_environment():
     """A convenient bundling of the current execution context"""
     context = {}
     context['conf'] = config()
-    context['reltype'] = relation_type()
-    context['relid'] = relation_id()
+    if relation_id():
+        context['reltype'] = relation_type()
+        context['relid'] = relation_id()
+        context['rel'] = relation_get()
     context['unit'] = local_unit()
     context['rels'] = relations()
-    context['rel'] = relation_get()
     context['env'] = os.environ
     return context
 
@@ -150,13 +151,9 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        value = json.loads(subprocess.check_output(config_cmd_line))
+        return json.loads(subprocess.check_output(config_cmd_line))
     except ValueError:
         return None
-    if isinstance(value, dict):
-        return Serializable(value)
-    else:
-        return value
 
 
 @cached
@@ -169,13 +166,9 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        value = json.loads(subprocess.check_output(_args))
+        return json.loads(subprocess.check_output(_args))
     except ValueError:
         return None
-    if isinstance(value, dict):
-        return Serializable(value)
-    else:
-        return value
 
 
 def relation_set(relation_id=None, relation_settings={}, **kwargs):
@@ -222,7 +215,7 @@ def relation_for_unit(unit=None, rid=None):
         if key.endswith('-list'):
             relation[key] = relation[key].split()
     relation['__unit__'] = unit
-    return Serializable(relation)
+    return relation
 
 
 @cached
