@@ -2,11 +2,7 @@ from os import stat
 from stat import S_ISBLK
 
 from subprocess import (
-    check_call,
-    check_output,
-    CalledProcessError,
-    Popen,
-    PIPE,
+    check_call
 )
 
 

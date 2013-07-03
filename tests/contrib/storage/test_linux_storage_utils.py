@@ -6,6 +6,7 @@ import charmhelpers.contrib.storage.linux.utils as storage_utils
 # It's a mouthful.
 STORAGE_LINUX_UTILS = 'charmhelpers.contrib.storage.linux.utils'
 
+
 class MiscStorageUtilsTests(unittest.TestCase):
     def test_zap_disk(self):
         '''It calls sgdisk correctly to zap disk'''
@@ -20,11 +21,3 @@ class MiscStorageUtilsTests(unittest.TestCase):
         with patch(STORAGE_LINUX_UTILS + '.S_ISBLK') as isblk:
             isblk.return_value = True
             self.assertTrue(storage_utils.is_block_device('/dev/foo'))
-
-    @patch(STORAGE_LINUX_UTILS + '.stat')
-    @patch(STORAGE_LINUX_UTILS + '.S_ISBLK')
-    def test_is_block_device(self, s_isblk, stat):
-        '''It detects device node is block device'''
-        with patch(STORAGE_LINUX_UTILS + '.S_ISBLK') as isblk:
-            isblk.return_value = False
-            self.assertFalse(storage_utils.is_block_device('/dev/foo'))

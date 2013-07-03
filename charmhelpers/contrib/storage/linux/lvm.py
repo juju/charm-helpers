@@ -6,6 +6,7 @@ from subprocess import (
     PIPE,
 )
 
+
 ##################################################
 # LVM helpers.
 ##################################################
@@ -43,7 +44,7 @@ def remove_lvm_physical_volume(block_device):
     :param block_device: str: Full path of block device to scrub.
     '''
     p = Popen(['pvremove', '-ff', block_device],
-                         stdin=PIPE)
+              stdin=PIPE)
     p.communicate(input='y\n')
 
 
@@ -85,5 +86,3 @@ def create_lvm_volume_group(volume_group, block_device):
     :block_device: str: Full path of PV-initialized block device.
     '''
     check_call(['vgcreate', volume_group, block_device])
-
-

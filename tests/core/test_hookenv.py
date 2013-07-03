@@ -140,17 +140,6 @@ class HelpersTest(TestCase):
             mock_call.assert_called_with(['juju-log', '-l', level, 'foo'])
 
     @patch('subprocess.check_output')
-    def test_gets_charm_config_as_serializable(self, check_output):
-        config_data = {'foo': 'bar'}
-        check_output.return_value = json.dumps(config_data)
-
-        result = hookenv.config()
-
-        self.assert_(isinstance(result, hookenv.Serializable))
-        self.assertEqual(result.foo, 'bar')
-        check_output.assert_called_with(['config-get', '--format=json'])
-
-    @patch('subprocess.check_output')
     def test_gets_charm_config_with_scope(self, check_output):
         config_data = 'bar'
         check_output.return_value = json.dumps(config_data)
@@ -316,15 +305,14 @@ class HelpersTest(TestCase):
         unit = 'foo-unit'
         raw_relation = {
             'foo': 'bar',
-            'baz-list': '1 2 3',
         }
         remote_unit.return_value = unit
         relation_get.return_value = raw_relation
 
         result = hookenv.relation_for_unit()
 
-        self.assertEqual(result.__unit__, unit)
-        self.assertEqual(getattr(result, 'baz-list'), ['1', '2', '3'])
+        self.assertEqual(result['__unit__'], unit)
+        self.assertEqual(result['foo'], 'bar')
         relation_get.assert_called_with(unit=unit, rid=None)
 
     @patch('charmhelpers.core.hookenv.remote_unit')
@@ -333,14 +321,13 @@ class HelpersTest(TestCase):
         unit = 'foo-unit'
         raw_relation = {
             'foo': 'bar',
-            'baz-list': '1 2 3',
         }
         relation_get.return_value = raw_relation
 
         result = hookenv.relation_for_unit(unit)
 
-        self.assertEqual(result.__unit__, unit)
-        self.assertEqual(getattr(result, 'baz-list'), ['1', '2', '3'])
+        self.assertEqual(result['__unit__'], unit)
+        self.assertEqual(result['foo'], 'bar')
         relation_get.assert_called_with(unit=unit, rid=None)
         self.assertFalse(remote_unit.called)
 
@@ -501,6 +488,34 @@ class HelpersTest(TestCase):
             'env': 'some-environment',
         })
 
+    @patch('charmhelpers.core.hookenv.config')
+    @patch('charmhelpers.core.hookenv.relation_type')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.core.hookenv.relation_id')
+    @patch('charmhelpers.core.hookenv.relations')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    @patch('charmhelpers.core.hookenv.os')
+    def test_gets_execution_environment_no_relation(
+        self, os_, relations_get, relations, relation_id,
+        local_unit, relation_type, config):
+        config.return_value = 'some-config'
+        relation_type.return_value = 'some-type'
+        local_unit.return_value = 'some-unit'
+        relation_id.return_value = None
+        relations.return_value = 'all-relations'
+        relations_get.return_value = 'some-relations'
+        os_.environ = 'some-environment'
+
+        result = hookenv.execution_environment()
+
+        self.assertEqual(result, {
+            'conf': 'some-config',
+            'unit': 'some-unit',
+            'rels': 'all-relations',
+            'env': 'some-environment',
+        })
+
+
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_relation_id(self, os_):
         os_.environ = {
@@ -520,7 +535,7 @@ class HelpersTest(TestCase):
         check_output.return_value = json.dumps(data)
         result = hookenv.relation_get()
 
-        self.assertEqual(result.foo, 'BAR')
+        self.assertEqual(result['foo'], 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
     @patch('subprocess.check_output')
@@ -657,6 +672,10 @@ class HelpersTest(TestCase):
         self.assertEquals(cache_function('baz'), None)
         self.assertEquals(calls, ['hello', 'foo', 'baz'])
 
+    def test_gets_charm_dir(self):
+        with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+            self.assertEqual(hookenv.charm_dir(), '/var/empty')
+
 
 class HooksTest(TestCase):
     def test_runs_a_registered_function(self):
@@ -702,3 +721,19 @@ class HooksTest(TestCase):
         self.assertRaises(hookenv.UnregisteredHookError, hooks.execute,
                           ['brew'])
         self.assertEqual(execs, [True])
+
+    def test_magic_underscores(self):
+        # Juju hook names use hypens as separators. Python functions use
+        # underscores. If explicit names have not been provided, hooks
+        # are registered with both the function name and the function
+        # name with underscores replaced with hypens for convenience.
+        execs = []
+        hooks = hookenv.Hooks()
+
+        @hooks.hook()
+        def call_me_maybe():
+            execs.append(True)
+
+        hooks.execute(['call-me-maybe'])
+        hooks.execute(['call_me_maybe'])
+        self.assertEqual(execs, [True, True])

@@ -13,6 +13,7 @@ LOOPBACK_DEVICES = """
 # It's a mouthful.
 STORAGE_LINUX_LOOPBACK = 'charmhelpers.contrib.storage.linux.loopback'
 
+
 class LoopbackStorageUtilsTests(unittest.TestCase):
     @patch(STORAGE_LINUX_LOOPBACK + '.check_output')
     def test_loopback_devices(self, output):
@@ -28,7 +29,8 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
     @patch(STORAGE_LINUX_LOOPBACK + '.create_loopback')
     @patch('subprocess.check_call')
     @patch(STORAGE_LINUX_LOOPBACK + '.loopback_devices')
-    def test_loopback_create_already_exists(self, loopbacks, check_call, create):
+    def test_loopback_create_already_exists(self, loopbacks, check_call,
+                                            create):
         '''It finds existing loopback device for requested file'''
         loopbacks.return_value = {'/dev/loop1': '/tmp/bar.img'}
         res = loopback.ensure_loopback_device('/tmp/bar.img', '5G')
@@ -39,7 +41,8 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
     @patch(STORAGE_LINUX_LOOPBACK + '.loopback_devices')
     @patch(STORAGE_LINUX_LOOPBACK + '.create_loopback')
     @patch('os.path.exists')
-    def test_loop_creation_no_truncate(self, path_exists, create_loopback, loopbacks):
+    def test_loop_creation_no_truncate(self, path_exists, create_loopback,
+                                       loopbacks):
         '''It does not create a new sparse image for loopback if one exists'''
         loopbacks.return_value = {}
         path_exists.return_value = True
@@ -50,7 +53,8 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
     @patch(STORAGE_LINUX_LOOPBACK + '.loopback_devices')
     @patch(STORAGE_LINUX_LOOPBACK + '.create_loopback')
     @patch('os.path.exists')
-    def test_ensure_loopback_creation(self, path_exists, create_loopback, loopbacks):
+    def test_ensure_loopback_creation(self, path_exists, create_loopback,
+                                      loopbacks):
         '''It creates a new sparse image for loopback if one does not exists'''
         loopbacks.return_value = {}
         path_exists.return_value = False
