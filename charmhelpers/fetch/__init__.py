@@ -3,7 +3,8 @@ from yaml import safe_load
 from charmhelpers.core.host import (
     apt_install,
     apt_update,
-    filter_installed_packages
+    filter_installed_packages,
+    lsb_release
 )
 from urlparse import (
     urlparse,
@@ -18,6 +19,9 @@ from charmhelpers.core.hookenv import (
 CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
 deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
 """
+PROPOSED_POCKET = """# Proposed
+deb http://archive.ubuntu.com/ubuntu {}-proposed main universe multiverse restricted
+"""
 
 
 def add_source(source, key=None):
@@ -30,6 +34,10 @@ def add_source(source, key=None):
         pocket = source.split(':')[-1]
         with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
             apt.write(CLOUD_ARCHIVE.format(pocket))
+    elif source == 'proposed':
+        release = lsb_release()['DISTRIB_CODENAME']
+        with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
+            apt.write(PROPOSED_POCKET.format(release))
     if key:
         subprocess.check_call(['apt-key', 'import', key])
 

@@ -55,6 +55,17 @@ deb http://ubuntu-cloud.archive.canonical.com/ubuntu havana-updates main
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
+    @patch.object(fetch, 'lsb_release')
+    def test_add_source_proposed(self, lsb_release):
+        source = "proposed"
+        result = """# Proposed
+deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse restricted
+"""
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+
     @patch('subprocess.check_call')
     def test_add_source_http_and_key(self, check_call):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
