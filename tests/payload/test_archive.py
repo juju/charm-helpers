@@ -68,6 +68,9 @@ class ArchiveTestCase(TestCase):
         thedir = archive.archive_dest_default("baz")
         self.assertEqual(thedir, os.path.join("foo", "archives", "baz"))
 
+        thedir = archive.archive_dest_default("baz/qux")
+        self.assertEqual(thedir, os.path.join("foo", "archives", "qux"))
+
     def test_extracts_tarfile(self):
         destdir = mkdtemp()
         self.addCleanup(rmtree, destdir)

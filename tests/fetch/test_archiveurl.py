@@ -6,7 +6,11 @@ from mock import (
     patch,
     mock_open,
 )
-from charmhelpers.fetch import archiveurl
+from charmhelpers.fetch import (
+    archiveurl,
+    UnhandledSource,
+)
+import urllib2
 
 
 class ArchiveUrlFetchHandlerTest(TestCase):
@@ -72,3 +76,13 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             self.fh.download.assert_called_with(url, dest)
             _extract.assert_called_with(dest)
             self.assertEqual(where, dest)
+
+        url = "http://www.example.com/archive.tar.gz"
+
+        self.fh.download.side_effect = urllib2.URLError('fail')
+        with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+            self.assertRaises(UnhandledSource, self.fh.install, url)
+
+        self.fh.download.side_effect = OSError('fail')
+        with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+            self.assertRaises(UnhandledSource, self.fh.install, url)

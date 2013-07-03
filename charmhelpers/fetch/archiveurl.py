@@ -24,8 +24,13 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         # propogate all exceptions
         # URLError, OSError, etc
         response = urllib2.urlopen(source)
-        with open(dest, 'w') as dest_file:
-            dest_file.write(response.read())
+        try:
+            with open(dest, 'w') as dest_file:
+                dest_file.write(response.read())
+        except Exception as e:
+            if os.path.isfile(dest):
+                os.unlink(dest)
+            raise e
 
     def install(self, source):
         url_parts = self.parse_url(source)
@@ -34,10 +39,7 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         try:
             self.download(source, dld_file)
         except urllib2.URLError as e:
-            return UnhandledSource(e.reason)
+            raise UnhandledSource(e.reason)
         except OSError as e:
-            return UnhandledSource(e.strerror)
-        finally:
-            if os.path.isfile(dld_file):
-                os.unlink(dld_file)
+            raise UnhandledSource(e.strerror)
         return extract(dld_file)
