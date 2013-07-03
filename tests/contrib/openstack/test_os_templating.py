@@ -27,7 +27,7 @@ class TemplatingTests(unittest.TestCase):
     def setUp(self):
         path = os.path.dirname(__file__)
         self.renderer = templating.OSConfigRenderer(templates_dir=path,
-                                                  openstack_release='grizzly')
+                                                    openstack_release='folsom')
         self.loader = FakeLoader()
         self.context = FakeContextGenerator()
 
@@ -78,6 +78,18 @@ class TemplatingTests(unittest.TestCase):
         result = self.renderer.render('/tmp/foo')
         self.assertTrue('Foo is not defined' in result)
         self.assertNotIn('fooservice', self.renderer.complete_contexts())
+
+    @patch.object(templating, 'get_loader')
+    def test_reset_template_loader_for_new_os_release(self, loader):
+        self.loader.set('')
+        self.context.set(interfaces=['fooservice'], context={})
+        loader.return_value = jinja2.FunctionLoader(self.loader.get)
+        self.renderer.register('/tmp/foo', [self.context])
+        self.renderer.render('/tmp/foo')
+        loader.assert_called_with(os.path.dirname(__file__), 'folsom')
+        self.renderer.set_release(openstack_release='grizzly')
+        self.renderer.render('/tmp/foo')
+        loader.assert_called_with(os.path.dirname(__file__), 'grizzly')
 
     @patch.object(templating, 'get_loader')
     def test_incomplete_context_not_reported_complete(self, loader):

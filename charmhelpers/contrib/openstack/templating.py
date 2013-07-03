@@ -200,6 +200,15 @@ class OSConfigRenderer(object):
     def write_all(self):
         [self.write(k) for k in self.templates.iterkeys()]
 
+    def set_release(self, openstack_release):
+        """
+        Resets the template environment and generates a new template loader
+        based on a the new openstack release.
+        """
+        self._tmpl_env = None
+        self.openstack_release = openstack_release
+        self._get_tmpl_env()
+
     def complete_contexts(self):
         '''
         Returns a list of context interfaces that yield a complete context.
