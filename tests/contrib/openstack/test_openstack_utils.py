@@ -160,7 +160,7 @@ class OpenStackHelpersTestCase(TestCase):
                                   vers['os_release'])
 
     @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
-    def test_os_codename_from_bad_package_vrsion(self, mocked_error):
+    def test_os_codename_from_bad_package_version(self, mocked_error):
         '''Test deriving OpenStack codename for a poorly versioned package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
@@ -181,6 +181,15 @@ class OpenStackHelpersTestCase(TestCase):
                 pass
             _err = 'Could not determine version of installed package: foo'
             mocked_error.assert_called_with(_err)
+
+    def test_os_codename_from_bad_package_nonfatal(self):
+        '''Test OpenStack codename from an uninstalled package is non-fatal'''
+        with patch('apt_pkg.Cache') as cache:
+            cache.return_value = self._apt_cache()
+            self.assertEquals(
+                None,
+                openstack.get_os_codename_package('foo', fatal=False)
+            )
 
     @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
     def test_os_version_from_package(self, mocked_error):
@@ -206,6 +215,15 @@ class OpenStackHelpersTestCase(TestCase):
                 pass
             _err = 'Could not determine version of installed package: foo'
             mocked_error.assert_called_with(_err)
+
+    def test_os_version_from_bad_package_nonfatal(self):
+        '''Test OpenStack version from an uninstalled package is non-fatal'''
+        with patch('apt_pkg.Cache') as cache:
+            cache.return_value = self._apt_cache()
+            self.assertEquals(
+                None,
+                openstack.get_os_version_package('foo', fatal=False)
+            )
 
     def test_juju_log(self):
         '''Test shelling out to juju-log'''
