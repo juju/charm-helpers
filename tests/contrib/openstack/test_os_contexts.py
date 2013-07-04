@@ -26,8 +26,6 @@ def patch_open():
         yield mock_open, mock_file
 
 
-
-
 class FakeRelation(object):
     '''
     A fake relation class. Lets tests specify simple relation data
