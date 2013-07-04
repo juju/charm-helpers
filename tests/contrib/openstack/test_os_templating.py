@@ -16,12 +16,14 @@ class FakeContextGenerator(object):
     def __call__(self):
         return self.context
 
+
 class FakeLoader(object):
     def set(self, template):
         self.template = template
 
     def get(self, name):
         return self.template
+
 
 class TemplatingTests(unittest.TestCase):
     def setUp(self):
@@ -121,14 +123,17 @@ class TemplatingTests(unittest.TestCase):
         choice_loader = templating.get_loader('/tmp/foo',
                                               os_release='icehouse')
         dirs = [l.searchpath for l in choice_loader.loaders]
+
+        common_tmplts = os.path.join(os.path.dirname(templating.__file__),
+                                     'templates')
         expected = [['/tmp/foo/icehouse'],
                     ['/tmp/foo/havana'],
                     ['/tmp/foo/grizzly'],
                     ['/tmp/foo/folsom'],
                     ['/tmp/foo/essex'],
-                    ['/tmp/foo']]
+                    ['/tmp/foo'],
+                    [common_tmplts]]
         self.assertEquals(dirs, expected)
-
 
     @patch('os.path.isdir')
     def test_get_loader_some_search_paths(self, isdir):
@@ -136,10 +141,15 @@ class TemplatingTests(unittest.TestCase):
         isdir.return_value = True
         choice_loader = templating.get_loader('/tmp/foo', os_release='grizzly')
         dirs = [l.searchpath for l in choice_loader.loaders]
+
+        common_tmplts = os.path.join(os.path.dirname(templating.__file__),
+                                     'templates')
+
         expected = [['/tmp/foo/grizzly'],
                     ['/tmp/foo/folsom'],
                     ['/tmp/foo/essex'],
-                    ['/tmp/foo']]
+                    ['/tmp/foo'],
+                    [common_tmplts]]
         self.assertEquals(dirs, expected)
 
     def test_register_template_with_list_of_contexts(self):
