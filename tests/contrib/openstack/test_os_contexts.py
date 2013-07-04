@@ -360,19 +360,20 @@ class ContextTests(unittest.TestCase):
     def test_https_context_no_peers_no_cluster(self):
         '''Test apache2 https on a single, unclustered unit'''
         self.https.return_value = True
-        self.determine_api_port.return_value = 8776
+        self.determine_api_port.return_value = 8766
         self.unit_get.return_value = 'cinderhost1'
         self.is_clustered.return_value = False
         self.peer_units.return_value = None
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
-        apache.external_port = '8776'
+        apache.external_ports = '8776'
         apache.service_namespace = 'cinder'
 
         ex = {
-            'int': 8776, 'ext': '8776',
-            'private_address': 'cinderhost1', 'namespace': 'cinder'
+            'private_address': 'cinderhost1',
+            'namespace': 'cinder',
+            'endpoints': [(8776, 8766)],
         }
         self.assertEquals(ex, apache())
         self.assertTrue(apache.configure_cert.called)
