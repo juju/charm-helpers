@@ -732,3 +732,8 @@ class HooksTest(TestCase):
         hooks.execute(['call-me-maybe'])
         hooks.execute(['call_me_maybe'])
         self.assertEqual(execs, [True, True])
+
+    @patch('charmhelpers.core.hookenv.local_unit')
+    def test_gets_service_name(self, _unit):
+        _unit.return_value = 'mysql/3'
+        self.assertEqual(hookenv.service_name(), 'mysql')
