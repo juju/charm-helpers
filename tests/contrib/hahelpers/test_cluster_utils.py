@@ -1,5 +1,5 @@
 
-from mock import patch
+from mock import patch, MagicMock
 
 from subprocess import CalledProcessError
 from testtools import TestCase
@@ -231,3 +231,48 @@ class ClusterUtilsTests(TestCase):
         self.config_get.side_effect = _fake_config_get
         self.assertRaises(cluster_utils.HAIncompleteConfig,
                           cluster_utils.get_hacluster_config)
+
+    @patch.object(cluster_utils, 'is_clustered')
+    def test_canonical_url_bare(self, is_clustered):
+        '''It constructs a URL to host with no https or cluster present'''
+        self.get_unit_hostname.return_value = 'foohost1'
+        is_clustered.return_value = False
+        configs = MagicMock()
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        url = cluster_utils.canonical_url(configs)
+        self.assertEquals('http://foohost1', url)
+
+    @patch.object(cluster_utils, 'is_clustered')
+    def test_canonical_url_https_no_cluster(self, is_clustered):
+        '''It constructs a URL to host with https and no cluster present'''
+        self.get_unit_hostname.return_value = 'foohost1'
+        is_clustered.return_value = False
+        configs = MagicMock()
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        url = cluster_utils.canonical_url(configs)
+        self.assertEquals('https://foohost1', url)
+
+    @patch.object(cluster_utils, 'is_clustered')
+    def test_canonical_url_https_cluster(self, is_clustered):
+        '''It constructs a URL to host with https and cluster present'''
+        self.config_get.return_value = '10.0.0.1'
+        is_clustered.return_value = True
+        configs = MagicMock()
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        url = cluster_utils.canonical_url(configs)
+        self.assertEquals('https://10.0.0.1', url)
+
+    @patch.object(cluster_utils, 'is_clustered')
+    def test_canonical_url_cluster_no_https(self, is_clustered):
+        '''It constructs a URL to host with no https and cluster present'''
+        self.config_get.return_value = '10.0.0.1'
+        self.get_unit_hostname.return_value = 'foohost1'
+        is_clustered.return_value = True
+        configs = MagicMock()
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        url = cluster_utils.canonical_url(configs)
+        self.assertEquals('http://10.0.0.1', url)
