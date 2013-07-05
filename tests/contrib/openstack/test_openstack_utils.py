@@ -8,8 +8,6 @@ import subprocess
 from mock import MagicMock, patch, call
 
 
-MODULE = 'charmhelpers.contrib.openstack.openstack_utils'
-
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
     'DISTRIB_CODENAME': 'precise',
@@ -103,8 +101,8 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_codename_install_source(src),
                           'havana')
 
-    @patch(MODULE + '.get_os_version_codename')
-    @patch(MODULE + '.get_os_codename_install_source')
+    @patch.object(openstack, 'get_os_version_codename')
+    @patch.object(openstack, 'get_os_codename_install_source')
     def test_os_version_from_install_source(self, codename, version):
         codename.return_value = 'grizzly'
         openstack.get_os_version_install_source('cloud:precise-grizzly')
@@ -350,9 +348,9 @@ class OpenStackHelpersTestCase(TestCase):
         for line in scriptrc:
             _file.__enter__().write.assert_has_calls(call(line))
 
-    @patch(MODULE + '.lsb_release')
-    @patch(MODULE + '.get_os_version_package')
-    @patch(MODULE + '.config')
+    @patch.object(openstack, 'lsb_release')
+    @patch.object(openstack, 'get_os_version_package')
+    @patch.object(openstack, 'config')
     def test_openstack_upgrade_detection_true(self, config, vers_pkg, lsb):
         """Test it detects when an openstack package has available upgrade"""
         lsb.return_value = FAKE_RELEASE
@@ -360,9 +358,9 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '2013.1.1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
 
-    @patch(MODULE + '.lsb_release')
-    @patch(MODULE + '.get_os_version_package')
-    @patch(MODULE + '.config')
+    @patch.object(openstack, 'lsb_release')
+    @patch.object(openstack, 'get_os_version_package')
+    @patch.object(openstack, 'config')
     def test_openstack_upgrade_detection_false(self, config, vers_pkg, lsb):
         """Test it detects when an openstack upgrade is not necessary"""
         lsb.return_value = FAKE_RELEASE
