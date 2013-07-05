@@ -165,7 +165,7 @@ def canonical_url(configs, vip_setting='vip'):
     if 'https' in configs.complete_contexts():
         scheme = 'https'
     if is_clustered():
-        addr = config_get('vip')
+        addr = config_get(vip_setting)
     else:
         addr = get_unit_hostname()
     return '%s://%s' % (scheme, addr)
