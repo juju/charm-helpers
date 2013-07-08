@@ -312,6 +312,22 @@ class HelpersTest(TestCase):
 
     @patch('charmhelpers.core.hookenv.remote_unit')
     @patch('charmhelpers.core.hookenv.relation_get')
+    def test_gets_relation_for_unit_with_list(self, relation_get, remote_unit):
+        unit = 'foo-unit'
+        raw_relation = {
+            'foo-list': 'one two three',
+        }
+        remote_unit.return_value = unit
+        relation_get.return_value = raw_relation
+
+        result = hookenv.relation_for_unit()
+
+        self.assertEqual(result['__unit__'], unit)
+        self.assertEqual(result['foo-list'], ['one', 'two', 'three'])
+        relation_get.assert_called_with(unit=unit, rid=None)
+
+    @patch('charmhelpers.core.hookenv.remote_unit')
+    @patch('charmhelpers.core.hookenv.relation_get')
     def test_gets_relation_for_specific_unit(self, relation_get, remote_unit):
         unit = 'foo-unit'
         raw_relation = {
@@ -604,6 +620,11 @@ class HelpersTest(TestCase):
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                          'bar=baz'])
 
+    @patch('subprocess.check_call')
+    def test_sets_relation_with_missing_value(self, check_call_):
+        hookenv.relation_set(foo=None)
+        check_call_.assert_called_with(['relation-set', 'foo='])
+
     def test_lists_relation_types(self):
         open_ = mock_open()
         open_.return_value = StringIO(CHARM_METADATA)
@@ -667,6 +688,10 @@ class HelpersTest(TestCase):
         self.assertEquals(cache_function('baz'), None)
         self.assertEquals(calls, ['hello', 'foo', 'baz'])
 
+    def test_gets_charm_dir(self):
+        with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+            self.assertEqual(hookenv.charm_dir(), '/var/empty')
+
 
 class HooksTest(TestCase):
     def test_runs_a_registered_function(self):
@@ -720,6 +745,7 @@ class HooksTest(TestCase):
         # name with underscores replaced with hypens for convenience.
         execs = []
         hooks = hookenv.Hooks()
+
         @hooks.hook()
         def call_me_maybe():
             execs.append(True)
@@ -727,3 +753,8 @@ class HooksTest(TestCase):
         hooks.execute(['call-me-maybe'])
         hooks.execute(['call_me_maybe'])
         self.assertEqual(execs, [True, True])
+
+    @patch('charmhelpers.core.hookenv.local_unit')
+    def test_gets_service_name(self, _unit):
+        _unit.return_value = 'mysql/3'
+        self.assertEqual(hookenv.service_name(), 'mysql')
