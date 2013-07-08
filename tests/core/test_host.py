@@ -390,23 +390,18 @@ class HelpersTest(TestCase):
 
     @patch('pwd.getpwnam')
     @patch('grp.getgrnam')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
-    def test_writes_content_to_a_file(self, os_, log, execution_environment,
-                                      getgrnam, getpwnam):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-            'baz': 'BAZ',
-            'juju': 'DevOps Distilled',
-        }
+    def test_writes_content_to_a_file(self, os_, log, getgrnam, getpwnam):
+        # Curly brackets here demonstrate that we are *not* rendering
+        # these strings with Python's string formatting. This is a
+        # change from the original behavior per Bug #1195634.
         uid = 123
         gid = 234
         owner = 'some-user-{foo}'
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
-        fmtstr = 'what is {juju}'
+        contents = 'what is {juju}'
         perms = 0644
         fileno = 'some-fileno'
 
@@ -416,27 +411,19 @@ class HelpersTest(TestCase):
         with patch_open() as (mock_open, mock_file):
             mock_file.fileno.return_value = fileno
 
-            host.write_file(path, fmtstr, owner=owner, group=group,
+            host.write_file(path, contents, owner=owner, group=group,
                             perms=perms)
 
-            getpwnam.assert_called_with('some-user-FOO')
-            getgrnam.assert_called_with('some-group-BAR')
-            mock_open.assert_called_with('/some/path/BAZ', 'w')
+            getpwnam.assert_called_with('some-user-{foo}')
+            getgrnam.assert_called_with('some-group-{bar}')
+            mock_open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is DevOps Distilled')
+            mock_file.write.assert_called_with('what is {juju}')
 
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
-    def test_writes_content_with_default(self, os_, log,
-                                         execution_environment):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-            'baz': 'BAZ',
-            'juju': 'DevOps Distilled',
-        }
+    def test_writes_content_with_default(self, os_, log):
         uid = 0
         gid = 0
         path = '/some/path/{baz}'
@@ -449,10 +436,10 @@ class HelpersTest(TestCase):
 
             host.write_file(path, fmtstr)
 
-            mock_open.assert_called_with('/some/path/BAZ', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is DevOps Distilled')
+            mock_file.write.assert_called_with('what is {juju}')
 
     @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
@@ -466,15 +453,17 @@ class HelpersTest(TestCase):
         }
         source = '/some/path/{foo}'
         destination = '/some/path/{bar}'
-        content = 'some-content'
+        content = 'what is {juju}'
 
         with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = content
 
-            host.render_template_file(source, destination, foo2='2')
+            host.render_template_file(
+                source, destination, juju='DevOps distilled')
 
             mock_open.assert_called_with('/some/path/FOO', 'r')
-            write_file.assert_called_with('/some/path/BAR', content, foo2='2')
+            write_file.assert_called_with(
+                '/some/path/BAR', 'what is DevOps distilled')
 
     @patch('subprocess.call')
     @patch.object(host, 'log')
