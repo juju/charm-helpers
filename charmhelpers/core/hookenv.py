@@ -143,6 +143,11 @@ def remote_unit():
     return os.environ['JUJU_REMOTE_UNIT']
 
 
+def service_name():
+    "The name service group this unit belongs to"
+    return local_unit().split('/')[0]
+
+
 @cached
 def config(scope=None):
     "Juju charm configuration"
