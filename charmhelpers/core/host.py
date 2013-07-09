@@ -127,24 +127,6 @@ def write_file(path, content, owner='root', group='root', perms=0444):
         target.write(content)
 
 
-def py_render(template, extra_env={}, **kwargs):
-    """Return the template rendered using standard Python string templating."""
-    context = execution_environment()
-    context.update(extra_env)
-    context.update(kwargs)
-    return template.format(**context)
-
-
-def render_template_file(source, destination, **kwargs):
-    """Create or overwrite a file using a template"""
-    log("Rendering template {} for {}".format(source,
-        destination))
-    with open(py_render(source, **kwargs), 'r') as template:
-        write_file(
-            py_render(destination, **kwargs),
-            py_render(template.read(), **kwargs))
-
-
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
     apt_pkg.init()
