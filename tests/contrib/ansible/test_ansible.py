@@ -3,6 +3,7 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 import mock
+import tempfile
 import unittest
 
 
@@ -20,6 +21,16 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
         patcher = mock.patch('charmhelpers.core')
         self.mock_charmhelpers_core = patcher.start()
+        self.addCleanup(patcher.stop)
+
+
+        hosts_file = tempfile.NamedTemporaryFile()
+        self.ansible_hosts_path = hosts_file.name
+        self.addCleanup(hosts_file.close)
+        patcher = mock.patch.object(charmhelpers.contrib.ansible,
+                                    'ansible_hosts_path',
+                                    self.ansible_hosts_path)
+        patcher.start()
         self.addCleanup(patcher.stop)
 
     def test_adds_ppa_by_default(self):
@@ -47,4 +58,11 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
         self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
             'ansible')
 
+    def test_writes_ansible_hosts(self):
+        with open(self.ansible_hosts_path) as hosts_file:
+            self.assertEqual(hosts_file.read(), '')
 
+        charmhelpers.contrib.ansible.install_ansible_support()
+
+        with open(self.ansible_hosts_path) as hosts_file:
+            self.assertEqual(hosts_file.read(), 'localhost')

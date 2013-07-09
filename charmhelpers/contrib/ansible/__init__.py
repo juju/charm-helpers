@@ -12,6 +12,7 @@ import charmhelpers.core.hookenv
 
 
 charm_dir = os.environ.get('CHARM_DIR', '')
+ansible_hosts_path = '/etc/ansible/hosts'
 
 
 def install_ansible_support(from_ppa=True):
@@ -34,3 +35,5 @@ def install_ansible_support(from_ppa=True):
         ])
         subprocess.check_call(['/usr/bin/apt-get', 'update'])
     charmhelpers.core.host.apt_install('ansible')
+    with open(ansible_hosts_path, 'w+') as hosts_file:
+        hosts_file.write('localhost')
