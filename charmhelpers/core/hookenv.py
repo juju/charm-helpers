@@ -173,9 +173,7 @@ def relation_get(attribute=None, unit=None, rid=None):
     try:
         return json.loads(subprocess.check_output(_args))
     except ValueError:
-        pass
-
-    return None
+        return None
 
 
 def relation_set(relation_id=None, relation_settings={}, **kwargs):
