@@ -57,7 +57,7 @@ UCA_SOURCES = [
     ('cloud:precise-folsom/updates', url + ' precise-updates/folsom main'),
     ('cloud:precise-grizzly/proposed', url + ' precise-proposed/grizzly main'),
     ('cloud:precise-grizzly', url + ' precise-updates/grizzly main'),
-    ('cloud:precise-grizzly/updates',  url + ' precise-updates/grizzly main'),
+    ('cloud:precise-grizzly/updates', url + ' precise-updates/grizzly main'),
 ]
 
 
