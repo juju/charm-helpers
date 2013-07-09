@@ -753,3 +753,13 @@ class HelpersTest(TestCase):
             for key in result:
                 print lsb_release
                 self.assertEqual(result[key], lsb_release[key])
+
+    def test_pwgen(self):
+        pw = host.pwgen()
+        self.assert_(len(pw) >= 35, 'Password is too short')
+
+        pw = host.pwgen(10)
+        self.assertEqual(len(pw), 10, 'Password incorrect length')
+
+        pw2 = host.pwgen(10)
+        self.assertNotEqual(pw, pw2, 'Duplicated password')
