@@ -551,7 +551,6 @@ class HelpersTest(TestCase):
 
     @patch('charmhelpers.core.hookenv.subprocess')
     def test_relation_get_none(self, mock_subprocess):
-        """Return None rather than Serializable(None) for 'null'."""
         mock_subprocess.check_output.return_value = 'null'
 
         result = hookenv.relation_get()
