@@ -357,6 +357,9 @@ class OpenStackHelpersTestCase(TestCase):
         config.return_value = 'cloud:precise-havana'
         vers_pkg.return_value = '2013.1.1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
+        # milestone to major release detection
+        vers_pkg.return_value = '2013.2~b1'
+        self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
@@ -367,7 +370,9 @@ class OpenStackHelpersTestCase(TestCase):
         config.return_value = 'cloud:precise-folsom'
         vers_pkg.return_value = '2013.1.1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
-
+        # milestone to majro release detection
+        vers_pkg.return_value = '2013.1~b1'
+        self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
 
 
 if __name__ == '__main__':

@@ -7,8 +7,6 @@ import subprocess
 import os
 import sys
 
-from distutils.version import StrictVersion
-
 from charmhelpers.core.hookenv import (
     config,
 )
@@ -255,4 +253,5 @@ def openstack_upgrade_available(package):
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     available_vers = get_os_version_install_source(src)
-    return StrictVersion(available_vers) > StrictVersion(cur_vers)
+    apt.init()
+    return apt.version_compare(available_vers, cur_vers) == 1
