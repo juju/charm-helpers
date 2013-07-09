@@ -1,6 +1,7 @@
+from collections import OrderedDict
 from contextlib import contextmanager
-import os
 import subprocess
+import io
 
 from mock import patch, call, MagicMock
 from testtools import TestCase
@@ -27,6 +28,13 @@ FAKE_APT_CACHE = {
     }
 }
 
+LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=13.10
+DISTRIB_CODENAME=saucy
+DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
+'''
+
+
 def fake_apt_cache():
     def _get(package):
         pkg = MagicMock()
@@ -41,6 +49,7 @@ def fake_apt_cache():
     cache = MagicMock()
     cache.__getitem__.side_effect = _get
     return cache
+
 
 @contextmanager
 def patch_open():
@@ -60,13 +69,21 @@ def patch_open():
         yield mock_open, mock_file
 
 
+@contextmanager
+def mock_open(filename, contents=None):
+    ''' Slightly simpler mock of open to return contents for filename '''
+    def mock_file(*args):
+        if args[0] == filename:
+            return io.StringIO(contents)
+        else:
+            return open(*args)
+    with patch('__builtin__.open', mock_file):
+        yield
+
+
 class HelpersTest(TestCase):
     @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_runs_service_action(self, exists, mock_call):
-        init_exists = True
-        init_d_exists = False
-        exists.side_effect = [init_exists, init_d_exists]
+    def test_runs_service_action(self, mock_call):
         mock_call.return_value = 0
         action = 'some-action'
         service_name = 'foo-service'
@@ -74,50 +91,10 @@ class HelpersTest(TestCase):
         result = host.service(action, service_name)
 
         self.assertTrue(result)
-        mock_call.assert_called_with(['initctl', action, service_name])
-        exists.assert_has_calls([
-            call(os.path.join('/etc/init', '%s.conf' % service_name)),
-        ])
+        mock_call.assert_called_with(['service', service_name, action])
 
     @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_runs_service_action_on_init_d(self, exists, mock_call):
-        init_exists = False
-        init_d_exists = True
-        exists.side_effect = [init_exists, init_d_exists]
-        mock_call.return_value = 0
-        action = 'some-action'
-        service_name = 'foo-service'
-
-        result = host.service(action, service_name)
-
-        self.assertTrue(result)
-        mock_call.assert_called_with([os.path.join('/etc/init.d',
-                                                   service_name), action])
-        exists.assert_has_calls([
-            call(os.path.join('/etc/init.d', service_name)),
-        ])
-
-    @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_doesnt_run_service_if_it_doesn_exist(self, exists, mock_call):
-        init_exists = False
-        init_d_exists = False
-        exists.side_effect = [init_exists, init_d_exists]
-        action = 'some-action'
-        service_name = 'foo-service'
-
-        result = host.service(action, service_name)
-
-        self.assertFalse(result)
-        self.assertFalse(mock_call.called)
-
-    @patch('subprocess.call')
-    @patch('os.path.exists')
-    def test_returns_false_when_service_fails(self, exists, mock_call):
-        init_exists = False
-        init_d_exists = True
-        exists.side_effect = [init_exists, init_d_exists]
+    def test_returns_false_when_service_fails(self, mock_call):
         mock_call.return_value = 1
         action = 'some-action'
         service_name = 'foo-service'
@@ -125,8 +102,7 @@ class HelpersTest(TestCase):
         result = host.service(action, service_name)
 
         self.assertFalse(result)
-        mock_call.assert_called_with([os.path.join('/etc/init.d',
-                                                   service_name), action])
+        mock_call.assert_called_with(['service', service_name, action])
 
     @patch.object(host, 'service')
     def test_starts_a_service(self, service):
@@ -141,6 +117,40 @@ class HelpersTest(TestCase):
         host.service_stop(service_name)
 
         service.assert_called_with('stop', service_name)
+
+    @patch.object(host, 'service')
+    def test_restarts_a_service(self, service):
+        service_name = 'foo-service'
+        host.service_restart(service_name)
+
+        service.assert_called_with('restart', service_name)
+
+    @patch.object(host, 'service')
+    def test_reloads_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        host.service_reload(service_name)
+
+        service.assert_called_with('reload', service_name)
+
+    @patch.object(host, 'service')
+    def test_failed_reload_restarts_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False, True]
+        host.service_reload(service_name, restart_on_failure=True)
+
+        service.assert_has_calls([
+            call('reload', service_name),
+            call('restart', service_name)
+        ])
+
+    @patch.object(host, 'service')
+    def test_failed_reload_without_restart(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        host.service_reload(service_name)
+
+        service.assert_called_with('reload', service_name)
 
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
@@ -707,12 +717,50 @@ class HelpersTest(TestCase):
             make_some_changes()
 
         # Restart should only happen once per service
-        service.assert_has_calls([
-                            call('restart', 'test-service2'),
-                            call('restart', 'test-service')
-                            ])
+        for svc in ['test-service2', 'test-service']:
+            c = call('restart', svc)
+            self.assertEquals(1, service.call_args_list.count(c))
 
         exists.assert_has_calls([
             call(file_name_one),
             call(file_name_two)
         ])
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    def test_multiservice_restart_on_change_in_order(self, exists, service):
+        restart_map = OrderedDict([
+            ('/etc/cinder/cinder.conf', ['some-api']),
+            ('/etc/haproxy/haproxy.conf', ['haproxy'])
+        ])
+        exists.side_effect = [False, True, True, True]
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            make_some_changes()
+
+        # Restarts should happen in the order they are described in the
+        # restart map.
+        expected = [
+            call('restart', 'some-api'),
+            call('restart', 'haproxy')
+        ]
+        self.assertEquals(expected, service.call_args_list)
+
+    def test_lsb_release(self):
+        result = {
+            "DISTRIB_ID": "Ubuntu",
+            "DISTRIB_RELEASE": "13.10",
+            "DISTRIB_CODENAME": "saucy",
+            "DISTRIB_DESCRIPTION": "\"Ubuntu Saucy Salamander "
+                                   "(development branch)\""
+        }
+        with mock_open('/etc/lsb-release', LSB_RELEASE):
+            lsb_release = host.lsb_release()
+            for key in result:
+                print lsb_release
+                self.assertEqual(result[key], lsb_release[key])
