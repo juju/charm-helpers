@@ -441,30 +441,6 @@ class HelpersTest(TestCase):
             os_.fchmod.assert_called_with(fileno, perms)
             mock_file.write.assert_called_with('what is {juju}')
 
-    @patch.object(host, 'execution_environment')
-    @patch.object(host, 'log')
-    @patch.object(host, 'os')
-    @patch.object(host, 'write_file')
-    def test_renders_a_template_file(self, write_file, os_, log,
-                                     execution_environment):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
-        source = '/some/path/{foo}'
-        destination = '/some/path/{bar}'
-        content = 'what is {juju}'
-
-        with patch_open() as (mock_open, mock_file):
-            mock_file.read.return_value = content
-
-            host.render_template_file(
-                source, destination, juju='DevOps distilled')
-
-            mock_open.assert_called_with('/some/path/FOO', 'r')
-            write_file.assert_called_with(
-                '/some/path/BAR', 'what is DevOps distilled')
-
     @patch('subprocess.call')
     @patch.object(host, 'log')
     def test_installs_apt_packages(self, log, mock_call):
