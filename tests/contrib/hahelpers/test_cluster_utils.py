@@ -5,8 +5,6 @@ from subprocess import CalledProcessError
 from testtools import TestCase
 
 import charmhelpers.contrib.hahelpers.cluster_utils as cluster_utils
-#import charmhelpers.contrib.hahelpers.utils as utils
-
 
 
 class ClusterUtilsTests(TestCase):
