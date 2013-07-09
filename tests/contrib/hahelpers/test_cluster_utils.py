@@ -167,7 +167,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'https')
     @patch.object(cluster_utils, 'peer_units')
     def test_determine_api_port_clustered(self, peer_units, https,
-                                         is_clustered):
+                                          is_clustered):
         '''It determines API port in presence of an hacluster'''
         peer_units.return_value = []
         is_clustered.return_value = True
@@ -178,11 +178,11 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'https')
     @patch.object(cluster_utils, 'peer_units')
     def test_determine_api_port_clustered_https(self, peer_units, https,
-                                               is_clustered):
+                                                is_clustered):
         '''It determines API port in presence of hacluster + https'''
         peer_units.return_value = []
         is_clustered.return_value = True
-        https.return_value = True 
+        https.return_value = True
         self.assertEquals(9676, cluster_utils.determine_api_port(9696))
 
     @patch.object(cluster_utils, 'https')
