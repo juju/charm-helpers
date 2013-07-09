@@ -41,6 +41,6 @@ ftest:
 
 lint:
 	@echo Checking for Python syntax...
-	@flake8 --ignore=E123 $(PROJECT) $(TESTS) && echo OK
+	@flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
 
 build: test lint
