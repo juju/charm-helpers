@@ -179,8 +179,9 @@ class OpenStackHelpersTestCase(TestCase):
                 # ignore exceptions that raise when error_out is mocked
                 # and doesn't sys.exit(1)
                 pass
-            _err = 'Could not determine version of installed package: foo'
-            mocked_error.assert_called_with(_err)
+            e = 'Could not determine version of package with no installation '\
+                'candidate: foo'
+            mocked_error.assert_called_with(e)
 
     def test_os_codename_from_bad_package_nonfatal(self):
         '''Test OpenStack codename from an uninstalled package is non-fatal'''
@@ -213,8 +214,9 @@ class OpenStackHelpersTestCase(TestCase):
                 # ignore exceptions that raise when error_out is mocked
                 # and doesn't sys.exit(1)
                 pass
-            _err = 'Could not determine version of installed package: foo'
-            mocked_error.assert_called_with(_err)
+            e = 'Could not determine version of package with no installation '\
+                'candidate: foo'
+            mocked_error.assert_called_with(e)
 
     def test_os_version_from_bad_package_nonfatal(self):
         '''Test OpenStack version from an uninstalled package is non-fatal'''
