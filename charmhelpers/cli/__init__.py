@@ -3,23 +3,36 @@ import itertools
 import argparse
 import sys
 
+
 class OutputFormatter(object):
     def __init__(self, outfile=sys.stdout):
-        self.formats = { 'raw': self.raw,
-                         'python': self.pprint,
-                         'json': self.json,
-                         'yaml': self.yaml,
-                         'csv': self.csv,
-                         'tab': self.tab,
-                       }
+        self.formats = {'raw': self.raw,
+                        'python': self.pprint,
+                        'json': self.json,
+                        'yaml': self.yaml,
+                        'csv': self.csv,
+                        'tab': self.tab,
+                        }
         self.outfile = outfile
+
+    def add_arguments(self, argument_parser):
+        formatgroup = argument_parser.add_mutually_exclusive_group()
+        choices = self.supported_formats
+        formatgroup.add_argument("--format", metavar='FMT',
+                help="Select output format for returned data, "
+                     "where FMT is one of: {}".format(choices),
+                choices=choices, default='raw')
+        for fmt, fmtfunc in self.formats.iteritems():
+            formatgroup.add_argument("-{}".format(fmt[0]),
+                    "--{}".format(fmt), action='store_const', const=fmt,
+                    dest='format', help=fmtfunc.__doc__)
 
     @property
     def supported_formats(self):
         return self.formats.keys()
 
     def raw(self, output):
-        """Output data as raw string"""
+        """Output data as raw string (default)"""
         try:
             self.outfile.writelines(output)
         except TypeError:
@@ -67,16 +80,7 @@ class CommandLine(object):
             self.argument_parser = argparse.ArgumentParser(description='Perform common charm tasks')
         if not self.formatter:
             self.formatter = OutputFormatter()
-            formatgroup = self.argument_parser.add_mutually_exclusive_group()
-            choices = self.formatter.supported_formats
-            formatgroup.add_argument("--format", metavar='FMT',
-                    help="Select output format for returned data, "
-                         "where FMT is one of: {}".format(choices),
-                    choices=choices, default='raw')
-            for fmt, fmtfunc in self.formatter.formats.iteritems():
-                formatgroup.add_argument("-{}".format(fmt[0]),
-                        "--{}".format(fmt), action='store_const', const=fmt,
-                        dest='format', help=fmtfunc.__doc__)
+            self.formatter.add_arguments(self.argument_parser)
         if not self.subparsers:
             self.subparsers = self.argument_parser.add_subparsers(help='Commands')
 
@@ -105,12 +109,6 @@ class CommandLine(object):
             subparser.set_defaults(func=func)
             subparser.description = description or func.__doc__
         return wrapper
-
-    def make_subparser(self, subcmd_name, function, description=None):
-        "An argparse subparser for the named subcommand."
-        subparser = self.subparsers.add_parser(subcmd_name, description)
-        subparser.set_defaults(func=function)
-        return subparser
 
     def run(self):
         "Run cli, processing arguments and executing subcommands."
