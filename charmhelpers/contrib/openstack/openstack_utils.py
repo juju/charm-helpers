@@ -7,10 +7,12 @@ import subprocess
 import os
 import sys
 
-from distutils.version import StrictVersion
-
 from charmhelpers.core.hookenv import (
     config,
+)
+
+from charmhelpers.core.host import (
+    lsb_release,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
@@ -52,20 +54,9 @@ def error_out(msg):
     sys.exit(1)
 
 
-def lsb_release():
-    '''Return /etc/lsb-release in a dict'''
-    lsb = open('/etc/lsb-release', 'r')
-    d = {}
-    for l in lsb:
-        k, v = l.split('=')
-        d[k.strip()] = v.strip()
-    return d
-
-
 def get_os_codename_install_source(src):
     '''Derive OpenStack release codename from a given installation source.'''
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
-
     rel = ''
     if src == 'distro':
         try:
@@ -270,4 +261,5 @@ def openstack_upgrade_available(package):
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     available_vers = get_os_version_install_source(src)
-    return StrictVersion(available_vers) > StrictVersion(cur_vers)
+    apt.init()
+    return apt.version_compare(available_vers, cur_vers) == 1
