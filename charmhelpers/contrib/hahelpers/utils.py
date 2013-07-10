@@ -40,20 +40,12 @@ def install(*pkgs):
 
 TEMPLATES_DIR = 'templates'
 
-try:
-    import jinja2
-except ImportError:
-    install('python-jinja2')
-    import jinja2
-
-try:
-    import dns.resolver
-except ImportError:
-    install('python-dnspython')
-    import dns.resolver
-
-
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
+    try:
+        import jinja2
+    except ImportError:
+        install('python-jinja2')
+        import jinja2
     templates = jinja2.Environment(
                     loader=jinja2.FileSystemLoader(template_dir)
                     )
@@ -271,6 +263,11 @@ def get_unit_hostname():
 
 @cached
 def get_host_ip(hostname=None):
+    try:
+        import dns.resolver
+    except ImportError:
+        install('python-dnspython')
+        import dns.resolver
     hostname = hostname or unit_get('private-address')
     try:
         # Test to see if already an IPv4 address
