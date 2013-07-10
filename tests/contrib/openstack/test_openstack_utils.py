@@ -1,11 +1,12 @@
-from copy import copy
 import os
-import unittest
-from testtools import TestCase
-import charmhelpers.contrib.openstack.openstack_utils as openstack
 import subprocess
+import unittest
 
+from copy import copy
+from testtools import TestCase
 from mock import MagicMock, patch, call
+
+import charmhelpers.contrib.openstack.utils as openstack
 
 
 # mocked return of openstack.lsb_release()
@@ -76,7 +77,7 @@ class OpenStackHelpersTestCase(TestCase):
         cache.__getitem__.side_effect = cache_get
         return cache
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.lsb_release')
+    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_install_source(self, mocked_lsb):
         '''Test mapping install source to OpenStack release name'''
         mocked_lsb.return_value = FAKE_RELEASE
@@ -108,14 +109,14 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.get_os_version_install_source('cloud:precise-grizzly')
         version.assert_called_with('grizzly')
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.lsb_release')
+    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_bad_install_source(self, mocked_lsb):
         '''Test mapping install source to OpenStack release name'''
         _fake_release = copy(FAKE_RELEASE)
         _fake_release['DISTRIB_CODENAME'] = 'natty'
 
         mocked_lsb.return_value = _fake_release
-        _e = 'charmhelpers.contrib.openstack.openstack_utils.error_out'
+        _e = 'charmhelpers.contrib.openstack.utils.error_out'
         with patch(_e) as mocked_err:
             openstack.get_os_codename_install_source('distro')
             _er = ('Could not derive openstack release for this Ubuntu '
@@ -127,7 +128,7 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_codename_version('2013.1'),
                           'grizzly')
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_version(self, mocked_error):
         '''Test mapping a bad OpenStack numerical versions to code name'''
         openstack.get_os_codename_version('2014.5.5')
@@ -140,7 +141,7 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_version_codename('folsom'),
                           '2012.2')
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_bad_codename(self, mocked_error):
         '''Test mapping a bad OpenStack codename to numerical version'''
         openstack.get_os_version_codename('foo')
@@ -157,7 +158,7 @@ class OpenStackHelpersTestCase(TestCase):
                 self.assertEquals(openstack.get_os_codename_package(pkg),
                                   vers['os_release'])
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_package_version(self, mocked_error):
         '''Test deriving OpenStack codename for a poorly versioned package'''
         with patch('apt_pkg.Cache') as cache:
@@ -166,7 +167,7 @@ class OpenStackHelpersTestCase(TestCase):
             _e = ('Could not determine OpenStack codename for version 2016.1')
             mocked_error.assert_called_with(_e)
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_package(self, mocked_error):
         '''Test deriving OpenStack codename from an uninstalled package'''
         with patch('apt_pkg.Cache') as cache:
@@ -189,7 +190,7 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_codename_package('foo', fatal=False)
             )
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_package(self, mocked_error):
         '''Test deriving OpenStack version from an installed package'''
         with patch('apt_pkg.Cache') as cache:
@@ -200,7 +201,7 @@ class OpenStackHelpersTestCase(TestCase):
                 self.assertEquals(openstack.get_os_version_package(pkg),
                                   vers['os_version'])
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_bad_package(self, mocked_error):
         '''Test deriving OpenStack version from an uninstalled package'''
         with patch('apt_pkg.Cache') as cache:
@@ -245,8 +246,8 @@ class OpenStackHelpersTestCase(TestCase):
             mock.assert_called_with(ex_cmd)
 
     @patch('__builtin__.open')
-    @patch('charmhelpers.contrib.openstack.openstack_utils.juju_log')
-    @patch('charmhelpers.contrib.openstack.openstack_utils.import_key')
+    @patch('charmhelpers.contrib.openstack.utils.juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.import_key')
     def test_configure_install_source_deb_url(self, _import, _log, _open):
         '''Test configuring installation source from deb repo url'''
         _file = MagicMock(spec=file)
@@ -261,12 +262,12 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.configure_installation_source(src)
         _file.__enter__().write.assert_called_with(src)
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_configure_bad_install_source(self, _error):
         openstack.configure_installation_source('foo')
         _error.assert_called_with('Invalid openstack-release specified: foo')
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.lsb_release')
+    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_configure_install_source_uca_staging(self, _lsb):
         '''Test configuring installation source from UCA staging sources'''
         _lsb.return_value = FAKE_RELEASE
@@ -279,8 +280,8 @@ class OpenStackHelpersTestCase(TestCase):
             _subp.assert_called_with(cmd)
 
     @patch('__builtin__.open')
-    @patch('charmhelpers.contrib.openstack.openstack_utils.import_key')
-    @patch('charmhelpers.contrib.openstack.openstack_utils.lsb_release')
+    @patch('charmhelpers.contrib.openstack.utils.import_key')
+    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_configure_install_source_uca_repos(self, _lsb, _import, _open):
         '''Test configuring installation source from UCA sources'''
         _lsb.return_value = FAKE_RELEASE
@@ -295,7 +296,7 @@ class OpenStackHelpersTestCase(TestCase):
             )
             _file.__enter__().write.assert_called_with(url)
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_configure_install_source_bad_uca(self, mocked_error):
         '''Test configuring installation source from bad UCA source'''
         try:
@@ -315,7 +316,7 @@ class OpenStackHelpersTestCase(TestCase):
                    '--recv-keys', 'foo']
             _subp.assert_called_with(cmd)
 
-    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_import_bad_apt_key(self, mocked_error):
         '''Ensure error when importing apt key fails'''
         with patch('subprocess.check_call') as _subp:
