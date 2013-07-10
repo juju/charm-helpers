@@ -9,17 +9,21 @@
 #
 
 from utils import (
-    relation_ids,
-    relation_list,
-    relation_get,
     render_template,
-    juju_log,
-    config_get,
     install,
     get_host_ip,
     restart
-    )
-from cluster_utils import https
+)
+
+from charmhelpers.contrib.hahelpers.cluster_utils import https
+
+from charmhelpers.core.hookenv import (
+    config as config_get,
+    relation_get,
+    relation_ids,
+    related_units as relation_list,
+    log as juju_log,
+)
 
 import os
 import subprocess
@@ -137,7 +141,7 @@ def enable_https(port_maps, namespace, cert, key, ca_cert=None):
                 "int": int_port,
                 "namespace": namespace,
                 "private_address": get_host_ip()
-                }
+            }
             fsite.write(render_template(SITE_TEMPLATE,
                                         context))
 

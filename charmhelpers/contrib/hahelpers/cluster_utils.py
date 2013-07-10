@@ -1,23 +1,23 @@
 #
 # Copyright 2012 Canonical Ltd.
 #
-# This file is sourced from lp:openstack-charm-helpers
-#
 # Authors:
 #  James Page <james.page@ubuntu.com>
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
-from utils import (
-    juju_log,
-    relation_ids,
-    relation_list,
-    relation_get,
-    get_unit_hostname,
-    config_get
-)
 import subprocess
 import os
+
+from socket import gethostname as get_unit_hostname
+
+from charmhelpers.core.hookenv import (
+    log as juju_log,
+    relation_ids,
+    related_units as relation_list,
+    relation_get,
+    config as config_get,
+)
 
 
 class HAIncompleteConfig(Exception):
@@ -39,7 +39,7 @@ def is_leader(resource):
     cmd = [
         "crm", "resource",
         "show", resource
-        ]
+    ]
     try:
         status = subprocess.check_output(cmd)
     except subprocess.CalledProcessError:
