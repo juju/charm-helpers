@@ -163,8 +163,8 @@ def disable_https(port_maps, namespace):
     '''
     juju_log('INFO', 'Ensuring HTTPS disabled for {}'.format(port_maps))
 
-    if (not os.path.exists('/etc/apache2') or
-        not os.path.exists(os.path.join('/etc/apache2/ssl', namespace))):
+    if not (os.path.exists('/etc/apache2') and
+            os.path.exists(os.path.join('/etc/apache2/ssl', namespace))):
         return
 
     http_restart = False

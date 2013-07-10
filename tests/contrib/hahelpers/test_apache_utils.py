@@ -1,6 +1,5 @@
-from mock import patch, MagicMock
+from mock import patch
 
-from subprocess import CalledProcessError
 from testtools import TestCase
 
 import charmhelpers.contrib.hahelpers.apache as apache_utils
