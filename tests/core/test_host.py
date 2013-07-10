@@ -252,15 +252,10 @@ class HelpersTest(TestCase):
         ])
 
     @patch('subprocess.check_output')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
-    def test_rsyncs_a_path(self, log, execution_environment, check_output):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
-        from_path = '/from/this/path/{foo}'
-        to_path = '/to/this/path/{bar}'
+    def test_rsyncs_a_path(self, log, check_output):
+        from_path = '/from/this/path/foo'
+        to_path = '/to/this/path/bar'
         check_output.return_value = ' some output '
 
         result = host.rsync(from_path, to_path)
@@ -268,42 +263,31 @@ class HelpersTest(TestCase):
         self.assertEqual(result, 'some output')
         check_output.assert_called_with(['/usr/bin/rsync', '-r', '--delete',
                                          '--executability',
-                                         '/from/this/path/FOO',
-                                         '/to/this/path/BAR'])
+                                         '/from/this/path/foo',
+                                         '/to/this/path/bar'])
 
     @patch('subprocess.check_call')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
-    def test_creates_a_symlink(self, log, execution_environment, check_call):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
-        source = '/from/this/path/{foo}'
-        destination = '/to/this/path/{bar}'
+    def test_creates_a_symlink(self, log, check_call):
+        source = '/from/this/path/foo'
+        destination = '/to/this/path/bar'
 
         host.symlink(source, destination)
 
         check_call.assert_called_with(['ln', '-sf',
-                                       '/from/this/path/FOO',
-                                       '/to/this/path/BAR'])
+                                       '/from/this/path/foo',
+                                       '/to/this/path/bar'])
 
     @patch('pwd.getpwnam')
     @patch('grp.getgrnam')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
     def test_creates_a_directory_if_it_doesnt_exist(self, os_, log,
-                                                    execution_environment,
                                                     getgrnam, getpwnam):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
         uid = 123
         gid = 234
-        owner = 'some-user-{foo}'
-        group = 'some-group-{bar}'
+        owner = 'some-user'
+        group = 'some-group'
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
@@ -316,22 +300,16 @@ class HelpersTest(TestCase):
 
         host.mkdir(path, owner=owner, group=group, perms=perms)
 
-        getpwnam.assert_called_with('some-user-FOO')
-        getgrnam.assert_called_with('some-group-BAR')
+        getpwnam.assert_called_with('some-user')
+        getgrnam.assert_called_with('some-group')
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.makedirs.assert_called_with(realpath, perms)
         os_.chown.assert_called_with(realpath, uid, gid)
 
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
-    def test_creates_a_directory_with_defaults(self, os_, log,
-                                               execution_environment):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
+    def test_creates_a_directory_with_defaults(self, os_, log):
         uid = 0
         gid = 0
         path = '/some/other/path/from/link'
@@ -351,20 +329,14 @@ class HelpersTest(TestCase):
 
     @patch('pwd.getpwnam')
     @patch('grp.getgrnam')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
     def test_removes_file_with_same_path_before_mkdir(self, os_, log,
-                                                      execution_environment,
                                                       getgrnam, getpwnam):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
         uid = 123
         gid = 234
-        owner = 'some-user-{foo}'
-        group = 'some-group-{bar}'
+        owner = 'some-user'
+        group = 'some-group'
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = True
@@ -380,8 +352,8 @@ class HelpersTest(TestCase):
 
         host.mkdir(path, owner=owner, group=group, perms=perms, force=force)
 
-        getpwnam.assert_called_with('some-user-FOO')
-        getgrnam.assert_called_with('some-group-BAR')
+        getpwnam.assert_called_with('some-user')
+        getgrnam.assert_called_with('some-group')
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.unlink.assert_called_with(realpath)
