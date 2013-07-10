@@ -103,17 +103,26 @@ def get_os_version_codename(codename):
     error_out(e)
 
 
-def get_os_codename_package(pkg, fatal=True):
+def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     apt.init()
     cache = apt.Cache()
 
     try:
-        pkg = cache[pkg]
+        pkg = cache[package]
     except:
         if not fatal:
             return None
-        e = 'Could not determine version of installed package: %s' % pkg
+        # the package is unknown to the current apt cache.
+        e = 'Could not determine version of package with no installation '\
+            'candidate: %s' % package
+        error_out(e)
+
+    if not pkg.current_ver:
+        if not fatal:
+            return None
+        # package is known, but no version is currently installed.
+        e = 'Could not determine version of uninstalled package: %s' % package
         error_out(e)
 
     vers = apt.UpstreamVersion(pkg.current_ver.ver_str)
