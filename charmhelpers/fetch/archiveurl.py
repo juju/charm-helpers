@@ -8,6 +8,7 @@ from charmhelpers.payload.archive import (
     get_archive_handler,
     extract,
 )
+from charmhelpers.core.host import mkdir
 
 
 class ArchiveUrlFetchHandler(BaseFetchHandler):
@@ -35,6 +36,8 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
     def install(self, source):
         url_parts = self.parse_url(source)
         dest_dir = os.path.join(os.environ.get('CHARM_DIR'), 'fetched')
+        if not os.path.exists(dest_dir):
+            mkdir(dest_dir, perms=0755)
         dld_file = os.path.join(dest_dir, os.path.basename(url_parts.path))
         try:
             self.download(source, dld_file)

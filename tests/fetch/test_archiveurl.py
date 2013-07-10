@@ -63,8 +63,9 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             _open.assert_called_once_with("foo", 'w')
             _open().write.assert_called_with("bar")
 
+    @patch('charmhelpers.fetch.archiveurl.mkdir')
     @patch('charmhelpers.fetch.archiveurl.extract')
-    def test_installs(self, _extract):
+    def test_installs(self, _extract, _mkdir):
         self.fh.download = MagicMock()
 
         for url in self.valid_urls:
