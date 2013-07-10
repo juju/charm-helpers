@@ -114,28 +114,15 @@ def mkdir(path, owner='root', group='root', perms=0555, force=False):
     os.chown(realpath, uid, gid)
 
 
-def write_file(path, fmtstr, owner='root', group='root', perms=0444, **kwargs):
+def write_file(path, content, owner='root', group='root', perms=0444):
     """Create or overwrite a file with the contents of a string"""
-    context = execution_environment()
-    context.update(kwargs)
-    log("Writing file {} {}:{} {:o}".format(path, owner, group,
-        perms))
-    uid = pwd.getpwnam(owner.format(**context)).pw_uid
-    gid = grp.getgrnam(group.format(**context)).gr_gid
-    with open(path.format(**context), 'w') as target:
+    log("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    with open(path, 'w') as target:
         os.fchown(target.fileno(), uid, gid)
         os.fchmod(target.fileno(), perms)
-        target.write(fmtstr.format(**context))
-
-
-def render_template_file(source, destination, **kwargs):
-    """Create or overwrite a file using a template"""
-    log("Rendering template {} for {}".format(source,
-        destination))
-    context = execution_environment()
-    with open(source.format(**context), 'r') as template:
-        write_file(destination.format(**context), template.read(),
-                   **kwargs)
+        target.write(content)
 
 
 def filter_installed_packages(packages):
