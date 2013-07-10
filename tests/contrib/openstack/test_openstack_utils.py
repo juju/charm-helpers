@@ -223,20 +223,14 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_version_package('foo', fatal=False)
             )
 
-    def test_juju_log(self):
-        '''Test shelling out to juju-log'''
-        with patch('subprocess.check_call') as mocked_subprocess:
-            openstack.juju_log('foo')
-            mocked_subprocess.assert_called_with(['juju-log', 'foo'])
-
+    @patch.object(openstack, 'juju_log')
     @patch('sys.exit')
-    def test_error_out(self, mocked_exit):
+    def test_error_out(self, mocked_exit, juju_log):
         '''Test erroring out'''
-        with patch('subprocess.check_call') as mocked_subprocess:
-            openstack.error_out('Everything broke.')
-            _log = ['juju-log', 'FATAL ERROR: Everything broke.']
-            mocked_subprocess.assert_called_with(_log)
-            mocked_exit.assert_called_with(1)
+        openstack.error_out('Everything broke.')
+        _log = 'FATAL ERROR: Everything broke.'
+        juju_log.assert_called_with(_log, level='ERROR')
+        mocked_exit.assert_called_with(1)
 
     def test_configure_install_source_distro(self):
         '''Test configuring installation from distro'''

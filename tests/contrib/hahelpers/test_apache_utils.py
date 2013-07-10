@@ -3,7 +3,7 @@ from mock import patch, MagicMock
 from subprocess import CalledProcessError
 from testtools import TestCase
 
-import charmhelpers.contrib.hahelpers.apache_utils as apache_utils
+import charmhelpers.contrib.hahelpers.apache as apache_utils
 
 
 class ApacheUtilsTests(TestCase):

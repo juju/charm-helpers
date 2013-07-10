@@ -15,7 +15,7 @@ from utils import (
     restart
 )
 
-from charmhelpers.contrib.hahelpers.cluster_utils import https
+from charmhelpers.contrib.hahelpers.cluster import https
 
 from charmhelpers.core.hookenv import (
     config as config_get,
