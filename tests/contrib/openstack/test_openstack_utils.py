@@ -37,11 +37,12 @@ FAKE_REPO = {
         'os_release': 'grizzly',
         'os_version': '1.7.7'
     },
+    # a package thats available in the cache but is not installed
     'cinder-common': {
-        'pkg_vers': '1:2013.2-0ubuntu1~cloud0',
         'os_release': 'havana',
         'os_version': '2013.2'
     },
+    # poorly formed openstack version
     'bad-version': {
         'pkg_vers': '1:2016.1-0ubuntu1.1~cloud0',
         'os_release': None,
@@ -66,11 +67,15 @@ class OpenStackHelpersTestCase(TestCase):
         # mocks out the apt cache
         def cache_get(package):
             pkg = MagicMock()
-            if package in FAKE_REPO:
+            if package in FAKE_REPO and 'pkg_vers' in FAKE_REPO[package]:
                 pkg.name = package
                 pkg.current_ver.ver_str = FAKE_REPO[package]['pkg_vers']
+            elif (package in FAKE_REPO and
+                  'pkg_vers' not in FAKE_REPO[package]):
+                pkg.name = package
+                pkg.current_ver = None
             else:
-                raise
+                raise KeyError
             return pkg
         cache = MagicMock()
         cache.__getitem__.side_effect = cache_get
@@ -152,7 +157,10 @@ class OpenStackHelpersTestCase(TestCase):
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             for pkg, vers in FAKE_REPO.iteritems():
+                # test fake repo for all "installed" packages
                 if pkg.startswith('bad-'):
+                    continue
+                if 'pkg_vers' not in vers:
                     continue
                 self.assertEquals(openstack.get_os_codename_package(pkg),
                                   vers['os_release'])
@@ -168,7 +176,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
     def test_os_codename_from_bad_package(self, mocked_error):
-        '''Test deriving OpenStack codename from an uninstalled package'''
+        '''Test deriving OpenStack codename from an unavailable package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -182,12 +190,34 @@ class OpenStackHelpersTestCase(TestCase):
             mocked_error.assert_called_with(e)
 
     def test_os_codename_from_bad_package_nonfatal(self):
-        '''Test OpenStack codename from an uninstalled package is non-fatal'''
+        '''Test OpenStack codename from an unavailable package is non-fatal'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
                 None,
                 openstack.get_os_codename_package('foo', fatal=False)
+            )
+
+    @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
+    def test_os_codename_from_uninstalled_package(self, mock_error):
+        '''Test OpenStack codename from an available but uninstalled pkg'''
+        with patch('apt_pkg.Cache') as cache:
+            cache.return_value = self._apt_cache()
+            try:
+                openstack.get_os_codename_package('cinder-common', fatal=True)
+            except:
+                pass
+            e = ('Could not determine version of uninstalled package: '
+                 'cinder-common')
+            mock_error.assert_called_with(e)
+
+    def test_os_codename_from_uninstalled_package_nonfatal(self):
+        '''Test OpenStack codename from avail uninstalled pkg is non fatal'''
+        with patch('apt_pkg.Cache') as cache:
+            cache.return_value = self._apt_cache()
+            self.assertEquals(
+                None,
+                openstack.get_os_codename_package('cinder-common', fatal=False)
             )
 
     @patch('charmhelpers.contrib.openstack.openstack_utils.error_out')
@@ -197,6 +227,8 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             for pkg, vers in FAKE_REPO.iteritems():
                 if pkg.startswith('bad-'):
+                    continue
+                if 'pkg_vers' not in vers:
                     continue
                 self.assertEquals(openstack.get_os_version_package(pkg),
                                   vers['os_version'])
