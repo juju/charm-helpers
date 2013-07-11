@@ -141,6 +141,6 @@ def juju_config_2_grains():
     else:
         grains = {}
 
-    config.update(grains)
+    grains.update(config)
     with open(salt_grains_path, "w+") as fp:
-        fp.write(config.yaml())
+        fp.write(yaml.dump(grains))

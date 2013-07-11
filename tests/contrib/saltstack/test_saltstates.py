@@ -169,11 +169,14 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         """
         os.makedirs(os.path.dirname(self.grain_path))
         with open(self.grain_path, 'w+') as grain_file:
-            grain_file.write(yaml.dump({'solr:hostname': 'example.com'}))
+            grain_file.write(yaml.dump({
+                'solr:hostname': 'example.com',
+                'user_code_runner': 'oldvalue',
+            }))
 
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
             'group_code_owner': 'webops_deploy',
-            'user_code_runner': 'ubunet',
+            'user_code_runner': 'newvalue',
         })
         self.mock_local_unit.return_value = "click-index/3"
 
@@ -184,7 +187,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
             self.assertEqual({
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
+                "user_code_runner": "newvalue",
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
             }, result)
