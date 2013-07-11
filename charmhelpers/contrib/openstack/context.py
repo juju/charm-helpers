@@ -106,8 +106,8 @@ class IdentityServiceContext(OSContextGenerator):
                     'admin_password': relation_get('service_password', rid=rid,
                                                    unit=unit),
                     # XXX: Hard-coded http.
-                    'service_protocol':  'http',
-                    'auth_protocol':  'http',
+                    'service_protocol': 'http',
+                    'auth_protocol': 'http',
                 }
         if not context_complete(ctxt):
             return {}
