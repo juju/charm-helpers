@@ -9,7 +9,7 @@ class ApacheUtilsTests(TestCase):
     def setUp(self):
         super(ApacheUtilsTests, self).setUp()
         [self._patch(m) for m in [
-            'juju_log',
+            'log',
             'config_get',
             'relation_get',
             'relation_ids',

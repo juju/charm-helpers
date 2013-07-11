@@ -15,7 +15,8 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units as relation_list,
-    log as juju_log,
+    log,
+    INFO,
 )
 
 
@@ -23,8 +24,8 @@ def get_cert():
     cert = config_get('ssl_cert')
     key = config_get('ssl_key')
     if not (cert and key):
-        juju_log('INFO',
-                 "Inspecting identity-service relations for SSL certificate.")
+        log("Inspecting identity-service relations for SSL certificate.",
+            level=INFO)
         cert = key = None
         for r_id in relation_ids('identity-service'):
             for unit in relation_list(r_id):
@@ -39,8 +40,8 @@ def get_cert():
 
 def get_ca_cert():
     ca_cert = None
-    juju_log('INFO',
-             "Inspecting identity-service relations for CA SSL certificate.")
+    log("Inspecting identity-service relations for CA SSL certificate.",
+        level=INFO)
     for r_id in relation_ids('identity-service'):
         for unit in relation_list(r_id):
             if not ca_cert:
