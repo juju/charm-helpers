@@ -130,7 +130,10 @@ CEPH_RELATION = {
 
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
+    'b64decode',
     'check_call',
+    'get_cert',
+    'get_ca_cert',
     'log',
     'config',
     'relation_get',
@@ -158,6 +161,10 @@ class ContextTests(unittest.TestCase):
         mock = _m.start()
         self.addCleanup(_m.stop)
         return mock
+
+    def test_base_class_not_implemented(self):
+        base = context.OSContextGenerator()
+        self.assertRaises(NotImplementedError, base)
 
     def test_shared_db_context_with_data(self):
         '''Test shared-db context with all required data'''
@@ -349,19 +356,46 @@ class ContextTests(unittest.TestCase):
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
 
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_no_peers(self, local_unit, unit_get):
+        '''Test haproxy context with single unit'''
+        # peer relations always show at least one peer relation, even
+        # if unit is alone. should be an incomplete context.
+        cluster_relation = {
+            'cluster:0': {
+                'peer/0': {
+                    'private-address': 'lonely.clusterpeer.howsad',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'lonely.clusterpeer.howsad'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        haproxy = context.HAProxyContext()
+        self.assertEquals({}, haproxy())
+
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''
         apache = context.ApacheSSLContext()
         self.https.return_value = False
         self.assertEquals({}, apache())
 
-    def test_https_context_no_peers_no_cluster(self):
-        '''Test apache2 https on a single, unclustered unit'''
+    def _test_https_context(self, apache, is_clustered, peer_units):
         self.https.return_value = True
-        self.determine_api_port.return_value = 8766
+
+        if is_clustered or peer_units:
+            self.determine_api_port.return_value = 8756
+            self.determine_haproxy_port.return_value = 8766
+        else:
+            self.determine_api_port.return_value = 8766
+
         self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = False
-        self.peer_units.return_value = None
+        self.is_clustered.return_value = is_clustered
+        self.peer_units.return_value = peer_units
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
@@ -377,9 +411,44 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(apache.configure_cert.called)
         self.assertTrue(apache.enable_modules.called)
 
+    def test_https_context_no_peers_no_cluster(self):
+        '''Test apache2 https on a single, unclustered unit'''
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=False, peer_units=None)
+
+    def test_https_context_wth_peers_no_cluster(self):
+        '''Test apache2 https on a unclustered unit with peers'''
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=False, peer_units=[1, 2])
+
     def test_https_context_loads_correct_apache_mods(self):
         '''Test apache2 context also loads required apache modules'''
         apache = context.ApacheSSLContext()
         apache.enable_modules()
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
         self.check_call.assert_called_with(ex_cmd)
+
+    @patch('__builtin__.open')
+    @patch('os.mkdir')
+    @patch('os.path.isdir')
+    def test_https_configure_cert(self, isdir, mkdir, _open):
+        '''Test apache2 properly installs certs and keys to disk'''
+        isdir.return_value = False
+        self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
+        self.get_ca_cert.return_value = 'CA_CERT'
+        apache = context.ApacheSSLContext()
+        apache.service_namespace = 'cinder'
+        apache.configure_cert()
+        # appropriate directories are created.
+        dirs = [call('/etc/apache2/ssl'), call('/etc/apache2/ssl/cinder')]
+        self.assertEquals(dirs, mkdir.call_args_list)
+        # appropriate files are opened for writing.
+        _ca = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
+        files = [call('/etc/apache2/ssl/cinder/cert', 'w'),
+                 call('/etc/apache2/ssl/cinder/key', 'w'),
+                 call(_ca, 'w')]
+        for f in files:
+            self.assertIn(f, _open.call_args_list)
+        # appropriate bits are b64decoded.
+        decode = [call('SSL_CERT'), call('SSL_KEY'), call('CA_CERT')]
+        self.assertEquals(decode, self.b64decode.call_args_list)

@@ -202,6 +202,7 @@ class HAProxyContext(OSContextGenerator):
             with open('/etc/default/haproxy', 'w') as out:
                 out.write('ENABLED=1\n')
             return ctxt
+        log('HAProxy context is incomplete, this unit has no peers.')
         return {}
 
 
