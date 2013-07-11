@@ -42,7 +42,7 @@ def context_complete(ctxt):
         if v is None or v == '':
             _missing.append(k)
     if _missing:
-        print 'Missing required data: %s' % ' '.join(_missing)
+        log('Missing required data: %s' % ' '.join(_missing), level='INFO')
         return False
     return True
 
