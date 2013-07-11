@@ -39,6 +39,18 @@ def service(action, service_name):
     return subprocess.call(cmd) == 0
 
 
+def service_running(service):
+    try:
+        output = subprocess.check_output(['service', service, 'status'])
+    except subprocess.CalledProcessError:
+        return False
+    else:
+        if ("start/running" in output or "is running" in output):
+            return True
+        else:
+            return False
+
+
 def adduser(username, password=None, shell='/bin/bash', system_user=False):
     """Add a user"""
     try:
