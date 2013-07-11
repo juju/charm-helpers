@@ -19,7 +19,7 @@ def get_archive_handler(archive_name):
             return extract_zipfile
     else:
         # look at the file name
-        for ext in ('.tar.gz', '.tgz', 'tar.bz2', '.tbz2', '.tbz'):
+        for ext in ('.tar', '.tar.gz', '.tgz', 'tar.bz2', '.tbz2', '.tbz'):
             if archive_name.endswith(ext):
                 return extract_tarfile
         for ext in ('.zip', '.jar'):
@@ -28,7 +28,8 @@ def get_archive_handler(archive_name):
 
 
 def archive_dest_default(archive_name):
-    return os.path.join(hookenv.charm_dir(), "archives", archive_name)
+    archive_file = os.path.basename(archive_name)
+    return os.path.join(hookenv.charm_dir(), "archives", archive_file)
 
 
 def extract(archive_name, destpath=None):
@@ -38,7 +39,7 @@ def extract(archive_name, destpath=None):
             destpath = archive_dest_default(archive_name)
         if not os.path.isdir(destpath):
             host.mkdir(destpath)
-        get_archive_handler(archive_name)(archive_name, destpath)
+        handler(archive_name, destpath)
         return destpath
     else:
         raise ArchiveError("No handler for archive")
