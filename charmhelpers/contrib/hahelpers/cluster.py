@@ -12,11 +12,13 @@ import os
 from socket import gethostname as get_unit_hostname
 
 from charmhelpers.core.hookenv import (
-    log as juju_log,
+    log,
     relation_ids,
     related_units as relation_list,
     relation_get,
     config as config_get,
+    INFO,
+    ERROR,
 )
 
 
@@ -71,12 +73,12 @@ def oldest_peer(peers):
 def eligible_leader(resource):
     if is_clustered():
         if not is_leader(resource):
-            juju_log('INFO', 'Deferring action to CRM leader.')
+            log('Deferring action to CRM leader.', level=INFO)
             return False
     else:
         peers = peer_units()
         if peers and not oldest_peer(peers):
-            juju_log('INFO', 'Deferring action to oldest service unit.')
+            log('Deferring action to oldest service unit.', level=INFO)
             return False
     return True
 
@@ -153,7 +155,7 @@ def get_hacluster_config():
     missing = []
     [missing.append(s) for s, v in conf.iteritems() if v is None]
     if missing:
-        juju_log('Insufficient config data to configure hacluster.')
+        log('Insufficient config data to configure hacluster.', level=ERROR)
         raise HAIncompleteConfig
     return conf
 
