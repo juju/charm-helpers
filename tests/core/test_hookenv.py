@@ -445,7 +445,7 @@ class HelpersTest(TestCase):
     def test_gets_relations(self, relation_get, related_units,
                             relation_ids, relation_types, local_unit):
         local_unit.return_value = 'u0'
-        relation_types.return_value = ['t1','t2']
+        relation_types.return_value = ['t1', 't2']
         relation_ids.return_value = ['i1']
         related_units.return_value = ['u1', 'u2']
         relation_get.return_value = {'key': 'val'}
@@ -507,8 +507,8 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.relation_get')
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_execution_environment_no_relation(
-        self, os_, relations_get, relations, relation_id,
-        local_unit, relation_type, config):
+            self, os_, relations_get, relations, relation_id,
+            local_unit, relation_type, config):
         config.return_value = 'some-config'
         relation_type.return_value = 'some-type'
         local_unit.return_value = 'some-unit'
@@ -525,7 +525,6 @@ class HelpersTest(TestCase):
             'rels': 'all-relations',
             'env': 'some-environment',
         })
-
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_relation_id(self, os_):
@@ -618,7 +617,7 @@ class HelpersTest(TestCase):
     def test_sets_relation_with_relation_id(self, check_call_):
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
-                                         'bar=baz'])
+                                        'bar=baz'])
 
     @patch('subprocess.check_call')
     def test_sets_relation_with_missing_value(self, check_call_):
@@ -639,10 +638,11 @@ class HelpersTest(TestCase):
         hookenv.open_port(443, "TCP")
         hookenv.open_port(80)
         hookenv.open_port(100, "UDP")
-        calls = [call(['open-port', '443/TCP']),
-                 call(['open-port', '80/TCP']),
-                 call(['open-port', '100/UDP']),
-                ]
+        calls = [
+            call(['open-port', '443/TCP']),
+            call(['open-port', '80/TCP']),
+            call(['open-port', '100/UDP']),
+        ]
         check_call_.assert_has_calls(calls)
 
     @patch('subprocess.check_call')
@@ -650,10 +650,11 @@ class HelpersTest(TestCase):
         hookenv.close_port(443, "TCP")
         hookenv.close_port(80)
         hookenv.close_port(100, "UDP")
-        calls = [call(['close-port', '443/TCP']),
-                 call(['close-port', '80/TCP']),
-                 call(['close-port', '100/UDP']),
-                ]
+        calls = [
+            call(['close-port', '443/TCP']),
+            call(['close-port', '80/TCP']),
+            call(['close-port', '100/UDP']),
+        ]
         check_call_.assert_has_calls(calls)
 
     @patch('subprocess.check_output')
