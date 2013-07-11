@@ -18,24 +18,26 @@ from charmhelpers.core.host import (
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
-ubuntu_openstack_release = {
+UBUNTU_OPENSTACK_RELEASE = {
     'oneiric': 'diablo',
     'precise': 'essex',
     'quantal': 'folsom',
     'raring': 'grizzly',
+    'saucy': 'havana',
 }
 
 
-openstack_codenames = {
+OPENSTACK_CODENAMES = {
     '2011.2': 'diablo',
     '2012.1': 'essex',
     '2012.2': 'folsom',
     '2013.1': 'grizzly',
     '2013.2': 'havana',
+    '2014.1': 'icehouse',
 }
 
 # The ugly duckling
-swift_codenames = {
+SWIFT_CODENAMES = {
     '1.4.3': 'diablo',
     '1.4.8': 'essex',
     '1.7.4': 'folsom',
@@ -60,7 +62,7 @@ def get_os_codename_install_source(src):
     rel = ''
     if src == 'distro':
         try:
-            rel = ubuntu_openstack_release[ubuntu_rel]
+            rel = UBUNTU_OPENSTACK_RELEASE[ubuntu_rel]
         except KeyError:
             e = 'Could not derive openstack release for '\
                 'this Ubuntu release: %s' % ubuntu_rel
@@ -74,7 +76,7 @@ def get_os_codename_install_source(src):
 
     # Best guess match based on deb string provided
     if src.startswith('deb') or src.startswith('ppa'):
-        for k, v in openstack_codenames.iteritems():
+        for k, v in OPENSTACK_CODENAMES.iteritems():
             if v in src:
                 return v
 
@@ -87,7 +89,7 @@ def get_os_version_install_source(src):
 def get_os_codename_version(vers):
     '''Determine OpenStack codename from version number.'''
     try:
-        return openstack_codenames[vers]
+        return OPENSTACK_CODENAMES[vers]
     except KeyError:
         e = 'Could not determine OpenStack codename for version %s' % vers
         error_out(e)
@@ -95,7 +97,7 @@ def get_os_codename_version(vers):
 
 def get_os_version_codename(codename):
     '''Determine OpenStack version number from codename.'''
-    for k, v in openstack_codenames.iteritems():
+    for k, v in OPENSTACK_CODENAMES.iteritems():
         if v == codename:
             return k
     e = 'Could not derive OpenStack version for '\
@@ -130,10 +132,10 @@ def get_os_codename_package(package, fatal=True):
     try:
         if 'swift' in pkg.name:
             vers = vers[:5]
-            return swift_codenames[vers]
+            return SWIFT_CODENAMES[vers]
         else:
             vers = vers[:6]
-            return openstack_codenames[vers]
+            return OPENSTACK_CODENAMES[vers]
     except KeyError:
         e = 'Could not determine OpenStack codename for version %s' % vers
         error_out(e)
@@ -147,9 +149,9 @@ def get_os_version_package(pkg, fatal=True):
         return None
 
     if 'swift' in pkg:
-        vers_map = swift_codenames
+        vers_map = SWIFT_CODENAMES
     else:
-        vers_map = openstack_codenames
+        vers_map = OPENSTACK_CODENAMES
 
     for version, cname in vers_map.iteritems():
         if cname == codename:
