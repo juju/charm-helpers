@@ -2,6 +2,7 @@ import os
 
 from charmhelpers.core.host import log, apt_install
 
+from charmhelpers.contrib.openstack.openstack_utils import OPENSTACK_CODENAMES
 
 try:
     from jinja2 import FileSystemLoader, ChoiceLoader, Environment
@@ -35,13 +36,8 @@ def get_loader(templates_dir, os_release):
                           jinja2.FilesystemLoaders, ordered in descending
                           order by OpenStack release.
     """
-    tmpl_dirs = (
-        ('essex', os.path.join(templates_dir, 'essex')),
-        ('folsom', os.path.join(templates_dir, 'folsom')),
-        ('grizzly', os.path.join(templates_dir, 'grizzly')),
-        ('havana', os.path.join(templates_dir, 'havana')),
-        ('icehouse', os.path.join(templates_dir, 'icehouse')),
-    )
+    tmpl_dirs = [(rel, os.path.join(templates_dir, rel))
+                 for rel in OPENSTACK_CODENAMES.itervalues()]
 
     if not os.path.isdir(templates_dir):
         log('Templates directory not found @ %s.' % templates_dir,

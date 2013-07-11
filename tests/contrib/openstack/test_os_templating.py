@@ -189,6 +189,7 @@ class TemplatingTests(unittest.TestCase):
                     ['/tmp/foo/grizzly'],
                     ['/tmp/foo/folsom'],
                     ['/tmp/foo/essex'],
+                    ['/tmp/foo/diablo'],
                     ['/tmp/foo'],
                     [common_tmplts]]
         self.assertEquals(dirs, expected)
@@ -206,6 +207,7 @@ class TemplatingTests(unittest.TestCase):
         expected = [['/tmp/foo/grizzly'],
                     ['/tmp/foo/folsom'],
                     ['/tmp/foo/essex'],
+                    ['/tmp/foo/diablo'],
                     ['/tmp/foo'],
                     [common_tmplts]]
         self.assertEquals(dirs, expected)

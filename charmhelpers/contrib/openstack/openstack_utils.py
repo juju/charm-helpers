@@ -2,6 +2,8 @@
 
 # Common python helper functions used for OpenStack charms.
 
+from collections import OrderedDict
+
 import apt_pkg as apt
 import subprocess
 import os
@@ -18,23 +20,23 @@ from charmhelpers.core.host import (
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
-UBUNTU_OPENSTACK_RELEASE = {
-    'oneiric': 'diablo',
-    'precise': 'essex',
-    'quantal': 'folsom',
-    'raring': 'grizzly',
-    'saucy': 'havana',
-}
+UBUNTU_OPENSTACK_RELEASE = OrderedDict([
+    ('oneiric', 'diablo'),
+    ('precise', 'essex'),
+    ('quantal', 'folsom'),
+    ('raring', 'grizzly'),
+    ('saucy', 'havana'),
+])
 
 
-OPENSTACK_CODENAMES = {
-    '2011.2': 'diablo',
-    '2012.1': 'essex',
-    '2012.2': 'folsom',
-    '2013.1': 'grizzly',
-    '2013.2': 'havana',
-    '2014.1': 'icehouse',
-}
+OPENSTACK_CODENAMES = OrderedDict([
+    ('2011.2', 'diablo'),
+    ('2012.1', 'essex'),
+    ('2012.2', 'folsom'),
+    ('2013.1', 'grizzly'),
+    ('2013.2', 'havana'),
+    ('2014.1', 'icehouse'),
+])
 
 # The ugly duckling
 SWIFT_CODENAMES = {
