@@ -9,18 +9,30 @@
 #
 
 import commands
-from subprocess import call, check_call
 import os
 import shutil
-import utils
+
+from subprocess import (
+    check_call,
+    check_output,
+    CalledProcessError
+)
 
 from charmhelpers.core.hookenv import (
+    relation_get,
+    relation_ids,
+    related_units,
     log,
     INFO,
 )
 
 from charmhelpers.core.host import (
     apt_install,
+    mount,
+    mounts,
+    service_start,
+    service_stop,
+    umount,
 )
 
 KEYRING = '/etc/ceph/ceph.client.%s.keyring'
@@ -31,6 +43,21 @@ CEPH_CONF = """[global]
  keyring = %(keyring)s
  mon host = %(mon_hosts)s
 """
+
+
+def running(service):
+    # this local util can be dropped as soon the following branch lands
+    # in lp:charm-helpers
+    # https://code.launchpad.net/~gandelman-a/charm-helpers/service_running/
+    try:
+        output = check_output(['service', service, 'status'])
+    except CalledProcessError:
+        return False
+    else:
+        if ("start/running" in output or "is running" in output):
+            return True
+        else:
+            return False
 
 
 def install():
@@ -113,10 +140,9 @@ def create_key_file(service, key):
 
 def get_ceph_nodes():
     hosts = []
-    for r_id in utils.relation_ids('ceph'):
-        for unit in utils.relation_list(r_id):
-            hosts.append(utils.relation_get('private-address',
-                                            unit=unit, rid=r_id))
+    for r_id in relation_ids('ceph'):
+        for unit in related_units(r_id):
+            hosts.append(relation_get('private-address', unit=unit, rid=r_id))
     return hosts
 
 
@@ -150,7 +176,7 @@ def map_block_storage(service, pool, image):
 
 
 def filesystem_mounted(fs):
-    return call(['grep', '-wqs', fs, '/proc/mounts']) == 0
+    return fs in [f for m, f in mounts()]
 
 
 def make_filesystem(blk_device, fstype='ext4'):
@@ -162,8 +188,7 @@ def make_filesystem(blk_device, fstype='ext4'):
 
 def place_data_on_ceph(service, blk_device, data_src_dst, fstype='ext4'):
     # mount block device into /mnt
-    cmd = ['mount', '-t', fstype, blk_device, '/mnt']
-    check_call(cmd)
+    mount(blk_device, '/mnt')
 
     # copy data to /mnt
     try:
@@ -172,16 +197,14 @@ def place_data_on_ceph(service, blk_device, data_src_dst, fstype='ext4'):
         pass
 
     # umount block device
-    cmd = ['umount', '/mnt']
-    check_call(cmd)
+    umount('/mnt')
 
     _dir = os.stat(data_src_dst)
     uid = _dir.st_uid
     gid = _dir.st_gid
 
     # re-mount where the data should originally be
-    cmd = ['mount', '-t', fstype, blk_device, data_src_dst]
-    check_call(cmd)
+    mount(blk_device, data_src_dst, persist=True)
 
     # ensure original ownership of new mount.
     cmd = ['chown', '-R', '%s:%s' % (uid, gid), data_src_dst]
@@ -244,12 +267,12 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
         make_filesystem(blk_device, fstype)
 
         for svc in system_services:
-            if utils.running(svc):
+            if running(svc):
                 log('Stopping services %s prior to migrating data.' % svc,
                     level=INFO)
-                utils.stop(svc)
+                service_stop(svc)
 
         place_data_on_ceph(service, blk_device, mount_point, fstype)
 
         for svc in system_services:
-            utils.start(svc)
+            service_start(svc)

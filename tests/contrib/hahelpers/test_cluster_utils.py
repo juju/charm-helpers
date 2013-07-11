@@ -11,7 +11,7 @@ class ClusterUtilsTests(TestCase):
     def setUp(self):
         super(ClusterUtilsTests, self).setUp()
         [self._patch(m) for m in [
-            'juju_log',
+            'log',
             'relation_ids',
             'relation_list',
             'relation_get',
