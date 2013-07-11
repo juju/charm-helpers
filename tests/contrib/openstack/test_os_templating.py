@@ -1,9 +1,8 @@
 
-import jinja2
 import os
 
 import unittest
-from mock import patch, call
+from mock import patch, call, MagicMock
 
 import charmhelpers.contrib.openstack.templating as templating
 
@@ -27,16 +26,51 @@ class FakeLoader(object):
         return self.template
 
 
+class MockFSLoader(object):
+    def __init__(self, dirs):
+        self.searchpath = [dirs]
+
+
+class MockChoiceLoader(object):
+    def __init__(self, loaders):
+        self.loaders = loaders
+
+
+def MockTemplate():
+    templ = MagicMock()
+    templ.render = MagicMock()
+    return templ
+
+
 class TemplatingTests(unittest.TestCase):
     def setUp(self):
         path = os.path.dirname(__file__)
-        self.renderer = templating.OSConfigRenderer(templates_dir=path,
-                                                    openstack_release='folsom')
         self.loader = FakeLoader()
         self.context = FakeContextGenerator()
 
-        # patch imported log().
+        self.addCleanup(patch.object(templating, 'apt_install').start().stop())
         self.addCleanup(patch.object(templating, 'log').start().stop())
+
+        templating.FileSystemLoader = MockFSLoader
+        templating.ChoiceLoader = MockChoiceLoader
+        templating.Environment = MagicMock
+
+        self.renderer = templating.OSConfigRenderer(templates_dir=path,
+                                                    openstack_release='folsom')
+
+    @patch.object(templating, 'apt_install')
+    def test_initializing_a_render_ensures_jinja2_present(self, apt):
+        '''Creatinga new renderer object installs jinja2 if needed'''
+        # temp. undo the patching from setUp
+        templating.FileSystemLoader = None
+        templating.ChoiceLoader = None
+        templating.Environment = None
+        templating.OSConfigRenderer(templates_dir='/tmp',
+                                    openstack_release='foo')
+        templating.FileSystemLoader = MockFSLoader
+        templating.ChoiceLoader = MockChoiceLoader
+        templating.Environment = MagicMock
+        apt.assert_called_with('python-jinja2')
 
     def test_create_renderer_invalid_templates_dir(self):
         '''Ensure OSConfigRenderer checks templates_dir'''
@@ -57,60 +91,50 @@ class TemplatingTests(unittest.TestCase):
                           self.renderer.write,
                           config_file='/tmp/foo')
 
-    @patch.object(templating, 'get_loader')
-    def test_render_complete_context(self, loader):
+    def test_render_complete_context(self):
         '''It renders a template when provided a complete context'''
         self.loader.set('{{ foo }}')
         self.context.set(interfaces=['fooservice'], context={'foo': 'bar'})
-        loader.return_value = jinja2.FunctionLoader(self.loader.get)
         self.renderer.register('/tmp/foo', [self.context])
-        result = self.renderer.render('/tmp/foo')
-        self.assertEquals(result, 'bar')
+        with patch.object(self.renderer, '_get_template') as _get_t:
+            fake_tmpl = MockTemplate()
+            _get_t.return_value = fake_tmpl
+            self.renderer.render('/tmp/foo')
+            fake_tmpl.render.assert_called_with(self.context())
         self.assertIn('fooservice', self.renderer.complete_contexts())
 
-    @patch.object(templating, 'get_loader')
-    def test_render_incomplete_context_with_template(self, loader):
+    def test_render_incomplete_context_with_template(self):
         '''It renders a template when provided an incomplete context'''
-        _tmp = '''
-        {% if foo is defined %}
-        {{ foo }}
-        {% else %}
-        Foo is not defined
-        {% endif %}
-        '''
-        self.loader.set(_tmp)
         self.context.set(interfaces=['fooservice'], context={})
-        loader.return_value = jinja2.FunctionLoader(self.loader.get)
         self.renderer.register('/tmp/foo', [self.context])
-        result = self.renderer.render('/tmp/foo')
-        self.assertTrue('Foo is not defined' in result)
-        self.assertNotIn('fooservice', self.renderer.complete_contexts())
+        with patch.object(self.renderer, '_get_template') as _get_t:
+            fake_tmpl = MockTemplate()
+            _get_t.return_value = fake_tmpl
+            self.renderer.render('/tmp/foo')
+            fake_tmpl.render.assert_called_with({})
+            self.assertNotIn('fooservice', self.renderer.complete_contexts())
 
     @patch('__builtin__.open')
     @patch.object(templating, 'get_loader')
     def test_write_out_config(self, loader, _open):
-        '''It renders a template when provided a complete context'''
-        self.loader.set('{{ foo }}')
+        '''It writes a templated config when provided a complete context'''
         self.context.set(interfaces=['fooservice'], context={'foo': 'bar'})
-        loader.return_value = jinja2.FunctionLoader(self.loader.get)
         self.renderer.register('/tmp/foo', [self.context])
-        self.renderer.write('/tmp/foo')
-        _open.assert_called_with('/tmp/foo', 'wb')
+        with patch.object(self.renderer, '_get_template') as _get_t:
+            fake_tmpl = MockTemplate()
+            _get_t.return_value = fake_tmpl
+            self.renderer.write('/tmp/foo')
+            _open.assert_called_with('/tmp/foo', 'wb')
 
-    @patch.object(templating, 'get_loader')
-    def test_write_all(self, loader):
+    def test_write_all(self):
         '''It writes out all configuration files at once'''
-        self.loader.set('{{ foo }}')
         self.context.set(interfaces=['fooservice'], context={'foo': 'bar'})
-        loader.return_value = jinja2.FunctionLoader(self.loader.get)
         self.renderer.register('/tmp/foo', [self.context])
         self.renderer.register('/tmp/bar', [self.context])
-
         ex_calls = [
             call('/tmp/bar'),
             call('/tmp/foo'),
         ]
-
         with patch.object(self.renderer, 'write') as _write:
             self.renderer.write_all()
             self.assertEquals(ex_calls, _write.call_args_list)
@@ -120,7 +144,7 @@ class TemplatingTests(unittest.TestCase):
     def test_reset_template_loader_for_new_os_release(self, loader):
         self.loader.set('')
         self.context.set(interfaces=['fooservice'], context={})
-        loader.return_value = jinja2.FunctionLoader(self.loader.get)
+        loader.return_value = MockFSLoader('/tmp/foo')
         self.renderer.register('/tmp/foo', [self.context])
         self.renderer.render('/tmp/foo')
         loader.assert_called_with(os.path.dirname(__file__), 'folsom')
@@ -132,7 +156,6 @@ class TemplatingTests(unittest.TestCase):
     def test_incomplete_context_not_reported_complete(self, loader):
         '''It does not recognize an incomplete context as a complete context'''
         self.context.set(interfaces=['fooservice'], context={})
-        loader.return_value = jinja2.FunctionLoader(self.loader.get)
         self.renderer.register('/tmp/foo', [self.context])
         self.assertNotIn('fooservice', self.renderer.complete_contexts())
 

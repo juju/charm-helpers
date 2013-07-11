@@ -1,18 +1,16 @@
 import os
 
-from charmhelpers.core.host import log
+from charmhelpers.core.host import log, apt_install
+
 
 try:
-    import jinja2
+    from jinja2 import FileSystemLoader, ChoiceLoader, Environment
 except ImportError:
-    pass
+    # python-jinja2 may not be installed yet, or we're running unittests.
+    FileSystemLoader = ChoiceLoader = Environment = None
 
 
 class OSConfigException(Exception):
-    pass
-
-
-def ensure_jinja():
     pass
 
 
@@ -52,19 +50,19 @@ def get_loader(templates_dir, os_release):
 
     # the bottom contains tempaltes_dir and possibly a common templates dir
     # shipped with the helper.
-    loaders = [jinja2.FileSystemLoader(templates_dir)]
+    loaders = [FileSystemLoader(templates_dir)]
     helper_templates = os.path.join(os.path.dirname(__file__), 'templates')
     if os.path.isdir(helper_templates):
-        loaders.append(jinja2.FileSystemLoader(helper_templates))
+        loaders.append(FileSystemLoader(helper_templates))
 
     for rel, tmpl_dir in tmpl_dirs:
         if os.path.isdir(tmpl_dir):
-            loaders.insert(0, jinja2.FileSystemLoader(tmpl_dir))
+            loaders.insert(0, FileSystemLoader(tmpl_dir))
         if rel == os_release:
             break
     log('Creating choice loader with dirs: %s' %
         [l.searchpath for l in loaders], level='INFO')
-    return jinja2.ChoiceLoader(loaders)
+    return ChoiceLoader(loaders)
 
 
 class OSConfigTemplate(object):
@@ -106,10 +104,17 @@ class OSConfigRenderer(object):
             log('Could not locate templates dir %s' % templates_dir,
                 level='ERROR')
             raise OSConfigException
+
         self.templates_dir = templates_dir
         self.openstack_release = openstack_release
         self.templates = {}
         self._tmpl_env = None
+
+        if None in [Environment, ChoiceLoader, FileSystemLoader]:
+            # if this code is running, the object is created pre-install hook.
+            # jinja2 shouldn't get touched until the module is reloaded on next
+            # hook execution, with proper jinja2 bits successfully imported.
+            apt_install('python-jinja2')
 
     def register(self, config_file, contexts):
         self.templates[config_file] = OSConfigTemplate(config_file=config_file,
@@ -119,7 +124,13 @@ class OSConfigRenderer(object):
     def _get_tmpl_env(self):
         if not self._tmpl_env:
             loader = get_loader(self.templates_dir, self.openstack_release)
-            self._tmpl_env = jinja2.Environment(loader=loader)
+            self._tmpl_env = Environment(loader=loader)
+
+    def _get_template(self, template):
+        self._get_tmpl_env()
+        template = self._tmpl_env.get_template(template)
+        log('Loaded template from %s' % template.filename, level='INFO')
+        return template
 
     def render(self, config_file):
         if config_file not in self.templates:
@@ -128,10 +139,8 @@ class OSConfigRenderer(object):
         ctxt = self.templates[config_file].context()
         _tmpl = os.path.basename(config_file)
         log('Rendering from template: %s' % _tmpl, level='INFO')
-        self._get_tmpl_env()
-        _tmpl = self._tmpl_env.get_template(_tmpl)
-        log('Loaded template from %s' % _tmpl.filename, level='INFO')
-        return _tmpl.render(ctxt)
+        template = self._get_template(_tmpl)
+        return template.render(ctxt)
 
     def write(self, config_file):
         if config_file not in self.templates:
