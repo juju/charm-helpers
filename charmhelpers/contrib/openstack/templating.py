@@ -1,6 +1,12 @@
 import os
 
-from charmhelpers.core.host import log, apt_install
+from charmhelpers.core.host import apt_install
+
+from charmhelpers.core.hookenv import (
+    log,
+    ERROR,
+    INFO
+)
 
 from charmhelpers.contrib.openstack.openstack_utils import OPENSTACK_CODENAMES
 
@@ -41,7 +47,7 @@ def get_loader(templates_dir, os_release):
 
     if not os.path.isdir(templates_dir):
         log('Templates directory not found @ %s.' % templates_dir,
-            level='ERROR')
+            level=ERROR)
         raise OSConfigException
 
     # the bottom contains tempaltes_dir and possibly a common templates dir
@@ -57,7 +63,7 @@ def get_loader(templates_dir, os_release):
         if rel == os_release:
             break
     log('Creating choice loader with dirs: %s' %
-        [l.searchpath for l in loaders], level='INFO')
+        [l.searchpath for l in loaders], level=INFO)
     return ChoiceLoader(loaders)
 
 
@@ -98,7 +104,7 @@ class OSConfigRenderer(object):
     def __init__(self, templates_dir, openstack_release):
         if not os.path.isdir(templates_dir):
             log('Could not locate templates dir %s' % templates_dir,
-                level='ERROR')
+                level=ERROR)
             raise OSConfigException
 
         self.templates_dir = templates_dir
@@ -115,7 +121,7 @@ class OSConfigRenderer(object):
     def register(self, config_file, contexts):
         self.templates[config_file] = OSConfigTemplate(config_file=config_file,
                                                        contexts=contexts)
-        log('Registered config file: %s' % config_file, level='INFO')
+        log('Registered config file: %s' % config_file, level=INFO)
 
     def _get_tmpl_env(self):
         if not self._tmpl_env:
@@ -125,26 +131,26 @@ class OSConfigRenderer(object):
     def _get_template(self, template):
         self._get_tmpl_env()
         template = self._tmpl_env.get_template(template)
-        log('Loaded template from %s' % template.filename, level='INFO')
+        log('Loaded template from %s' % template.filename, level=INFO)
         return template
 
     def render(self, config_file):
         if config_file not in self.templates:
-            log('Config not registered: %s' % config_file, level='ERROR')
+            log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
         ctxt = self.templates[config_file].context()
         _tmpl = os.path.basename(config_file)
-        log('Rendering from template: %s' % _tmpl, level='INFO')
+        log('Rendering from template: %s' % _tmpl, level=INFO)
         template = self._get_template(_tmpl)
         return template.render(ctxt)
 
     def write(self, config_file):
         if config_file not in self.templates:
-            log('Config not registered: %s' % config_file, level='ERROR')
+            log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
         with open(config_file, 'wb') as out:
             out.write(self.render(config_file))
-        log('Wrote template %s.' % config_file, level='INFO')
+        log('Wrote template %s.' % config_file, level=INFO)
 
     def write_all(self):
         [self.write(k) for k in self.templates.iterkeys()]
