@@ -9,6 +9,7 @@ import sys
 
 from charmhelpers.core.hookenv import (
     config,
+    log as juju_log,
 )
 
 from charmhelpers.core.host import (
@@ -45,12 +46,8 @@ swift_codenames = {
 }
 
 
-def juju_log(msg):
-    subprocess.check_call(['juju-log', msg])
-
-
 def error_out(msg):
-    juju_log("FATAL ERROR: %s" % msg)
+    juju_log("FATAL ERROR: %s" % msg, level='ERROR')
     sys.exit(1)
 
 

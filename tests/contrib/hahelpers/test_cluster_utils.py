@@ -4,14 +4,14 @@ from mock import patch, MagicMock
 from subprocess import CalledProcessError
 from testtools import TestCase
 
-import charmhelpers.contrib.hahelpers.cluster_utils as cluster_utils
+import charmhelpers.contrib.hahelpers.cluster as cluster_utils
 
 
 class ClusterUtilsTests(TestCase):
     def setUp(self):
         super(ClusterUtilsTests, self).setUp()
         [self._patch(m) for m in [
-            'juju_log',
+            'log',
             'relation_ids',
             'relation_list',
             'relation_get',
