@@ -16,6 +16,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     lsb_release,
+    apt_install
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
@@ -47,6 +48,8 @@ SWIFT_CODENAMES = {
     '1.7.6': 'grizzly',
     '1.7.7': 'grizzly',
     '1.8.0': 'grizzly',
+    '1.9.0': 'havana',
+    '1.9.1': 'havana',
 }
 
 
@@ -211,7 +214,10 @@ def configure_installation_source(rel):
             'folsom/proposed': 'precise-proposed/folsom',
             'grizzly': 'precise-updates/grizzly',
             'grizzly/updates': 'precise-updates/grizzly',
-            'grizzly/proposed': 'precise-proposed/grizzly'
+            'grizzly/proposed': 'precise-proposed/grizzly',
+            'havana': 'precise-updates/havana',
+            'havana/updates': 'precise-updates/havana',
+            'havana/proposed': 'precise-proposed/havana',
         }
 
         try:
@@ -221,8 +227,7 @@ def configure_installation_source(rel):
             error_out(e)
 
         src = "deb %s %s main" % (CLOUD_ARCHIVE_URL, pocket)
-        # TODO: Replace key import with cloud archive keyring pkg.
-        import_key(CLOUD_ARCHIVE_KEY_ID)
+        apt_install('ubuntu-cloud-keyring', fatal=True)
 
         with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as f:
             f.write(src)
