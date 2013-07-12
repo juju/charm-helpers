@@ -74,6 +74,31 @@ ceph_utils.py from charmhelpers.contrib.hahelpers:
 Script will create missing __init__.py's to ensure each subdirectory is
 importable, assuming the script is run from the charm's top-level directory.
 
+By default, only directories that look like python modules and associated
+.py source files will be synced.  If you need to include other files in
+the sync (for example, template files), you can add include hints to
+your config.  This can be done either on a per-module basis using standard
+UNIX filename patterns, eg:
+
+    destination: hooks/helpers
+    branch: lp:charm-helpers
+    include:
+        - core|inc=* # include all extra files from this module.
+        - contrib.openstack|inc=*.template # include only .template's
+        - contrib.hahelpers:
+            - ceph_utils|inc=*.cfg # include .cfg files
+
+Or globally for all included assets:
+
+    destination: hooks/helpers
+    branch: lp:charm-helpers
+    options: inc=*.template,inc=*.cfg # include .templates and .cfgs globally
+    include:
+        - core
+        - contrib.openstack
+        - contrib.hahelpers:
+            - ceph_utils
+
 You may also override configured destination directory and source bzr
 branch:
 
