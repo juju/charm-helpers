@@ -223,6 +223,20 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     @patch('charmhelpers.core.hookenv.relation_type')
+    def test_gets_relation_ids_empty_array(self, relation_type, check_output):
+        ids = []
+        check_output.return_value = json.dumps(None)
+        reltype = 'foo'
+        relation_type.return_value = reltype
+
+        result = hookenv.relation_ids()
+
+        self.assertEqual(result, ids)
+        check_output.assert_called_with(['relation-ids', '--format=json',
+                                         reltype])
+
+    @patch('subprocess.check_output')
+    @patch('charmhelpers.core.hookenv.relation_type')
     def test_relation_ids_no_relation_type(self, relation_type, check_output):
         ids = [1, 2, 3]
         check_output.return_value = json.dumps(ids)
@@ -253,6 +267,20 @@ class HelpersTest(TestCase):
         units = ['foo', 'bar']
         relation_id.return_value = relid
         check_output.return_value = json.dumps(units)
+
+        result = hookenv.related_units()
+
+        self.assertEqual(result, units)
+        check_output.assert_called_with(['relation-list', '--format=json',
+                                         '-r', relid])
+
+    @patch('subprocess.check_output')
+    @patch('charmhelpers.core.hookenv.relation_id')
+    def test_gets_related_units_empty_array(self, relation_id, check_output):
+        relid = 123
+        units = []
+        relation_id.return_value = relid
+        check_output.return_value = json.dumps(None)
 
         result = hookenv.related_units()
 
