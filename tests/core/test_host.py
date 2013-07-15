@@ -1,12 +1,11 @@
 from collections import OrderedDict
-from contextlib import contextmanager
 import subprocess
-import io
 
 from mock import patch, call, MagicMock
 from testtools import TestCase
 
 from charmhelpers.core import host
+from tests.helpers import patch_open, mock_open
 
 
 MOUNT_LINES = ("""
@@ -49,36 +48,6 @@ def fake_apt_cache():
     cache = MagicMock()
     cache.__getitem__.side_effect = _get
     return cache
-
-
-@contextmanager
-def patch_open():
-    '''Patch open() to allow mocking both open() itself and the file that is
-    yielded.
-
-    Yields the mock for "open" and "file", respectively.'''
-    mock_open = MagicMock(spec=open)
-    mock_file = MagicMock(spec=file)
-
-    @contextmanager
-    def stub_open(*args, **kwargs):
-        mock_open(*args, **kwargs)
-        yield mock_file
-
-    with patch('__builtin__.open', stub_open):
-        yield mock_open, mock_file
-
-
-@contextmanager
-def mock_open(filename, contents=None):
-    ''' Slightly simpler mock of open to return contents for filename '''
-    def mock_file(*args):
-        if args[0] == filename:
-            return io.StringIO(contents)
-        else:
-            return open(*args)
-    with patch('__builtin__.open', mock_file):
-        yield
 
 
 class HelpersTest(TestCase):
@@ -424,18 +393,18 @@ class HelpersTest(TestCase):
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
 
-        with patch_open() as (mock_open, mock_file):
-            mock_file.fileno.return_value = fileno
+        with patch_open() as (_open, _file):
+            _file.fileno.return_value = fileno
 
             host.write_file(path, contents, owner=owner, group=group,
                             perms=perms)
 
             getpwnam.assert_called_with('some-user-{foo}')
             getgrnam.assert_called_with('some-group-{bar}')
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            _open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            _file.write.assert_called_with('what is {juju}')
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')
@@ -447,15 +416,15 @@ class HelpersTest(TestCase):
         perms = 0444
         fileno = 'some-fileno'
 
-        with patch_open() as (mock_open, mock_file):
-            mock_file.fileno.return_value = fileno
+        with patch_open() as (_open, _file):
+            _file.fileno.return_value = fileno
 
             host.write_file(path, fmtstr)
 
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            _open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            _file.write.assert_called_with('what is {juju}')
 
     @patch('subprocess.call')
     @patch.object(host, 'log')
@@ -595,8 +564,8 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['umount', '/mnt/guido'])
 
     def test_lists_the_mount_points(self):
-        with patch_open() as (mock_open, mock_file):
-            mock_file.readlines.return_value = MOUNT_LINES
+        with patch_open() as (_open, _file):
+            _file.readlines.return_value = MOUNT_LINES
             result = host.mounts()
 
             self.assertEqual(result, [
@@ -606,7 +575,7 @@ class HelpersTest(TestCase):
                 ['/dev', 'udev'],
                 ['/dev/pts', 'devpts']
             ])
-            mock_open.assert_called_with('/proc/mounts')
+            _open.assert_called_with('/proc/mounts')
 
     _hash_files = {
         '/etc/exists.conf': 'lots of nice ceph configuration',
@@ -620,8 +589,8 @@ class HelpersTest(TestCase):
         exists.side_effect = [True]
         m = md5()
         m.hexdigest.return_value = self._hash_files[filename]
-        with patch_open() as (mock_open, mock_file):
-            mock_file.read.return_value = self._hash_files[filename]
+        with patch_open() as (_open, _file):
+            _file.read.return_value = self._hash_files[filename]
             result = host.file_hash(filename)
             self.assertEqual(result, self._hash_files[filename])
 
@@ -629,8 +598,8 @@ class HelpersTest(TestCase):
     def test_file_hash_missing(self, exists):
         filename = '/etc/missing.conf'
         exists.side_effect = [False]
-        with patch_open() as (mock_open, mock_file):
-            mock_file.read.return_value = self._hash_files[filename]
+        with patch_open() as (_open, _file):
+            _file.read.return_value = self._hash_files[filename]
             result = host.file_hash(filename)
             self.assertEqual(result, None)
 
@@ -668,8 +637,8 @@ class HelpersTest(TestCase):
         def make_some_changes(mock_file):
             mock_file.read.return_value = "newstuff"
 
-        with patch_open() as (mock_open, mock_file):
-            make_some_changes(mock_file)
+        with patch_open() as (_open, _file):
+            make_some_changes(_file)
 
         for service_name in restart_map[file_name]:
             service.assert_called_with('restart', service_name)
@@ -693,8 +662,8 @@ class HelpersTest(TestCase):
         def make_some_changes():
             pass
 
-        with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+        with patch_open() as (_open, _file):
+            _file.read.side_effect = ['exists', 'missing', 'exists2']
             make_some_changes()
 
         # Restart should only happen once per service
@@ -720,8 +689,8 @@ class HelpersTest(TestCase):
         def make_some_changes():
             pass
 
-        with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+        with patch_open() as (_open, _file):
+            _file.read.side_effect = ['exists', 'missing', 'exists2']
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
