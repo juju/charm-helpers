@@ -152,6 +152,22 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('reload', service_name)
 
+    @patch('subprocess.check_output')
+    def test_service_running_on_stopped_service(self, check_output):
+        check_output.return_value = 'foo stop/waiting'
+        self.assertFalse(host.service_running('foo'))
+
+    @patch('subprocess.check_output')
+    def test_service_running_on_running_service(self, check_output):
+        check_output.return_value = 'foo start/running, process 23871'
+        self.assertTrue(host.service_running('foo'))
+
+    @patch('subprocess.check_output')
+    def test_service_running_on_unknown_service(self, check_output):
+        exc = subprocess.CalledProcessError(1, ['status'])
+        check_output.side_effect = exc
+        self.assertFalse(host.service_running('foo'))
+
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
