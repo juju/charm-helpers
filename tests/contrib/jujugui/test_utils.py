@@ -3,7 +3,6 @@
 from contextlib import contextmanager
 import os
 import shutil
-from simplejson import dumps
 from subprocess import CalledProcessError
 import tempfile
 import unittest

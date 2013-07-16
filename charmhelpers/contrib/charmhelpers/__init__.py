@@ -8,25 +8,25 @@ warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
 
 __metaclass__ = type
 __all__ = [
-           #'get_config',             # core.hookenv.config()
-           #'log',                    # core.hookenv.log()
-           #'log_entry',              # core.hookenv.log()
-           #'log_exit',               # core.hookenv.log()
-           #'relation_get',           # core.hookenv.relation_get()
-           #'relation_set',           # core.hookenv.relation_set()
-           #'relation_ids',           # core.hookenv.relation_ids()
-           #'relation_list',          # core.hookenv.relation_units()
-           #'config_get',             # core.hookenv.config()
-           #'unit_get',               # core.hookenv.unit_get()
-           #'open_port',              # core.hookenv.open_port()
-           #'close_port',             # core.hookenv.close_port()
-           #'service_control',        # core.host.service()
-           'unit_info',              # client-side, NOT IMPLEMENTED
-           'wait_for_machine',       # client-side, NOT IMPLEMENTED
-           'wait_for_page_contents', # client-side, NOT IMPLEMENTED
-           'wait_for_relation',      # client-side, NOT IMPLEMENTED
-           'wait_for_unit',          # client-side, NOT IMPLEMENTED
-           ]
+    #'get_config',             # core.hookenv.config()
+    #'log',                    # core.hookenv.log()
+    #'log_entry',              # core.hookenv.log()
+    #'log_exit',               # core.hookenv.log()
+    #'relation_get',           # core.hookenv.relation_get()
+    #'relation_set',           # core.hookenv.relation_set()
+    #'relation_ids',           # core.hookenv.relation_ids()
+    #'relation_list',          # core.hookenv.relation_units()
+    #'config_get',             # core.hookenv.config()
+    #'unit_get',               # core.hookenv.unit_get()
+    #'open_port',              # core.hookenv.open_port()
+    #'close_port',             # core.hookenv.close_port()
+    #'service_control',        # core.host.service()
+    'unit_info',              # client-side, NOT IMPLEMENTED
+    'wait_for_machine',       # client-side, NOT IMPLEMENTED
+    'wait_for_page_contents',  # client-side, NOT IMPLEMENTED
+    'wait_for_relation',      # client-side, NOT IMPLEMENTED
+    'wait_for_unit',          # client-side, NOT IMPLEMENTED
+]
 
 import operator
 from shelltoolbox import (
@@ -53,6 +53,7 @@ juju_status = lambda: command('juju')('status')
 #        run('apt-key', 'import', config_get('key'))
 #    if update:
 #        run('apt-get', 'update')
+
 
 # DEPRECATED: client-side only
 def make_charm_config_file(charm_config):

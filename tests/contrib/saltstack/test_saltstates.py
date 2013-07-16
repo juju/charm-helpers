@@ -29,10 +29,10 @@ class InstallSaltSupportTestCase(unittest.TestCase):
 
         self.assertEqual(self.mock_subprocess.check_call.call_count, 2)
         self.assertEqual([(([
-                '/usr/bin/add-apt-repository',
-                '--yes',
-                'ppa:saltstack/salt',
-            ],), {}),
+            '/usr/bin/add-apt-repository',
+            '--yes',
+            'ppa:saltstack/salt',
+        ],), {}),
             (([
                 '/usr/bin/apt-get',
                 'update',
@@ -114,10 +114,12 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def test_output_without_relation(self):
-        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
-            'group_code_owner': 'webops_deploy',
-            'user_code_runner': 'ubunet',
-        })
+        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable(
+            {
+                'group_code_owner': 'webops_deploy',
+                'user_code_runner': 'ubunet',
+            }
+        )
         self.mock_local_unit.return_value = "click-index/3"
 
         charmhelpers.contrib.saltstack.juju_config_2_grains()
@@ -132,10 +134,12 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
             }, result)
 
     def test_output_with_relation(self):
-        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
-            'group_code_owner': 'webops_deploy',
-            'user_code_runner': 'ubunet',
-        })
+        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable(
+            {
+                'group_code_owner': 'webops_deploy',
+                'user_code_runner': 'ubunet',
+            }
+        )
         self.mock_relation_get.return_value = {
             'relation_key1': 'relation_value1',
             'relation_key2': 'relation_value2',
