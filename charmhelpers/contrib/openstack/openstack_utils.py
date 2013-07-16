@@ -247,7 +247,6 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     updated config information necessary to perform health checks or
     service changes.
     """
-    unit_name = os.getenv('JUJU_UNIT_NAME').replace('/', '-')
     juju_rc_path = "%s/%s" % (charm_dir(), script_path)
     if not os.path.exists(os.path.dirname(juju_rc_path)):
         os.mkdir(os.path.dirname(juju_rc_path))
