@@ -6,30 +6,33 @@ import sys
 
 class OutputFormatter(object):
     def __init__(self, outfile=sys.stdout):
-        self.formats = {'raw': self.raw,
-                        'python': self.pprint,
-                        'json': self.json,
-                        'yaml': self.yaml,
-                        'csv': self.csv,
-                        'tab': self.tab,
-                        }
+        self.formats = (
+            "raw",
+            "json",
+            "py",
+            "yaml",
+            "csv",
+            "tab",
+        )
         self.outfile = outfile
 
     def add_arguments(self, argument_parser):
         formatgroup = argument_parser.add_mutually_exclusive_group()
         choices = self.supported_formats
         formatgroup.add_argument("--format", metavar='FMT',
-                help="Select output format for returned data, "
-                     "where FMT is one of: {}".format(choices),
-                choices=choices, default='raw')
-        for fmt, fmtfunc in self.formats.iteritems():
+                                 help="Select output format for returned data, "
+                                      "where FMT is one of: {}".format(choices),
+                                 choices=choices, default='raw')
+        for fmt in self.formats:
+            fmtfunc = getattr(self, fmt)
             formatgroup.add_argument("-{}".format(fmt[0]),
-                    "--{}".format(fmt), action='store_const', const=fmt,
-                    dest='format', help=fmtfunc.__doc__)
+                                     "--{}".format(fmt), action='store_const',
+                                     const=fmt, dest='format',
+                                     help=fmtfunc.__doc__)
 
     @property
     def supported_formats(self):
-        return self.formats.keys()
+        return self.formats
 
     def raw(self, output):
         """Output data as raw string (default)"""
@@ -38,7 +41,7 @@ class OutputFormatter(object):
         except TypeError:
             self.outfile.write(str(output))
 
-    def pprint(self, output):
+    def py(self, output):
         """Output data as a nicely-formatted python data structure"""
         import pprint
         pprint.pprint(output, stream=self.outfile)
