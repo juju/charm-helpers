@@ -177,18 +177,6 @@ def apt_update(fatal=False):
         subprocess.call(cmd)
 
 
-def apt_add_repository(debline, update=True, fatal=False):
-    """Add an apt repository."""
-    cmd = ['/usr/bin/apt-add-repository', debline]
-    if fatal:
-        subprocess.check_call(cmd)
-    else:
-        subprocess.call(cmd)
-
-    if update:
-        apt_update(fatal=fatal)
-
-
 def mount(device, mountpoint, options=None, persist=False):
     '''Mount a filesystem'''
     cmd_args = ['mount']
