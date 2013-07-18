@@ -12,12 +12,12 @@ import sys
 from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
+    charm_dir,
 )
 
 from charmhelpers.core.host import (
     lsb_release,
     apt_install,
-    charm_dir,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
