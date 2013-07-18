@@ -16,7 +16,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     lsb_release,
-    apt_install
+    apt_install,
     charm_dir,
 )
 
