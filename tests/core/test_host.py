@@ -152,6 +152,22 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('reload', service_name)
 
+    @patch('subprocess.check_output')
+    def test_service_running_on_stopped_service(self, check_output):
+        check_output.return_value = 'foo stop/waiting'
+        self.assertFalse(host.service_running('foo'))
+
+    @patch('subprocess.check_output')
+    def test_service_running_on_running_service(self, check_output):
+        check_output.return_value = 'foo start/running, process 23871'
+        self.assertTrue(host.service_running('foo'))
+
+    @patch('subprocess.check_output')
+    def test_service_running_on_unknown_service(self, check_output):
+        exc = subprocess.CalledProcessError(1, ['status'])
+        check_output.side_effect = exc
+        self.assertFalse(host.service_running('foo'))
+
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
@@ -252,15 +268,10 @@ class HelpersTest(TestCase):
         ])
 
     @patch('subprocess.check_output')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
-    def test_rsyncs_a_path(self, log, execution_environment, check_output):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
-        from_path = '/from/this/path/{foo}'
-        to_path = '/to/this/path/{bar}'
+    def test_rsyncs_a_path(self, log, check_output):
+        from_path = '/from/this/path/foo'
+        to_path = '/to/this/path/bar'
         check_output.return_value = ' some output '
 
         result = host.rsync(from_path, to_path)
@@ -268,42 +279,31 @@ class HelpersTest(TestCase):
         self.assertEqual(result, 'some output')
         check_output.assert_called_with(['/usr/bin/rsync', '-r', '--delete',
                                          '--executability',
-                                         '/from/this/path/FOO',
-                                         '/to/this/path/BAR'])
+                                         '/from/this/path/foo',
+                                         '/to/this/path/bar'])
 
     @patch('subprocess.check_call')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
-    def test_creates_a_symlink(self, log, execution_environment, check_call):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
-        source = '/from/this/path/{foo}'
-        destination = '/to/this/path/{bar}'
+    def test_creates_a_symlink(self, log, check_call):
+        source = '/from/this/path/foo'
+        destination = '/to/this/path/bar'
 
         host.symlink(source, destination)
 
         check_call.assert_called_with(['ln', '-sf',
-                                       '/from/this/path/FOO',
-                                       '/to/this/path/BAR'])
+                                       '/from/this/path/foo',
+                                       '/to/this/path/bar'])
 
     @patch('pwd.getpwnam')
     @patch('grp.getgrnam')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
     def test_creates_a_directory_if_it_doesnt_exist(self, os_, log,
-                                                    execution_environment,
                                                     getgrnam, getpwnam):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
         uid = 123
         gid = 234
-        owner = 'some-user-{foo}'
-        group = 'some-group-{bar}'
+        owner = 'some-user'
+        group = 'some-group'
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
@@ -316,22 +316,16 @@ class HelpersTest(TestCase):
 
         host.mkdir(path, owner=owner, group=group, perms=perms)
 
-        getpwnam.assert_called_with('some-user-FOO')
-        getgrnam.assert_called_with('some-group-BAR')
+        getpwnam.assert_called_with('some-user')
+        getgrnam.assert_called_with('some-group')
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.makedirs.assert_called_with(realpath, perms)
         os_.chown.assert_called_with(realpath, uid, gid)
 
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
-    def test_creates_a_directory_with_defaults(self, os_, log,
-                                               execution_environment):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
+    def test_creates_a_directory_with_defaults(self, os_, log):
         uid = 0
         gid = 0
         path = '/some/other/path/from/link'
@@ -351,20 +345,14 @@ class HelpersTest(TestCase):
 
     @patch('pwd.getpwnam')
     @patch('grp.getgrnam')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
     def test_removes_file_with_same_path_before_mkdir(self, os_, log,
-                                                      execution_environment,
                                                       getgrnam, getpwnam):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
         uid = 123
         gid = 234
-        owner = 'some-user-{foo}'
-        group = 'some-group-{bar}'
+        owner = 'some-user'
+        group = 'some-group'
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = True
@@ -380,8 +368,8 @@ class HelpersTest(TestCase):
 
         host.mkdir(path, owner=owner, group=group, perms=perms, force=force)
 
-        getpwnam.assert_called_with('some-user-FOO')
-        getgrnam.assert_called_with('some-group-BAR')
+        getpwnam.assert_called_with('some-user')
+        getgrnam.assert_called_with('some-group')
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.unlink.assert_called_with(realpath)
@@ -390,23 +378,18 @@ class HelpersTest(TestCase):
 
     @patch('pwd.getpwnam')
     @patch('grp.getgrnam')
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
-    def test_writes_content_to_a_file(self, os_, log, execution_environment,
-                                      getgrnam, getpwnam):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-            'baz': 'BAZ',
-            'juju': 'DevOps Distilled',
-        }
+    def test_writes_content_to_a_file(self, os_, log, getgrnam, getpwnam):
+        # Curly brackets here demonstrate that we are *not* rendering
+        # these strings with Python's string formatting. This is a
+        # change from the original behavior per Bug #1195634.
         uid = 123
         gid = 234
         owner = 'some-user-{foo}'
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
-        fmtstr = 'what is {juju}'
+        contents = 'what is {juju}'
         perms = 0644
         fileno = 'some-fileno'
 
@@ -416,27 +399,19 @@ class HelpersTest(TestCase):
         with patch_open() as (mock_open, mock_file):
             mock_file.fileno.return_value = fileno
 
-            host.write_file(path, fmtstr, owner=owner, group=group,
+            host.write_file(path, contents, owner=owner, group=group,
                             perms=perms)
 
-            getpwnam.assert_called_with('some-user-FOO')
-            getgrnam.assert_called_with('some-group-BAR')
-            mock_open.assert_called_with('/some/path/BAZ', 'w')
+            getpwnam.assert_called_with('some-user-{foo}')
+            getgrnam.assert_called_with('some-group-{bar}')
+            mock_open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is DevOps Distilled')
+            mock_file.write.assert_called_with('what is {juju}')
 
-    @patch.object(host, 'execution_environment')
     @patch.object(host, 'log')
     @patch.object(host, 'os')
-    def test_writes_content_with_default(self, os_, log,
-                                         execution_environment):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-            'baz': 'BAZ',
-            'juju': 'DevOps Distilled',
-        }
+    def test_writes_content_with_default(self, os_, log):
         uid = 0
         gid = 0
         path = '/some/path/{baz}'
@@ -449,32 +424,10 @@ class HelpersTest(TestCase):
 
             host.write_file(path, fmtstr)
 
-            mock_open.assert_called_with('/some/path/BAZ', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is DevOps Distilled')
-
-    @patch.object(host, 'execution_environment')
-    @patch.object(host, 'log')
-    @patch.object(host, 'os')
-    @patch.object(host, 'write_file')
-    def test_renders_a_template_file(self, write_file, os_, log,
-                                     execution_environment):
-        execution_environment.return_value = {
-            'foo': 'FOO',
-            'bar': 'BAR',
-        }
-        source = '/some/path/{foo}'
-        destination = '/some/path/{bar}'
-        content = 'some-content'
-
-        with patch_open() as (mock_open, mock_file):
-            mock_file.read.return_value = content
-
-            host.render_template_file(source, destination, foo2='2')
-
-            mock_open.assert_called_with('/some/path/FOO', 'r')
-            write_file.assert_called_with('/some/path/BAR', content, foo2='2')
+            mock_file.write.assert_called_with('what is {juju}')
 
     @patch('subprocess.call')
     @patch.object(host, 'log')
