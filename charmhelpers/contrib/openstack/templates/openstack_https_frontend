@@ -1,5 +1,5 @@
-{% if endpoints %}
-{% for ext, int in endpoints %}
+{% if endpoints -%}
+{% for ext, int in endpoints -%}
 Listen {{ ext }}
 NameVirtualHost *:{{ ext }}
 <VirtualHost *:{{ ext }}>
@@ -19,5 +19,5 @@ NameVirtualHost *:{{ ext }}
     Order allow,deny
     Allow from all
 </Location>
-{% endfor %}
-{% endif %}
+{% endfor -%}
+{% endif -%}
