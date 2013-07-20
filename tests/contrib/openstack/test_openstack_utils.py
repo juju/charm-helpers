@@ -56,6 +56,9 @@ FAKE_REPO = {
     }
 }
 
+MOUNTS = [
+    ['/mnt', '/dev/vdb']
+]
 
 url = 'deb ' + openstack.CLOUD_ARCHIVE_URL
 UCA_SOURCES = [
@@ -371,10 +374,11 @@ class OpenStackHelpersTestCase(TestCase):
                    '--recv-keys', 'foo']
         mocked_error.assert_called_with('Error importing repo key foo')
 
+    @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
     @patch('__builtin__.open')
-    def test_save_scriptrc(self, _open, _charm_dir, _exists):
+    def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
@@ -382,9 +386,11 @@ class OpenStackHelpersTestCase(TestCase):
         _file = MagicMock(spec=file)
         _open.return_value = _file
         _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
-        _exists.return_value = True
+        _exists.return_value = False
         os.environ['JUJU_UNIT_NAME'] = 'testing-foo/0'
         openstack.save_script_rc(setting1='foo', setting2='bar')
+        rcdir = '/var/lib/juju/units/testing-foo-0/charm/scripts'
+        _mkdir.assert_called_with(rcdir)
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
         _open.assert_called_with(expected_f, 'wb')
         for line in scriptrc:
@@ -416,6 +422,80 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
 
+    @patch.object(openstack, 'is_block_device')
+    @patch.object(openstack, 'error_out')
+    def test_ensure_block_device_bad_config(self, err, is_bd):
+        '''Test it doesn't prepare storage with bad config'''
+        openstack.ensure_block_device(block_device='none')
+        self.assertTrue(err.called)
+
+    @patch.object(openstack, 'is_block_device')
+    @patch.object(openstack, 'ensure_loopback_device')
+    def test_ensure_block_device_loopback(self, ensure_loopback, is_bd):
+        '''Test it ensures loopback device when checking block device'''
+        defsize = openstack.DEFAULT_LOOPBACK_SIZE
+        is_bd.return_value = True
+
+        ensure_loopback.return_value = '/tmp/cinder.img'
+        result = openstack.ensure_block_device('/tmp/cinder.img')
+        ensure_loopback.assert_called_with('/tmp/cinder.img', defsize)
+        self.assertEquals(result, '/tmp/cinder.img')
+
+        ensure_loopback.return_value = '/tmp/cinder-2.img'
+        result = openstack.ensure_block_device('/tmp/cinder-2.img|15G')
+        ensure_loopback.assert_called_with('/tmp/cinder-2.img', '15G')
+        self.assertEquals(result, '/tmp/cinder-2.img')
+
+    @patch.object(openstack, 'is_block_device')
+    def test_ensure_standard_block_device(self, is_bd):
+        '''Test it looks for storage at both relative and full device path'''
+        for dev in ['vdb', '/dev/vdb']:
+            openstack.ensure_block_device(dev)
+            is_bd.assert_called_with('/dev/vdb')
+
+    @patch.object(openstack, 'is_block_device')
+    @patch.object(openstack, 'error_out')
+    def test_ensure_nonexistent_block_device(self, error_out, is_bd):
+        '''Test it will not ensure a non-existant block device'''
+        is_bd.return_value = False
+        openstack.ensure_block_device(block_device='foo')
+        self.assertTrue(error_out.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'umount')
+    @patch.object(openstack, 'mounts')
+    @patch.object(openstack, 'zap_disk')
+    @patch.object(openstack, 'is_lvm_physical_volume')
+    def test_clean_storage_unmount(self, is_pv, zap_disk, mounts, umount, log):
+        '''Test it unmounts block device when cleaning storage'''
+        is_pv.return_value = False
+        zap_disk.return_value = True
+        mounts.return_value = MOUNTS
+        openstack.clean_storage('/dev/vdb')
+        umount.called_with('/dev/vdb', True)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'remove_lvm_physical_volume')
+    @patch.object(openstack, 'deactivate_lvm_volume_group')
+    @patch.object(openstack, 'mounts')
+    @patch.object(openstack, 'is_lvm_physical_volume')
+    def test_clean_storage_lvm_wipe(self, is_pv, mounts, rm_lv, rm_vg, log):
+        '''Test it removes traces of LVM when cleaning storage'''
+        mounts.return_value = []
+        is_pv.return_value = True
+        openstack.clean_storage('/dev/vdb')
+        rm_lv.assert_called_with('/dev/vdb')
+        rm_vg .assert_called_with('/dev/vdb')
+
+    @patch.object(openstack, 'zap_disk')
+    @patch.object(openstack, 'is_lvm_physical_volume')
+    @patch.object(openstack, 'mounts')
+    def test_clean_storage_zap_disk(self, mounts, is_pv, zap_disk):
+        '''It removes traces of LVM when cleaning storage'''
+        mounts.return_value = []
+        is_pv.return_value = False
+        openstack.clean_storage('/dev/vdb')
+        zap_disk.assert_called_with('/dev/vdb')
 
 if __name__ == '__main__':
     unittest.main()

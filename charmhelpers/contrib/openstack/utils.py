@@ -13,12 +13,19 @@ from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
     charm_dir,
+    ERROR,
+    INFO
 )
 
-from charmhelpers.core.host import (
-    lsb_release,
-    apt_install,
+from charmhelpers.contrib.storage.linux.lvm import (
+    deactivate_lvm_volume_group,
+    is_lvm_physical_volume,
+    remove_lvm_physical_volume,
 )
+
+from charmhelpers.core.host import lsb_release, apt_install, mounts, umount
+from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
+from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
@@ -52,6 +59,8 @@ SWIFT_CODENAMES = {
     '1.9.0': 'havana',
     '1.9.1': 'havana',
 }
+
+DEFAULT_LOOPBACK_SIZE = '5G'
 
 
 def error_out(msg):
@@ -271,3 +280,59 @@ def openstack_upgrade_available(package):
     available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
+
+
+def ensure_block_device(block_device):
+    '''
+    Confirm block_device, create as loopback if necessary.
+
+    :param block_device: str: Full path of block device to ensure.
+
+    :returns: str: Full path of ensured block device.
+    '''
+    _none = ['None', 'none', None]
+    if (block_device in _none):
+        error_out('prepare_storage(): Missing required input: '
+                  'block_device=%s.' % block_device, level=ERROR)
+
+    if block_device.startswith('/dev/'):
+        bdev = block_device
+    elif block_device.startswith('/'):
+        _bd = block_device.split('|')
+        if len(_bd) == 2:
+            bdev, size = _bd
+        else:
+            bdev = block_device
+            size = DEFAULT_LOOPBACK_SIZE
+        bdev = ensure_loopback_device(bdev, size)
+    else:
+        bdev = '/dev/%s' % block_device
+
+    if not is_block_device(bdev):
+        error_out('Failed to locate valid block device at %s' % bdev,
+                  level=ERROR)
+
+    return bdev
+
+
+def clean_storage(block_device):
+    '''
+    Ensures a block device is clean.  That is:
+        - unmounted
+        - any lvm volume groups are deactivated
+        - any lvm physical device signatures removed
+        - partition table wiped
+
+    :param block_device: str: Full path to block device to clean.
+    '''
+    for mp, d in mounts():
+        if d == block_device:
+            juju_log('clean_storage(): %s is mounted @ %s, unmounting.' %
+                     (d, mp), level=INFO)
+            umount(mp, persist=True)
+
+    if is_lvm_physical_volume(block_device):
+        deactivate_lvm_volume_group(block_device)
+        remove_lvm_physical_volume(block_device)
+    else:
+        zap_disk(block_device)
