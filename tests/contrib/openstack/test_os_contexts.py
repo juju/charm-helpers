@@ -452,3 +452,22 @@ class ContextTests(unittest.TestCase):
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY'), call('CA_CERT')]
         self.assertEquals(decode, self.b64decode.call_args_list)
+
+    def test_image_service_context_missing_data(self):
+        '''Test image-service with missing relation and missing data'''
+        image_service = context.ImageServiceContext()
+        self.relation_ids.return_value = []
+        self.assertEquals({}, image_service())
+        self.relation_ids.return_value = ['image-service:0']
+        self.related_units.return_value = ['glance/0']
+        self.relation_get.return_value = None
+        self.assertEquals({}, image_service())
+
+    def test_image_service_context_with_data(self):
+        '''Test image-service with required data'''
+        image_service = context.ImageServiceContext()
+        self.relation_ids.return_value = ['image-service:0']
+        self.related_units.return_value = ['glance/0']
+        self.relation_get.return_value = 'http://glancehost:9292'
+        self.assertEquals({'glance_api_servers': 'http://glancehost:9292'},
+                          image_service())

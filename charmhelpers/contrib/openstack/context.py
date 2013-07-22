@@ -206,6 +206,29 @@ class HAProxyContext(OSContextGenerator):
         return {}
 
 
+class ImageServiceContext(OSContextGenerator):
+    interfaces = ['image-servce']
+
+    def __call__(self):
+        '''
+        Obtains the glance API server from the image-service relation.  Useful
+        in nova and cinder (currently).
+        '''
+        log('Generating template context for image-service.')
+        rids = relation_ids('image-service')
+        if not rids:
+            return {}
+        for rid in rids:
+            for unit in related_units(rid):
+                api_server = relation_get('glance-api-server',
+                                          rid=rid, unit=unit)
+                if api_server:
+                    return {'glance_api_servers': api_server}
+        log('ImageService context is incomplete. '
+            'Missing required relation data.')
+        return {}
+
+
 class ApacheSSLContext(OSContextGenerator):
     """
     Generates a context for an apache vhost configuration that configures
