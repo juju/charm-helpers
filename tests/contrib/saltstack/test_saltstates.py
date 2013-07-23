@@ -3,6 +3,8 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 import mock
+import os
+import shutil
 import tempfile
 import unittest
 import yaml
@@ -99,10 +101,9 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
         # patches specific to this test class.
-        grain_file = tempfile.NamedTemporaryFile()
-        self.grain_path = grain_file.name
-        self.addCleanup(grain_file.close)
-
+        etc_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, etc_dir)
+        self.grain_path = os.path.join(etc_dir, 'salt', 'grains')
         patcher = mock.patch.object(charmhelpers.contrib.saltstack,
                                     'salt_grains_path', self.grain_path)
         patcher.start()

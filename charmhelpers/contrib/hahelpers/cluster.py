@@ -1,23 +1,29 @@
 #
 # Copyright 2012 Canonical Ltd.
 #
-# This file is sourced from lp:openstack-charm-helpers
-#
 # Authors:
 #  James Page <james.page@ubuntu.com>
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
-from utils import (
-    juju_log,
-    relation_ids,
-    relation_list,
-    relation_get,
-    get_unit_hostname,
-    config_get
-    )
 import subprocess
 import os
+
+from socket import gethostname as get_unit_hostname
+
+from charmhelpers.core.hookenv import (
+    log,
+    relation_ids,
+    related_units as relation_list,
+    relation_get,
+    config as config_get,
+    INFO,
+    ERROR,
+)
+
+
+class HAIncompleteConfig(Exception):
+    pass
 
 
 def is_clustered():
@@ -35,7 +41,7 @@ def is_leader(resource):
     cmd = [
         "crm", "resource",
         "show", resource
-        ]
+    ]
     try:
         status = subprocess.check_output(cmd)
     except subprocess.CalledProcessError:
@@ -67,12 +73,12 @@ def oldest_peer(peers):
 def eligible_leader(resource):
     if is_clustered():
         if not is_leader(resource):
-            juju_log('INFO', 'Deferring action to CRM leader.')
+            log('Deferring action to CRM leader.', level=INFO)
             return False
     else:
         peers = peer_units()
         if peers and not oldest_peer(peers):
-            juju_log('INFO', 'Deferring action to oldest service unit.')
+            log('Deferring action to oldest service unit.', level=INFO)
             return False
     return True
 
@@ -90,10 +96,12 @@ def https():
         return True
     for r_id in relation_ids('identity-service'):
         for unit in relation_list(r_id):
-            if (relation_get('https_keystone', rid=r_id, unit=unit) and
-                relation_get('ssl_cert', rid=r_id, unit=unit) and
-                relation_get('ssl_key', rid=r_id, unit=unit) and
-                relation_get('ca_cert', rid=r_id, unit=unit)):
+            if None not in [
+                relation_get('https_keystone', rid=r_id, unit=unit),
+                relation_get('ssl_cert', rid=r_id, unit=unit),
+                relation_get('ssl_key', rid=r_id, unit=unit),
+                relation_get('ca_cert', rid=r_id, unit=unit),
+            ]:
                 return True
     return False
 
@@ -128,3 +136,45 @@ def determine_haproxy_port(public_port):
     if https():
         i += 1
     return public_port - (i * 10)
+
+
+def get_hacluster_config():
+    '''
+    Obtains all relevant configuration from charm configuration required
+    for initiating a relation to hacluster:
+
+        ha-bindiface, ha-mcastport, vip, vip_iface, vip_cidr
+
+    returns: dict: A dict containing settings keyed by setting name.
+    raises: HAIncompleteConfig if settings are missing.
+    '''
+    settings = ['ha-bindiface', 'ha-mcastport', 'vip', 'vip_iface', 'vip_cidr']
+    conf = {}
+    for setting in settings:
+        conf[setting] = config_get(setting)
+    missing = []
+    [missing.append(s) for s, v in conf.iteritems() if v is None]
+    if missing:
+        log('Insufficient config data to configure hacluster.', level=ERROR)
+        raise HAIncompleteConfig
+    return conf
+
+
+def canonical_url(configs, vip_setting='vip'):
+    '''
+    Returns the correct HTTP URL to this host given the state of HTTPS
+    configuration and hacluster.
+
+    :configs    : OSTemplateRenderer: A config tempating object to inspect for
+                                      a complete https context.
+    :vip_setting:                str: Setting in charm config that specifies
+                                      VIP address.
+    '''
+    scheme = 'http'
+    if 'https' in configs.complete_contexts():
+        scheme = 'https'
+    if is_clustered():
+        addr = config_get(vip_setting)
+    else:
+        addr = get_unit_hostname()
+    return '%s://%s' % (scheme, addr)
