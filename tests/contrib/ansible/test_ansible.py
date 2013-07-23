@@ -74,5 +74,5 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         charmhelpers.contrib.ansible.apply_playbook(
             'playbooks/dependencies.yaml')
 
-        self.mock_subprocess.check.assert_called_once_with([
+        self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'])

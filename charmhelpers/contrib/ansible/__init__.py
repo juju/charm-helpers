@@ -37,4 +37,4 @@ def install_ansible_support(from_ppa=True):
 
 
 def apply_playbook(playbook):
-    subprocess.check(['ansible-playbook', '-c', 'local', playbook])
+    subprocess.check_call(['ansible-playbook', '-c', 'local', playbook])
