@@ -19,6 +19,7 @@ from charmhelpers.core.hookenv import (
     config as config_get,
     INFO,
     ERROR,
+    unit_get,
 )
 
 
@@ -176,5 +177,5 @@ def canonical_url(configs, vip_setting='vip'):
     if is_clustered():
         addr = config_get(vip_setting)
     else:
-        addr = get_unit_hostname()
+        addr = unit_get('private-address')
     return '%s://%s' % (scheme, addr)
