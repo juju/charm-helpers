@@ -57,7 +57,8 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
         charmhelpers.contrib.ansible.install_ansible_support()
 
         with open(self.ansible_hosts_path) as hosts_file:
-            self.assertEqual(hosts_file.read(), 'localhost')
+            self.assertEqual(hosts_file.read(),
+                             'localhost ansible_connection=local')
 
 
 class ApplyPlaybookTestCases(unittest.TestCase):
@@ -74,4 +75,4 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'playbooks/dependencies.yaml')
 
         self.mock_subprocess.check.assert_called_once_with([
-            'ansible-playbook', '-c', 'playbooks/dependencies.yaml'])
+            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'])
