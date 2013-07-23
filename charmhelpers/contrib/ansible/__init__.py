@@ -9,6 +9,7 @@ import yaml
 
 import charmhelpers.core.host
 import charmhelpers.core.hookenv
+import charmhelpers.fetch
 
 
 charm_dir = os.environ.get('CHARM_DIR', '')
@@ -28,12 +29,8 @@ def install_ansible_support(from_ppa=True):
     from a configured repository.
     """
     if from_ppa:
-        subprocess.check_call([
-            '/usr/bin/add-apt-repository',
-            '--yes',
-            'ppa:rquillo/ansible',
-        ])
-        subprocess.check_call(['/usr/bin/apt-get', 'update'])
+        charmhelpers.fetch.add_source('ppa:rquillo/ansible')
+        charmhelpers.core.host.apt_update(fatal=True)
     charmhelpers.core.host.apt_install('ansible')
     with open(ansible_hosts_path, 'w+') as hosts_file:
         hosts_file.write('localhost')
