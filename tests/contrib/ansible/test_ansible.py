@@ -58,3 +58,20 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
         with open(self.ansible_hosts_path) as hosts_file:
             self.assertEqual(hosts_file.read(), 'localhost')
+
+
+class ApplyPlaybookTestCases(unittest.TestCase):
+
+    def setUp(self):
+        super(ApplyPlaybookTestCases, self).setUp()
+
+        patcher = mock.patch('charmhelpers.contrib.ansible.subprocess')
+        self.mock_subprocess = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_calls_ansible_playbook(self):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/dependencies.yaml')
+
+        self.mock_subprocess.check.assert_called_once_with([
+            'ansible-playbook', '-c', 'playbooks/dependencies.yaml'])

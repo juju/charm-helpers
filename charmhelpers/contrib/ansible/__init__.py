@@ -34,3 +34,7 @@ def install_ansible_support(from_ppa=True):
     charmhelpers.core.host.apt_install('ansible')
     with open(ansible_hosts_path, 'w+') as hosts_file:
         hosts_file.write('localhost')
+
+
+def apply_playbook(playbook):
+    subprocess.check(['ansible-playbook', '-c', playbook])
