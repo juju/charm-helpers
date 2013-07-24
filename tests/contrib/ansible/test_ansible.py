@@ -3,8 +3,11 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 import mock
+import os
+import shutil
 import tempfile
 import unittest
+import yaml
 
 
 import charmhelpers.contrib.ansible
@@ -66,9 +69,33 @@ class ApplyPlaybookTestCases(unittest.TestCase):
     def setUp(self):
         super(ApplyPlaybookTestCases, self).setUp()
 
+        # Hookenv patches (a single patch to hookenv doesn't work):
+        patcher = mock.patch('charmhelpers.core.hookenv.config')
+        self.mock_config = patcher.start()
+        self.addCleanup(patcher.stop)
+        Serializable = charmhelpers.core.hookenv.Serializable
+        self.mock_config.return_value = Serializable({})
+        patcher = mock.patch('charmhelpers.core.hookenv.relation_get')
+        self.mock_relation_get = patcher.start()
+        self.mock_relation_get.return_value = {}
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.local_unit')
+        self.mock_local_unit = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_local_unit.return_value = {}
+
         patcher = mock.patch('charmhelpers.contrib.ansible.subprocess')
         self.mock_subprocess = patcher.start()
         self.addCleanup(patcher.stop)
+
+        etc_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, etc_dir)
+        self.vars_path = os.path.join(etc_dir, 'ansible', 'vars.yaml')
+        patcher = mock.patch.object(charmhelpers.contrib.ansible,
+                                    'ansible_vars_path', self.vars_path)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
 
     def test_calls_ansible_playbook(self):
         charmhelpers.contrib.ansible.apply_playbook(
@@ -76,3 +103,23 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'])
+
+    def test_writes_vars_file(self):
+        self.assertFalse(os.path.exists(self.vars_path))
+        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'ubunet',
+        })
+
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/dependencies.yaml')
+
+        self.assertTrue(os.path.exists(self.vars_path))
+        with open(self.vars_path, 'r') as vars_file:
+            result = yaml.load(vars_file.read())
+            self.assertEqual({
+                "group_code_owner": "webops_deploy",
+                "user_code_runner": "ubunet",
+                "charm_dir": "",
+                "local_unit": {},
+            }, result)

@@ -5,8 +5,8 @@
 """Charm Helpers ansible - declare the state of your machines."""
 import os
 import subprocess
-import yaml
 
+import charmhelpers.contrib.saltstack
 import charmhelpers.core.host
 import charmhelpers.core.hookenv
 import charmhelpers.fetch
@@ -14,6 +14,7 @@ import charmhelpers.fetch
 
 charm_dir = os.environ.get('CHARM_DIR', '')
 ansible_hosts_path = '/etc/ansible/hosts'
+ansible_vars_path = '/etc/ansible/vars.yaml'
 
 
 def install_ansible_support(from_ppa=True):
@@ -37,4 +38,5 @@ def install_ansible_support(from_ppa=True):
 
 
 def apply_playbook(playbook):
+    charmhelpers.contrib.saltstack.juju_state_to_yaml(ansible_vars_path)
     subprocess.check_call(['ansible-playbook', '-c', 'local', playbook])
