@@ -62,7 +62,7 @@ class UpdateMachineStateTestCase(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
         patcher = mock.patch('charmhelpers.contrib.saltstack.'
-                             'juju_config_2_grains')
+                             'juju_state_to_yaml')
         self.mock_config_2_grains = patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -81,7 +81,7 @@ class UpdateMachineStateTestCase(unittest.TestCase):
         charmhelpers.contrib.saltstack.update_machine_state(
             'states/install.yaml')
 
-        self.mock_config_2_grains.assert_called_once_with()
+        self.mock_config_2_grains.assert_called_once_with('/etc/salt/grains')
 
 
 class JujuConfig2GrainsTestCase(unittest.TestCase):
@@ -104,10 +104,6 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         etc_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, etc_dir)
         self.grain_path = os.path.join(etc_dir, 'salt', 'grains')
-        patcher = mock.patch.object(charmhelpers.contrib.saltstack,
-                                    'salt_grains_path', self.grain_path)
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
         patcher = mock.patch.object(charmhelpers.contrib.saltstack,
                                     'charm_dir', '/tmp/charm_dir')
@@ -121,7 +117,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         })
         self.mock_local_unit.return_value = "click-index/3"
 
-        charmhelpers.contrib.saltstack.juju_config_2_grains()
+        charmhelpers.contrib.saltstack.juju_state_to_yaml(self.grain_path)
 
         with open(self.grain_path, 'r') as grain_file:
             result = yaml.load(grain_file.read())
@@ -143,7 +139,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         }
         self.mock_local_unit.return_value = "click-index/3"
 
-        charmhelpers.contrib.saltstack.juju_config_2_grains()
+        charmhelpers.contrib.saltstack.juju_state_to_yaml(self.grain_path)
 
         with open(self.grain_path, 'r') as grain_file:
             result = yaml.load(grain_file.read())
