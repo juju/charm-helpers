@@ -115,7 +115,9 @@ def juju_state_to_yaml(yaml_path):
     # file resources etc.
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
-    config.update(charmhelpers.core.hookenv.relation_get())
+    relation_data = charmhelpers.core.hookenv.relation_get() 
+    if relation_data is not None:
+        config.update(relation_data)
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
@@ -128,4 +130,4 @@ def juju_state_to_yaml(yaml_path):
         os.makedirs(yaml_dir)
 
     with open(yaml_path, "w+") as fp:
-        fp.write(config.yaml())
+        fp.write(yaml.dump(config))
