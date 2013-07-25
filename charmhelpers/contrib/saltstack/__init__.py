@@ -115,8 +115,14 @@ def juju_state_to_yaml(yaml_path):
     # file resources etc.
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
-    relation_data = charmhelpers.core.hookenv.relation_get() 
-    if relation_data is not None:
+
+    # Add any relation data prefixed with the relation type.
+    relation_type = charmhelpers.core.hookenv.relation_type()
+    if relation_type is not None:
+        relation_data = charmhelpers.core.hookenv.relation_get()
+        relation_data = dict(
+            ("{}:{}".format(relation_type, key), val)
+            for key, val in relation_data.items())
         config.update(relation_data)
 
     # Don't use non-standard tags for unicode which will not
@@ -129,5 +135,12 @@ def juju_state_to_yaml(yaml_path):
     if not os.path.exists(yaml_dir):
         os.makedirs(yaml_dir)
 
+    if os.path.exists(yaml_path):
+        with open(yaml_path, "r") as existing_vars_file:
+            existing_vars = yaml.load(existing_vars_file.read())
+    else:
+        existing_vars = {}
+
+    existing_vars.update(config)
     with open(yaml_path, "w+") as fp:
-        fp.write(yaml.dump(config))
+        fp.write(yaml.dump(existing_vars))

@@ -95,6 +95,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
         self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
+        self.mock_relation_type = patcher.start()
+        self.mock_relation_type.return_value = None
+        self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.local_unit')
         self.mock_local_unit = patcher.start()
         self.addCleanup(patcher.stop)
@@ -152,6 +156,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',
         }
+        self.mock_relation_type.return_value = 'wsgi-file'
         self.mock_relation_get.return_value = {
             'relation_key1': 'relation_value1',
             'relation_key2': 'relation_value2',
@@ -166,7 +171,38 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
-                "relation_key1": "relation_value1",
-                "relation_key2": "relation_value2",
+                "wsgi-file:relation_key1": "relation_value1",
+                "wsgi-file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+            }, result)
+
+    def test_updates_existing_values(self):
+        """Data stored in grains is retained.
+
+        This may be helpful so that templates can access information
+        from relations outside the current context.
+        """
+        os.makedirs(os.path.dirname(self.grain_path))
+        with open(self.grain_path, 'w+') as grain_file:
+            grain_file.write(yaml.dump({
+                'solr:hostname': 'example.com',
+                'user_code_runner': 'oldvalue',
+            }))
+
+        self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'newvalue',
+        })
+        self.mock_local_unit.return_value = "click-index/3"
+
+        charmhelpers.contrib.saltstack.juju_state_to_yaml(self.grain_path)
+
+        with open(self.grain_path, 'r') as grain_file:
+            result = yaml.load(grain_file.read())
+            self.assertEqual({
+                "charm_dir": "/tmp/charm_dir",
+                "group_code_owner": "webops_deploy",
+                "user_code_runner": "newvalue",
+                "local_unit": "click-index/3",
+                "solr:hostname": "example.com",
             }, result)
