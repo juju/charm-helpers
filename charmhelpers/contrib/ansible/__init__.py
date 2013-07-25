@@ -14,7 +14,9 @@ import charmhelpers.fetch
 
 charm_dir = os.environ.get('CHARM_DIR', '')
 ansible_hosts_path = '/etc/ansible/hosts'
-ansible_vars_path = '/etc/ansible/vars.yaml'
+# Ansible will automatically include any vars in the following
+# file in its inventory when run locally.
+ansible_vars_path = '/etc/ansible/host_vars/localhost'
 
 
 def install_ansible_support(from_ppa=True):
