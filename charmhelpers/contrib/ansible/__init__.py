@@ -18,7 +18,11 @@ def install():
 }}}
 
 and won't need to change (nor will its tests) when you change the machine
-state. An install playbook looks something like:
+state. 
+
+All of your juju config and relation-data are available as template
+variables within your playbooks and templates. An install playbook looks
+something like:
 
 {{{
 ---
