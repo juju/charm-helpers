@@ -176,6 +176,32 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
             }, result)
 
+    def test_relation_with_separator(self):
+        self.mock_config.return_value = {
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'ubunet',
+        }
+        self.mock_relation_type.return_value = 'wsgi-file'
+        self.mock_relation_get.return_value = {
+            'relation_key1': 'relation_value1',
+            'relation_key2': 'relation_value2',
+        }
+        self.mock_local_unit.return_value = "click-index/3"
+
+        charmhelpers.contrib.saltstack.juju_state_to_yaml(
+            self.grain_path, namespace_separator='__')
+
+        with open(self.grain_path, 'r') as grain_file:
+            result = yaml.load(grain_file.read())
+            self.assertEqual({
+                "charm_dir": "/tmp/charm_dir",
+                "group_code_owner": "webops_deploy",
+                "user_code_runner": "ubunet",
+                "wsgi-file__relation_key1": "relation_value1",
+                "wsgi-file__relation_key2": "relation_value2",
+                "local_unit": "click-index/3",
+            }, result)
+
     def test_updates_existing_values(self):
         """Data stored in grains is retained.
 

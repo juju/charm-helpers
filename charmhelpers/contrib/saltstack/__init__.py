@@ -103,7 +103,7 @@ def update_machine_state(state_path):
     ])
 
 
-def juju_state_to_yaml(yaml_path):
+def juju_state_to_yaml(yaml_path, namespace_separator=':'):
     """Update the juju config and state in a yaml file.
 
     This includes any current relation-get data, and the charm
@@ -121,7 +121,10 @@ def juju_state_to_yaml(yaml_path):
     if relation_type is not None:
         relation_data = charmhelpers.core.hookenv.relation_get()
         relation_data = dict(
-            ("{}:{}".format(relation_type, key), val)
+            ("{relation_type}{namespace_separator}{key}".format(
+                relation_type=relation_type,
+                key=key,
+                namespace_separator=namespace_separator), val)
             for key, val in relation_data.items())
         config.update(relation_data)
 
