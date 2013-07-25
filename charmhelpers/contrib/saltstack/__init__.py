@@ -115,7 +115,15 @@ def juju_config_2_grains():
     # file resources etc.
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
-    config.update(charmhelpers.core.hookenv.relation_get())
+
+    # Add any relation data prefixed with the relation type.
+    relation_type = charmhelpers.core.hookenv.relation_type()
+    if relation_type is not None:
+        relation_data = charmhelpers.core.hookenv.relation_get()
+        relation_data = dict(
+            ("{}:{}".format(relation_type, key), val)
+            for key, val in relation_data.items())
+        config.update(relation_data)
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
@@ -127,5 +135,12 @@ def juju_config_2_grains():
     if not os.path.exists(grains_dir):
         os.makedirs(grains_dir)
 
+    if os.path.exists(salt_grains_path):
+        with open(salt_grains_path, "r") as grain_file:
+            grains = yaml.load(grain_file.read())
+    else:
+        grains = {}
+
+    grains.update(config)
     with open(salt_grains_path, "w+") as fp:
-        fp.write(config.yaml())
+        fp.write(yaml.dump(grains))
