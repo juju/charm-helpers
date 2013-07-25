@@ -40,5 +40,6 @@ def install_ansible_support(from_ppa=True):
 
 
 def apply_playbook(playbook):
-    charmhelpers.contrib.saltstack.juju_state_to_yaml(ansible_vars_path)
+    charmhelpers.contrib.saltstack.juju_state_to_yaml(
+        ansible_vars_path, namespace_separator='__')
     subprocess.check_call(['ansible-playbook', '-c', 'local', playbook])

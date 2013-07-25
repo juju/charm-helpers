@@ -79,6 +79,10 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
         self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
+        self.mock_relation_type = patcher.start()
+        self.mock_relation_type.return_value = None
+        self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.local_unit')
         self.mock_local_unit = patcher.start()
         self.addCleanup(patcher.stop)
@@ -110,6 +114,11 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',
         })
+        self.mock_relation_type.return_value = 'wsgi-file'
+        self.mock_relation_get.return_value = {
+            'relation_key1': 'relation_value1',
+            'relation_key2': 'relation_value2',
+        }
 
         charmhelpers.contrib.ansible.apply_playbook(
             'playbooks/dependencies.yaml')
@@ -122,4 +131,6 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "user_code_runner": "ubunet",
                 "charm_dir": "",
                 "local_unit": {},
+                "wsgi_file__relation_key1": "relation_value1",
+                "wsgi_file__relation_key2": "relation_value2",
             }, result)

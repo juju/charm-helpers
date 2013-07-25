@@ -171,8 +171,8 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
-                "wsgi-file:relation_key1": "relation_value1",
-                "wsgi-file:relation_key2": "relation_value2",
+                "wsgi_file:relation_key1": "relation_value1",
+                "wsgi_file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
             }, result)
 
@@ -197,8 +197,8 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
-                "wsgi-file__relation_key1": "relation_value1",
-                "wsgi-file__relation_key2": "relation_value2",
+                "wsgi_file__relation_key1": "relation_value1",
+                "wsgi_file__relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
             }, result)
 

@@ -122,7 +122,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':'):
         relation_data = charmhelpers.core.hookenv.relation_get()
         relation_data = dict(
             ("{relation_type}{namespace_separator}{key}".format(
-                relation_type=relation_type,
+                relation_type=relation_type.replace('-', '_'),
                 key=key,
                 namespace_separator=namespace_separator), val)
             for key, val in relation_data.items())
