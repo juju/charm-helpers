@@ -2,7 +2,59 @@
 #
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
-"""Charm Helpers ansible - declare the state of your machines."""
+"""Charm Helpers ansible - declare the state of your machines.
+
+This helper enables you to declare your machine state, rather than
+program it procedurally (and have to test each change to your procedures).
+Your install hook can be as simple as:
+
+{{{
+import charmhelpers.contrib.ansible
+
+
+def install():
+    charmhelpers.contrib.ansible.install_ansible_support()
+    charmhelpers.contrib.ansible.apply_playbook('playbooks/install.yaml')
+}}}
+
+and won't need to change (nor will its tests) when you change the machine
+state. An install playbook looks something like:
+
+{{{
+---
+- hosts: localhost 
+  user: root
+ 
+  tasks:
+    - name: Add private repositories.
+      template:
+        src: ../templates/private-repositories.list.jinja2
+        dest: /etc/apt/sources.list.d/private.list
+
+    - name: Update the cache.
+      apt: update_cache=yes
+
+    - name: Install dependencies.
+      apt: pkg={{ item }}
+      with_items:
+        - python-mimeparse
+        - python-webob
+        - sunburnt
+
+    - name: Setup groups.
+      group: name={{ item.name }} gid={{ item.gid }}
+      with_items:
+        - { name: 'deploy_user', gid: 1800 }
+        - { name: 'service_user', gid: 1500 }
+
+  ...
+}}}
+
+Read more online about playbooks[1] and standard ansible modules[2].
+
+[1] http://www.ansibleworks.com/docs/playbooks.html
+[2] http://www.ansibleworks.com/docs/modules.html
+"""
 import os
 import subprocess
 
