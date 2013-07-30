@@ -9,6 +9,8 @@ import apt_pkg
 import os
 import pwd
 import grp
+import random
+import string
 import subprocess
 import hashlib
 
@@ -267,3 +269,15 @@ def lsb_release():
             k, v = l.split('=')
             d[k.strip()] = v.strip()
     return d
+
+
+def pwgen(length=None):
+    '''Generate a random pasword.'''
+    if length is None:
+        length = random.choice(range(35, 45))
+    alphanumeric_chars = [
+        l for l in (string.letters + string.digits)
+        if l not in 'l0QD1vAEIOUaeiou']
+    random_chars = [
+        random.choice(alphanumeric_chars) for _ in range(length)]
+    return(''.join(random_chars))
