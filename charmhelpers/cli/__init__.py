@@ -36,10 +36,7 @@ class OutputFormatter(object):
 
     def raw(self, output):
         """Output data as raw string (default)"""
-        try:
-            self.outfile.writelines(output)
-        except TypeError:
-            self.outfile.write(str(output))
+        self.outfile.write(str(output))
 
     def py(self, output):
         """Output data as a nicely-formatted python data structure"""
@@ -69,7 +66,7 @@ class OutputFormatter(object):
         csvwriter.writerows(output)
 
     def format_output(self, output, fmt='raw'):
-        fmtfunc = self.formats[fmt]
+        fmtfunc = getattr(self, fmt)
         fmtfunc(output)
 
 
@@ -120,7 +117,7 @@ class CommandLine(object):
         vargs = []
         kwargs = {}
         if argspec.varargs:
-            vargs = getattr(arguments, argspec.vargs)
+            vargs = getattr(arguments, argspec.varargs)
         for arg in argspec.args:
             kwargs[arg] = getattr(arguments, arg)
         self.formatter.format_output(arguments.func(*vargs, **kwargs), arguments.format)

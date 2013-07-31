@@ -2,11 +2,19 @@
 determine the parameters to argparse."""
 
 from unittest import TestCase
+import sys
 from mock import (
     patch,
     MagicMock,
-    call,
 )
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+import json
+from pprint import pformat
+import yaml
+import csv
 
 from charmhelpers import cli
 
@@ -74,6 +82,24 @@ class SubCommandTest(TestCase):
             def payload_command(subparser, otherarg):
                 pass
 
+    def test_run(self):
+        self.bar_called = False
+
+        @self.cl.subcommand()
+        def bar(x, y=None, *vargs):
+            "A function that does work."
+            self.bar_called = True
+            return "qux"
+
+        args = ['foo', 'bar', 'baz']
+        self.cl.formatter = MagicMock()
+        sysargv = sys.argv
+        sys.argv = args
+        self.cl.run()
+        sys.argv = sysargv
+        self.assertTrue(self.bar_called)
+        self.assertTrue(self.cl.formatter.format_output.called)
+
 
 class OutputFormatterTest(TestCase):
     def setUp(self):
@@ -86,8 +112,9 @@ class OutputFormatterTest(TestCase):
             "csv",
             "tab",
         )
-        self.outfile = MagicMock()
+        self.outfile = StringIO()
         self.of = cli.OutputFormatter(outfile=self.outfile)
+        self.output_data = {"this": "is", "some": 1, "data": dict()}
 
     def test_supports_formats(self):
         self.assertItemsEqual(self.expected_formats, self.of.supported_formats)
@@ -118,19 +145,46 @@ class OutputFormatterTest(TestCase):
             self.assertIn("--{}".format(fmt), all_args)
 
     def test_outputs_raw(self):
-        pass
+        self.of.raw(self.output_data)
+        self.outfile.seek(0)
+        self.assertEqual(self.outfile.read(), str(self.output_data))
 
     def test_outputs_json(self):
-        pass
+        self.of.json(self.output_data)
+        self.outfile.seek(0)
+        self.assertEqual(self.outfile.read(), json.dumps(self.output_data))
 
     def test_outputs_py(self):
-        pass
+        self.of.py(self.output_data)
+        self.outfile.seek(0)
+        self.assertEqual(self.outfile.read(), pformat(self.output_data) + "\n")
 
     def test_outputs_yaml(self):
-        pass
+        self.of.yaml(self.output_data)
+        self.outfile.seek(0)
+        self.assertEqual(self.outfile.read(), yaml.dump(self.output_data))
 
     def test_outputs_csv(self):
-        pass
+        sample = StringIO()
+        writer = csv.writer(sample)
+        writer.writerows(self.output_data)
+        sample.seek(0)
+        self.of.csv(self.output_data)
+        self.outfile.seek(0)
+        self.assertEqual(self.outfile.read(), sample.read())
 
     def test_outputs_tab(self):
-        pass
+        sample = StringIO()
+        writer = csv.writer(sample, dialect=csv.excel_tab)
+        writer.writerows(self.output_data)
+        sample.seek(0)
+        self.of.tab(self.output_data)
+        self.outfile.seek(0)
+        self.assertEqual(self.outfile.read(), sample.read())
+
+    def test_formats_output(self):
+        for format in self.expected_formats:
+            mock_f = MagicMock()
+            setattr(self.of, format, mock_f)
+            self.of.format_output(self.output_data, format)
+            mock_f.assert_called_with(self.output_data)
