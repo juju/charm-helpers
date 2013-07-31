@@ -34,6 +34,7 @@ class FetchTest(TestCase):
         source = "ppa:test-ppa"
         fetch.add_source(source=source)
         check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
                                        source])
 
     @patch('subprocess.check_call')
@@ -41,6 +42,7 @@ class FetchTest(TestCase):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
                                        source])
 
     @patch.object(fetch, 'filter_installed_packages')
@@ -72,7 +74,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         key = "akey"
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
-            call(['add-apt-repository', source]),
+            call(['add-apt-repository', '--yes', source]),
             call(['apt-key', 'import', key])
         ])
 
