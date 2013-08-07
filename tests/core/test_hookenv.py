@@ -486,16 +486,16 @@ class HelpersTest(TestCase):
                     'u0': {'key': 'val'},
                     'u1': {'key': 'val'},
                     'u2': {'key': 'val'},
-                 },
+                },
             },
             't2': {
                 'i1': {
                     'u0': {'key': 'val'},
                     'u1': {'key': 'val'},
                     'u2': {'key': 'val'},
-                 },
+                },
             },
-       })
+        })
 
     @patch('charmhelpers.core.hookenv.config')
     @patch('charmhelpers.core.hookenv.relation_type')
