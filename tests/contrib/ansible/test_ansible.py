@@ -26,7 +26,6 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
         self.mock_core = patcher.start()
         self.addCleanup(patcher.stop)
 
-
         hosts_file = tempfile.NamedTemporaryFile()
         self.ansible_hosts_path = hosts_file.name
         self.addCleanup(hosts_file.close)
@@ -99,7 +98,6 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                                     'ansible_vars_path', self.vars_path)
         patcher.start()
         self.addCleanup(patcher.stop)
-
 
     def test_calls_ansible_playbook(self):
         charmhelpers.contrib.ansible.apply_playbook(

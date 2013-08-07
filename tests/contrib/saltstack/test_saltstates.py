@@ -28,17 +28,13 @@ class InstallSaltSupportTestCase(unittest.TestCase):
     def test_adds_ppa_by_default(self):
         charmhelpers.contrib.saltstack.install_salt_support()
 
+        expected_calls = [((cmd,), {}) for cmd in [
+            ['/usr/bin/add-apt-repository', '--yes', 'ppa:saltstack/salt'],
+            ['/usr/bin/apt-get', 'update'],
+        ]]
         self.assertEqual(self.mock_subprocess.check_call.call_count, 2)
-        self.assertEqual([(([
-                '/usr/bin/add-apt-repository',
-                '--yes',
-                'ppa:saltstack/salt',
-            ],), {}),
-            (([
-                '/usr/bin/apt-get',
-                'update',
-            ],), {})
-        ], self.mock_subprocess.check_call.call_args_list)
+        self.assertEqual(
+            expected_calls, self.mock_subprocess.check_call.call_args_list)
         self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
             'salt-common')
 
@@ -149,7 +145,6 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
             }, result)
-
 
     def test_output_with_relation(self):
         self.mock_config.return_value = {
