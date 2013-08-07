@@ -26,8 +26,11 @@ from charmhelpers.core.hookenv import (
     INFO,
 )
 
-from charmhelpers.core.host import (
+from charmhelpers.fetch import (
     apt_install,
+)
+
+from charmhelpers.core.host import (
     mount,
     mounts,
     service_start,

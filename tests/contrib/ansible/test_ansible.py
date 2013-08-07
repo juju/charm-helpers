@@ -26,7 +26,6 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
         self.mock_core = patcher.start()
         self.addCleanup(patcher.stop)
 
-
         hosts_file = tempfile.NamedTemporaryFile()
         self.ansible_hosts_path = hosts_file.name
         self.addCleanup(hosts_file.close)
@@ -41,8 +40,8 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
         self.mock_fetch.add_source.assert_called_once_with(
             'ppa:rquillo/ansible')
-        self.mock_core.host.apt_update.assert_called_once_with(fatal=True)
-        self.mock_core.host.apt_install.assert_called_once_with(
+        self.mock_fetch.apt_update.assert_called_once_with(fatal=True)
+        self.mock_fetch.apt_install.assert_called_once_with(
             'ansible')
 
     def test_no_ppa(self):
@@ -50,7 +49,7 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
             from_ppa=False)
 
         self.assertEqual(self.mock_fetch.add_source.call_count, 0)
-        self.mock_core.host.apt_install.assert_called_once_with(
+        self.mock_fetch.apt_install.assert_called_once_with(
             'ansible')
 
     def test_writes_ansible_hosts(self):
@@ -99,7 +98,6 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                                     'ansible_vars_path', self.vars_path)
         patcher.start()
         self.addCleanup(patcher.stop)
-
 
     def test_calls_ansible_playbook(self):
         charmhelpers.contrib.ansible.apply_playbook(

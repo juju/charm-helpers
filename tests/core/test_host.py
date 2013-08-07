@@ -7,6 +7,7 @@ from mock import patch, call, MagicMock
 from testtools import TestCase
 
 from charmhelpers.core import host
+from charmhelpers import fetch
 
 
 MOUNT_LINES = ("""
@@ -18,37 +19,11 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
-FAKE_APT_CACHE = {
-    # an installed package
-    'vim': {
-        'current_ver': '2:7.3.547-6ubuntu5'
-    },
-    # a uninstalled installation candidate
-    'emacs': {
-    }
-}
-
 LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
-
-
-def fake_apt_cache():
-    def _get(package):
-        pkg = MagicMock()
-        if package not in FAKE_APT_CACHE:
-            raise KeyError
-        pkg.name = package
-        if 'current_ver' in FAKE_APT_CACHE[package]:
-            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
-        else:
-            pkg.current_ver = None
-        return pkg
-    cache = MagicMock()
-    cache.__getitem__.side_effect = _get
-    return cache
 
 
 @contextmanager
@@ -435,7 +410,7 @@ class HelpersTest(TestCase):
         packages = ['foo', 'bar']
         options = ['--foo', '--bar']
 
-        host.apt_install(packages, options)
+        fetch.apt_install(packages, options)
 
         mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
                                       'install', 'foo', 'bar'])
@@ -445,7 +420,7 @@ class HelpersTest(TestCase):
     def test_installs_apt_packages_without_options(self, log, mock_call):
         packages = ['foo', 'bar']
 
-        host.apt_install(packages)
+        fetch.apt_install(packages)
 
         mock_call.assert_called_with(['apt-get', '-y', 'install', 'foo',
                                       'bar'])
@@ -456,7 +431,7 @@ class HelpersTest(TestCase):
         packages = 'foo bar'
         options = ['--foo', '--bar']
 
-        host.apt_install(packages, options)
+        fetch.apt_install(packages, options)
 
         mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
                                       'install', 'foo bar'])
@@ -467,41 +442,20 @@ class HelpersTest(TestCase):
         packages = ['foo', 'bar']
         options = ['--foo', '--bar']
 
-        host.apt_install(packages, options, fatal=True)
+        fetch.apt_install(packages, options, fatal=True)
 
         check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
                                        'install', 'foo', 'bar'])
 
     @patch('subprocess.check_call')
     def test_apt_update_fatal(self, check_call):
-        host.apt_update(fatal=True)
+        fetch.apt_update(fatal=True)
         check_call.assert_called_with(['apt-get', 'update'])
 
     @patch('subprocess.call')
     def test_apt_update_nonfatal(self, call):
-        host.apt_update()
+        fetch.apt_update()
         call.assert_called_with(['apt-get', 'update'])
-
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_missing(self, cache):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim', 'emacs'])
-        self.assertEquals(result, ['emacs'])
-
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_none_missing(self, cache):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim'])
-        self.assertEquals(result, [])
-
-    @patch.object(host, 'log')
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_not_available(self, cache, log):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim', 'joe'])
-        self.assertEquals(result, ['joe'])
-        log.assert_called_with('Package joe has no installation candidate.',
-                               level='WARNING')
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
@@ -612,7 +566,7 @@ class HelpersTest(TestCase):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
-            }
+        }
         exists.side_effect = [False, False]
 
         @host.restart_on_change(restart_map)
@@ -633,7 +587,7 @@ class HelpersTest(TestCase):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
-            }
+        }
         exists.side_effect = [False, True]
 
         @host.restart_on_change(restart_map)
@@ -658,7 +612,7 @@ class HelpersTest(TestCase):
         restart_map = {
             file_name_one: ['test-service'],
             file_name_two: ['test-service', 'test-service2']
-            }
+        }
         exists.side_effect = [False, True, True, True]
 
         @host.restart_on_change(restart_map)
