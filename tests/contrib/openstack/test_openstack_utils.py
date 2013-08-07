@@ -371,14 +371,18 @@ class OpenStackHelpersTestCase(TestCase):
                    '--recv-keys', 'foo']
         mocked_error.assert_called_with('Error importing repo key foo')
 
+    @patch('os.path.exists')
+    @patch('charmhelpers.contrib.openstack.utils.charm_dir')
     @patch('__builtin__.open')
-    def test_save_scriptrc(self, _open):
+    def test_save_scriptrc(self, _open, _charm_dir, _exists):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
                     'export setting2=bar\n']
         _file = MagicMock(spec=file)
         _open.return_value = _file
+        _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
+        _exists.return_value = True
         os.environ['JUJU_UNIT_NAME'] = 'testing-foo/0'
         openstack.save_script_rc(setting1='foo', setting2='bar')
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'

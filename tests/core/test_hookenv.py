@@ -576,6 +576,14 @@ class HelpersTest(TestCase):
         self.assertEqual(result['foo'], 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
+    @patch('charmhelpers.core.hookenv.subprocess')
+    def test_relation_get_none(self, mock_subprocess):
+        mock_subprocess.check_output.return_value = 'null'
+
+        result = hookenv.relation_get()
+
+        self.assertIsNone(result)
+
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
         check_output.return_value = json.dumps('bar')
