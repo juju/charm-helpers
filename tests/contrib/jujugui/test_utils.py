@@ -4,7 +4,6 @@ from contextlib import contextmanager
 import nose.plugins.attrib
 import os
 import shutil
-from simplejson import dumps
 from subprocess import CalledProcessError
 import tempfile
 import unittest

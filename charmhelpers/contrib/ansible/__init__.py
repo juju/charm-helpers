@@ -18,7 +18,7 @@ def install():
 }}}
 
 and won't need to change (nor will its tests) when you change the machine
-state. 
+state.
 
 All of your juju config and relation-data are available as template
 variables within your playbooks and templates. An install playbook looks
@@ -26,9 +26,9 @@ something like:
 
 {{{
 ---
-- hosts: localhost 
+- hosts: localhost
   user: root
- 
+
   tasks:
     - name: Add private repositories.
       template:

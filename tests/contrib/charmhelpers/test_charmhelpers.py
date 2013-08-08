@@ -70,7 +70,6 @@ class CharmHelpersTestCase(TestCase):
             self._make_juju_status_dict(
                 num_units, service_name, unit_state, machine_state))
 
-
     def test_make_charm_config_file(self):
         # make_charm_config_file() writes the passed configuration to a
         # temporary file as YAML.
