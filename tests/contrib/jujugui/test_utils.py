@@ -1,9 +1,9 @@
 #!/usr/bin/env python2
 
 from contextlib import contextmanager
+import nose.plugins.attrib
 import os
 import shutil
-from simplejson import dumps
 from subprocess import CalledProcessError
 import tempfile
 import unittest
@@ -445,6 +445,7 @@ class TestSaveOrCreateCertificates(unittest.TestCase):
         self.cert_file = os.path.join(self.cert_path, 'juju.crt')
         self.key_file = os.path.join(self.cert_path, 'juju.key')
 
+    @nose.plugins.attrib.attr('slow')
     def test_generation(self):
         # Ensure certificates are correctly generated.
         save_or_create_certificates(

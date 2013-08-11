@@ -27,7 +27,7 @@ deb http://archive.ubuntu.com/ubuntu {}-proposed main universe multiverse restri
 def add_source(source, key=None):
     if ((source.startswith('ppa:') or
          source.startswith('http:'))):
-        subprocess.check_call(['add-apt-repository', source])
+        subprocess.check_call(['add-apt-repository', '--yes', source])
     elif source.startswith('cloud:'):
         apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
                     fatal=True)

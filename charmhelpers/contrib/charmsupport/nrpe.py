@@ -13,12 +13,13 @@ import shlex
 import yaml
 
 from charmhelpers.core.hookenv import (
-        config,
-        local_unit,
-        log,
-        relation_ids,
-        relation_set,
-    )
+    config,
+    local_unit,
+    log,
+    relation_ids,
+    relation_set,
+)
+
 from charmhelpers.core.host import service
 
 # This module adds compatibility with the nrpe-external-master and plain nrpe
@@ -164,7 +165,7 @@ define service {{
             'description': self.description,
             'shortname': self.shortname,
             'command': self.command,
-            }
+        }
         nrpe_service_text = Check.service_template.format(**templ_vars)
         nrpe_service_file = '{}/service__{}_{}.cfg'.format(
             NRPE.nagios_exportdir, hostname, self.command)
@@ -209,7 +210,7 @@ class NRPE(object):
             nrpecheck.write(self.nagios_context, self.hostname)
             nrpe_monitors[nrpecheck.shortname] = {
                 "command": nrpecheck.command,
-                }
+            }
 
         service('restart', 'nagios-nrpe-server')
 

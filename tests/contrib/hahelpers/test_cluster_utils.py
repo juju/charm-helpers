@@ -17,6 +17,7 @@ class ClusterUtilsTests(TestCase):
             'relation_get',
             'get_unit_hostname',
             'config_get',
+            'unit_get',
         ]]
 
     def _patch(self, method):
@@ -233,7 +234,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_bare(self, is_clustered):
         '''It constructs a URL to host with no https or cluster present'''
-        self.get_unit_hostname.return_value = 'foohost1'
+        self.unit_get.return_value = 'foohost1'
         is_clustered.return_value = False
         configs = MagicMock()
         configs.complete_contexts = MagicMock()
@@ -244,7 +245,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_https_no_cluster(self, is_clustered):
         '''It constructs a URL to host with https and no cluster present'''
-        self.get_unit_hostname.return_value = 'foohost1'
+        self.unit_get.return_value = 'foohost1'
         is_clustered.return_value = False
         configs = MagicMock()
         configs.complete_contexts = MagicMock()
@@ -267,7 +268,7 @@ class ClusterUtilsTests(TestCase):
     def test_canonical_url_cluster_no_https(self, is_clustered):
         '''It constructs a URL to host with no https and cluster present'''
         self.config_get.return_value = '10.0.0.1'
-        self.get_unit_hostname.return_value = 'foohost1'
+        self.unit_get.return_value = 'foohost1'
         is_clustered.return_value = True
         configs = MagicMock()
         configs.complete_contexts = MagicMock()

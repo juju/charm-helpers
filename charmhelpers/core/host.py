@@ -9,12 +9,14 @@ import apt_pkg
 import os
 import pwd
 import grp
+import random
+import string
 import subprocess
 import hashlib
 
 from collections import OrderedDict
 
-from hookenv import log, execution_environment
+from hookenv import log
 
 
 def service_start(service_name):
@@ -86,36 +88,33 @@ def add_user_to_group(username, group):
 
 def rsync(from_path, to_path, flags='-r', options=None):
     """Replicate the contents of a path"""
-    context = execution_environment()
     options = options or ['--delete', '--executability']
     cmd = ['/usr/bin/rsync', flags]
     cmd.extend(options)
-    cmd.append(from_path.format(**context))
-    cmd.append(to_path.format(**context))
+    cmd.append(from_path)
+    cmd.append(to_path)
     log(" ".join(cmd))
     return subprocess.check_output(cmd).strip()
 
 
 def symlink(source, destination):
     """Create a symbolic link"""
-    context = execution_environment()
     log("Symlinking {} as {}".format(source, destination))
     cmd = [
         'ln',
         '-sf',
-        source.format(**context),
-        destination.format(**context)
+        source,
+        destination,
     ]
     subprocess.check_call(cmd)
 
 
 def mkdir(path, owner='root', group='root', perms=0555, force=False):
     """Create a directory"""
-    context = execution_environment()
     log("Making dir {} {}:{} {:o}".format(path, owner, group,
                                           perms))
-    uid = pwd.getpwnam(owner.format(**context)).pw_uid
-    gid = grp.getgrnam(group.format(**context)).gr_gid
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
     realpath = os.path.abspath(path)
     if os.path.exists(realpath):
         if force and not os.path.isdir(realpath):
@@ -270,3 +269,15 @@ def lsb_release():
             k, v = l.split('=')
             d[k.strip()] = v.strip()
     return d
+
+
+def pwgen(length=None):
+    '''Generate a random pasword.'''
+    if length is None:
+        length = random.choice(range(35, 45))
+    alphanumeric_chars = [
+        l for l in (string.letters + string.digits)
+        if l not in 'l0QD1vAEIOUaeiou']
+    random_chars = [
+        random.choice(alphanumeric_chars) for _ in range(length)]
+    return(''.join(random_chars))
