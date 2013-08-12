@@ -63,8 +63,8 @@ def neutron_plugins():
     }
 
 
-def neutron_plugin_attribute(plugin, attr, network_manager=None):
-    manager = network_manager or network_manager()
+def neutron_plugin_attribute(plugin, attr, net_manager=None):
+    manager = net_manager or network_manager()
     if manager == 'quantum':
         plugins = quantum_plugins()
     elif manager == 'neutron':
