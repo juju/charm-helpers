@@ -1,5 +1,8 @@
 from mock import patch
 
+from shutil import rmtree
+from tempfile import mkdtemp
+from threading import Timer
 from testtools import TestCase
 
 import charmhelpers.contrib.hahelpers.ceph as ceph_utils
@@ -92,6 +95,24 @@ class CephUtilsTests(TestCase):
         self.assertTrue(timeout - duration < 0.1)
         self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
                                     level='ERROR')
+
+    def test_device_is_formatted_if_it_appears(self):
+        """
+        The specified device is formatted if it appears before the timeout
+        is reached.
+        """
+        def create_my_device(filename):
+            with open(filename, "w") as device:
+                device.write("hello\n")
+        temp_dir = mkdtemp()
+        self.addCleanup(rmtree, temp_dir)
+        device = "%s/mydevice" % temp_dir
+        fstype = 'xfs'
+        timeout = 4
+        t = Timer(2, create_my_device, [device])
+        t.start()
+        ceph_utils.make_filesystem(device, fstype, timeout)
+        self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
 
     def test_existing_device_is_formatted(self):
         """
