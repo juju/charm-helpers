@@ -181,11 +181,11 @@ def filesystem_mounted(fs):
     return fs in [f for m, f in mounts()]
 
 
-def make_filesystem(blk_device, fstype='ext4'):
+def make_filesystem(blk_device, fstype='ext4', timeout=10):
     count = 0
     e_noent = os.errno.ENOENT
     while not os.path.exists(blk_device):
-        if count >= 10:
+        if count >= timeout:
             log('ceph: gave up waiting on block device %s' % blk_device,
                 level=ERROR)
             raise IOError(e_noent, os.strerror(e_noent), blk_device)
