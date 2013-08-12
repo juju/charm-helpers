@@ -57,26 +57,39 @@ class OSContextGenerator(object):
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
+    def __init__(self, database=None, user=None, relation_prefix=None):
+        '''
+        Allows inspecting relation for settings prefixed with relation_prefix.
+        This is useful for parsing access for multiple databases returned via
+        the shared-db interface (eg, nova_password, quantum_password)
+        '''
+        self.relation_prefix = relation_prefix
+        self.database = database
+        self.user = user
+
     def __call__(self):
-        log('Generating template context for shared-db')
-        conf = config()
-        try:
-            database = conf['database']
-            username = conf['database-user']
-        except KeyError as e:
+        self.database = self.database or config('database')
+        self.user = self.user or config('database-user')
+        if None in [self.database, self.user]:
             log('Could not generate shared_db context. '
-                'Missing required charm config options: %s.' % e)
+                'Missing required charm config options. '
+                '(database name and user)')
             raise OSContextError
         ctxt = {}
+
+        password_setting = 'password'
+        if self.relation_prefix:
+            password_setting = self.relation_prefix + '_password'
+
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
+                passwd = relation_get(password_setting, rid=rid, unit=unit)
                 ctxt = {
                     'database_host': relation_get('db_host', rid=rid,
                                                   unit=unit),
-                    'database': database,
-                    'database_user': username,
-                    'database_password': relation_get('password', rid=rid,
-                                                      unit=unit)
+                    'database': self.database,
+                    'database_user': self.user,
+                    'database_password': passwd,
                 }
         if not context_complete(ctxt):
             return {}
