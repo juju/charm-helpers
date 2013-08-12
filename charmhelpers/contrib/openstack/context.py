@@ -37,7 +37,6 @@ from charmhelpers.contrib.hahelpers.apache import (
 )
 
 from charmhelpers.contrib.openstack.neutron import (
-    network_manager,
     neutron_plugin_attribute,
 )
 
@@ -332,7 +331,8 @@ class NeutronContext(object):
 
     @property
     def packages(self):
-        return neutron_plugin_attribute(self.plugin, 'packages')
+        return neutron_plugin_attribute(
+            self.plugin, 'packages', self.network_manager)
 
     @property
     def neutron_security_groups(self):
@@ -353,10 +353,13 @@ class NeutronContext(object):
             out.write(self.plugin + '\n')
 
     def ovs_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager),
+
         ovs_ctxt = {
             'neutron_plugin': 'ovs',
             # quantum.conf
-            'core_plugin': neutron_plugin_attribute(self.plugin, 'driver'),
+            'core_plugin': driver,
             # NOTE: network api class in template for each release.
             # nova.conf
             #'libvirt_vif_driver': n_driver,
