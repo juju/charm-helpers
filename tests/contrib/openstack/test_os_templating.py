@@ -6,6 +6,8 @@ from mock import patch, call, MagicMock
 
 import charmhelpers.contrib.openstack.templating as templating
 
+from jinja2.exceptions import TemplateNotFound
+
 
 class FakeContextGenerator(object):
     interfaces = None
@@ -113,6 +115,50 @@ class TemplatingTests(unittest.TestCase):
             self.renderer.render('/tmp/foo')
             fake_tmpl.render.assert_called_with({})
             self.assertNotIn('fooservice', self.renderer.complete_contexts())
+
+    def test_render_template_registered_but_not_found(self):
+        '''It loads a template by basename of config file first'''
+        path = os.path.dirname(__file__)
+        renderer = templating.OSConfigRenderer(templates_dir=path,
+                                               openstack_release='folsom')
+        e = TemplateNotFound('')
+        renderer._get_template = MagicMock()
+        renderer._get_template.side_effect = e
+        renderer.register('/etc/nova/nova.conf', contexts=[])
+        self.assertRaises(
+            TemplateNotFound, renderer.render, '/etc/nova/nova.conf')
+
+    def test_render_template_by_basename_first(self):
+        '''It loads a template by basename of config file first'''
+        path = os.path.dirname(__file__)
+        renderer = templating.OSConfigRenderer(templates_dir=path,
+                                               openstack_release='folsom')
+        renderer._get_template = MagicMock()
+        renderer.register('/etc/nova/nova.conf', contexts=[])
+        renderer.render('/etc/nova/nova.conf')
+        self.assertEquals(1, len(renderer._get_template.call_args_list))
+        self.assertEquals(
+            [call('nova.conf')], renderer._get_template.call_args_list)
+
+    def test_render_template_by_munged_full_path_last(self):
+        '''It loads a template by full path of config file second'''
+        path = os.path.dirname(__file__)
+        renderer = templating.OSConfigRenderer(templates_dir=path,
+                                               openstack_release='folsom')
+        tmp = MagicMock()
+        tmp.render = MagicMock()
+        e = TemplateNotFound('')
+        renderer._get_template = MagicMock()
+        renderer._get_template.side_effect = [e, tmp]
+        renderer.register('/etc/nova/nova.conf', contexts=[])
+        renderer.render('/etc/nova/nova.conf')
+        self.assertEquals(2, len(renderer._get_template.call_args_list))
+        self.assertEquals(
+            [call('nova.conf'), call('etc_nova_nova.conf')],
+            renderer._get_template.call_args_list)
+
+    def test_render_template_by_basename(self):
+        '''It renders template if it finds it by config file basename'''
 
     @patch('__builtin__.open')
     @patch.object(templating, 'get_loader')
