@@ -229,7 +229,14 @@ class OSConfigRenderer(object):
             # using a munged full path, eg:
             #   /etc/apache2/apache2.conf -> etc_apache2_apache2.conf
             _tmpl = '_'.join(config_file.split('/')[1:])
-            template = self._get_template(_tmpl)
+            try:
+                template = self._get_template(_tmpl)
+            except exceptions.TemplateNotFound as e:
+                log('Could not load template from %s by %s or %s.' %
+                    (self.templates_dir, os.path.basename(config_file), _tmpl),
+                    level=ERROR)
+                raise e
+
         log('Rendering from template: %s' % _tmpl, level=INFO)
         return template.render(ctxt)
 
