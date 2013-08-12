@@ -6,6 +6,12 @@ from subprocess import (
     check_call
 )
 
+
+from charmhelpers.core.host import (
+    apt_install,
+    filter_installed_packages,
+)
+
 from charmhelpers.core.hookenv import (
     config,
     local_unit,
@@ -14,6 +20,7 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     unit_get,
+    unit_private_ip,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -27,6 +34,11 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
     get_ca_cert,
+)
+
+from charmhelpers.contrib.openstack.neutron import (
+    network_manager,
+    neutron_plugin_attribute,
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -304,4 +316,85 @@ class ApacheSSLContext(OSContextGenerator):
                 int_port = determine_api_port(ext_port)
             portmap = (int(ext_port), int(int_port))
             ctxt['endpoints'].append(portmap)
+        return ctxt
+
+
+class NeutronContext(object):
+    interfaces = []
+
+    @property
+    def plugin(self):
+        return None
+
+    @property
+    def network_manager(self):
+        return None
+
+    @property
+    def packages(self):
+        return neutron_plugin_attribute(self.plugin, 'packages')
+
+    @property
+    def neutron_security_groups(self):
+        return None
+
+    def _ensure_packages(self):
+        '''Install but do not upgrade required plugin packages'''
+        required = filter_installed_packages(self.packages)
+        if required:
+            apt_install(required, fatal=True)
+
+    def _save_flag_file(self):
+        if self.network_manager == 'quantum':
+            _file = '/etc/nova/quantum_plugin.conf'
+        else:
+            _file = '/etc/nova/neutron_plugin.conf'
+        with open(_file, 'wb') as out:
+            out.write(self.plugin + '\n')
+
+    def ovs_ctxt(self):
+        ovs_ctxt = {
+            'neutron_plugin': 'ovs',
+            # quantum.conf
+            'core_plugin': neutron_plugin_attribute(self.plugin, 'driver'),
+            # NOTE: network api class in template for each release.
+            # nova.conf
+            #'libvirt_vif_driver': n_driver,
+            #'libvirt_use_virtio_for_bridges': True,
+            # ovs config
+            'local_ip': unit_private_ip(),
+        }
+
+        if self.neutron_security_groups:
+            ovs_ctxt['neutron_security_groups'] = True
+
+            fw_driver = ('%s.agent.linux.iptables_firewall.'
+                         'OVSHybridIptablesFirewallDriver' %
+                         self.network_manager)
+
+            ovs_ctxt.update({
+                # IN TEMPLATE:
+                #   - security_group_api=quantum in nova.conf for >= g
+                #  nova_firewall_driver=nova.virt.firewall.NoopFirewallDriver'
+                'neutron_firewall_driver': fw_driver,
+            })
+
+        return ovs_ctxt
+
+    def __call__(self):
+
+        if self.network_manager not in ['quantum', 'neutron']:
+            return {}
+
+        if not self.plugin:
+            return {}
+
+        self._ensure_packages()
+
+        ctxt = {'network_manager': self.network_manager}
+
+        if self.plugin == 'ovs':
+            ctxt.update(self.ovs_ctxt())
+
+        self._save_flag_file()
         return ctxt
