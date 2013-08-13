@@ -5,6 +5,7 @@ from tempfile import mkdtemp
 from threading import Timer
 from testtools import TestCase
 
+import nose.plugins.attrib
 import charmhelpers.contrib.hahelpers.ceph as ceph_utils
 import os
 import time
@@ -80,6 +81,7 @@ class CephUtilsTests(TestCase):
         self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
                                     level='ERROR')
 
+    @nose.plugins.attrib.attr('slow')
     def test_make_filesystem_timeout(self):
         """
         make_filesystem() allows to specify how long it should wait for the
@@ -96,6 +98,7 @@ class CephUtilsTests(TestCase):
         self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
                                     level='ERROR')
 
+    @nose.plugins.attrib.attr('slow')
     def test_device_is_formatted_if_it_appears(self):
         """
         The specified device is formatted if it appears before the timeout
