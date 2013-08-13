@@ -11,6 +11,7 @@
 import commands
 import os
 import shutil
+import time
 
 from subprocess import (
     check_call,
@@ -24,6 +25,7 @@ from charmhelpers.core.hookenv import (
     related_units,
     log,
     INFO,
+    ERROR
 )
 
 from charmhelpers.core.host import (
@@ -179,11 +181,22 @@ def filesystem_mounted(fs):
     return fs in [f for m, f in mounts()]
 
 
-def make_filesystem(blk_device, fstype='ext4'):
-    log('ceph: Formatting block device %s as filesystem %s.' %
-        (blk_device, fstype), level=INFO)
-    cmd = ['mkfs', '-t', fstype, blk_device]
-    check_call(cmd)
+def make_filesystem(blk_device, fstype='ext4', timeout=10):
+    count = 0
+    e_noent = os.errno.ENOENT
+    while not os.path.exists(blk_device):
+        if count >= timeout:
+            log('ceph: gave up waiting on block device %s' % blk_device,
+                level=ERROR)
+            raise IOError(e_noent, os.strerror(e_noent), blk_device)
+        log('ceph: waiting for block device %s to appear' % blk_device,
+            level=INFO)
+        count += 1
+        time.sleep(1)
+    else:
+        log('ceph: Formatting block device %s as filesystem %s.' %
+            (blk_device, fstype), level=INFO)
+        check_call(['mkfs', '-t', fstype, blk_device])
 
 
 def place_data_on_ceph(service, blk_device, data_src_dst, fstype='ext4'):
