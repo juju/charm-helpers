@@ -354,12 +354,12 @@ class NeutronContext(object):
 
     def ovs_ctxt(self):
         driver = neutron_plugin_attribute(self.plugin, 'driver',
-                                          self.network_manager),
+                                          self.network_manager)
 
         ovs_ctxt = {
             'core_plugin': driver,
             'neutron_plugin': 'ovs',
-            'neutron_security_groups': self.neutron_security_groups
+            'neutron_security_groups': self.neutron_security_groups,
             'local_ip': unit_private_ip(),
         }
 
