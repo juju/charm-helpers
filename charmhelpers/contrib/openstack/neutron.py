@@ -19,7 +19,6 @@ def quantum_plugins():
             'driver': 'quantum.plugins.openvswitch.ovs_quantum_plugin.'
                       'OVSQuantumPluginV2',
             'contexts': [
-                context.NeutronContext(),
                 context.SharedDBContext(user=config('neutron-database-user'),
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
