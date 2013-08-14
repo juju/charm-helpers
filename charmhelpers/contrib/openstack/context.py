@@ -232,7 +232,7 @@ class HAProxyContext(OSContextGenerator):
 
 
 class ImageServiceContext(OSContextGenerator):
-    interfaces = ['image-servce']
+    interfaces = ['image-service']
 
     def __call__(self):
         '''
