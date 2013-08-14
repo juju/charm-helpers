@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
     related_units,
     unit_get,
     unit_private_ip,
+    WARNING,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -382,3 +383,25 @@ class NeutronContext(object):
 
         self._save_flag_file()
         return ctxt
+
+
+class OSConfigFlagContext(OSContextGenerator):
+        '''
+        Responsible adding user-defined config-flags in charm config to a
+        to a template context.
+        '''
+        def __call__(self):
+            config_flags = config('config-flags')
+            if not config_flags:
+                return {}
+            config_flags = config_flags.split(',')
+            flags = {}
+            for flag in config_flags:
+                if '=' not in flag:
+                    log('Improperly formatted config-flag, expected k=v '
+                        ' got %s' % flag, level=WARNING)
+                    continue
+                k, v = flag.split('=')
+                flags[k.strip()] = v
+            ctxt = {'user_config_flags': flags}
+            return ctxt
