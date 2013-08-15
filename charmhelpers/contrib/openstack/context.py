@@ -392,14 +392,14 @@ class OSConfigFlagContext(OSContextGenerator):
         '''
         def __call__(self):
             config_flags = config('config-flags')
-            if not config_flags:
+            if not config_flags or config_flags in ['None', '']:
                 return {}
             config_flags = config_flags.split(',')
             flags = {}
             for flag in config_flags:
                 if '=' not in flag:
                     log('Improperly formatted config-flag, expected k=v '
-                        ' got %s' % flag, level=WARNING)
+                        'got %s' % flag, level=WARNING)
                     continue
                 k, v = flag.split('=')
                 flags[k.strip()] = v
