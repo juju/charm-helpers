@@ -367,14 +367,13 @@ class NeutronContext(object):
         return ovs_ctxt
 
     def __call__(self):
+        self._ensure_packages()
 
         if self.network_manager not in ['quantum', 'neutron']:
             return {}
 
         if not self.plugin:
             return {}
-
-        self._ensure_packages()
 
         ctxt = {'network_manager': self.network_manager}
 
