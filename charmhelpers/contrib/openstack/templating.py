@@ -247,8 +247,12 @@ class OSConfigRenderer(object):
         if config_file not in self.templates:
             log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
+
+        _out = self.render(config_file)
+
         with open(config_file, 'wb') as out:
-            out.write(self.render(config_file))
+            out.write(_out)
+
         log('Wrote template %s.' % config_file, level=INFO)
 
     def write_all(self):
