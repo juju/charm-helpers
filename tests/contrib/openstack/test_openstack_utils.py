@@ -428,6 +428,21 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
 
+    @patch.object(openstack, 'config')
+    @patch.object(openstack, 'juju_log')
+    def test_sticky_relations(self, log, config):
+        """Test hooks are skipped if sticky relations are enabled"""
+
+        @openstack.skip_if_sticky
+        def some_hook():
+            return 'foo'
+
+        config.return_value = True
+        self.assertEquals(None, some_hook())
+
+        config.return_value = False
+        self.assertEquals('foo', some_hook())
+
 
 if __name__ == '__main__':
     unittest.main()
