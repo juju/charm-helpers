@@ -290,3 +290,13 @@ def openstack_upgrade_available(package):
     available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
+
+
+def skip_if_sticky(func):
+    def wrapper(*args, **kwargs):
+        if config('sticky-relations'):
+            juju_log('Sticky relations enabled, skipping execution of '
+                     '%s.' % os.path.basename(sys.argv[0]))
+            return
+        return func(*args, **kwargs)
+    return wrapper
