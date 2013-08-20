@@ -266,6 +266,16 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_version_package('foo', fatal=False)
             )
 
+    @patch.object(openstack, 'get_os_codename_package')
+    def test_os_release_uncached(self, get_cn):
+        openstack.os_rel = None
+        get_cn.return_value = 'folsom'
+        self.assertEquals('folsom', openstack.os_release('nova-common'))
+
+    def test_os_release_cached(self):
+        openstack.os_rel = 'foo'
+        self.assertEquals('foo', openstack.os_release('nova-common'))
+
     @patch.object(openstack, 'juju_log')
     @patch('sys.exit')
     def test_error_out(self, mocked_exit, juju_log):
@@ -371,10 +381,11 @@ class OpenStackHelpersTestCase(TestCase):
                    '--recv-keys', 'foo']
         mocked_error.assert_called_with('Error importing repo key foo')
 
+    @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
     @patch('__builtin__.open')
-    def test_save_scriptrc(self, _open, _charm_dir, _exists):
+    def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
@@ -382,11 +393,12 @@ class OpenStackHelpersTestCase(TestCase):
         _file = MagicMock(spec=file)
         _open.return_value = _file
         _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
-        _exists.return_value = True
+        _exists.return_value = False
         os.environ['JUJU_UNIT_NAME'] = 'testing-foo/0'
         openstack.save_script_rc(setting1='foo', setting2='bar')
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
         _open.assert_called_with(expected_f, 'wb')
+        _mkdir.assert_called_with(os.path.dirname(expected_f))
         for line in scriptrc:
             _file.__enter__().write.assert_has_calls(call(line))
 

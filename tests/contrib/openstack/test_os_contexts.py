@@ -148,6 +148,16 @@ TO_PATCH = [
 ]
 
 
+class fake_config(object):
+    def __init__(self, data):
+        self.data = data
+
+    def __call__(self, attr):
+        if attr in self.data:
+            return self.data[attr]
+        return None
+
+
 class ContextTests(unittest.TestCase):
     def setUp(self):
         for m in TO_PATCH:
@@ -170,7 +180,7 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
-        self.config.return_value = SHARED_DB_CONFIG
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
         expected = {
@@ -196,11 +206,22 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context missing relation data'''
         incomplete_config = copy(SHARED_DB_CONFIG)
         del incomplete_config['database-user']
+        self.config.side_effect = fake_config(incomplete_config)
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
         self.config.return_value = incomplete_config
         shared_db = context.SharedDBContext()
         self.assertRaises(context.OSContextError, shared_db)
+
+    def test_shared_db_context_with_params(self):
+        '''Test shared-db context with object parameters'''
+        shared_db = context.SharedDBContext(
+            database='quantum', user='quantum', relation_prefix='quantum')
+        result = shared_db()
+        self.assertIn(call('quantum_password', rid='foo:0', unit='foo/0'),
+                      self.relation_get.call_args_list)
+        self.assertEquals(result['database'], 'quantum')
+        self.assertEquals(result['database_user'], 'quantum')
 
     def test_identity_service_context_with_data(self):
         '''Test shared-db context with all required data'''
