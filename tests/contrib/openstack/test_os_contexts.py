@@ -492,3 +492,101 @@ class ContextTests(unittest.TestCase):
         self.relation_get.return_value = 'http://glancehost:9292'
         self.assertEquals({'glance_api_servers': 'http://glancehost:9292'},
                           image_service())
+
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_context_base_properties(self, attr):
+        '''Test neutron context base properties'''
+        neutron = context.NeutronContext()
+        attr.return_value = 'quantum-plugin-package'
+        self.assertEquals(None, neutron.plugin)
+        self.assertEquals(None, neutron.network_manager)
+        self.assertEquals(None, neutron.neutron_security_groups)
+        self.assertEquals('quantum-plugin-package', neutron.packages)
+
+    @patch.object(context, 'apt_install')
+    @patch.object(context, 'filter_installed_packages')
+    def test_neutron_ensure_package(self, _filter, _install):
+        '''Test neutron context installed required packages'''
+        _filter.return_value = ['quantum-plugin-package']
+        neutron = context.NeutronContext()
+        with patch.object(context.NeutronContext, 'packages'):
+            neutron._ensure_packages()
+        _install.assert_called_with(['quantum-plugin-package'], fatal=True)
+
+    @patch.object(context.NeutronContext, 'network_manager')
+    @patch.object(context.NeutronContext, 'plugin')
+    def test_neutron_save_flag_file(self, plugin, nm):
+        neutron = context.NeutronContext()
+        plugin.__get__ = MagicMock(return_value='ovs')
+        nm.__get__ = MagicMock(return_value='quantum')
+        with patch_open() as (_o, _f):
+            neutron._save_flag_file()
+            _o.assert_called_with('/etc/nova/quantum_plugin.conf', 'wb')
+            _f.write.assert_called_with('ovs\n')
+
+        nm.__get__ = MagicMock(return_value='neutron')
+        with patch_open() as (_o, _f):
+            neutron._save_flag_file()
+            _o.assert_called_with('/etc/nova/neutron_plugin.conf', 'wb')
+            _f.write.assert_called_with('ovs\n')
+
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_ovs_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'ovs',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
+
+    @patch.object(context.NeutronContext, '_save_flag_file')
+    @patch.object(context.NeutronContext, 'ovs_ctxt')
+    @patch.object(context.NeutronContext, 'plugin')
+    @patch.object(context.NeutronContext, '_ensure_packages')
+    @patch.object(context.NeutronContext, 'network_manager')
+    def test_neutron_main_context_generation(self, nm, pkgs, plugin, ovs, ff):
+        neutron = context.NeutronContext()
+        nm.__get__ = MagicMock(return_value='flatdhcpmanager')
+        self.assertEquals({}, neutron())
+
+        nm.__get__ = MagicMock(return_value='neutron')
+        plugin.__get__ = MagicMock(return_value=None)
+        self.assertEquals({}, neutron())
+
+        nm.__get__ = MagicMock(return_value='neutron')
+        ovs.return_value = {'ovs': 'ovs_context'}
+        plugin.__get__ = MagicMock(return_value='ovs')
+        self.assertEquals(
+            {'network_manager': 'neutron', 'ovs': 'ovs_context'},
+            neutron()
+        )
+
+    @patch.object(context, 'config')
+    def test_os_configflag_context(self, config):
+        flags = context.OSConfigFlagContext()
+
+        config.return_value = 'floating_ip=True,use_virtio=False,max=5'
+        self.assertEquals({
+            'user_config_flags': {
+                'floating_ip': 'True',
+                'use_virtio': 'False',
+                'max': '5',
+            }
+        }, flags())
+
+        for empty in [None, '']:
+            config.return_value = empty
+            self.assertEquals({}, flags())
+
+        config.return_value = 'good_flag=woot,badflag,great_flag=w00t'
+        self.assertEquals({
+            'user_config_flags': {
+                'good_flag': 'woot',
+                'great_flag': 'w00t',
+            }
+        }, flags())
