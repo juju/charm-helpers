@@ -126,6 +126,6 @@ class CephUtilsTests(TestCase):
         fstype = 'xfs'
         ceph_utils.make_filesystem(device, fstype)
         self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
-        self.log.assert_called_with('ceph: Formatting block device %s as '
-            'filesystem %s.' % (device, fstype), level='INFO')
-
+        self.log.assert_called_with(
+            'ceph: Formatting block device %s as filesystem %s.' %
+            (device, fstype), level='INFO')
