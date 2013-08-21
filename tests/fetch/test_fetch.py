@@ -183,14 +183,17 @@ class InstallTest(TestCase):
             "ftp://example.com/foo.tar.gz",
             "https://example.com/foo.tgz",
             "file://example.com/foo.tar.bz2",
+            "bzr+ssh://example.com/branch-name",
+            "bzr+ssh://example.com/branch-name/",
+            "lp:branch-name",
+            "lp:example/branch-name",
         )
         self.invalid_urls = (
             "git://example.com/foo.tar.gz",
             "http://example.com/foo",
             "http://example.com/foobar=baz&x=y#tar.gz",
             "http://example.com/foobar?h=baz.zip",
-            "bzr+ssh://example.com/foo.tar.gz",
-            "lp:example/foo.tgz",
+            "abc:example",
             "file//example.com/foo.tar.bz2",
             "garbage",
         )

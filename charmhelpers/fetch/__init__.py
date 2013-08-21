@@ -65,6 +65,20 @@ def apt_update(fatal=False):
         subprocess.call(cmd)
 
 
+def apt_purge(packages, fatal=False):
+    """Purge one or more packages"""
+    cmd = ['apt-get', '-y', 'purge']
+    if isinstance(packages, basestring):
+        cmd.append(packages)
+    else:
+        cmd.extend(packages)
+    log("Purging {}".format(packages))
+    if fatal:
+        subprocess.check_call(cmd)
+    else:
+        subprocess.call(cmd)
+
+
 def add_source(source, key=None):
     if ((source.startswith('ppa:') or
          source.startswith('http:'))):
@@ -120,6 +134,7 @@ def configure_sources(update=False,
 # least- to most-specific URL matching.
 FETCH_HANDLERS = (
     'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
+    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
 )
 
 
@@ -139,6 +154,7 @@ def install_remote(source):
     # We ONLY check for True here because can_handle may return a string
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
+    installed_to = None
     for handler in handlers:
         try:
             installed_to = handler.install(source)
