@@ -65,6 +65,20 @@ def apt_update(fatal=False):
         subprocess.call(cmd)
 
 
+def apt_purge(packages, fatal=False):
+    """Purge one or more packages"""
+    cmd = ['apt-get', '-y', 'purge']
+    if isinstance(packages, basestring):
+        cmd.append(packages)
+    else:
+        cmd.extend(packages)
+    log("Purging {}".format(packages))
+    if fatal:
+        subprocess.check_call(cmd)
+    else:
+        subprocess.call(cmd)
+
+
 def add_source(source, key=None):
     if ((source.startswith('ppa:') or
          source.startswith('http:'))):
