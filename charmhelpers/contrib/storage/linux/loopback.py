@@ -35,8 +35,11 @@ def create_loopback(file_path):
 
     :returns: str: Full path to new loopback device (eg, /dev/loop0)
     '''
-    cmd = ['losetup', '--find', file_path]
-    return check_output(cmd).strip()
+    file_path = os.path.abspath(file_path)
+    check_call(['losetup', '--find', file_path])
+    for d, f in loopback_devices().iteritems():
+        if f == file_path:
+            return d
 
 
 def ensure_loopback_device(path, size):

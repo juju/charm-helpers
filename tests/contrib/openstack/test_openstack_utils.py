@@ -38,6 +38,11 @@ FAKE_REPO = {
         'os_release': 'grizzly',
         'os_version': '1.7.7'
     },
+    'swift-proxy': {
+        'pkg_vers': '1.9.0-0ubuntu1',
+        'os_release': 'havana',
+        'os_version': '1.9.0'
+    },
     # a package thats available in the cache but is not installed
     'cinder-common': {
         'os_release': 'havana',
@@ -60,6 +65,9 @@ UCA_SOURCES = [
     ('cloud:precise-grizzly/proposed', url + ' precise-proposed/grizzly main'),
     ('cloud:precise-grizzly', url + ' precise-updates/grizzly main'),
     ('cloud:precise-grizzly/updates', url + ' precise-updates/grizzly main'),
+    ('cloud:precise-havana/proposed', url + ' precise-proposed/havana main'),
+    ('cloud:precise-havana', url + ' precise-updates/havana main'),
+    ('cloud:precise-havana/updates', url + ' precise-updates/havana main'),
 ]
 
 
@@ -314,16 +322,17 @@ class OpenStackHelpersTestCase(TestCase):
             _subp.assert_called_with(cmd)
 
     @patch('__builtin__.open')
-    @patch('charmhelpers.contrib.openstack.utils.import_key')
+    @patch('charmhelpers.contrib.openstack.utils.apt_install')
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
-    def test_configure_install_source_uca_repos(self, _lsb, _import, _open):
+    def test_configure_install_source_uca_repos(self, _lsb, _install, _open):
         '''Test configuring installation source from UCA sources'''
         _lsb.return_value = FAKE_RELEASE
         _file = MagicMock(spec=file)
         _open.return_value = _file
         for src, url in UCA_SOURCES:
             openstack.configure_installation_source(src)
-            _import.assert_called_with(openstack.CLOUD_ARCHIVE_KEY_ID)
+            _install.assert_called_with('ubuntu-cloud-keyring',
+                                        fatal=True)
             _open.assert_called_with(
                 '/etc/apt/sources.list.d/cloud-archive.list',
                 'w'
@@ -362,14 +371,18 @@ class OpenStackHelpersTestCase(TestCase):
                    '--recv-keys', 'foo']
         mocked_error.assert_called_with('Error importing repo key foo')
 
+    @patch('os.path.exists')
+    @patch('charmhelpers.contrib.openstack.utils.charm_dir')
     @patch('__builtin__.open')
-    def test_save_scriptrc(self, _open):
+    def test_save_scriptrc(self, _open, _charm_dir, _exists):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
                     'export setting2=bar\n']
         _file = MagicMock(spec=file)
         _open.return_value = _file
+        _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
+        _exists.return_value = True
         os.environ['JUJU_UNIT_NAME'] = 'testing-foo/0'
         openstack.save_script_rc(setting1='foo', setting2='bar')
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'

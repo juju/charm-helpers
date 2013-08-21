@@ -12,10 +12,12 @@ import sys
 from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
+    charm_dir,
 )
 
 from charmhelpers.core.host import (
     lsb_release,
+    apt_install,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
@@ -47,6 +49,8 @@ SWIFT_CODENAMES = {
     '1.7.6': 'grizzly',
     '1.7.7': 'grizzly',
     '1.8.0': 'grizzly',
+    '1.9.0': 'havana',
+    '1.9.1': 'havana',
 }
 
 
@@ -211,7 +215,10 @@ def configure_installation_source(rel):
             'folsom/proposed': 'precise-proposed/folsom',
             'grizzly': 'precise-updates/grizzly',
             'grizzly/updates': 'precise-updates/grizzly',
-            'grizzly/proposed': 'precise-proposed/grizzly'
+            'grizzly/proposed': 'precise-proposed/grizzly',
+            'havana': 'precise-updates/havana',
+            'havana/updates': 'precise-updates/havana',
+            'havana/proposed': 'precise-proposed/havana',
         }
 
         try:
@@ -221,8 +228,7 @@ def configure_installation_source(rel):
             error_out(e)
 
         src = "deb %s %s main" % (CLOUD_ARCHIVE_URL, pocket)
-        # TODO: Replace key import with cloud archive keyring pkg.
-        import_key(CLOUD_ARCHIVE_KEY_ID)
+        apt_install('ubuntu-cloud-keyring', fatal=True)
 
         with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as f:
             f.write(src)
@@ -238,8 +244,9 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     updated config information necessary to perform health checks or
     service changes.
     """
-    unit_name = os.getenv('JUJU_UNIT_NAME').replace('/', '-')
-    juju_rc_path = "/var/lib/juju/units/%s/charm/%s" % (unit_name, script_path)
+    juju_rc_path = "%s/%s" % (charm_dir(), script_path)
+    if not os.path.exists(os.path.dirname(juju_rc_path)):
+        os.mkdir(os.path.dirname(juju_rc_path))
     with open(juju_rc_path, 'wb') as rc_script:
         rc_script.write(
             "#!/bin/bash\n")

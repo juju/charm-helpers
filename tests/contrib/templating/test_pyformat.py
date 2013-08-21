@@ -4,6 +4,7 @@ from testtools import TestCase
 from charmhelpers.contrib.templating.pyformat import render
 from charmhelpers.core import hookenv
 
+
 class PyFormatTest(TestCase):
     @patch.object(hookenv, 'execution_environment')
     def test_renders_using_environment(self, execution_environment):
@@ -33,4 +34,3 @@ class PyFormatTest(TestCase):
 
         self.assertEqual(
             render('foo is {foo}', extra=extra, foo='BAZ'), 'foo is BAZ')
-

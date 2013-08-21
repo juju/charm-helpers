@@ -90,7 +90,7 @@ JUJU_GUI_PORTS = '/etc/apache2/ports.conf'
 JUJU_PEM = 'juju.includes-private-key.pem'
 BUILD_REPOSITORIES = ('ppa:chris-lea/node.js-legacy',)
 DEB_BUILD_DEPENDENCIES = (
-    'bzr', 'imagemagick', 'make',  'nodejs', 'npm',
+    'bzr', 'imagemagick', 'make', 'nodejs', 'npm',
 )
 DEB_STAGE_DEPENDENCIES = (
     'zookeeper',
