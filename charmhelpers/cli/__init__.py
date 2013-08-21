@@ -134,7 +134,7 @@ def describe_arguments(func):
     argspec = inspect.getargspec(func)
     # we should probably raise an exception somewhere if func includes **kwargs
     if argspec.defaults:
-        positional_args = argspec.args[:len(argspec.defaults)]
+        positional_args = argspec.args[:-len(argspec.defaults)]
         keyword_names = argspec.args[-len(argspec.defaults):]
         for arg, default in itertools.izip(keyword_names, argspec.defaults):
             yield ('--{}'.format(arg),), {'default': default}

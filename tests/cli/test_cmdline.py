@@ -2,7 +2,6 @@
 determine the parameters to argparse."""
 
 from unittest import TestCase
-import sys
 from mock import (
     patch,
     MagicMock,
@@ -45,7 +44,9 @@ class SubCommandTest(TestCase):
             "A function that does work."
             pass
         with self.assertRaises(TypeError):
-            self.cl.argument_parser.parse_args('deliberately bad input')
+            with patch("sys.argv", "tests deliberately bad input".split()):
+                with patch("sys.stderr"):
+                    self.cl.argument_parser.parse_args()
         _sys_exit.assert_called_once_with(2)
 
     @patch('sys.exit')
@@ -93,10 +94,8 @@ class SubCommandTest(TestCase):
 
         args = ['foo', 'bar', 'baz']
         self.cl.formatter = MagicMock()
-        sysargv = sys.argv
-        sys.argv = args
-        self.cl.run()
-        sys.argv = sysargv
+        with patch("sys.argv", args):
+            self.cl.run()
         self.assertTrue(self.bar_called)
         self.assertTrue(self.cl.formatter.format_output.called)
 
