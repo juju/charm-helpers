@@ -9,6 +9,32 @@ from urlparse import urlparse
 from charmhelpers import fetch
 import yaml
 
+FAKE_APT_CACHE = {
+    # an installed package
+    'vim': {
+        'current_ver': '2:7.3.547-6ubuntu5'
+    },
+    # a uninstalled installation candidate
+    'emacs': {
+    }
+}
+
+
+def fake_apt_cache():
+    def _get(package):
+        pkg = MagicMock()
+        if package not in FAKE_APT_CACHE:
+            raise KeyError
+        pkg.name = package
+        if 'current_ver' in FAKE_APT_CACHE[package]:
+            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
+        else:
+            pkg.current_ver = None
+        return pkg
+    cache = MagicMock()
+    cache.__getitem__.side_effect = _get
+    return cache
+
 
 @contextmanager
 def patch_open():
@@ -29,6 +55,27 @@ def patch_open():
 
 
 class FetchTest(TestCase):
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_missing(self, cache):
+        cache.side_effect = fake_apt_cache
+        result = fetch.filter_installed_packages(['vim', 'emacs'])
+        self.assertEquals(result, ['emacs'])
+
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_none_missing(self, cache):
+        cache.side_effect = fake_apt_cache
+        result = fetch.filter_installed_packages(['vim'])
+        self.assertEquals(result, [])
+
+    @patch.object(fetch, 'log')
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_not_available(self, cache, log):
+        cache.side_effect = fake_apt_cache
+        result = fetch.filter_installed_packages(['vim', 'joe'])
+        self.assertEquals(result, ['joe'])
+        log.assert_called_with('Package joe has no installation candidate.',
+                               level='WARNING')
+
     @patch('subprocess.check_call')
     def test_add_source_ppa(self, check_call):
         source = "ppa:test-ppa"
@@ -136,7 +183,7 @@ class InstallTest(TestCase):
             "ftp://example.com/foo.tar.gz",
             "https://example.com/foo.tgz",
             "file://example.com/foo.tar.bz2",
-            )
+        )
         self.invalid_urls = (
             "git://example.com/foo.tar.gz",
             "http://example.com/foo",
@@ -146,7 +193,7 @@ class InstallTest(TestCase):
             "lp:example/foo.tgz",
             "file//example.com/foo.tar.bz2",
             "garbage",
-            )
+        )
 
     @patch('charmhelpers.fetch.plugins')
     def test_installs_remote(self, _plugins):
@@ -235,7 +282,7 @@ class BaseFetchHandlerTest(TestCase):
             "bzr+ssh://bazaar.launchpad.net/foo/bar",
             "bzr+http://bazaar.launchpad.net/foo/bar",
             "garbage",
-            )
+        )
         self.fh = fetch.BaseFetchHandler()
 
     def test_handles_nothing(self):

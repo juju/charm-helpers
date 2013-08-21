@@ -5,7 +5,6 @@
 #  Nick Moffitt <nick.moffitt@canonical.com>
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
-import apt_pkg
 import os
 import pwd
 import grp
@@ -134,49 +133,6 @@ def write_file(path, content, owner='root', group='root', perms=0444):
         os.fchown(target.fileno(), uid, gid)
         os.fchmod(target.fileno(), perms)
         target.write(content)
-
-
-def filter_installed_packages(packages):
-    """Returns a list of packages that require installation"""
-    apt_pkg.init()
-    cache = apt_pkg.Cache()
-    _pkgs = []
-    for package in packages:
-        try:
-            p = cache[package]
-            p.current_ver or _pkgs.append(package)
-        except KeyError:
-            log('Package {} has no installation candidate.'.format(package),
-                level='WARNING')
-            _pkgs.append(package)
-    return _pkgs
-
-
-def apt_install(packages, options=None, fatal=False):
-    """Install one or more packages"""
-    options = options or []
-    cmd = ['apt-get', '-y']
-    cmd.extend(options)
-    cmd.append('install')
-    if isinstance(packages, basestring):
-        cmd.append(packages)
-    else:
-        cmd.extend(packages)
-    log("Installing {} with options: {}".format(packages,
-                                                options))
-    if fatal:
-        subprocess.check_call(cmd)
-    else:
-        subprocess.call(cmd)
-
-
-def apt_update(fatal=False):
-    """Update local apt cache"""
-    cmd = ['apt-get', 'update']
-    if fatal:
-        subprocess.check_call(cmd)
-    else:
-        subprocess.call(cmd)
 
 
 def mount(device, mountpoint, options=None, persist=False):
