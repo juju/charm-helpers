@@ -7,7 +7,6 @@ from mock import patch, call, MagicMock
 from testtools import TestCase
 
 from charmhelpers.core import host
-from charmhelpers import fetch
 
 
 MOUNT_LINES = ("""
@@ -403,103 +402,6 @@ class HelpersTest(TestCase):
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
             mock_file.write.assert_called_with('what is {juju}')
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages(self, log, mock_call):
-        packages = ['foo', 'bar']
-        options = ['--foo', '--bar']
-
-        fetch.apt_install(packages, options)
-
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo', 'bar'])
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_without_options(self, log, mock_call):
-        packages = ['foo', 'bar']
-
-        fetch.apt_install(packages)
-
-        mock_call.assert_called_with(['apt-get', '-y', 'install', 'foo',
-                                      'bar'])
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_as_string(self, log, mock_call):
-        packages = 'foo bar'
-        options = ['--foo', '--bar']
-
-        fetch.apt_install(packages, options)
-
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo bar'])
-
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_with_possible_errors(self, log, check_call):
-        packages = ['foo', 'bar']
-        options = ['--foo', '--bar']
-
-        fetch.apt_install(packages, options, fatal=True)
-
-        check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                       'install', 'foo', 'bar'])
-
-
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_purges_apt_packages_as_string_fatal(self, log, mock_call):
-        packages = 'irrelevant names'
-        mock_call.side_effect = OSError('fail')
-
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True )
-        log.assert_called()
-
-
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_purges_apt_packages_fatal(self, log, mock_call):
-        packages = ['irrelevant', 'names']
-        mock_call.side_effect = OSError('fail')
-
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True )
-        log.assert_called()
-
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_purges_apt_packages_as_string_nofatal(self, log, mock_call):
-        packages = 'foo bar'
-
-        fetch.apt_purge(packages)
-
-        log.assert_called()
-        mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo bar'])
-
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_purges_apt_packages_nofatal(self, log, mock_call):
-        packages = ['foo', 'bar']
-
-        fetch.apt_purge(packages)
-
-        log.assert_called()
-        mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo',
-                                      'bar'])
-
-
-    @patch('subprocess.check_call')
-    def test_apt_update_fatal(self, check_call):
-        fetch.apt_update(fatal=True)
-        check_call.assert_called_with(['apt-get', 'update'])
-
-    @patch('subprocess.call')
-    def test_apt_update_nonfatal(self, call):
-        fetch.apt_update()
-        call.assert_called_with(['apt-get', 'update'])
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
