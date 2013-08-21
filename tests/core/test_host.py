@@ -107,21 +107,24 @@ class HelpersTest(TestCase):
     @patch.object(host, 'service')
     def test_starts_a_service(self, service):
         service_name = 'foo-service'
-        host.service_start(service_name)
+        service.side_effect = [True]
+        self.assertTrue(host.service_start(service_name))
 
         service.assert_called_with('start', service_name)
 
     @patch.object(host, 'service')
     def test_stops_a_service(self, service):
         service_name = 'foo-service'
-        host.service_stop(service_name)
+        service.side_effect = [True]
+        self.assertTrue(host.service_stop(service_name))
 
         service.assert_called_with('stop', service_name)
 
     @patch.object(host, 'service')
     def test_restarts_a_service(self, service):
         service_name = 'foo-service'
-        host.service_restart(service_name)
+        service.side_effect = [True]
+        self.assertTrue(host.service_restart(service_name))
 
         service.assert_called_with('restart', service_name)
 
@@ -129,7 +132,7 @@ class HelpersTest(TestCase):
     def test_reloads_a_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [True]
-        host.service_reload(service_name)
+        self.assertTrue(host.service_reload(service_name))
 
         service.assert_called_with('reload', service_name)
 
@@ -137,7 +140,8 @@ class HelpersTest(TestCase):
     def test_failed_reload_restarts_a_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [False, True]
-        host.service_reload(service_name, restart_on_failure=True)
+        self.assertTrue(
+            host.service_reload(service_name, restart_on_failure=True))
 
         service.assert_has_calls([
             call('reload', service_name),
@@ -148,9 +152,54 @@ class HelpersTest(TestCase):
     def test_failed_reload_without_restart(self, service):
         service_name = 'foo-service'
         service.side_effect = [False]
-        host.service_reload(service_name)
+        self.assertFalse(host.service_reload(service_name))
 
         service.assert_called_with('reload', service_name)
+
+
+    @patch.object(host, 'service')
+    def test_start_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_start(service_name))
+
+        service.assert_called_with('start', service_name)
+
+    @patch.object(host, 'service')
+    def test_stop_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_stop(service_name))
+
+        service.assert_called_with('stop', service_name)
+
+    @patch.object(host, 'service')
+    def test_restart_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_restart(service_name))
+
+        service.assert_called_with('restart', service_name)
+
+    @patch.object(host, 'service')
+    def test_reload_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_reload(service_name))
+
+        service.assert_called_with('reload', service_name)
+
+    @patch.object(host, 'service')
+    def test_failed_reload_restarts_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False, False]
+        self.assertFalse(
+            host.service_reload(service_name, restart_on_failure=True))
+
+        service.assert_has_calls([
+            call('reload', service_name),
+            call('restart', service_name)
+        ])
 
     @patch('subprocess.check_output')
     def test_service_running_on_stopped_service(self, check_output):

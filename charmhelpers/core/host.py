@@ -20,20 +20,22 @@ from hookenv import log
 
 
 def service_start(service_name):
-    service('start', service_name)
+    return service('start', service_name)
 
 
 def service_stop(service_name):
-    service('stop', service_name)
+    return service('stop', service_name)
 
 
 def service_restart(service_name):
-    service('restart', service_name)
+    return service('restart', service_name)
 
 
 def service_reload(service_name, restart_on_failure=False):
-    if not service('reload', service_name) and restart_on_failure:
-        service('restart', service_name)
+    service_result = service('reload', service_name)
+    if not service_result and restart_on_failure:
+        service_result = service('restart', service_name)
+    return service_result
 
 
 def service(action, service_name):
