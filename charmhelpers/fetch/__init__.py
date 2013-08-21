@@ -134,6 +134,7 @@ def configure_sources(update=False,
 # least- to most-specific URL matching.
 FETCH_HANDLERS = (
     'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
+    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
 )
 
 
@@ -153,6 +154,7 @@ def install_remote(source):
     # We ONLY check for True here because can_handle may return a string
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
+    installed_to = None
     for handler in handlers:
         try:
             installed_to = handler.install(source)
