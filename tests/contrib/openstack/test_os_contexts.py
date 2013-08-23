@@ -307,7 +307,8 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
-    def test_ceph_context_with_data(self):
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_data(self, ensure_packages):
         '''Test ceph context with all relation data'''
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -320,8 +321,10 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo'
         }
         self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
 
-    def test_ceph_context_with_missing_data(self):
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_missing_data(self, ensure_packages):
         '''Test ceph context with missing relation data'''
         relation = copy(CEPH_RELATION)
         for k, v in relation.iteritems():
@@ -334,6 +337,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         self.assertEquals(result, {})
+        self.assertFalse(ensure_packages.called)
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')

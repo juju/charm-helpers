@@ -48,6 +48,13 @@ class OSContextError(Exception):
     pass
 
 
+def ensure_packages(packages):
+    '''Install but do not upgrade required plugin packages'''
+    required = filter_installed_packages(packages)
+    if required:
+        apt_install(required, fatal=True)
+
+
 def context_complete(ctxt):
     _missing = []
     for k, v in ctxt.iteritems():
@@ -178,6 +185,8 @@ class CephContext(OSContextGenerator):
 
     def __call__(self):
         '''This generates context for /etc/ceph/ceph.conf templates'''
+        if not relation_ids('ceph'):
+            return {}
         log('Generating tmeplate context for ceph')
         mon_hosts = []
         auth = None
@@ -193,6 +202,9 @@ class CephContext(OSContextGenerator):
         }
         if not context_complete(ctxt):
             return {}
+
+        ensure_packages(['ceph-common'])
+
         return ctxt
 
 
@@ -341,10 +353,7 @@ class NeutronContext(object):
         return None
 
     def _ensure_packages(self):
-        '''Install but do not upgrade required plugin packages'''
-        required = filter_installed_packages(self.packages)
-        if required:
-            apt_install(required, fatal=True)
+        ensure_packages(self.packages)
 
     def _save_flag_file(self):
         if self.network_manager == 'quantum':
