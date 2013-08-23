@@ -307,9 +307,12 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
-    def test_ceph_context_with_data(self, ensure_packages):
+    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir):
         '''Test ceph context with all relation data'''
+        isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
@@ -322,9 +325,11 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
 
+    @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
-    def test_ceph_context_with_missing_data(self, ensure_packages):
+    def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy(CEPH_RELATION)
         for k, v in relation.iteritems():
@@ -338,6 +343,7 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         self.assertEquals(result, {})
         self.assertFalse(ensure_packages.called)
+        self.assertFalse(mkdir.called)
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')

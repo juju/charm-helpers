@@ -203,6 +203,9 @@ class CephContext(OSContextGenerator):
         if not context_complete(ctxt):
             return {}
 
+        if not os.path.isdir('/etc/ceph'):
+            os.mkdir('/etc/ceph')
+
         ensure_packages(['ceph-common'])
 
         return ctxt
