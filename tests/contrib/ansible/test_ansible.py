@@ -40,8 +40,8 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
         self.mock_fetch.add_source.assert_called_once_with(
             'ppa:rquillo/ansible')
-        self.mock_core.host.apt_update.assert_called_once_with(fatal=True)
-        self.mock_core.host.apt_install.assert_called_once_with(
+        self.mock_fetch.apt_update.assert_called_once_with(fatal=True)
+        self.mock_fetch.apt_install.assert_called_once_with(
             'ansible')
 
     def test_no_ppa(self):
@@ -49,7 +49,7 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
             from_ppa=False)
 
         self.assertEqual(self.mock_fetch.add_source.call_count, 0)
-        self.mock_core.host.apt_install.assert_called_once_with(
+        self.mock_fetch.apt_install.assert_called_once_with(
             'ansible')
 
     def test_writes_ansible_hosts(self):

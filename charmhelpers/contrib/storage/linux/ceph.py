@@ -11,6 +11,7 @@
 import os
 import shutil
 import json
+import time
 
 from subprocess import (
     check_call,
@@ -24,17 +25,21 @@ from charmhelpers.core.hookenv import (
     related_units,
     log,
     INFO,
-    WARNING
+    WARNING,
+    ERROR
 )
 
 from charmhelpers.core.host import (
-    apt_install,
     mount,
     mounts,
     service_start,
     service_stop,
     service_running,
     umount,
+)
+
+from charmhelpers.fetch import (
+    apt_install,
 )
 
 KEYRING = '/etc/ceph/ceph.client.{}.keyring'
@@ -219,12 +224,23 @@ def filesystem_mounted(fs):
     return fs in [f for f, m in mounts()]
 
 
-def make_filesystem(blk_device, fstype='ext4'):
+def make_filesystem(blk_device, fstype='ext4', timeout=10):
     ''' Make a new filesystem on the specified block device '''
-    log('ceph: Formatting block device {} as filesystem {}.'
-        .format(blk_device, fstype))
-    cmd = ['mkfs', '-t', fstype, blk_device]
-    check_call(cmd)
+    count = 0
+    e_noent = os.errno.ENOENT
+    while not os.path.exists(blk_device):
+        if count >= timeout:
+            log('ceph: gave up waiting on block device %s' % blk_device,
+                level=ERROR)
+            raise IOError(e_noent, os.strerror(e_noent), blk_device)
+        log('ceph: waiting for block device %s to appear' % blk_device,
+            level=INFO)
+        count += 1
+        time.sleep(1)
+    else:
+        log('ceph: Formatting block device %s as filesystem %s.' %
+            (blk_device, fstype), level=INFO)
+        check_call(['mkfs', '-t', fstype, blk_device])
 
 
 def place_data_on_block_device(blk_device, data_src_dst):

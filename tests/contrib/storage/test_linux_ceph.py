@@ -1,10 +1,17 @@
 from mock import patch, call
+
+from shutil import rmtree
+from tempfile import mkdtemp
+from threading import Timer
 from testtools import TestCase
 import json
 
 import charmhelpers.contrib.storage.linux.ceph as ceph_utils
 from subprocess import CalledProcessError
 from tests.helpers import patch_open
+import nose.plugins.attrib
+import os
+import time
 
 
 LS_POOLS = """
@@ -382,3 +389,68 @@ class CephUtilsTests(TestCase):
         self.service_stop.assert_called_with(_services[0])
         self.place_data_on_block_device.assert_called_with(_blk_dev, _mount)
         self.service_start.assert_called_with(_services[0])
+
+    def test_make_filesystem_default_filesystem(self):
+        '''make_filesystem() uses ext4 as the default filesystem.'''
+        device = '/dev/zero'
+        ceph_utils.make_filesystem(device)
+        self.check_call.assert_called_with(['mkfs', '-t', 'ext4', device])
+
+    def test_make_filesystem_no_device(self):
+        '''make_filesystem() raises an IOError if the device does not exist.'''
+        device = '/no/such/device'
+        e = self.assertRaises(IOError, ceph_utils.make_filesystem, device,
+                              timeout=0)
+        self.assertEquals(device, e.filename)
+        self.assertEquals(os.errno.ENOENT, e.errno)
+        self.assertEquals(os.strerror(os.errno.ENOENT), e.strerror)
+        self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
+                                    level='ERROR')
+
+    @nose.plugins.attrib.attr('slow')
+    def test_make_filesystem_timeout(self):
+        """
+        make_filesystem() allows to specify how long it should wait for the
+        device to appear before it fails.
+        """
+        device = '/no/such/device'
+        timeout = 2
+        before = time.time()
+        self.assertRaises(IOError, ceph_utils.make_filesystem, device,
+                          timeout=timeout)
+        after = time.time()
+        duration = after - before
+        self.assertTrue(timeout - duration < 0.1)
+        self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
+                                    level='ERROR')
+
+    @nose.plugins.attrib.attr('slow')
+    def test_device_is_formatted_if_it_appears(self):
+        """
+        The specified device is formatted if it appears before the timeout
+        is reached.
+        """
+        def create_my_device(filename):
+            with open(filename, "w") as device:
+                device.write("hello\n")
+        temp_dir = mkdtemp()
+        self.addCleanup(rmtree, temp_dir)
+        device = "%s/mydevice" % temp_dir
+        fstype = 'xfs'
+        timeout = 4
+        t = Timer(2, create_my_device, [device])
+        t.start()
+        ceph_utils.make_filesystem(device, fstype, timeout)
+        self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
+
+    def test_existing_device_is_formatted(self):
+        """
+        make_filesystem() formats the given device if it exists with the
+        specified filesystem.
+        """
+        device = '/dev/zero'
+        fstype = 'xfs'
+        ceph_utils.make_filesystem(device, fstype)
+        self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
+        self.log.assert_called_with('ceph: Formatting block device %s as '
+            'filesystem %s.' % (device, fstype), level='INFO')

@@ -89,7 +89,7 @@ def install_salt_support(from_ppa=True):
         subprocess.check_call(['/usr/bin/apt-get', 'update'])
     # We install salt-common as salt-minion would run the salt-minion
     # daemon.
-    charmhelpers.core.host.apt_install('salt-common')
+    charmhelpers.fetch.apt_install('salt-common')
 
 
 def update_machine_state(state_path):

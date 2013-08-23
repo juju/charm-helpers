@@ -1,11 +1,12 @@
 from collections import OrderedDict
+from contextlib import contextmanager
 import subprocess
+import io
 
 from mock import patch, call, MagicMock
 from testtools import TestCase
 
 from charmhelpers.core import host
-from tests.helpers import patch_open, mock_open
 
 
 MOUNT_LINES = ("""
@@ -17,16 +18,6 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
-FAKE_APT_CACHE = {
-    # an installed package
-    'vim': {
-        'current_ver': '2:7.3.547-6ubuntu5'
-    },
-    # a uninstalled installation candidate
-    'emacs': {
-    }
-}
-
 LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
@@ -34,20 +25,34 @@ DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
 
 
-def fake_apt_cache():
-    def _get(package):
-        pkg = MagicMock()
-        if package not in FAKE_APT_CACHE:
-            raise KeyError
-        pkg.name = package
-        if 'current_ver' in FAKE_APT_CACHE[package]:
-            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
+@contextmanager
+def patch_open():
+    '''Patch open() to allow mocking both open() itself and the file that is
+    yielded.
+
+    Yields the mock for "open" and "file", respectively.'''
+    mock_open = MagicMock(spec=open)
+    mock_file = MagicMock(spec=file)
+
+    @contextmanager
+    def stub_open(*args, **kwargs):
+        mock_open(*args, **kwargs)
+        yield mock_file
+
+    with patch('__builtin__.open', stub_open):
+        yield mock_open, mock_file
+
+
+@contextmanager
+def mock_open(filename, contents=None):
+    ''' Slightly simpler mock of open to return contents for filename '''
+    def mock_file(*args):
+        if args[0] == filename:
+            return io.StringIO(contents)
         else:
-            pkg.current_ver = None
-        return pkg
-    cache = MagicMock()
-    cache.__getitem__.side_effect = _get
-    return cache
+            return open(*args)
+    with patch('__builtin__.open', mock_file):
+        yield
 
 
 class HelpersTest(TestCase):
@@ -365,18 +370,18 @@ class HelpersTest(TestCase):
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
 
-        with patch_open() as (_open, _file):
-            _file.fileno.return_value = fileno
+        with patch_open() as (mock_open, mock_file):
+            mock_file.fileno.return_value = fileno
 
             host.write_file(path, contents, owner=owner, group=group,
                             perms=perms)
 
             getpwnam.assert_called_with('some-user-{foo}')
             getgrnam.assert_called_with('some-group-{bar}')
-            _open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            _file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with('what is {juju}')
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')
@@ -388,89 +393,15 @@ class HelpersTest(TestCase):
         perms = 0444
         fileno = 'some-fileno'
 
-        with patch_open() as (_open, _file):
-            _file.fileno.return_value = fileno
+        with patch_open() as (mock_open, mock_file):
+            mock_file.fileno.return_value = fileno
 
             host.write_file(path, fmtstr)
 
-            _open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'w')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            _file.write.assert_called_with('what is {juju}')
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages(self, log, mock_call):
-        packages = ['foo', 'bar']
-        options = ['--foo', '--bar']
-
-        host.apt_install(packages, options)
-
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo', 'bar'])
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_without_options(self, log, mock_call):
-        packages = ['foo', 'bar']
-
-        host.apt_install(packages)
-
-        mock_call.assert_called_with(['apt-get', '-y', 'install', 'foo',
-                                      'bar'])
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_as_string(self, log, mock_call):
-        packages = 'foo bar'
-        options = ['--foo', '--bar']
-
-        host.apt_install(packages, options)
-
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo bar'])
-
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_with_possible_errors(self, log, check_call):
-        packages = ['foo', 'bar']
-        options = ['--foo', '--bar']
-
-        host.apt_install(packages, options, fatal=True)
-
-        check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                       'install', 'foo', 'bar'])
-
-    @patch('subprocess.check_call')
-    def test_apt_update_fatal(self, check_call):
-        host.apt_update(fatal=True)
-        check_call.assert_called_with(['apt-get', 'update'])
-
-    @patch('subprocess.call')
-    def test_apt_update_nonfatal(self, call):
-        host.apt_update()
-        call.assert_called_with(['apt-get', 'update'])
-
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_missing(self, cache):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim', 'emacs'])
-        self.assertEquals(result, ['emacs'])
-
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_none_missing(self, cache):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim'])
-        self.assertEquals(result, [])
-
-    @patch.object(host, 'log')
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_not_available(self, cache, log):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim', 'joe'])
-        self.assertEquals(result, ['joe'])
-        log.assert_called_with('Package joe has no installation candidate.',
-                               level='WARNING')
+            mock_file.write.assert_called_with('what is {juju}')
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
@@ -536,8 +467,8 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['umount', '/mnt/guido'])
 
     def test_lists_the_mount_points(self):
-        with patch_open() as (_open, _file):
-            _file.readlines.return_value = MOUNT_LINES
+        with patch_open() as (mock_open, mock_file):
+            mock_file.readlines.return_value = MOUNT_LINES
             result = host.mounts()
 
             self.assertEqual(result, [
@@ -547,7 +478,7 @@ class HelpersTest(TestCase):
                 ['/dev', 'udev'],
                 ['/dev/pts', 'devpts']
             ])
-            _open.assert_called_with('/proc/mounts')
+            mock_open.assert_called_with('/proc/mounts')
 
     _hash_files = {
         '/etc/exists.conf': 'lots of nice ceph configuration',
@@ -561,8 +492,8 @@ class HelpersTest(TestCase):
         exists.side_effect = [True]
         m = md5()
         m.hexdigest.return_value = self._hash_files[filename]
-        with patch_open() as (_open, _file):
-            _file.read.return_value = self._hash_files[filename]
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.return_value = self._hash_files[filename]
             result = host.file_hash(filename)
             self.assertEqual(result, self._hash_files[filename])
 
@@ -570,8 +501,8 @@ class HelpersTest(TestCase):
     def test_file_hash_missing(self, exists):
         filename = '/etc/missing.conf'
         exists.side_effect = [False]
-        with patch_open() as (_open, _file):
-            _file.read.return_value = self._hash_files[filename]
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.return_value = self._hash_files[filename]
             result = host.file_hash(filename)
             self.assertEqual(result, None)
 
@@ -581,7 +512,7 @@ class HelpersTest(TestCase):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
-            }
+        }
         exists.side_effect = [False, False]
 
         @host.restart_on_change(restart_map)
@@ -602,15 +533,15 @@ class HelpersTest(TestCase):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
-            }
+        }
         exists.side_effect = [False, True]
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
             mock_file.read.return_value = "newstuff"
 
-        with patch_open() as (_open, _file):
-            make_some_changes(_file)
+        with patch_open() as (mock_open, mock_file):
+            make_some_changes(mock_file)
 
         for service_name in restart_map[file_name]:
             service.assert_called_with('restart', service_name)
@@ -627,15 +558,15 @@ class HelpersTest(TestCase):
         restart_map = {
             file_name_one: ['test-service'],
             file_name_two: ['test-service', 'test-service2']
-            }
+        }
         exists.side_effect = [False, True, True, True]
 
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
 
-        with patch_open() as (_open, _file):
-            _file.read.side_effect = ['exists', 'missing', 'exists2']
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
             make_some_changes()
 
         # Restart should only happen once per service
@@ -661,8 +592,8 @@ class HelpersTest(TestCase):
         def make_some_changes():
             pass
 
-        with patch_open() as (_open, _file):
-            _file.read.side_effect = ['exists', 'missing', 'exists2']
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
