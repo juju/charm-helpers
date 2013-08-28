@@ -70,4 +70,10 @@ def generate_selfsigned(keyfile, certfile, keysize="1024", config=None, subject=
         hookenv.log("No config, subject or cn provided," \
                 "unable to generate self signed SSL certificates")
         return False
-    subprocess.check_call(cmd)
+    try:
+        subprocess.check_call(cmd)
+        return True
+    except Exception as e:
+        print "Execution of openssl command failed:\n{}".format(e)
+        return False
+
