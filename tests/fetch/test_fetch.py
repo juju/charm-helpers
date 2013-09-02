@@ -94,10 +94,41 @@ class FetchTest(TestCase):
 
     @patch.object(fetch, 'filter_installed_packages')
     @patch.object(fetch, 'apt_install')
-    def test_add_source_cloud(self, apt_install, filter_pkg):
+    def test_add_source_cloud_invalid_pocket(self, apt_install, filter_pkg):
         source = "cloud:havana-updates"
+        self.assertRaises(KeyError, fetch.add_source, source)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    def test_add_source_cloud_pocket_style(self, apt_install, filter_pkg):
+        source = "cloud:precise-updates/havana"
         result = '''# Ubuntu Cloud Archive
-deb http://ubuntu-cloud.archive.canonical.com/ubuntu havana-updates main
+deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/havana main
+'''
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    def test_add_source_cloud_os_style(self, apt_install, filter_pkg):
+        source = "cloud:precise-havana"
+        result = '''# Ubuntu Cloud Archive
+deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/havana main
+'''
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    def test_add_source_cloud_distroless_style(self, apt_install, filter_pkg):
+        source = "cloud:havana"
+        result = '''# Ubuntu Cloud Archive
+deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/havana main
 '''
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)

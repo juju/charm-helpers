@@ -20,6 +20,29 @@ deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
 PROPOSED_POCKET = """# Proposed
 deb http://archive.ubuntu.com/ubuntu {}-proposed main universe multiverse restricted
 """
+CLOUD_ARCHIVE_POCKETS = {
+    # Folsom
+    'folsom': 'precise-updates/folsom',
+    'precise-folsom': 'precise-updates/folsom',
+    'precise-folsom/updates': 'precise-updates/folsom',
+    'precise-updates/folsom': 'precise-updates/folsom',
+    'precise-folsom/proposed': 'precise-proposed/folsom',
+    'precise-proposed/folsom': 'precise-proposed/folsom',
+    # Grizzly
+    'grizzly': 'precise-updates/grizzly',
+    'precise-grizzly': 'precise-updates/grizzly',
+    'precise-grizzly/updates': 'precise-updates/grizzly',
+    'precise-updates/grizzly': 'precise-updates/grizzly',
+    'precise-grizzly/proposed': 'precise-proposed/grizzly',
+    'precise-proposed/grizzly': 'precise-proposed/grizzly',
+    # Havana
+    'havana': 'precise-updates/havana',
+    'precise-havana': 'precise-updates/havana',
+    'precise-havana/updates': 'precise-updates/havana',
+    'precise-updates/havana': 'precise-updates/havana',
+    'precies-havana/proposed': 'precise-proposed/havana',
+    'precise-proposed/havana': 'precise-proposed/havana',
+}
 
 
 def filter_installed_packages(packages):
@@ -87,8 +110,9 @@ def add_source(source, key=None):
         apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
                     fatal=True)
         pocket = source.split(':')[-1]
+        actual_pocket = CLOUD_ARCHIVE_POCKETS[pocket]
         with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
-            apt.write(CLOUD_ARCHIVE.format(pocket))
+            apt.write(CLOUD_ARCHIVE.format(actual_pocket))
     elif source == 'proposed':
         release = lsb_release()['DISTRIB_CODENAME']
         with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
