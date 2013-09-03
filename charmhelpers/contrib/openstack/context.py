@@ -190,15 +190,18 @@ class CephContext(OSContextGenerator):
         log('Generating tmeplate context for ceph')
         mon_hosts = []
         auth = None
+        key = None
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
                 mon_hosts.append(relation_get('private-address', rid=rid,
                                               unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
+                key = relation_get('key', rid=rid, unit=unit)
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
             'auth': auth,
+            'key': key,
         }
         if not context_complete(ctxt):
             return {}
