@@ -187,7 +187,7 @@ class CephContext(OSContextGenerator):
         '''This generates context for /etc/ceph/ceph.conf templates'''
         if not relation_ids('ceph'):
             return {}
-        log('Generating tmeplate context for ceph')
+        log('Generating template context for ceph')
         mon_hosts = []
         auth = None
         key = None
@@ -203,11 +203,12 @@ class CephContext(OSContextGenerator):
             'auth': auth,
             'key': key,
         }
-        if not context_complete(ctxt):
-            return {}
 
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
+
+        if not context_complete(ctxt):
+            return {}
 
         ensure_packages(['ceph-common'])
 
