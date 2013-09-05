@@ -1,12 +1,13 @@
 #!/usr/bin/python
 
 # Common python helper functions used for OpenStack charms.
-
+import pdb;
 from collections import OrderedDict
 
 import apt_pkg as apt
 import subprocess
 import os
+import socket
 import sys
 
 from charmhelpers.core.hookenv import (
@@ -290,3 +291,34 @@ def openstack_upgrade_available(package):
     available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
+
+
+def is_ip(address):
+    """
+    Returns True if address is a valid IP address.
+    """
+    try:
+        # Test to see if already an IPv4 address
+        socket.inet_aton(address)
+        return True
+    except socket.error:
+        return False
+
+
+def get_host_ip(hostname):
+    """
+    Resolves the IP for a given hostname, or returns
+    the input if it is already an IP.
+    """
+    try:
+        import dns.resolver.query
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.resolver.query
+
+    if is_ip(hostname):
+        return hostname
+    answers = dns.resolver.query(hostname, 'A')
+    if answers:
+        return answers[0].address
+    return None

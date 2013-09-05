@@ -346,7 +346,6 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         self.assertEquals(result, {})
         self.assertFalse(ensure_packages.called)
-        self.assertFalse(mkdir.called)
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')

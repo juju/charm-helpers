@@ -71,6 +71,25 @@ UCA_SOURCES = [
 ]
 
 
+# Mock python-dnspython resolver used by get_host_ip()
+class FakeAnswer(object):
+    def __init__(self, ip):
+        self.address = ip
+
+
+class FakeResolver(object):
+    def __init__(self, ip):
+        self.ip = ip
+
+    def query(self, hostname, query_type):
+        return [FakeAnswer(self.ip)]
+
+
+class FakeDNS(object):
+    def __init__(self, ip):
+        self.resolver = FakeResolver(ip)
+
+
 class OpenStackHelpersTestCase(TestCase):
     def _apt_cache(self):
         # mocks out the apt cache
@@ -427,6 +446,24 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to majro release detection
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
+
+    def test_is_ip(self):
+        self.assertTrue(openstack.is_ip('10.0.0.1'))
+        self.assertFalse(openstack.is_ip('www.ubuntu.com'))
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_host_ip_with_hostname(self, apt_install):
+        fake_dns = FakeDNS('10.0.0.1')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            ip = openstack.get_host_ip('www.ubuntu.com')
+        self.assertEquals(ip, '10.0.0.1')
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_host_ip_with_ip(self, apt_install):
+        fake_dns = FakeDNS('5.5.5.5')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            ip = openstack.get_host_ip('4.2.2.1')
+        self.assertEquals(ip, '4.2.2.1')
 
 
 if __name__ == '__main__':
