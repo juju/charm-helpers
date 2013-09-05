@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 # Common python helper functions used for OpenStack charms.
-import pdb;
 from collections import OrderedDict
 
 import apt_pkg as apt
