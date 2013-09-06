@@ -316,7 +316,6 @@ def ns_query(address):
     elif isinstance(address, basestring):
         rtype = 'A'
 
-    print 'xxx %s' % rtype
     answers = dns.resolver.query(address, rtype)
     if answers:
         return str(answers[0])
@@ -349,7 +348,6 @@ def get_hostname(address):
         import dns.reversename
 
     rev = dns.reversename.from_address(address)
-    print rev
     result = ns_query(rev)
     if not result:
         return None
