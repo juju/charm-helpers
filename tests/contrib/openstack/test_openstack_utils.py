@@ -74,7 +74,10 @@ UCA_SOURCES = [
 # Mock python-dnspython resolver used by get_host_ip()
 class FakeAnswer(object):
     def __init__(self, ip):
-        self.address = ip
+        self.ip = ip
+
+    def __str__(self):
+        return self.ip
 
 
 class FakeResolver(object):
@@ -85,9 +88,17 @@ class FakeResolver(object):
         return [FakeAnswer(self.ip)]
 
 
+class FakeReverse(object):
+    def from_address(self, address):
+        return '156.94.189.91.in-addr.arpa'
+
+
 class FakeDNS(object):
     def __init__(self, ip):
         self.resolver = FakeResolver(ip)
+        self.reversename = FakeReverse()
+        self.name = MagicMock()
+        self.name.Name = basestring
 
 
 class OpenStackHelpersTestCase(TestCase):
@@ -465,6 +476,19 @@ class OpenStackHelpersTestCase(TestCase):
             ip = openstack.get_host_ip('4.2.2.1')
         self.assertEquals(ip, '4.2.2.1')
 
+    @patch.object(openstack, 'apt_install')
+    def test_get_hostname_with_ip(self, apt_install):
+        fake_dns = FakeDNS('www.ubuntu.com')
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            hn = openstack.get_hostname('4.2.2.1')
+        self.assertEquals(hn, 'www.ubuntu.com')
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_hostname_with_hostname(self, apt_install):
+        fake_dns = FakeDNS('5.5.5.5')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            hn = openstack.get_hostname('www.ubuntu.com')
+        self.assertEquals(hn, 'www.ubuntu.com')
 
 if __name__ == '__main__':
     unittest.main()

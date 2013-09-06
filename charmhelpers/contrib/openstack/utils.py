@@ -304,20 +304,57 @@ def is_ip(address):
         return False
 
 
-def get_host_ip(hostname):
-    """
-    Resolves the IP for a given hostname, or returns
-    the input if it is already an IP.
-    """
+def ns_query(address):
     try:
         import dns.resolver
     except ImportError:
         apt_install('python-dnspython')
         import dns.resolver
 
+    if isinstance(address, dns.name.Name):
+        rtype = 'PTR'
+    elif isinstance(address, basestring):
+        rtype = 'A'
+
+    print 'xxx %s' % rtype
+    answers = dns.resolver.query(address, rtype)
+    if answers:
+        return str(answers[0])
+    return None
+
+
+def get_host_ip(hostname):
+    """
+    Resolves the IP for a given hostname, or returns
+    the input if it is already an IP.
+    """
     if is_ip(hostname):
         return hostname
-    answers = dns.resolver.query(hostname, 'A')
-    if answers:
-        return answers[0].address
-    return None
+
+    return ns_query(hostname)
+
+
+def get_hostname(address):
+    """
+    Resolves hostname for given IP, or returns the input
+    if it is already a hostname.
+    """
+    if not is_ip(address):
+        return address
+
+    try:
+        import dns.reversename
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.reversename
+
+    rev = dns.reversename.from_address(address)
+    print rev
+    result = ns_query(rev)
+    if not result:
+        return None
+
+    # strip trailing .
+    if result.endswith('.'):
+        return result[:-1]
+    return result
