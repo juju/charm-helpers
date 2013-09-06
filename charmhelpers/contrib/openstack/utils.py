@@ -310,10 +310,10 @@ def get_host_ip(hostname):
     the input if it is already an IP.
     """
     try:
-        import dns.resolver.query
+        import dns.resolver
     except ImportError:
         apt_install('python-dnspython')
-        import dns.resolver.query
+        import dns.resolver
 
     if is_ip(hostname):
         return hostname
