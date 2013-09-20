@@ -109,6 +109,18 @@ AMQP_RELATION = {
     'vip': '10.0.0.1',
 }
 
+AMQP_AA_RELATION = {
+    'amqp:0': {
+        'rabbitmq/0': {
+            'private-address': 'rabbithost1',
+            'password': 'foobar',
+        },
+        'rabbitmq/1': {
+            'private-address': 'rabbithost2',
+        }
+    }
+}
+
 AMQP_CONFIG = {
     'rabbit-user': 'adam',
     'rabbit-vhost': 'foo',
@@ -261,12 +273,12 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = AMQP_CONFIG
         amqp = context.AMQPContext()
         result = amqp()
-
         expected = {
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo'
+            'rabbitmq_virtual_host': 'foo',
+            'rabbitmq_hosts': ['rabbithost'],
         }
         self.assertEquals(result, expected)
 
@@ -279,12 +291,32 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = AMQP_CONFIG
         amqp = context.AMQPContext()
         result = amqp()
-
         expected = {
+            'clustered': True,
             'rabbitmq_host': relation_data['vip'],
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo'
+            'rabbitmq_virtual_host': 'foo',
+            'rabbitmq_hosts': ['rabbithost'],
+        }
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_data_active_active(self):
+        '''Test amqp context with required data with active/active rabbit'''
+        relation_data = copy(AMQP_AA_RELATION)
+        relation = FakeRelation(relation_data=relation_data)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        self.config.return_value = AMQP_CONFIG
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost1',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'rabbitmq_hosts': ['rabbithost2', 'rabbithost1'],
         }
         self.assertEquals(result, expected)
 

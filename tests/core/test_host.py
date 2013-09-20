@@ -18,37 +18,11 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
-FAKE_APT_CACHE = {
-    # an installed package
-    'vim': {
-        'current_ver': '2:7.3.547-6ubuntu5'
-    },
-    # a uninstalled installation candidate
-    'emacs': {
-    }
-}
-
 LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
-
-
-def fake_apt_cache():
-    def _get(package):
-        pkg = MagicMock()
-        if package not in FAKE_APT_CACHE:
-            raise KeyError
-        pkg.name = package
-        if 'current_ver' in FAKE_APT_CACHE[package]:
-            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
-        else:
-            pkg.current_ver = None
-        return pkg
-    cache = MagicMock()
-    cache.__getitem__.side_effect = _get
-    return cache
 
 
 @contextmanager
@@ -107,21 +81,24 @@ class HelpersTest(TestCase):
     @patch.object(host, 'service')
     def test_starts_a_service(self, service):
         service_name = 'foo-service'
-        host.service_start(service_name)
+        service.side_effect = [True]
+        self.assertTrue(host.service_start(service_name))
 
         service.assert_called_with('start', service_name)
 
     @patch.object(host, 'service')
     def test_stops_a_service(self, service):
         service_name = 'foo-service'
-        host.service_stop(service_name)
+        service.side_effect = [True]
+        self.assertTrue(host.service_stop(service_name))
 
         service.assert_called_with('stop', service_name)
 
     @patch.object(host, 'service')
     def test_restarts_a_service(self, service):
         service_name = 'foo-service'
-        host.service_restart(service_name)
+        service.side_effect = [True]
+        self.assertTrue(host.service_restart(service_name))
 
         service.assert_called_with('restart', service_name)
 
@@ -129,7 +106,7 @@ class HelpersTest(TestCase):
     def test_reloads_a_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [True]
-        host.service_reload(service_name)
+        self.assertTrue(host.service_reload(service_name))
 
         service.assert_called_with('reload', service_name)
 
@@ -137,7 +114,8 @@ class HelpersTest(TestCase):
     def test_failed_reload_restarts_a_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [False, True]
-        host.service_reload(service_name, restart_on_failure=True)
+        self.assertTrue(
+            host.service_reload(service_name, restart_on_failure=True))
 
         service.assert_has_calls([
             call('reload', service_name),
@@ -148,9 +126,54 @@ class HelpersTest(TestCase):
     def test_failed_reload_without_restart(self, service):
         service_name = 'foo-service'
         service.side_effect = [False]
-        host.service_reload(service_name)
+        self.assertFalse(host.service_reload(service_name))
 
         service.assert_called_with('reload', service_name)
+
+
+    @patch.object(host, 'service')
+    def test_start_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_start(service_name))
+
+        service.assert_called_with('start', service_name)
+
+    @patch.object(host, 'service')
+    def test_stop_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_stop(service_name))
+
+        service.assert_called_with('stop', service_name)
+
+    @patch.object(host, 'service')
+    def test_restart_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_restart(service_name))
+
+        service.assert_called_with('restart', service_name)
+
+    @patch.object(host, 'service')
+    def test_reload_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False]
+        self.assertFalse(host.service_reload(service_name))
+
+        service.assert_called_with('reload', service_name)
+
+    @patch.object(host, 'service')
+    def test_failed_reload_restarts_a_service_fails(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [False, False]
+        self.assertFalse(
+            host.service_reload(service_name, restart_on_failure=True))
+
+        service.assert_has_calls([
+            call('reload', service_name),
+            call('restart', service_name)
+        ])
 
     @patch('subprocess.check_output')
     def test_service_running_on_stopped_service(self, check_output):
@@ -429,80 +452,6 @@ class HelpersTest(TestCase):
             os_.fchmod.assert_called_with(fileno, perms)
             mock_file.write.assert_called_with('what is {juju}')
 
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages(self, log, mock_call):
-        packages = ['foo', 'bar']
-        options = ['--foo', '--bar']
-
-        host.apt_install(packages, options)
-
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo', 'bar'])
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_without_options(self, log, mock_call):
-        packages = ['foo', 'bar']
-
-        host.apt_install(packages)
-
-        mock_call.assert_called_with(['apt-get', '-y', 'install', 'foo',
-                                      'bar'])
-
-    @patch('subprocess.call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_as_string(self, log, mock_call):
-        packages = 'foo bar'
-        options = ['--foo', '--bar']
-
-        host.apt_install(packages, options)
-
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo bar'])
-
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_installs_apt_packages_with_possible_errors(self, log, check_call):
-        packages = ['foo', 'bar']
-        options = ['--foo', '--bar']
-
-        host.apt_install(packages, options, fatal=True)
-
-        check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                       'install', 'foo', 'bar'])
-
-    @patch('subprocess.check_call')
-    def test_apt_update_fatal(self, check_call):
-        host.apt_update(fatal=True)
-        check_call.assert_called_with(['apt-get', 'update'])
-
-    @patch('subprocess.call')
-    def test_apt_update_nonfatal(self, call):
-        host.apt_update()
-        call.assert_called_with(['apt-get', 'update'])
-
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_missing(self, cache):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim', 'emacs'])
-        self.assertEquals(result, ['emacs'])
-
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_none_missing(self, cache):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim'])
-        self.assertEquals(result, [])
-
-    @patch.object(host, 'log')
-    @patch('apt_pkg.Cache')
-    def test_filter_packages_not_available(self, cache, log):
-        cache.side_effect = fake_apt_cache
-        result = host.filter_installed_packages(['vim', 'joe'])
-        self.assertEquals(result, ['joe'])
-        log.assert_called_with('Package joe has no installation candidate.',
-                               level='WARNING')
-
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_mounts_a_device(self, log, check_output):
@@ -612,7 +561,7 @@ class HelpersTest(TestCase):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
-            }
+        }
         exists.side_effect = [False, False]
 
         @host.restart_on_change(restart_map)
@@ -633,7 +582,7 @@ class HelpersTest(TestCase):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
-            }
+        }
         exists.side_effect = [False, True]
 
         @host.restart_on_change(restart_map)
@@ -658,7 +607,7 @@ class HelpersTest(TestCase):
         restart_map = {
             file_name_one: ['test-service'],
             file_name_two: ['test-service', 'test-service2']
-            }
+        }
         exists.side_effect = [False, True, True, True]
 
         @host.restart_on_change(restart_map)

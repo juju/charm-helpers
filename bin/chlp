@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+
+from charmhelpers.cli import cmdline
+from charmhelpers.cli.commands import *
+
+if __name__ == '__main__':
+    cmdline.run()

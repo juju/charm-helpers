@@ -21,8 +21,8 @@ class InstallSaltSupportTestCase(unittest.TestCase):
         self.mock_subprocess = patcher.start()
         self.addCleanup(patcher.stop)
 
-        patcher = mock.patch('charmhelpers.core')
-        self.mock_charmhelpers_core = patcher.start()
+        patcher = mock.patch('charmhelpers.fetch')
+        self.mock_charmhelpers_fetch = patcher.start()
         self.addCleanup(patcher.stop)
 
     def test_adds_ppa_by_default(self):
@@ -35,7 +35,7 @@ class InstallSaltSupportTestCase(unittest.TestCase):
         self.assertEqual(self.mock_subprocess.check_call.call_count, 2)
         self.assertEqual(
             expected_calls, self.mock_subprocess.check_call.call_args_list)
-        self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
+        self.mock_charmhelpers_fetch.apt_install.assert_called_once_with(
             'salt-common')
 
     def test_no_ppa(self):
@@ -43,7 +43,7 @@ class InstallSaltSupportTestCase(unittest.TestCase):
             from_ppa=False)
 
         self.assertEqual(self.mock_subprocess.check_call.call_count, 0)
-        self.mock_charmhelpers_core.host.apt_install.assert_called_once_with(
+        self.mock_charmhelpers_fetch.apt_install.assert_called_once_with(
             'salt-common')
 
 

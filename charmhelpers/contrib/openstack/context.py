@@ -7,7 +7,7 @@ from subprocess import (
 )
 
 
-from charmhelpers.core.host import (
+from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
 )
@@ -170,12 +170,12 @@ class AMQPContext(OSContextGenerator):
                 else:
                     ctxt['rabbitmq_host'] = relation_get('private-address',
                                                          rid=rid, unit=unit)
-                ctxt = {
+                ctxt.update({
                     'rabbitmq_user': username,
                     'rabbitmq_password': relation_get('password', rid=rid,
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
-                }
+                })
                 if context_complete(ctxt):
                     # Sufficient information found = break out!
                     break
