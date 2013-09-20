@@ -110,9 +110,9 @@ class SharedDBContext(OSContextGenerator):
                     'database_user': self.user,
                     'database_password': passwd,
                 }
-        if not context_complete(ctxt):
-            return {}
-        return ctxt
+                if context_complete(ctxt):
+                    return ctxt
+        return {}
 
 
 class IdentityServiceContext(OSContextGenerator):
@@ -141,9 +141,9 @@ class IdentityServiceContext(OSContextGenerator):
                     'service_protocol': 'http',
                     'auth_protocol': 'http',
                 }
-        if not context_complete(ctxt):
-            return {}
-        return ctxt
+                if context_complete(ctxt):
+                    return ctxt
+        return {}
 
 
 class AMQPContext(OSContextGenerator):
@@ -164,20 +164,30 @@ class AMQPContext(OSContextGenerator):
         for rid in relation_ids('amqp'):
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
-                    rabbitmq_host = relation_get('vip', rid=rid, unit=unit)
+                    ctxt['clustered'] = True
+                    ctxt['rabbitmq_host'] = relation_get('vip', rid=rid,
+                                                         unit=unit)
                 else:
-                    rabbitmq_host = relation_get('private-address',
-                                                 rid=rid, unit=unit)
+                    ctxt['rabbitmq_host'] = relation_get('private-address',
+                                                         rid=rid, unit=unit)
                 ctxt = {
-                    'rabbitmq_host': rabbitmq_host,
                     'rabbitmq_user': username,
                     'rabbitmq_password': relation_get('password', rid=rid,
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
                 }
+                if context_complete(ctxt):
+                    # Sufficient information found = break out!
+                    break
+            # Used for active/active rabbitmq >= grizzly
+            ctxt['rabbitmq_hosts'] = []
+            for unit in related_units(rid):
+                ctxt['rabbitmq_hosts'].append(relation_get('private-address',
+                                                           rid=rid, unit=unit))
         if not context_complete(ctxt):
             return {}
-        return ctxt
+        else:
+            return ctxt
 
 
 class CephContext(OSContextGenerator):
