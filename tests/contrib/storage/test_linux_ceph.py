@@ -460,3 +460,43 @@ class CephUtilsTests(TestCase):
             'ceph: Formatting block device %s as '
             'filesystem %s.' % (device, fstype), level='INFO'
         )
+
+    @patch.object(ceph_utils, 'relation_ids')
+    @patch.object(ceph_utils, 'related_units')
+    @patch.object(ceph_utils, 'relation_get')
+    def test_ensure_ceph_keyring_no_relation_no_data(self, rget, runits, rids):
+        rids.return_value = []
+        self.assertEquals(False, ceph_utils.ensure_ceph_keyring(service='foo'))
+        rids.return_value = ['ceph:0']
+        runits.return_value = ['ceph/0']
+        rget.return_value = ''
+        self.assertEquals(False, ceph_utils.ensure_ceph_keyring(service='foo'))
+
+    @patch.object(ceph_utils, '_keyring_path')
+    @patch.object(ceph_utils, 'create_keyring')
+    @patch.object(ceph_utils, 'relation_ids')
+    @patch.object(ceph_utils, 'related_units')
+    @patch.object(ceph_utils, 'relation_get')
+    def test_ensure_ceph_keyring_with_data(self, rget, runits,
+                                           rids, create, _path):
+        rids.return_value = ['ceph:0']
+        runits.return_value = ['ceph/0']
+        rget.return_value = 'fookey'
+        self.assertEquals(True,
+                          ceph_utils.ensure_ceph_keyring(service='foo'))
+        create.assert_called_with(service='foo', key='fookey')
+        _path.assert_called_with('foo')
+        self.assertFalse(self.check_call.called)
+
+        _path.return_value = '/etc/ceph/client.foo.keyring'
+        self.assertEquals(
+            True,
+            ceph_utils.ensure_ceph_keyring(
+                service='foo', user='adam', group='users'))
+        create.assert_called_with(service='foo', key='fookey')
+        _path.assert_called_with('foo')
+        self.check_call.assert_called_with([
+            'chown',
+            'adam.users',
+            '/etc/ceph/client.foo.keyring'
+        ])

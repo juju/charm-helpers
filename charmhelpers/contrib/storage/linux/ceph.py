@@ -334,3 +334,19 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
             log('ceph: Starting service {} after migrating data.'
                 .format(svc))
             service_start(svc)
+
+
+def ensure_ceph_keyring(service, user=None, group=None):
+    key = None
+    for rid in relation_ids('ceph'):
+        for unit in related_units(rid):
+            key = relation_get('key', rid=rid, unit=unit)
+            if key:
+                break
+    if not key:
+        return False
+    create_keyring(service=service, key=key)
+    keyring = _keyring_path(service)
+    if user and group:
+        check_call(['chown', '%s.%s' % (user, group), keyring])
+    return True
