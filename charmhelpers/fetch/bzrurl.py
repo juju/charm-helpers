@@ -1,11 +1,16 @@
 import os
-from bzrlib.branch import Branch
 from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource
 )
 from charmhelpers.core.host import mkdir
 
+try:
+    from bzrlib.branch import Branch
+except ImportError:
+    from charmhelpers.fetch import apt_install
+    apt_install("python-bzrlib")
+    from bzrlib.branch import Branch
 
 class BzrUrlFetchHandler(BaseFetchHandler):
     """Handler for bazaar branches via generic and lp URLs"""

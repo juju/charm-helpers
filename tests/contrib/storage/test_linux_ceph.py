@@ -272,12 +272,16 @@ class CephUtilsTests(TestCase):
         self.assertTrue(ceph_utils.filesystem_mounted('/afs'))
         self.assertFalse(ceph_utils.filesystem_mounted('/zfs'))
 
-    def test_make_filesystem(self):
+    @patch('os.path.exists')
+    def test_make_filesystem(self, _exists):
+        _exists.return_value = True
         ceph_utils.make_filesystem('/dev/sdd')
         self.log.assert_called()
         self.check_call.assert_called_with(['mkfs', '-t', 'ext4', '/dev/sdd'])
 
-    def test_make_filesystem_xfs(self):
+    @patch('os.path.exists')
+    def test_make_filesystem_xfs(self, _exists):
+        _exists.return_value = True
         ceph_utils.make_filesystem('/dev/sdd', 'xfs')
         self.log.assert_called()
         self.check_call.assert_called_with(['mkfs', '-t', 'xfs', '/dev/sdd'])
