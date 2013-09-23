@@ -337,6 +337,12 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
 
 
 def ensure_ceph_keyring(service, user=None, group=None):
+    '''
+    Ensures a ceph keyring is created for a named service
+    and optionally ensures user and group ownership.
+
+    Returns False if no ceph key is available in relation state.
+    '''
     key = None
     for rid in relation_ids('ceph'):
         for unit in related_units(rid):
