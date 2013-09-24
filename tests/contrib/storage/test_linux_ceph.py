@@ -92,11 +92,11 @@ class CephUtilsTests(TestCase):
 
     def test_get_osds(self):
         self.check_output.return_value = json.dumps([1, 2, 3])
-        self.assertEquals(ceph_utils.get_osds(), [1, 2, 3])
+        self.assertEquals(ceph_utils.get_osds('test'), [1, 2, 3])
 
     def test_get_osds_none(self):
         self.check_output.return_value = json.dumps(None)
-        self.assertEquals(ceph_utils.get_osds(), None)
+        self.assertEquals(ceph_utils.get_osds('test'), None)
 
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
@@ -107,9 +107,9 @@ class CephUtilsTests(TestCase):
         ceph_utils.create_pool(service='cinder', name='foo')
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
-                  'create', 'foo', 150]),
-            call(['ceph', '--id', 'cinder', 'osd', 'set',
-                  'foo', 'size', 2])
+                  'create', 'foo', '150']),
+            call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
+                  'foo', 'size', '2'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -121,9 +121,9 @@ class CephUtilsTests(TestCase):
         ceph_utils.create_pool(service='cinder', name='foo', replicas=3)
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
-                  'create', 'foo', 100]),
-            call(['ceph', '--id', 'cinder', 'osd', 'set',
-                  'foo', 'size', 3])
+                  'create', 'foo', '100']),
+            call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
+                  'foo', 'size', '3'])
         ])
 
     def test_create_pool_already_exists(self):
