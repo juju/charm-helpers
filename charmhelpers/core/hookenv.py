@@ -21,7 +21,7 @@ cache = {}
 
 
 def cached(func):
-    ''' Cache return values for multiple executions of func + args
+    '''Cache return values for multiple executions of func + args
 
     For example:
 
@@ -46,7 +46,7 @@ def cached(func):
 
 
 def flush(key):
-    ''' Flushes any entries from function cache where the
+    '''Flushes any entries from function cache where the
     key is found in the function+args '''
     flush_list = []
     for item in cache:
@@ -163,6 +163,7 @@ def config(scope=None):
 
 @cached
 def relation_get(attribute=None, unit=None, rid=None):
+    "Get relation information"
     _args = ['relation-get', '--format=json']
     if rid:
         _args.append('-r')
@@ -177,6 +178,7 @@ def relation_get(attribute=None, unit=None, rid=None):
 
 
 def relation_set(relation_id=None, relation_settings={}, **kwargs):
+    "Set relation information for the current unit"
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
@@ -264,6 +266,7 @@ def relation_types():
 
 @cached
 def relations():
+    "Get a nested dictionary of relation data for all related units"
     rels = {}
     for reltype in relation_types():
         relids = {}
@@ -293,6 +296,7 @@ def close_port(port, protocol="TCP"):
 
 @cached
 def unit_get(attribute):
+    "Get the unit ID for the remote unit"
     _args = ['unit-get', '--format=json', attribute]
     try:
         return json.loads(subprocess.check_output(_args))
@@ -301,22 +305,46 @@ def unit_get(attribute):
 
 
 def unit_private_ip():
+    "Get this unit's private IP address"
     return unit_get('private-address')
 
 
 class UnregisteredHookError(Exception):
+    "Raised when an undefined hook is called"
     pass
 
 
 class Hooks(object):
+    """A convenient handler for hook functions.
+
+    Example:
+        hooks = Hooks()
+
+        # register a hook, taking its name from the function name
+        @hooks.hook()
+        def install():
+            ...
+
+        # register a hook, providing a custom hook name
+        @hooks.hook("config-changed")
+        def config_changed():
+            ...
+
+        if __name__ == "__main__":
+            # execute a hook based on the name the program is called by
+            hooks.execute(sys.argv)
+    """
+
     def __init__(self):
         super(Hooks, self).__init__()
         self._hooks = {}
 
     def register(self, name, function):
+        "Register a hook"
         self._hooks[name] = function
 
     def execute(self, args):
+        "Execute a registered hook based on args[0]"
         hook_name = os.path.basename(args[0])
         if hook_name in self._hooks:
             self._hooks[hook_name]()
@@ -324,6 +352,7 @@ class Hooks(object):
             raise UnregisteredHookError(hook_name)
 
     def hook(self, *hook_names):
+        "Decorator, registering them as hooks"
         def wrapper(decorated):
             for hook_name in hook_names:
                 self.register(hook_name, decorated)
@@ -337,4 +366,5 @@ class Hooks(object):
 
 
 def charm_dir():
+    "Return the root directory of the current charm"
     return os.environ.get('CHARM_DIR')
