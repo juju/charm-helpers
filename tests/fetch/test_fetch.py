@@ -96,7 +96,7 @@ class FetchTest(TestCase):
     @patch.object(fetch, 'apt_install')
     def test_add_source_cloud_invalid_pocket(self, apt_install, filter_pkg):
         source = "cloud:havana-updates"
-        self.assertRaises(KeyError, fetch.add_source, source)
+        self.assertRaises(fetch.SourceConfigError, fetch.add_source, source)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch.object(fetch, 'filter_installed_packages')
