@@ -547,14 +547,15 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(None, neutron.neutron_security_groups)
         self.assertEquals('quantum-plugin-package', neutron.packages)
 
+    @patch.object(context, 'neutron_plugin_attribute')
     @patch.object(context, 'apt_install')
     @patch.object(context, 'filter_installed_packages')
-    def test_neutron_ensure_package(self, _filter, _install):
+    def test_neutron_ensure_package(self, _filter, _install, _packages):
         '''Test neutron context installed required packages'''
         _filter.return_value = ['quantum-plugin-package']
+        _packages.return_value = [['quantum-plugin-package']]
         neutron = context.NeutronContext()
-        with patch.object(context.NeutronContext, 'packages'):
-            neutron._ensure_packages()
+        neutron._ensure_packages()
         _install.assert_called_with(['quantum-plugin-package'], fatal=True)
 
     @patch.object(context.NeutronContext, 'network_manager')

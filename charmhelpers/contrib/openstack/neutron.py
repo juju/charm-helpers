@@ -23,15 +23,15 @@ def quantum_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['quantum-plugin-openvswitch-agent'],
-            'packages': ['quantum-plugin-openvswitch-agent',
-                         'openvswitch-datapath-dkms'],
+            'packages': [['openvswitch-datapath-dkms'],
+                         ['quantum-plugin-openvswitch-agent']],
         },
         'nvp': {
             'config': '/etc/quantum/plugins/nicira/nvp.ini',
             'driver': 'quantum.plugins.nicira.nicira_nvp_plugin.'
                       'QuantumPlugin.NvpPluginV2',
             'services': [],
-            'packages': ['quantum-plugin-nicira'],
+            'packages': [],
         }
     }
 
@@ -49,15 +49,15 @@ def neutron_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['neutron-plugin-openvswitch-agent'],
-            'packages': ['neutron-plugin-openvswitch-agent',
-                         'openvswitch-datapath-dkms'],
+            'packages': [['openvswitch-datapath-dkms'],
+                         ['quantum-plugin-openvswitch-agent']],
         },
         'nvp': {
             'config': '/etc/neutron/plugins/nicira/nvp.ini',
             'driver': 'neutron.plugins.nicira.nicira_nvp_plugin.'
                       'NeutronPlugin.NvpPluginV2',
             'services': [],
-            'packages': ['neutron-plugin-nicira'],
+            'packages': [],
         }
     }
 

@@ -370,7 +370,7 @@ class NeutronContext(object):
         return None
 
     def _ensure_packages(self):
-        ensure_packages(self.packages)
+        [ensure_packages(pkgs) for pkgs in self.packages]
 
     def _save_flag_file(self):
         if self.network_manager == 'quantum':
