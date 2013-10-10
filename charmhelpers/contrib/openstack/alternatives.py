@@ -11,7 +11,6 @@ def install_alternative(name, target, source, priority=50):
         (os.path.isfile(target) or os.path.isdir(target))):
         # Move existing file/directory away before installing
         shutil.move(target, '{}.bak'.format(target))
-        os.unlink(target)
     cmd = [
         'update-alternatives', '--force', '--install',
         target, name, source, str(priority)

@@ -35,13 +35,11 @@ class AlternativesTestCase(TestCase):
              TARGET, NAME, SOURCE, '100']
         )
 
-    @patch('os.unlink')
     @patch('shutil.move')
     @patch('subprocess.os.path')
     @patch('subprocess.check_call')
     def test_new_alternative_existing_file(self, _check,
-                                           _path, _move,
-                                           _unlink):
+                                           _path, _move):
         _path.exists.return_value = True
         _path.isfile.return_value = True
         alternatives.install_alternative(NAME,
@@ -52,15 +50,12 @@ class AlternativesTestCase(TestCase):
              TARGET, NAME, SOURCE, '50']
         )
         _move.assert_called_with(TARGET, '{}.bak'.format(TARGET))
-        _unlink.assert_called_with(TARGET)
 
-    @patch('os.unlink')
     @patch('shutil.move')
     @patch('subprocess.os.path')
     @patch('subprocess.check_call')
     def test_new_alternative_existing_dir(self, _check,
-                                           _path, _move,
-                                           _unlink):
+                                           _path, _move):
         _path.exists.return_value = True
         _path.isfile.return_value = False
         _path.isdir.return_value = True
@@ -72,4 +67,3 @@ class AlternativesTestCase(TestCase):
              TARGET, NAME, SOURCE, '50']
         )
         _move.assert_called_with(TARGET, '{}.bak'.format(TARGET))
-        _unlink.assert_called_with(TARGET)
