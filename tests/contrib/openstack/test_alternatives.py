@@ -41,7 +41,7 @@ class AlternativesTestCase(TestCase):
     def test_new_alternative_existing_file(self, _check,
                                            _path, _move):
         _path.exists.return_value = True
-        _path.isfile.return_value = True
+        _path.islink.return_value = False
         alternatives.install_alternative(NAME,
                                          TARGET,
                                          SOURCE)
@@ -54,11 +54,10 @@ class AlternativesTestCase(TestCase):
     @patch('shutil.move')
     @patch('subprocess.os.path')
     @patch('subprocess.check_call')
-    def test_new_alternative_existing_dir(self, _check,
+    def test_new_alternative_existing_link(self, _check,
                                            _path, _move):
         _path.exists.return_value = True
-        _path.isfile.return_value = False
-        _path.isdir.return_value = True
+        _path.islink.return_value = True
         alternatives.install_alternative(NAME,
                                          TARGET,
                                          SOURCE)
@@ -66,4 +65,4 @@ class AlternativesTestCase(TestCase):
             ['update-alternatives', '--force', '--install',
              TARGET, NAME, SOURCE, '50']
         )
-        _move.assert_called_with(TARGET, '{}.bak'.format(TARGET))
+        _move.assert_not_called()

@@ -7,8 +7,7 @@ import os
 
 def install_alternative(name, target, source, priority=50):
     ''' Install alternative configuration '''
-    if (os.path.exists(target) and
-        (os.path.isfile(target) or os.path.isdir(target))):
+    if (os.path.exists(target) and not os.path.islink(target)):
         # Move existing file/directory away before installing
         shutil.move(target, '{}.bak'.format(target))
     cmd = [
