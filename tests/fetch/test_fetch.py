@@ -137,7 +137,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
     def test_configure_sources_single_source_no_key(self, add_source, config):
         config.side_effect = ['source', None]
         fetch.configure_sources()
-        add_source.assert_called_with('source', 'key')
+        add_source.assert_called_with('source', None)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')

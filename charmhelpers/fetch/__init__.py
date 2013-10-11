@@ -118,8 +118,11 @@ def configure_sources(update=False,
     Note that 'null' (a.k.a. None) should not be quoted.
     """
     sources = safe_load(config(sources_var))
-    keys = safe_load(config(keys_var))
-    if isinstance(sources, basestring) and isinstance(keys, basestring):
+    keys = config(keys_var)
+    if keys is not None:
+        keys = safe_load(keys)
+    if isinstance(sources, basestring) and (
+            keys is None or isinstance(keys, basestring)):
         add_source(sources, keys)
     else:
         if not len(sources) == len(keys):
