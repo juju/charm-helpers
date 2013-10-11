@@ -80,8 +80,9 @@ def apt_purge(packages, fatal=False):
 
 
 def add_source(source, key=None):
-    if ((source.startswith('ppa:') or
-         source.startswith('http:'))):
+    if (source.startswith('ppa:') or
+        source.startswith('http:') or
+        source.startswith('deb ')):
         subprocess.check_call(['add-apt-repository', '--yes', source])
     elif source.startswith('cloud:'):
         apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
