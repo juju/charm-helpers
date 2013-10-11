@@ -43,6 +43,11 @@ FAKE_REPO = {
         'os_release': 'havana',
         'os_version': '1.9.0'
     },
+    'swift-proxy': {
+        'pkg_vers': '1.10.0~rc1-0ubuntu1',
+        'os_release': 'havana',
+        'os_version': '1.10.0'
+    },
     # a package thats available in the cache but is not installed
     'cinder-common': {
         'os_release': 'havana',
