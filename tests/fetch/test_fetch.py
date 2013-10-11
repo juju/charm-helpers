@@ -134,6 +134,13 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
+    def test_configure_sources_single_source_no_key(self, add_source, config):
+        config.side_effect = ['source', None]
+        fetch.configure_sources()
+        add_source.assert_called_with('source', 'key')
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
     def test_configure_sources_multiple_sources(self, add_source, config):
         sources = ["sourcea", "sourceb"]
         keys = ["keya", None]
