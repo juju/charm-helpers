@@ -32,7 +32,7 @@ def quantum_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['quantum-plugin-openvswitch-agent'],
-            'packages': [['openvswitch-datapath-dkms', headers_package()],
+            'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
         },
         'nvp': {
@@ -58,7 +58,7 @@ def neutron_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['neutron-plugin-openvswitch-agent'],
-            'packages': [['openvswitch-datapath-dkms', headers_package()],
+            'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
         },
         'nvp': {
