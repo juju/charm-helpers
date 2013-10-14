@@ -1,3 +1,5 @@
+import yaml
+import json
 import unittest
 
 from mock import patch, MagicMock, call
@@ -141,6 +143,41 @@ CEPH_RELATION = {
     }
 }
 
+SUB_CONFIG = """
+nova:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key1, value1]
+                - [nova-key2, value2]
+glance:
+    /etc/glance/glance.conf:
+        sections:
+            DEFAULT:
+                - [glance-key1, value1]
+                - [glance-key2, value2]
+"""
+
+SUB_CONFIG_RELATION = {
+    'nova-subordinate:0': {
+        'nova-subordinate/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(SUB_CONFIG)),
+        },
+    },
+    'glance-subordinate:0': {
+        'glance-subordinate/0': {
+            'private-address': 'glance_node1',
+            'subordinate_configuration': json.dumps(yaml.load(SUB_CONFIG)),
+        },
+    },
+    'foo-subordinate:0': {
+        'foo-subordinate/0': {
+            'private-address': 'foo_node1',
+            'subordinate_configuration': 'ea8e09324jkadsfh',
+        },
+    }
+}
 
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
@@ -635,3 +672,47 @@ class ContextTests(unittest.TestCase):
                 'great_flag': 'w00t',
             }
         }, flags())
+
+    def test_os_subordinate_config_context(self):
+        relation = FakeRelation(relation_data=SUB_CONFIG_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        nova_sub_ctxt = context.SubordinateConfigContext(
+            service='nova',
+            config_file='/etc/nova/nova.conf',
+            interface='nova-subordinate',
+        )
+        glance_sub_ctxt = context.SubordinateConfigContext(
+            service='glance',
+            config_file='/etc/glance/glance.conf',
+            interface='glance-subordinate',
+        )
+        foo_sub_ctxt = context.SubordinateConfigContext(
+            service='foo',
+            config_file='/etc/foo/foo.conf',
+            interface='foo-subordinate',
+        )
+        self.assertEquals(
+            nova_sub_ctxt(),
+            {'sections': {
+                'DEFAULT': [
+                    ['nova-key1', 'value1'],
+                    ['nova-key2', 'value2']]
+                }}
+        )
+        self.assertEquals(
+            glance_sub_ctxt(),
+            {'sections': {
+                'DEFAULT': [
+                    ['glance-key1', 'value1'],
+                    ['glance-key2', 'value2']]
+                }}
+        )
+
+        # subrodinate supplies nothing for given config
+        glance_sub_ctxt.config_file = '/etc/glance/glance-api-paste.ini'
+        self.assertEquals(glance_sub_ctxt(), {'sections': {}})
+
+        # subordinate supplies bad input
+        self.assertEquals(foo_sub_ctxt(), {'sections': {}})
