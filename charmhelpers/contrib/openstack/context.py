@@ -385,12 +385,14 @@ class NeutronContext(object):
     def ovs_ctxt(self):
         driver = neutron_plugin_attribute(self.plugin, 'driver',
                                           self.network_manager)
-
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
         ovs_ctxt = {
             'core_plugin': driver,
             'neutron_plugin': 'ovs',
             'neutron_security_groups': self.neutron_security_groups,
             'local_ip': unit_private_ip(),
+            'config': config
         }
 
         return ovs_ctxt
@@ -398,12 +400,14 @@ class NeutronContext(object):
     def nvp_ctxt(self):
         driver = neutron_plugin_attribute(self.plugin, 'driver',
                                           self.network_manager)
-
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
         nvp_ctxt = {
             'core_plugin': driver,
             'neutron_plugin': 'nvp',
             'neutron_security_groups': self.neutron_security_groups,
             'local_ip': unit_private_ip(),
+            'config': config
         }
 
         return nvp_ctxt
