@@ -1,5 +1,7 @@
 # Various utilies for dealing with Neutron and the renaming from Quantum.
 
+from subprocess import check_output
+
 from charmhelpers.core.hookenv import (
     config,
     log,
@@ -7,6 +9,13 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.contrib.openstack.utils import os_release
+
+
+def headers_package():
+    """Ensures correct linux-headers for running kernel are installed,
+    for building DKMS package"""
+    kver = check_output(['uname', '-r']).strip()
+    return 'linux-headers-%s' % kver
 
 
 # legacy
@@ -23,7 +32,7 @@ def quantum_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['quantum-plugin-openvswitch-agent'],
-            'packages': [['openvswitch-datapath-dkms'],
+            'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
         },
         'nvp': {
@@ -49,7 +58,7 @@ def neutron_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['neutron-plugin-openvswitch-agent'],
-            'packages': [['openvswitch-datapath-dkms'],
+            'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
         },
         'nvp': {
@@ -76,7 +85,7 @@ def neutron_plugin_attribute(plugin, attr, net_manager=None):
         _plugin = plugins[plugin]
     except KeyError:
         log('Unrecognised plugin for %s: %s' % (manager, plugin), level=ERROR)
-        raise
+        raise Exception
 
     try:
         return _plugin[attr]
@@ -99,7 +108,7 @@ def network_manager():
     if release in ['essex']:
         # E does not support neutron
         log('Neutron networking not supported in Essex.', level=ERROR)
-        raise
+        raise Exception
     elif release in ['folsom', 'grizzly']:
         # neutron is named quantum in F and G
         return 'quantum'
