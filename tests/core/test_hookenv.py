@@ -513,7 +513,7 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.related_units')
     @patch('charmhelpers.core.hookenv.relation_get')
     def test_is_relation_made_multi_unit(self, relation_get, related_units,
-                              relation_ids):
+                                         relation_ids):
         relation_get.side_effect = [None, 'hostname']
         related_units.return_value = ['test/1', 'test/2']
         relation_ids.return_value = ['test:0']

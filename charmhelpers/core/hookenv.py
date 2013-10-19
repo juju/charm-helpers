@@ -280,14 +280,15 @@ def relations():
 @cached
 def is_relation_made(relation, key='private-address'):
     '''
-    Determine whether a relation is established by checking for 
-    presence of key.
+    Determine whether a relation is established by checking for
+    presence of key
     '''
     for r_id in relation_ids(relation):
         for unit in related_units(r_id):
             if relation_get(key, rid=r_id, unit=unit):
                 return True
     return False
+
 
 def open_port(port, protocol="TCP"):
     "Open a service network port"
