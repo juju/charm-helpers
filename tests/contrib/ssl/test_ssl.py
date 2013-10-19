@@ -1,6 +1,4 @@
-import subprocess
-
-from mock import patch, call, MagicMock
+from mock import patch
 from testtools import TestCase
 
 from charmhelpers.contrib import ssl
@@ -39,7 +37,6 @@ class HelpersTest(TestCase):
         result = ssl.generate_selfsigned("mykey.key", "mycert.crt", subject=subject)
         self.assertFalse(result)
 
-
     @patch('subprocess.check_call')
     def test_generate_selfsigned_file(self, mock_call):
         ssl.generate_selfsigned("mykey.key", "mycert.crt", config="test.cnf")
@@ -48,7 +45,6 @@ class HelpersTest(TestCase):
                                       '-nodes', '-x509', '-keyout',
                                       'mykey.key', '-out', 'mycert.crt',
                                       '-config', 'test.cnf'])
-
 
     @patch('subprocess.check_call')
     def test_generate_selfsigned_cn_key(self, mock_call):

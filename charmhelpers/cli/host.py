@@ -7,6 +7,7 @@ def mounts():
     "List mounts"
     return host.mounts()
 
+
 @cmdline.subcommand_builder('service', description="Control system services")
 def service(subparser):
     subparser.add_argument("action", help="The action to perform (start, stop, etc...)")

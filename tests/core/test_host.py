@@ -130,7 +130,6 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('reload', service_name)
 
-
     @patch.object(host, 'service')
     def test_start_a_service_fails(self, service):
         service_name = 'foo-service'

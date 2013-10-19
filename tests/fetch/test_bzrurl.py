@@ -41,7 +41,6 @@ class BzrUrlFetchHandlerTest(TestCase):
         )
         self.fh = bzrurl.BzrUrlFetchHandler()
 
-
     def test_handles_bzr_urls(self):
         for url in self.valid_urls:
             result = self.fh.can_handle(url)
@@ -49,7 +48,6 @@ class BzrUrlFetchHandlerTest(TestCase):
         for url in self.invalid_urls:
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
-
 
     @patch('bzrlib.branch.Branch.open')
     def test_branch(self, _open):
@@ -65,7 +63,6 @@ class BzrUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
 
-
     @patch('charmhelpers.fetch.bzrurl.mkdir')
     def test_installs(self, _mkdir):
         self.fh.branch = MagicMock()
@@ -77,4 +74,3 @@ class BzrUrlFetchHandlerTest(TestCase):
                 where = self.fh.install(url)
             self.assertEqual(where, dest)
             _mkdir.assert_called_with(where, perms=0755)
-
