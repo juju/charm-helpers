@@ -408,8 +408,8 @@ class CephUtilsTests(TestCase):
         self.assertEquals(device, e.filename)
         self.assertEquals(os.errno.ENOENT, e.errno)
         self.assertEquals(os.strerror(os.errno.ENOENT), e.strerror)
-        self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
-                                    level='ERROR')
+        self.log.assert_called_with(
+            'ceph: gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_make_filesystem_timeout(self):
@@ -425,8 +425,8 @@ class CephUtilsTests(TestCase):
         after = time.time()
         duration = after - before
         self.assertTrue(timeout - duration < 0.1)
-        self.log.assert_called_with('ceph: gave up waiting on block device %s' % device,
-                                    level='ERROR')
+        self.log.assert_called_with(
+            'ceph: gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_device_is_formatted_if_it_appears(self):
