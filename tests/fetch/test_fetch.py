@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from tests.helpers import patch_open
 from testtools import TestCase
 from mock import (
     patch,
@@ -34,24 +34,6 @@ def fake_apt_cache():
     cache = MagicMock()
     cache.__getitem__.side_effect = _get
     return cache
-
-
-@contextmanager
-def patch_open():
-    '''Patch open() to allow mocking both open() itself and the file that is
-    yielded.
-
-    Yields the mock for "open" and "file", respectively.'''
-    mock_open = MagicMock(spec=open)
-    mock_file = MagicMock(spec=file)
-
-    @contextmanager
-    def stub_open(*args, **kwargs):
-        mock_open(*args, **kwargs)
-        yield mock_file
-
-    with patch('__builtin__.open', stub_open):
-        yield mock_open, mock_file
 
 
 class FetchTest(TestCase):
