@@ -1,10 +1,10 @@
 from collections import OrderedDict
-from contextlib import contextmanager
 import subprocess
-import io
 
-from mock import patch, call, MagicMock
+from mock import patch, call
 from testtools import TestCase
+from tests.helpers import patch_open
+from tests.helpers import mock_open as mocked_open
 
 from charmhelpers.core import host
 
@@ -23,36 +23,6 @@ DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
-
-
-@contextmanager
-def patch_open():
-    '''Patch open() to allow mocking both open() itself and the file that is
-    yielded.
-
-    Yields the mock for "open" and "file", respectively.'''
-    mock_open = MagicMock(spec=open)
-    mock_file = MagicMock(spec=file)
-
-    @contextmanager
-    def stub_open(*args, **kwargs):
-        mock_open(*args, **kwargs)
-        yield mock_file
-
-    with patch('__builtin__.open', stub_open):
-        yield mock_open, mock_file
-
-
-@contextmanager
-def mock_open(filename, contents=None):
-    ''' Slightly simpler mock of open to return contents for filename '''
-    def mock_file(*args):
-        if args[0] == filename:
-            return io.StringIO(contents)
-        else:
-            return open(*args)
-    with patch('__builtin__.open', mock_file):
-        yield
 
 
 class HelpersTest(TestCase):
@@ -129,7 +99,6 @@ class HelpersTest(TestCase):
         self.assertFalse(host.service_reload(service_name))
 
         service.assert_called_with('reload', service_name)
-
 
     @patch.object(host, 'service')
     def test_start_a_service_fails(self, service):
@@ -661,7 +630,7 @@ class HelpersTest(TestCase):
             "DISTRIB_DESCRIPTION": "\"Ubuntu Saucy Salamander "
                                    "(development branch)\""
         }
-        with mock_open('/etc/lsb-release', LSB_RELEASE):
+        with mocked_open('/etc/lsb-release', LSB_RELEASE):
             lsb_release = host.lsb_release()
             for key in result:
                 print lsb_release
