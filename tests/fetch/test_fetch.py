@@ -334,16 +334,14 @@ class AptTests(TestCase):
         check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
                                        'install', 'foo', 'bar'])
 
-
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
     def test_purges_apt_packages_as_string_fatal(self, log, mock_call):
         packages = 'irrelevant names'
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True )
+        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
         log.assert_called()
-
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
@@ -351,9 +349,8 @@ class AptTests(TestCase):
         packages = ['irrelevant', 'names']
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True )
+        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
         log.assert_called()
-
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -364,7 +361,6 @@ class AptTests(TestCase):
 
         log.assert_called()
         mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo bar'])
-
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -377,6 +373,53 @@ class AptTests(TestCase):
         mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo',
                                       'bar'])
 
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_as_string_fatal(self, log, mock_call):
+        packages = 'irrelevant names'
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_fatal(self, log, mock_call):
+        packages = ['irrelevant', 'names']
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_as_string_nofatal(self, log, mock_call):
+        packages = 'foo bar'
+
+        fetch.apt_hold(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_nofatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_hold(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_nofatal_abortonfatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_hold(packages, fatal=True)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
 
     @patch('subprocess.check_call')
     def test_apt_update_fatal(self, check_call):
