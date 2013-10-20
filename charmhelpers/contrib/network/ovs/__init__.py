@@ -69,4 +69,7 @@ def get_certificate():
 
 def full_restart():
     ''' Full restart and reload of openvswitch '''
-    service('force-reload-kmod', 'openvswitch-switch')
+    if os.path.exists('/etc/init/openvswitch-force-reload-kmod.conf'):
+        service('start', 'openvswitch-force-reload-kmod')
+    else:
+        service('force-reload-kmod', 'openvswitch-switch')

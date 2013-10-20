@@ -180,7 +180,16 @@ class OVSHelpersTest(TestCase):
         self.assertIsNone(ovs.get_certificate())
         self.assertTrue(log.call_count == 1)
 
+    @patch('os.path.exists')
     @patch.object(ovs, 'service')
-    def test_full_restart(self, service):
+    def test_full_restart(self, service, exists):
+        exists.return_value = False
         ovs.full_restart()
         service.assert_called_with('force-reload-kmod', 'openvswitch-switch')
+
+    @patch('os.path.exists')
+    @patch.object(ovs, 'service')
+    def test_full_restart_upstart(self, service, exists):
+        exists.return_value = True
+        ovs.full_restart()
+        service.assert_called_with('start', 'openvswitch-force-reload-kmod')
