@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from tests.helpers import patch_open
 from testtools import TestCase
 from mock import (
     patch,
@@ -9,31 +9,61 @@ from urlparse import urlparse
 from charmhelpers import fetch
 import yaml
 
+FAKE_APT_CACHE = {
+    # an installed package
+    'vim': {
+        'current_ver': '2:7.3.547-6ubuntu5'
+    },
+    # a uninstalled installation candidate
+    'emacs': {
+    }
+}
 
-@contextmanager
-def patch_open():
-    '''Patch open() to allow mocking both open() itself and the file that is
-    yielded.
 
-    Yields the mock for "open" and "file", respectively.'''
-    mock_open = MagicMock(spec=open)
-    mock_file = MagicMock(spec=file)
-
-    @contextmanager
-    def stub_open(*args, **kwargs):
-        mock_open(*args, **kwargs)
-        yield mock_file
-
-    with patch('__builtin__.open', stub_open):
-        yield mock_open, mock_file
+def fake_apt_cache():
+    def _get(package):
+        pkg = MagicMock()
+        if package not in FAKE_APT_CACHE:
+            raise KeyError
+        pkg.name = package
+        if 'current_ver' in FAKE_APT_CACHE[package]:
+            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
+        else:
+            pkg.current_ver = None
+        return pkg
+    cache = MagicMock()
+    cache.__getitem__.side_effect = _get
+    return cache
 
 
 class FetchTest(TestCase):
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_missing(self, cache):
+        cache.side_effect = fake_apt_cache
+        result = fetch.filter_installed_packages(['vim', 'emacs'])
+        self.assertEquals(result, ['emacs'])
+
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_none_missing(self, cache):
+        cache.side_effect = fake_apt_cache
+        result = fetch.filter_installed_packages(['vim'])
+        self.assertEquals(result, [])
+
+    @patch.object(fetch, 'log')
+    @patch('apt_pkg.Cache')
+    def test_filter_packages_not_available(self, cache, log):
+        cache.side_effect = fake_apt_cache
+        result = fetch.filter_installed_packages(['vim', 'joe'])
+        self.assertEquals(result, ['joe'])
+        log.assert_called_with('Package joe has no installation candidate.',
+                               level='WARNING')
+
     @patch('subprocess.check_call')
     def test_add_source_ppa(self, check_call):
         source = "ppa:test-ppa"
         fetch.add_source(source=source)
         check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
                                        source])
 
     @patch('subprocess.check_call')
@@ -41,6 +71,29 @@ class FetchTest(TestCase):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
+                                       source])
+
+    @patch('subprocess.check_call')
+    def test_add_source_deb(self, check_call):
+        """add-apt-repository behaves differently when using the deb prefix.
+
+        $ add-apt-repository --yes "http://special.example.com/ubuntu precise-special main"
+        $ grep special /etc/apt/sources.list
+        deb http://special.example.com/ubuntu precise precise-special main
+        deb-src http://special.example.com/ubuntu precise precise-special main
+
+        $ add-apt-repository --yes "deb http://special.example.com/ubuntu precise-special main"
+        $ grep special /etc/apt/sources.list
+        deb http://special.example.com/ubuntu precise precise-special main
+        deb-src http://special.example.com/ubuntu precise precise-special main
+        deb http://special.example.com/ubuntu precise-special main
+        deb-src http://special.example.com/ubuntu precise-special main
+        """
+        source = "deb http://archive.ubuntu.com/ubuntu raring-backports main"
+        fetch.add_source(source=source)
+        check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
                                        source])
 
     @patch.object(fetch, 'filter_installed_packages')
@@ -72,7 +125,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         key = "akey"
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
-            call(['add-apt-repository', source]),
+            call(['add-apt-repository', '--yes', source]),
             call(['apt-key', 'import', key])
         ])
 
@@ -82,6 +135,13 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         config.side_effect = ['source', 'key']
         fetch.configure_sources()
         add_source.assert_called_with('source', 'key')
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_single_source_no_key(self, add_source, config):
+        config.side_effect = ['source', None]
+        fetch.configure_sources()
+        add_source.assert_called_with('source', None)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
@@ -134,17 +194,20 @@ class InstallTest(TestCase):
             "ftp://example.com/foo.tar.gz",
             "https://example.com/foo.tgz",
             "file://example.com/foo.tar.bz2",
-            )
+            "bzr+ssh://example.com/branch-name",
+            "bzr+ssh://example.com/branch-name/",
+            "lp:branch-name",
+            "lp:example/branch-name",
+        )
         self.invalid_urls = (
             "git://example.com/foo.tar.gz",
             "http://example.com/foo",
             "http://example.com/foobar=baz&x=y#tar.gz",
             "http://example.com/foobar?h=baz.zip",
-            "bzr+ssh://example.com/foo.tar.gz",
-            "lp:example/foo.tgz",
+            "abc:example",
             "file//example.com/foo.tar.bz2",
             "garbage",
-            )
+        )
 
     @patch('charmhelpers.fetch.plugins')
     def test_installs_remote(self, _plugins):
@@ -233,7 +296,7 @@ class BaseFetchHandlerTest(TestCase):
             "bzr+ssh://bazaar.launchpad.net/foo/bar",
             "bzr+http://bazaar.launchpad.net/foo/bar",
             "garbage",
-            )
+        )
         self.fh = fetch.BaseFetchHandler()
 
     def test_handles_nothing(self):
@@ -254,3 +317,145 @@ class BaseFetchHandlerTest(TestCase):
         expected_url = "http://example.com/foo"
         u = self.fh.base_url(sample_url)
         self.assertEqual(u, expected_url)
+
+
+class AptTests(TestCase):
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_installs_apt_packages(self, log, mock_call):
+        packages = ['foo', 'bar']
+        options = ['--foo', '--bar']
+
+        fetch.apt_install(packages, options)
+
+        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
+                                      'install', 'foo', 'bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_installs_apt_packages_without_options(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_install(packages)
+
+        mock_call.assert_called_with(['apt-get', '-y', 'install', 'foo',
+                                      'bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_installs_apt_packages_as_string(self, log, mock_call):
+        packages = 'foo bar'
+        options = ['--foo', '--bar']
+
+        fetch.apt_install(packages, options)
+
+        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
+                                      'install', 'foo bar'])
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_installs_apt_packages_with_possible_errors(self, log, check_call):
+        packages = ['foo', 'bar']
+        options = ['--foo', '--bar']
+
+        fetch.apt_install(packages, options, fatal=True)
+
+        check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
+                                       'install', 'foo', 'bar'])
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_purges_apt_packages_as_string_fatal(self, log, mock_call):
+        packages = 'irrelevant names'
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_purges_apt_packages_fatal(self, log, mock_call):
+        packages = ['irrelevant', 'names']
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_purges_apt_packages_as_string_nofatal(self, log, mock_call):
+        packages = 'foo bar'
+
+        fetch.apt_purge(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_purges_apt_packages_nofatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_purge(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo',
+                                      'bar'])
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_as_string_fatal(self, log, mock_call):
+        packages = 'irrelevant names'
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_fatal(self, log, mock_call):
+        packages = ['irrelevant', 'names']
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_as_string_nofatal(self, log, mock_call):
+        packages = 'foo bar'
+
+        fetch.apt_hold(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_nofatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_hold(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_nofatal_abortonfatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_hold(packages, fatal=True)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+
+    @patch('subprocess.check_call')
+    def test_apt_update_fatal(self, check_call):
+        fetch.apt_update(fatal=True)
+        check_call.assert_called_with(['apt-get', 'update'])
+
+    @patch('subprocess.call')
+    def test_apt_update_nonfatal(self, call):
+        fetch.apt_update()
+        call.assert_called_with(['apt-get', 'update'])

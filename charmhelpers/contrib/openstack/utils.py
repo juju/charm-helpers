@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
 # Common python helper functions used for OpenStack charms.
-
 from collections import OrderedDict
 
 import apt_pkg as apt
 import subprocess
 import os
+import socket
 import sys
 
 from charmhelpers.core.hookenv import (
@@ -23,7 +23,8 @@ from charmhelpers.contrib.storage.linux.lvm import (
     remove_lvm_physical_volume,
 )
 
-from charmhelpers.core.host import lsb_release, apt_install, mounts, umount
+from charmhelpers.core.host import lsb_release, mounts, umount
+from charmhelpers.fetch import apt_install
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 
@@ -49,16 +50,17 @@ OPENSTACK_CODENAMES = OrderedDict([
 ])
 
 # The ugly duckling
-SWIFT_CODENAMES = {
-    '1.4.3': 'diablo',
-    '1.4.8': 'essex',
-    '1.7.4': 'folsom',
-    '1.7.6': 'grizzly',
-    '1.7.7': 'grizzly',
-    '1.8.0': 'grizzly',
-    '1.9.0': 'havana',
-    '1.9.1': 'havana',
-}
+SWIFT_CODENAMES = OrderedDict([
+    ('1.4.3', 'diablo'),
+    ('1.4.8', 'essex'),
+    ('1.7.4', 'folsom'),
+    ('1.8.0', 'grizzly'),
+    ('1.7.7', 'grizzly'),
+    ('1.7.6', 'grizzly'),
+    ('1.10.0', 'havana'),
+    ('1.9.1', 'havana'),
+    ('1.9.0', 'havana'),
+])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
 
@@ -139,12 +141,15 @@ def get_os_codename_package(package, fatal=True):
         e = 'Could not determine version of uninstalled package: %s' % package
         error_out(e)
 
-    vers = apt.UpstreamVersion(pkg.current_ver.ver_str)
+    vers = apt.upstream_version(pkg.current_ver.ver_str)
 
     try:
         if 'swift' in pkg.name:
-            vers = vers[:5]
-            return SWIFT_CODENAMES[vers]
+            swift_vers = vers[:5]
+            if swift_vers not in SWIFT_CODENAMES:
+                # Deal with 1.10.0 upward
+                swift_vers = vers[:6]
+            return SWIFT_CODENAMES[swift_vers]
         else:
             vers = vers[:6]
             return OPENSTACK_CODENAMES[vers]
@@ -170,6 +175,25 @@ def get_os_version_package(pkg, fatal=True):
             return version
     #e = "Could not determine OpenStack version for package: %s" % pkg
     #error_out(e)
+
+
+os_rel = None
+
+
+def os_release(package, base='essex'):
+    '''
+    Returns OpenStack release codename from a cached global.
+    If the codename can not be determined from either an installed package or
+    the installation source, the earliest release supported by the charm should
+    be returned.
+    '''
+    global os_rel
+    if os_rel:
+        return os_rel
+    os_rel = (get_os_codename_package(package, fatal=False) or
+              get_os_codename_install_source(config('openstack-origin')) or
+              base)
+    return os_rel
 
 
 def import_key(keyid):
@@ -336,3 +360,69 @@ def clean_storage(block_device):
         remove_lvm_physical_volume(block_device)
     else:
         zap_disk(block_device)
+
+
+def is_ip(address):
+    """
+    Returns True if address is a valid IP address.
+    """
+    try:
+        # Test to see if already an IPv4 address
+        socket.inet_aton(address)
+        return True
+    except socket.error:
+        return False
+
+
+def ns_query(address):
+    try:
+        import dns.resolver
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.resolver
+
+    if isinstance(address, dns.name.Name):
+        rtype = 'PTR'
+    elif isinstance(address, basestring):
+        rtype = 'A'
+
+    answers = dns.resolver.query(address, rtype)
+    if answers:
+        return str(answers[0])
+    return None
+
+
+def get_host_ip(hostname):
+    """
+    Resolves the IP for a given hostname, or returns
+    the input if it is already an IP.
+    """
+    if is_ip(hostname):
+        return hostname
+
+    return ns_query(hostname)
+
+
+def get_hostname(address):
+    """
+    Resolves hostname for given IP, or returns the input
+    if it is already a hostname.
+    """
+    if not is_ip(address):
+        return address
+
+    try:
+        import dns.reversename
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.reversename
+
+    rev = dns.reversename.from_address(address)
+    result = ns_query(rev)
+    if not result:
+        return None
+
+    # strip trailing .
+    if result.endswith('.'):
+        return result[:-1]
+    return result

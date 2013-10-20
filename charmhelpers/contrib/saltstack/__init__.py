@@ -89,12 +89,12 @@ def install_salt_support(from_ppa=True):
         subprocess.check_call(['/usr/bin/apt-get', 'update'])
     # We install salt-common as salt-minion would run the salt-minion
     # daemon.
-    charmhelpers.core.host.apt_install('salt-common')
+    charmhelpers.fetch.apt_install('salt-common')
 
 
 def update_machine_state(state_path):
     """Update the machine state using the provided state declaration."""
-    juju_config_2_grains()
+    juju_state_to_yaml(salt_grains_path)
     subprocess.check_call([
         'salt-call',
         '--local',
@@ -103,8 +103,8 @@ def update_machine_state(state_path):
     ])
 
 
-def juju_config_2_grains():
-    """Insert the juju config as salt grains for use in state templates.
+def juju_state_to_yaml(yaml_path, namespace_separator=':'):
+    """Update the juju config and state in a yaml file.
 
     This includes any current relation-get data, and the charm
     directory.
@@ -115,7 +115,18 @@ def juju_config_2_grains():
     # file resources etc.
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
-    config.update(charmhelpers.core.hookenv.relation_get())
+
+    # Add any relation data prefixed with the relation type.
+    relation_type = charmhelpers.core.hookenv.relation_type()
+    if relation_type is not None:
+        relation_data = charmhelpers.core.hookenv.relation_get()
+        relation_data = dict(
+            ("{relation_type}{namespace_separator}{key}".format(
+                relation_type=relation_type.replace('-', '_'),
+                key=key,
+                namespace_separator=namespace_separator), val)
+            for key, val in relation_data.items())
+        config.update(relation_data)
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
@@ -123,9 +134,16 @@ def juju_config_2_grains():
                          value: dumper.represent_scalar(
                              u'tag:yaml.org,2002:str', value))
 
-    grains_dir = os.path.dirname(salt_grains_path)
-    if not os.path.exists(grains_dir):
-        os.makedirs(grains_dir)
+    yaml_dir = os.path.dirname(yaml_path)
+    if not os.path.exists(yaml_dir):
+        os.makedirs(yaml_dir)
 
-    with open(salt_grains_path, "w+") as fp:
-        fp.write(config.yaml())
+    if os.path.exists(yaml_path):
+        with open(yaml_path, "r") as existing_vars_file:
+            existing_vars = yaml.load(existing_vars_file.read())
+    else:
+        existing_vars = {}
+
+    existing_vars.update(config)
+    with open(yaml_path, "w+") as fp:
+        fp.write(yaml.dump(existing_vars))

@@ -64,10 +64,12 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
             check_call.assert_called_with(['truncate', '--size', '15G',
                                            '/tmp/foo.img'])
 
-    def test_create_loopback(self):
+    @patch.object(loopback, 'loopback_devices')
+    def test_create_loopback(self, _devs):
         '''It corectly calls losetup to create a loopback device'''
-        with patch(STORAGE_LINUX_LOOPBACK + '.check_output') as check_output:
-            check_output.return_value = '/dev/loop0'
+        _devs.return_value = {'/dev/loop0': '/tmp/foo'}
+        with patch(STORAGE_LINUX_LOOPBACK + '.check_call') as check_call:
+            check_call.return_value = ''
             result = loopback.create_loopback('/tmp/foo')
-            check_output.assert_called_with(['losetup', '--find', '/tmp/foo'])
+            check_call.assert_called_with(['losetup', '--find', '/tmp/foo'])
             self.assertEquals(result, '/dev/loop0')

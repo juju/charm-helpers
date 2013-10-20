@@ -1,9 +1,16 @@
+import json
 import os
 
 from base64 import b64decode
 
 from subprocess import (
     check_call
+)
+
+
+from charmhelpers.fetch import (
+    apt_install,
+    filter_installed_packages,
 )
 
 from charmhelpers.core.hookenv import (
@@ -14,6 +21,9 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     unit_get,
+    unit_private_ip,
+    ERROR,
+    WARNING,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -29,11 +39,22 @@ from charmhelpers.contrib.hahelpers.apache import (
     get_ca_cert,
 )
 
+from charmhelpers.contrib.openstack.neutron import (
+    neutron_plugin_attribute,
+)
+
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
 class OSContextError(Exception):
     pass
+
+
+def ensure_packages(packages):
+    '''Install but do not upgrade required plugin packages'''
+    required = filter_installed_packages(packages)
+    if required:
+        apt_install(required, fatal=True)
 
 
 def context_complete(ctxt):
@@ -57,30 +78,43 @@ class OSContextGenerator(object):
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
+    def __init__(self, database=None, user=None, relation_prefix=None):
+        '''
+        Allows inspecting relation for settings prefixed with relation_prefix.
+        This is useful for parsing access for multiple databases returned via
+        the shared-db interface (eg, nova_password, quantum_password)
+        '''
+        self.relation_prefix = relation_prefix
+        self.database = database
+        self.user = user
+
     def __call__(self):
-        log('Generating template context for shared-db')
-        conf = config()
-        try:
-            database = conf['database']
-            username = conf['database-user']
-        except KeyError as e:
+        self.database = self.database or config('database')
+        self.user = self.user or config('database-user')
+        if None in [self.database, self.user]:
             log('Could not generate shared_db context. '
-                'Missing required charm config options: %s.' % e)
+                'Missing required charm config options. '
+                '(database name and user)')
             raise OSContextError
         ctxt = {}
+
+        password_setting = 'password'
+        if self.relation_prefix:
+            password_setting = self.relation_prefix + '_password'
+
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
+                passwd = relation_get(password_setting, rid=rid, unit=unit)
                 ctxt = {
                     'database_host': relation_get('db_host', rid=rid,
                                                   unit=unit),
-                    'database': database,
-                    'database_user': username,
-                    'database_password': relation_get('password', rid=rid,
-                                                      unit=unit)
+                    'database': self.database,
+                    'database_user': self.user,
+                    'database_password': passwd,
                 }
-        if not context_complete(ctxt):
-            return {}
-        return ctxt
+                if context_complete(ctxt):
+                    return ctxt
+        return {}
 
 
 class IdentityServiceContext(OSContextGenerator):
@@ -109,9 +143,9 @@ class IdentityServiceContext(OSContextGenerator):
                     'service_protocol': 'http',
                     'auth_protocol': 'http',
                 }
-        if not context_complete(ctxt):
-            return {}
-        return ctxt
+                if context_complete(ctxt):
+                    return ctxt
+        return {}
 
 
 class AMQPContext(OSContextGenerator):
@@ -132,20 +166,30 @@ class AMQPContext(OSContextGenerator):
         for rid in relation_ids('amqp'):
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
-                    rabbitmq_host = relation_get('vip', rid=rid, unit=unit)
+                    ctxt['clustered'] = True
+                    ctxt['rabbitmq_host'] = relation_get('vip', rid=rid,
+                                                         unit=unit)
                 else:
-                    rabbitmq_host = relation_get('private-address',
-                                                 rid=rid, unit=unit)
-                ctxt = {
-                    'rabbitmq_host': rabbitmq_host,
+                    ctxt['rabbitmq_host'] = relation_get('private-address',
+                                                         rid=rid, unit=unit)
+                ctxt.update({
                     'rabbitmq_user': username,
                     'rabbitmq_password': relation_get('password', rid=rid,
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
-                }
+                })
+                if context_complete(ctxt):
+                    # Sufficient information found = break out!
+                    break
+            # Used for active/active rabbitmq >= grizzly
+            ctxt['rabbitmq_hosts'] = []
+            for unit in related_units(rid):
+                ctxt['rabbitmq_hosts'].append(relation_get('private-address',
+                                                           rid=rid, unit=unit))
         if not context_complete(ctxt):
             return {}
-        return ctxt
+        else:
+            return ctxt
 
 
 class CephContext(OSContextGenerator):
@@ -153,21 +197,33 @@ class CephContext(OSContextGenerator):
 
     def __call__(self):
         '''This generates context for /etc/ceph/ceph.conf templates'''
-        log('Generating tmeplate context for ceph')
+        if not relation_ids('ceph'):
+            return {}
+        log('Generating template context for ceph')
         mon_hosts = []
         auth = None
+        key = None
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
                 mon_hosts.append(relation_get('private-address', rid=rid,
                                               unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
+                key = relation_get('key', rid=rid, unit=unit)
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
             'auth': auth,
+            'key': key,
         }
+
+        if not os.path.isdir('/etc/ceph'):
+            os.mkdir('/etc/ceph')
+
         if not context_complete(ctxt):
             return {}
+
+        ensure_packages(['ceph-common'])
+
         return ctxt
 
 
@@ -203,6 +259,29 @@ class HAProxyContext(OSContextGenerator):
                 out.write('ENABLED=1\n')
             return ctxt
         log('HAProxy context is incomplete, this unit has no peers.')
+        return {}
+
+
+class ImageServiceContext(OSContextGenerator):
+    interfaces = ['image-service']
+
+    def __call__(self):
+        '''
+        Obtains the glance API server from the image-service relation.  Useful
+        in nova and cinder (currently).
+        '''
+        log('Generating template context for image-service.')
+        rids = relation_ids('image-service')
+        if not rids:
+            return {}
+        for rid in rids:
+            for unit in related_units(rid):
+                api_server = relation_get('glance-api-server',
+                                          rid=rid, unit=unit)
+                if api_server:
+                    return {'glance_api_servers': api_server}
+        log('ImageService context is incomplete. '
+            'Missing required relation data.')
         return {}
 
 
@@ -246,6 +325,7 @@ class ApacheSSLContext(OSContextGenerator):
         if ca_cert:
             with open(CA_CERT_PATH, 'w') as ca_out:
                 ca_out.write(b64decode(ca_cert))
+            check_call(['update-ca-certificates'])
 
     def __call__(self):
         if isinstance(self.external_ports, basestring):
@@ -268,4 +348,175 @@ class ApacheSSLContext(OSContextGenerator):
                 int_port = determine_api_port(ext_port)
             portmap = (int(ext_port), int(int_port))
             ctxt['endpoints'].append(portmap)
+        return ctxt
+
+
+class NeutronContext(object):
+    interfaces = []
+
+    @property
+    def plugin(self):
+        return None
+
+    @property
+    def network_manager(self):
+        return None
+
+    @property
+    def packages(self):
+        return neutron_plugin_attribute(
+            self.plugin, 'packages', self.network_manager)
+
+    @property
+    def neutron_security_groups(self):
+        return None
+
+    def _ensure_packages(self):
+        [ensure_packages(pkgs) for pkgs in self.packages]
+
+    def _save_flag_file(self):
+        if self.network_manager == 'quantum':
+            _file = '/etc/nova/quantum_plugin.conf'
+        else:
+            _file = '/etc/nova/neutron_plugin.conf'
+        with open(_file, 'wb') as out:
+            out.write(self.plugin + '\n')
+
+    def ovs_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+
+        ovs_ctxt = {
+            'core_plugin': driver,
+            'neutron_plugin': 'ovs',
+            'neutron_security_groups': self.neutron_security_groups,
+            'local_ip': unit_private_ip(),
+        }
+
+        return ovs_ctxt
+
+    def __call__(self):
+        self._ensure_packages()
+
+        if self.network_manager not in ['quantum', 'neutron']:
+            return {}
+
+        if not self.plugin:
+            return {}
+
+        ctxt = {'network_manager': self.network_manager}
+
+        if self.plugin == 'ovs':
+            ctxt.update(self.ovs_ctxt())
+
+        self._save_flag_file()
+        return ctxt
+
+
+class OSConfigFlagContext(OSContextGenerator):
+        '''
+        Responsible adding user-defined config-flags in charm config to a
+        to a template context.
+        '''
+        def __call__(self):
+            config_flags = config('config-flags')
+            if not config_flags or config_flags in ['None', '']:
+                return {}
+            config_flags = config_flags.split(',')
+            flags = {}
+            for flag in config_flags:
+                if '=' not in flag:
+                    log('Improperly formatted config-flag, expected k=v '
+                        'got %s' % flag, level=WARNING)
+                    continue
+                k, v = flag.split('=')
+                flags[k.strip()] = v
+            ctxt = {'user_config_flags': flags}
+            return ctxt
+
+
+class SubordinateConfigContext(OSContextGenerator):
+    """
+    Responsible for inspecting relations to subordinates that
+    may be exporting required config via a json blob.
+
+    The subordinate interface allows subordinates to export their
+    configuration requirements to the principle for multiple config
+    files and multiple serivces.  Ie, a subordinate that has interfaces
+    to both glance and nova may export to following yaml blob as json:
+
+        glance:
+            /etc/glance/glance-api.conf:
+                sections:
+                    DEFAULT:
+                        - [key1, value1]
+            /etc/glance/glance-registry.conf:
+                    MYSECTION:
+                        - [key2, value2]
+        nova:
+            /etc/nova/nova.conf:
+                sections:
+                    DEFAULT:
+                        - [key3, value3]
+
+
+    It is then up to the principle charms to subscribe this context to
+    the service+config file it is interestd in.  Configuration data will
+    be available in the template context, in glance's case, as:
+        ctxt = {
+            ... other context ...
+            'subordinate_config': {
+                'DEFAULT': {
+                    'key1': 'value1',
+                },
+                'MYSECTION': {
+                    'key2': 'value2',
+                },
+            }
+        }
+
+    """
+    def __init__(self, service, config_file, interface):
+        """
+        :param service     : Service name key to query in any subordinate
+                             data found
+        :param config_file : Service's config file to query sections
+        :param interface   : Subordinate interface to inspect
+        """
+        self.service = service
+        self.config_file = config_file
+        self.interface = interface
+
+    def __call__(self):
+        ctxt = {}
+        for rid in relation_ids(self.interface):
+            for unit in related_units(rid):
+                sub_config = relation_get('subordinate_configuration',
+                                          rid=rid, unit=unit)
+                if sub_config and sub_config != '':
+                    try:
+                        sub_config = json.loads(sub_config)
+                    except:
+                        log('Could not parse JSON from subordinate_config '
+                            'setting from %s' % rid, level=ERROR)
+                        continue
+
+                    if self.service not in sub_config:
+                        log('Found subordinate_config on %s but it contained'
+                            'nothing for %s service' % (rid, self.service))
+                        continue
+
+                    sub_config = sub_config[self.service]
+                    if self.config_file not in sub_config:
+                        log('Found subordinate_config on %s but it contained'
+                            'nothing for %s' % (rid, self.config_file))
+                        continue
+
+                    sub_config = sub_config[self.config_file]
+                    for k, v in sub_config.iteritems():
+                        ctxt[k] = v
+
+        if not ctxt:
+            ctxt['sections'] = {}
+
         return ctxt

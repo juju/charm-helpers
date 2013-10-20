@@ -16,10 +16,12 @@ SETUP = {
     'url': "https://code.launchpad.net/charm-helpers",
     'packages': [
         "charmhelpers",
+        "charmhelpers.cli",
         "charmhelpers.core",
         "charmhelpers.fetch",
         "charmhelpers.payload",
         "charmhelpers.contrib",
+        "charmhelpers.contrib.ansible",
         "charmhelpers.contrib.charmhelpers",
         "charmhelpers.contrib.charmsupport",
         "charmhelpers.contrib.saltstack",
@@ -27,6 +29,7 @@ SETUP = {
         "charmhelpers.contrib.jujugui",
     ],
     'scripts': [
+        "bin/chlp",
         "bin/contrib/charmsupport/charmsupport",
         "bin/contrib/saltstack/salt-call",
     ],

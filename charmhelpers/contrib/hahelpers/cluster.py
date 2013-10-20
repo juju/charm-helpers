@@ -19,6 +19,7 @@ from charmhelpers.core.hookenv import (
     config as config_get,
     INFO,
     ERROR,
+    unit_get,
 )
 
 
@@ -96,12 +97,14 @@ def https():
         return True
     for r_id in relation_ids('identity-service'):
         for unit in relation_list(r_id):
-            if None not in [
+            rel_state = [
                 relation_get('https_keystone', rid=r_id, unit=unit),
                 relation_get('ssl_cert', rid=r_id, unit=unit),
                 relation_get('ssl_key', rid=r_id, unit=unit),
                 relation_get('ca_cert', rid=r_id, unit=unit),
-            ]:
+            ]
+            # NOTE: works around (LP: #1203241)
+            if (None not in rel_state) and ('' not in rel_state):
                 return True
     return False
 
@@ -176,5 +179,5 @@ def canonical_url(configs, vip_setting='vip'):
     if is_clustered():
         addr = config_get(vip_setting)
     else:
-        addr = get_unit_hostname()
+        addr = unit_get('private-address')
     return '%s://%s' % (scheme, addr)

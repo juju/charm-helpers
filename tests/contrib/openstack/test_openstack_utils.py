@@ -43,6 +43,11 @@ FAKE_REPO = {
         'os_release': 'havana',
         'os_version': '1.9.0'
     },
+    'swift-proxy': {
+        'pkg_vers': '1.10.0~rc1-0ubuntu1',
+        'os_release': 'havana',
+        'os_version': '1.10.0'
+    },
     # a package thats available in the cache but is not installed
     'cinder-common': {
         'os_release': 'havana',
@@ -72,6 +77,36 @@ UCA_SOURCES = [
     ('cloud:precise-havana', url + ' precise-updates/havana main'),
     ('cloud:precise-havana/updates', url + ' precise-updates/havana main'),
 ]
+
+
+# Mock python-dnspython resolver used by get_host_ip()
+class FakeAnswer(object):
+    def __init__(self, ip):
+        self.ip = ip
+
+    def __str__(self):
+        return self.ip
+
+
+class FakeResolver(object):
+    def __init__(self, ip):
+        self.ip = ip
+
+    def query(self, hostname, query_type):
+        return [FakeAnswer(self.ip)]
+
+
+class FakeReverse(object):
+    def from_address(self, address):
+        return '156.94.189.91.in-addr.arpa'
+
+
+class FakeDNS(object):
+    def __init__(self, ip):
+        self.resolver = FakeResolver(ip)
+        self.reversename = FakeReverse()
+        self.name = MagicMock()
+        self.name.Name = basestring
 
 
 class OpenStackHelpersTestCase(TestCase):
@@ -269,6 +304,16 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_version_package('foo', fatal=False)
             )
 
+    @patch.object(openstack, 'get_os_codename_package')
+    def test_os_release_uncached(self, get_cn):
+        openstack.os_rel = None
+        get_cn.return_value = 'folsom'
+        self.assertEquals('folsom', openstack.os_release('nova-common'))
+
+    def test_os_release_cached(self):
+        openstack.os_rel = 'foo'
+        self.assertEquals('foo', openstack.os_release('nova-common'))
+
     @patch.object(openstack, 'juju_log')
     @patch('sys.exit')
     def test_error_out(self, mocked_exit, juju_log):
@@ -393,6 +438,7 @@ class OpenStackHelpersTestCase(TestCase):
         _mkdir.assert_called_with(rcdir)
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
         _open.assert_called_with(expected_f, 'wb')
+        _mkdir.assert_called_with(os.path.dirname(expected_f))
         for line in scriptrc:
             _file.__enter__().write.assert_has_calls(call(line))
 
@@ -496,6 +542,39 @@ class OpenStackHelpersTestCase(TestCase):
         is_pv.return_value = False
         openstack.clean_storage('/dev/vdb')
         zap_disk.assert_called_with('/dev/vdb')
+
+    def test_is_ip(self):
+        self.assertTrue(openstack.is_ip('10.0.0.1'))
+        self.assertFalse(openstack.is_ip('www.ubuntu.com'))
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_host_ip_with_hostname(self, apt_install):
+        fake_dns = FakeDNS('10.0.0.1')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            ip = openstack.get_host_ip('www.ubuntu.com')
+        self.assertEquals(ip, '10.0.0.1')
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_host_ip_with_ip(self, apt_install):
+        fake_dns = FakeDNS('5.5.5.5')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            ip = openstack.get_host_ip('4.2.2.1')
+        self.assertEquals(ip, '4.2.2.1')
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_hostname_with_ip(self, apt_install):
+        fake_dns = FakeDNS('www.ubuntu.com')
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            hn = openstack.get_hostname('4.2.2.1')
+        self.assertEquals(hn, 'www.ubuntu.com')
+
+    @patch.object(openstack, 'apt_install')
+    def test_get_hostname_with_hostname(self, apt_install):
+        fake_dns = FakeDNS('5.5.5.5')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            hn = openstack.get_hostname('www.ubuntu.com')
+        self.assertEquals(hn, 'www.ubuntu.com')
+
 
 if __name__ == '__main__':
     unittest.main()
