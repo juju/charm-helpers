@@ -528,7 +528,7 @@ class HelpersTest(TestCase):
         relation_get.return_value = 'hostname'
         related_units.return_value = ['test/1']
         relation_ids.return_value = ['test:0']
-        self.assertTrue(hookenv.is_relation_made('test', 'auth'))
+        self.assertTrue(hookenv.is_relation_made('test', keys='auth'))
         relation_get.assert_called_with('auth',
                                         rid='test:0', unit='test/1')
 
@@ -541,7 +541,8 @@ class HelpersTest(TestCase):
         relation_get.side_effect = ['password', 'hostname']
         related_units.return_value = ['test/1']
         relation_ids.return_value = ['test:0']
-        self.assertTrue(hookenv.is_relation_made('test', 'auth', 'host'))
+        self.assertTrue(hookenv.is_relation_made('test',
+                                                 keys=['auth', 'host']))
         relation_get.assert_has_calls(
             [call('auth', rid='test:0', unit='test/1'),
              call('host', rid='test:0', unit='test/1')]
@@ -568,7 +569,8 @@ class HelpersTest(TestCase):
         relation_get.side_effect = ['password', None]
         related_units.return_value = ['test/1']
         relation_ids.return_value = ['test:0']
-        self.assertFalse(hookenv.is_relation_made('test', 'auth', 'host'))
+        self.assertFalse(hookenv.is_relation_made('test',
+                                                  keys=['auth', 'host']))
         relation_get.assert_has_calls(
             [call('auth', rid='test:0', unit='test/1'),
              call('host', rid='test:0', unit='test/1')]
