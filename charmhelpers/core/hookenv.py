@@ -9,6 +9,7 @@ import json
 import yaml
 import subprocess
 import UserDict
+from subprocess import CalledProcessError
 
 CRITICAL = "CRITICAL"
 ERROR = "ERROR"
@@ -175,6 +176,10 @@ def relation_get(attribute=None, unit=None, rid=None):
         return json.loads(subprocess.check_output(_args))
     except ValueError:
         return None
+    except CalledProcessError, e:
+        if e.returncode == 2:
+            return None
+        raise
 
 
 def relation_set(relation_id=None, relation_settings={}, **kwargs):

@@ -1,4 +1,5 @@
 import json
+from subprocess import CalledProcessError
 
 import cPickle as pickle
 from mock import patch, call, mock_open
@@ -583,6 +584,26 @@ class HelpersTest(TestCase):
         result = hookenv.relation_get()
 
         self.assertIsNone(result)
+
+    @patch('charmhelpers.core.hookenv.subprocess')
+    def test_relation_get_calledprocesserror(self, mock_subprocess):
+        """relation-get called outside a relation will errors without id."""
+        mock_subprocess.check_output.side_effect = CalledProcessError(
+            2, '/foo/bin/relation-get'
+            'no relation id specified')
+
+        result = hookenv.relation_get()
+
+        self.assertIsNone(result)
+
+    @patch('charmhelpers.core.hookenv.subprocess')
+    def test_relation_get_calledprocesserror_other(self, mock_subprocess):
+        """relation-get can fail for other more serious errors."""
+        mock_subprocess.check_output.side_effect = CalledProcessError(
+            1, '/foo/bin/relation-get'
+            'connection refused')
+
+        self.assertRaises(CalledProcessError, hookenv.relation_get)
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
