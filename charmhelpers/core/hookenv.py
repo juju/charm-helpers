@@ -278,14 +278,22 @@ def relations():
 
 
 @cached
-def is_relation_made(relation, key='private-address'):
+def is_relation_made(relation, *args):
     '''
     Determine whether a relation is established by checking for
     presence of key
     '''
+    if len(args) == 0:
+        keys = ['private-address']
+    else:
+        keys = args
     for r_id in relation_ids(relation):
         for unit in related_units(r_id):
-            if relation_get(key, rid=r_id, unit=unit):
+            context = {}
+            for k in keys:
+                context[k] = relation_get(k, rid=r_id,
+                                          unit=unit)
+            if None not in context.values():
                 return True
     return False
 

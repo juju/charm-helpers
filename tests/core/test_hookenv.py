@@ -528,9 +528,24 @@ class HelpersTest(TestCase):
         relation_get.return_value = 'hostname'
         related_units.return_value = ['test/1']
         relation_ids.return_value = ['test:0']
-        self.assertTrue(hookenv.is_relation_made('test', key='auth'))
+        self.assertTrue(hookenv.is_relation_made('test', 'auth'))
         relation_get.assert_called_with('auth',
                                         rid='test:0', unit='test/1')
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_multiple_keys(self,
+                                            relation_get, related_units,
+                                            relation_ids):
+        relation_get.side_effect = ['password', 'hostname']
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertTrue(hookenv.is_relation_made('test', 'auth', 'host'))
+        relation_get.assert_has_calls(
+            [call('auth', rid='test:0', unit='test/1'),
+             call('host', rid='test:0', unit='test/1')]
+        )
 
     @patch('charmhelpers.core.hookenv.relation_ids')
     @patch('charmhelpers.core.hookenv.related_units')
@@ -542,6 +557,22 @@ class HelpersTest(TestCase):
         related_units.return_value = ['test/1']
         relation_ids.return_value = ['test:0']
         self.assertFalse(hookenv.is_relation_made('test'))
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_not_made_multiple_keys(self,
+                                                     relation_get,
+                                                     related_units,
+                                                     relation_ids):
+        relation_get.side_effect = ['password', None]
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertFalse(hookenv.is_relation_made('test', 'auth', 'host'))
+        relation_get.assert_has_calls(
+            [call('auth', rid='test:0', unit='test/1'),
+             call('host', rid='test:0', unit='test/1')]
+        )
 
     @patch('charmhelpers.core.hookenv.config')
     @patch('charmhelpers.core.hookenv.relation_type')
