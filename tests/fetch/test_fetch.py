@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from tests.helpers import patch_open
 from testtools import TestCase
 from mock import (
     patch,
@@ -36,24 +36,6 @@ def fake_apt_cache():
     return cache
 
 
-@contextmanager
-def patch_open():
-    '''Patch open() to allow mocking both open() itself and the file that is
-    yielded.
-
-    Yields the mock for "open" and "file", respectively.'''
-    mock_open = MagicMock(spec=open)
-    mock_file = MagicMock(spec=file)
-
-    @contextmanager
-    def stub_open(*args, **kwargs):
-        mock_open(*args, **kwargs)
-        yield mock_file
-
-    with patch('__builtin__.open', stub_open):
-        yield mock_open, mock_file
-
-
 class FetchTest(TestCase):
     @patch('apt_pkg.Cache')
     def test_filter_packages_missing(self, cache):
@@ -87,6 +69,28 @@ class FetchTest(TestCase):
     @patch('subprocess.check_call')
     def test_add_source_http(self, check_call):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
+        fetch.add_source(source=source)
+        check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
+                                       source])
+
+    @patch('subprocess.check_call')
+    def test_add_source_deb(self, check_call):
+        """add-apt-repository behaves differently when using the deb prefix.
+
+        $ add-apt-repository --yes "http://special.example.com/ubuntu precise-special main"
+        $ grep special /etc/apt/sources.list
+        deb http://special.example.com/ubuntu precise precise-special main
+        deb-src http://special.example.com/ubuntu precise precise-special main
+
+        $ add-apt-repository --yes "deb http://special.example.com/ubuntu precise-special main"
+        $ grep special /etc/apt/sources.list
+        deb http://special.example.com/ubuntu precise precise-special main
+        deb-src http://special.example.com/ubuntu precise precise-special main
+        deb http://special.example.com/ubuntu precise-special main
+        deb-src http://special.example.com/ubuntu precise-special main
+        """
+        source = "deb http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(['add-apt-repository',
                                        '--yes',
@@ -131,6 +135,13 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         config.side_effect = ['source', 'key']
         fetch.configure_sources()
         add_source.assert_called_with('source', 'key')
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_single_source_no_key(self, add_source, config):
+        config.side_effect = ['source', None]
+        fetch.configure_sources()
+        add_source.assert_called_with('source', None)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
@@ -352,16 +363,14 @@ class AptTests(TestCase):
         check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
                                        'install', 'foo', 'bar'])
 
-
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
     def test_purges_apt_packages_as_string_fatal(self, log, mock_call):
         packages = 'irrelevant names'
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True )
+        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
         log.assert_called()
-
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
@@ -369,9 +378,8 @@ class AptTests(TestCase):
         packages = ['irrelevant', 'names']
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True )
+        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
         log.assert_called()
-
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -382,7 +390,6 @@ class AptTests(TestCase):
 
         log.assert_called()
         mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo bar'])
-
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -395,6 +402,53 @@ class AptTests(TestCase):
         mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo',
                                       'bar'])
 
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_as_string_fatal(self, log, mock_call):
+        packages = 'irrelevant names'
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_fatal(self, log, mock_call):
+        packages = ['irrelevant', 'names']
+        mock_call.side_effect = OSError('fail')
+
+        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        log.assert_called()
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_as_string_nofatal(self, log, mock_call):
+        packages = 'foo bar'
+
+        fetch.apt_hold(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo bar'])
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_nofatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_hold(packages)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_hold_apt_packages_nofatal_abortonfatal(self, log, mock_call):
+        packages = ['foo', 'bar']
+
+        fetch.apt_hold(packages, fatal=True)
+
+        log.assert_called()
+        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
 
     @patch('subprocess.check_call')
     def test_apt_update_fatal(self, check_call):
