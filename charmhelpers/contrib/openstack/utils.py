@@ -26,6 +26,10 @@ from charmhelpers.fetch import (
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
+DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
+                   'restricted main multiverse universe')
+
+
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('oneiric', 'diablo'),
     ('precise', 'essex'),
@@ -67,7 +71,7 @@ def get_os_codename_install_source(src):
     '''Derive OpenStack release codename from a given installation source.'''
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
     rel = ''
-    if src == 'distro':
+    if src in ['distro', 'distro-proposed']:
         try:
             rel = UBUNTU_OPENSTACK_RELEASE[ubuntu_rel]
         except KeyError:
@@ -202,6 +206,10 @@ def configure_installation_source(rel):
     '''Configure apt installation source.'''
     if rel == 'distro':
         return
+    elif rel == 'distro-proposed':
+        ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
+        with open('/etc/apt/sources.list.d/juju_deb.list', 'w') as f:
+            f.write(DISTRO_PROPOSED % ubuntu_rel)
     elif rel[:4] == "ppa:":
         src = rel
         subprocess.check_call(["add-apt-repository", "-y", src])

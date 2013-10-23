@@ -133,6 +133,10 @@ class OpenStackHelpersTestCase(TestCase):
         # the openstack release shipped with respective ubuntu/lsb release.
         self.assertEquals(openstack.get_os_codename_install_source('distro'),
                           'essex')
+        # proposed pocket
+        self.assertEquals(openstack.get_os_codename_install_source('distro-proposed'),
+                          'essex')
+
         # various cloud archive pockets
         src = 'cloud:precise-grizzly'
         self.assertEquals(openstack.get_os_codename_install_source(src),
@@ -346,6 +350,20 @@ class OpenStackHelpersTestCase(TestCase):
         _file.__enter__().write.assert_called_with(src.split('|')[0])
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main')
+        openstack.configure_installation_source(src)
+        _file.__enter__().write.assert_called_with(src)
+
+    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
+    @patch('__builtin__.open')
+    @patch('charmhelpers.contrib.openstack.utils.juju_log')
+    def test_configure_install_source_distro_proposed(self, _log, _open, _lsb):
+        '''Test configuring installation source from deb repo url'''
+        _lsb.return_value = FAKE_RELEASE
+        _file = MagicMock(spec=file)
+        _open.return_value = _file
+        openstack.configure_installation_source('distro-proposed')
+        src = ('deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
+               'restricted main multiverse universe')
         openstack.configure_installation_source(src)
         _file.__enter__().write.assert_called_with(src)
 
