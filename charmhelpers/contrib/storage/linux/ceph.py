@@ -14,7 +14,6 @@ import json
 import time
 
 from subprocess import (
-    call,
     check_call,
     check_output,
     CalledProcessError
@@ -374,7 +373,7 @@ def ceph_version():
     ''' Retrieve the local version of ceph '''
     if os.path.exists('/usr/bin/ceph'):
         cmd = ['ceph', '-v']
-        output = call(cmd)
+        output = check_output(cmd)
         output = output.split()
         if len(output) > 3:
             return output[2]

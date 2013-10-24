@@ -529,17 +529,17 @@ class CephUtilsTests(TestCase):
         path.return_value = False
         self.assertEquals(ceph_utils.ceph_version(), None)
 
-    @patch.object(ceph_utils, 'call')
+    @patch.object(ceph_utils, 'check_output')
     @patch('os.path.exists')
-    def test_ceph_version_error(self, path, call):
+    def test_ceph_version_error(self, path, output):
         path.return_value = True
-        call.return_value = ''
+        output.return_value = ''
         self.assertEquals(ceph_utils.ceph_version(), None)
 
-    @patch.object(ceph_utils, 'call')
+    @patch.object(ceph_utils, 'check_output')
     @patch('os.path.exists')
-    def test_ceph_version_ok(self, path, call):
+    def test_ceph_version_ok(self, path, output):
         path.return_value = True
-        call.return_value = 'ceph version 0.67.4'\
+        output.return_value = 'ceph version 0.67.4'\
             ' (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
         self.assertEquals(ceph_utils.ceph_version(), '0.67.4')
