@@ -13,6 +13,7 @@ from charmhelpers.core.hookenv import (
     log,
 )
 import apt_pkg
+import os
 
 CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
 deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
@@ -40,8 +41,10 @@ def filter_installed_packages(packages):
 
 def apt_install(packages, options=None, fatal=False):
     """Install one or more packages"""
-    options = options or []
-    cmd = ['apt-get', '-y']
+    if options is None:
+        options = ['--option=Dpkg::Options::=--force-confold']
+
+    cmd = ['apt-get', '--assume-yes']
     cmd.extend(options)
     cmd.append('install')
     if isinstance(packages, basestring):
@@ -50,10 +53,14 @@ def apt_install(packages, options=None, fatal=False):
         cmd.extend(packages)
     log("Installing {} with options: {}".format(packages,
                                                 options))
+    env = os.environ.copy()
+    if 'DEBIAN_FRONTEND' not in env:
+        env['DEBIAN_FRONTEND'] = 'noninteractive'
+
     if fatal:
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, env=env)
     else:
-        subprocess.call(cmd)
+        subprocess.call(cmd, env=env)
 
 
 def apt_update(fatal=False):
