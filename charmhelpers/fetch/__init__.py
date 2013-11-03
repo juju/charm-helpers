@@ -96,7 +96,8 @@ def apt_hold(packages, fatal=False):
 def add_source(source, key=None):
     if (source.startswith('ppa:') or
         source.startswith('http:') or
-        source.startswith('deb ')):
+        source.startswith('deb ') or
+        source.startswith('cloud-archive:')):
         subprocess.check_call(['add-apt-repository', '--yes', source])
     elif source.startswith('cloud:'):
         apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
