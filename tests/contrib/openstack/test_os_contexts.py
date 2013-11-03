@@ -7,6 +7,7 @@ from tests.helpers import patch_open
 from mock import patch, MagicMock, call
 
 from copy import copy
+from copy import deepcopy
 
 import charmhelpers.contrib.openstack.context as context
 
@@ -119,6 +120,23 @@ CEPH_RELATION = {
             'key': 'bar',
         },
         'ceph/1': {
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
+CEPH_RELATION_WITH_PUBLIC_ADDR = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph_public_addr': '192.168.1.10',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph_public_addr': '192.168.1.11',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
@@ -398,6 +416,55 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         self.assertEquals(result, {})
         self.assertFalse(ensure_packages.called)
+
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_public_addr(
+            self, ensure_packages, mkdir, isdir):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        relation = FakeRelation(relation_data=CEPH_RELATION_WITH_PUBLIC_ADDR)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.11 192.168.1.10',
+            'auth': 'foo',
+            'key': 'bar',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_missing_public_addr(
+            self, ensure_packages, mkdir, isdir):
+        '''Test ceph context in host with multiple networks with no
+        ceph_public_addr in relation data'''
+        isdir.return_value = False
+        relation = deepcopy(CEPH_RELATION_WITH_PUBLIC_ADDR)
+        del relation['ceph:0']['ceph/0']['ceph_public_addr']
+        relation = FakeRelation(relation_data=relation)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.11 ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
