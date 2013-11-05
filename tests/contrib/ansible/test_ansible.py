@@ -138,5 +138,5 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'playbooks/complete-state.yaml', tags=['install', 'somethingelse'])
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml',
+            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', '"install,somethingelse"' ])
