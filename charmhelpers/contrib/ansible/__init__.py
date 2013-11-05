@@ -95,7 +95,7 @@ def install_ansible_support(from_ppa=True):
         hosts_file.write('localhost ansible_connection=local')
 
 
-def apply_playbook(playbook):
+def apply_playbook(playbook, tags=None):
     charmhelpers.contrib.saltstack.juju_state_to_yaml(
         ansible_vars_path, namespace_separator='__')
     subprocess.check_call(['ansible-playbook', '-c', 'local', playbook])

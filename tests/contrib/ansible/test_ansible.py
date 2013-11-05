@@ -132,3 +132,11 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
             }, result)
+
+    def test_calls_with_tags(self):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/complete-state.yaml', tags=['install', 'somethingelse'])
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml',
+            '--tags', '"install,somethingelse"' ])
