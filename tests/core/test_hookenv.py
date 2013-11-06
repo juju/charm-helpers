@@ -498,6 +498,85 @@ class HelpersTest(TestCase):
             },
         })
 
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made(self, relation_get, related_units,
+                              relation_ids):
+        relation_get.return_value = 'hostname'
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertTrue(hookenv.is_relation_made('test'))
+        relation_get.assert_called_with('private-address',
+                                        rid='test:0', unit='test/1')
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_multi_unit(self, relation_get, related_units,
+                                         relation_ids):
+        relation_get.side_effect = [None, 'hostname']
+        related_units.return_value = ['test/1', 'test/2']
+        relation_ids.return_value = ['test:0']
+        self.assertTrue(hookenv.is_relation_made('test'))
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_different_key(self,
+                                            relation_get, related_units,
+                                            relation_ids):
+        relation_get.return_value = 'hostname'
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertTrue(hookenv.is_relation_made('test', keys='auth'))
+        relation_get.assert_called_with('auth',
+                                        rid='test:0', unit='test/1')
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_multiple_keys(self,
+                                            relation_get, related_units,
+                                            relation_ids):
+        relation_get.side_effect = ['password', 'hostname']
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertTrue(hookenv.is_relation_made('test',
+                                                 keys=['auth', 'host']))
+        relation_get.assert_has_calls(
+            [call('auth', rid='test:0', unit='test/1'),
+             call('host', rid='test:0', unit='test/1')]
+        )
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_not_made(self,
+                                       relation_get, related_units,
+                                       relation_ids):
+        relation_get.return_value = None
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertFalse(hookenv.is_relation_made('test'))
+
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    def test_is_relation_made_not_made_multiple_keys(self,
+                                                     relation_get,
+                                                     related_units,
+                                                     relation_ids):
+        relation_get.side_effect = ['password', None]
+        related_units.return_value = ['test/1']
+        relation_ids.return_value = ['test:0']
+        self.assertFalse(hookenv.is_relation_made('test',
+                                                  keys=['auth', 'host']))
+        relation_get.assert_has_calls(
+            [call('auth', rid='test:0', unit='test/1'),
+             call('host', rid='test:0', unit='test/1')]
+        )
+
     @patch('charmhelpers.core.hookenv.config')
     @patch('charmhelpers.core.hookenv.relation_type')
     @patch('charmhelpers.core.hookenv.local_unit')
