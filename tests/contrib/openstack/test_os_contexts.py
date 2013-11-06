@@ -604,6 +604,7 @@ class ContextTests(unittest.TestCase):
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
         self.assertEquals({
+            'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'ovs',
             'neutron_security_groups': True,
