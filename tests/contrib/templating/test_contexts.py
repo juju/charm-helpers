@@ -12,9 +12,9 @@ import yaml
 import charmhelpers.contrib.templating
 
 
-class JujuConfig2GrainsTestCase(unittest.TestCase):
+class JujuConfig2YamlTestCase(unittest.TestCase):
     def setUp(self):
-        super(JujuConfig2GrainsTestCase, self).setUp()
+        super(JujuConfig2YamlTestCase, self).setUp()
 
         # Hookenv patches (a single patch to hookenv doesn't work):
         patcher = mock.patch('charmhelpers.core.hookenv.config')
@@ -35,7 +35,7 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         # patches specific to this test class.
         etc_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, etc_dir)
-        self.grain_path = os.path.join(etc_dir, 'salt', 'grains')
+        self.context_path = os.path.join(etc_dir, 'some', 'context')
 
         patcher = mock.patch.object(charmhelpers.contrib.templating.contexts,
                                     'charm_dir', '/tmp/charm_dir')
@@ -50,10 +50,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.mock_local_unit.return_value = "click-index/3"
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
-            self.grain_path)
+            self.context_path)
 
-        with open(self.grain_path, 'r') as grain_file:
-            result = yaml.load(grain_file.read())
+        with open(self.context_path, 'r') as context_file:
+            result = yaml.load(context_file.read())
             self.assertEqual({
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
@@ -70,10 +70,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.mock_relation_get.return_value = None
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
-            self.grain_path)
+            self.context_path)
 
-        with open(self.grain_path, 'r') as grain_file:
-            result = yaml.load(grain_file.read())
+        with open(self.context_path, 'r') as context_file:
+            result = yaml.load(context_file.read())
             self.assertEqual({
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
@@ -94,10 +94,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.mock_local_unit.return_value = "click-index/3"
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
-            self.grain_path)
+            self.context_path)
 
-        with open(self.grain_path, 'r') as grain_file:
-            result = yaml.load(grain_file.read())
+        with open(self.context_path, 'r') as context_file:
+            result = yaml.load(context_file.read())
             self.assertEqual({
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
@@ -120,10 +120,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.mock_local_unit.return_value = "click-index/3"
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
-            self.grain_path, namespace_separator='__')
+            self.context_path, namespace_separator='__')
 
-        with open(self.grain_path, 'r') as grain_file:
-            result = yaml.load(grain_file.read())
+        with open(self.context_path, 'r') as context_file:
+            result = yaml.load(context_file.read())
             self.assertEqual({
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
@@ -134,14 +134,14 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
             }, result)
 
     def test_updates_existing_values(self):
-        """Data stored in grains is retained.
+        """Data stored in the context file is retained.
 
         This may be helpful so that templates can access information
-        from relations outside the current context.
+        from relations outside the current execution environment.
         """
-        os.makedirs(os.path.dirname(self.grain_path))
-        with open(self.grain_path, 'w+') as grain_file:
-            grain_file.write(yaml.dump({
+        os.makedirs(os.path.dirname(self.context_path))
+        with open(self.context_path, 'w+') as context_file:
+            context_file.write(yaml.dump({
                 'solr:hostname': 'example.com',
                 'user_code_runner': 'oldvalue',
             }))
@@ -153,10 +153,10 @@ class JujuConfig2GrainsTestCase(unittest.TestCase):
         self.mock_local_unit.return_value = "click-index/3"
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
-            self.grain_path)
+            self.context_path)
 
-        with open(self.grain_path, 'r') as grain_file:
-            result = yaml.load(grain_file.read())
+        with open(self.context_path, 'r') as context_file:
+            result = yaml.load(context_file.read())
             self.assertEqual({
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
