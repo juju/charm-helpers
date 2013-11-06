@@ -98,7 +98,7 @@ def install_ansible_support(from_ppa=True):
 def apply_playbook(playbook, tags=None):
     tags = tags or []
     tags = ",".join(tags)
-    charmhelpers.contrib.saltstack.juju_state_to_yaml(
+    charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
         ansible_vars_path, namespace_separator='__')
     call = [
         'ansible-playbook',

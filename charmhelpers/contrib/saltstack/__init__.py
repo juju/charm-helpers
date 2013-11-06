@@ -61,15 +61,13 @@ TODO:
 #
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
-import os
 import subprocess
-import yaml
 
+import charmhelpers.contrib.templating.contexts
 import charmhelpers.core.host
 import charmhelpers.core.hookenv
 
 
-charm_dir = os.environ.get('CHARM_DIR', '')
 salt_grains_path = '/etc/salt/grains'
 
 
@@ -94,56 +92,11 @@ def install_salt_support(from_ppa=True):
 
 def update_machine_state(state_path):
     """Update the machine state using the provided state declaration."""
-    juju_state_to_yaml(salt_grains_path)
+    charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
+        salt_grains_path)
     subprocess.check_call([
         'salt-call',
         '--local',
         'state.template',
         state_path,
     ])
-
-
-def juju_state_to_yaml(yaml_path, namespace_separator=':'):
-    """Update the juju config and state in a yaml file.
-
-    This includes any current relation-get data, and the charm
-    directory.
-    """
-    config = charmhelpers.core.hookenv.config()
-
-    # Add the charm_dir which we will need to refer to charm
-    # file resources etc.
-    config['charm_dir'] = charm_dir
-    config['local_unit'] = charmhelpers.core.hookenv.local_unit()
-
-    # Add any relation data prefixed with the relation type.
-    relation_type = charmhelpers.core.hookenv.relation_type()
-    if relation_type is not None:
-        relation_data = charmhelpers.core.hookenv.relation_get()
-        relation_data = dict(
-            ("{relation_type}{namespace_separator}{key}".format(
-                relation_type=relation_type.replace('-', '_'),
-                key=key,
-                namespace_separator=namespace_separator), val)
-            for key, val in relation_data.items())
-        config.update(relation_data)
-
-    # Don't use non-standard tags for unicode which will not
-    # work when salt uses yaml.load_safe.
-    yaml.add_representer(unicode, lambda dumper,
-                         value: dumper.represent_scalar(
-                             u'tag:yaml.org,2002:str', value))
-
-    yaml_dir = os.path.dirname(yaml_path)
-    if not os.path.exists(yaml_dir):
-        os.makedirs(yaml_dir)
-
-    if os.path.exists(yaml_path):
-        with open(yaml_path, "r") as existing_vars_file:
-            existing_vars = yaml.load(existing_vars_file.read())
-    else:
-        existing_vars = {}
-
-    existing_vars.update(config)
-    with open(yaml_path, "w+") as fp:
-        fp.write(yaml.dump(existing_vars))
