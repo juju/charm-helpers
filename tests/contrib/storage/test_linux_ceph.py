@@ -90,11 +90,20 @@ class CephUtilsTests(TestCase):
         _mkdir.assert_called_with('/etc/ceph')
         _install.assert_called_with('ceph-common', fatal=True)
 
-    def test_get_osds(self):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_get_osds(self, version):
+        version.return_value = '0.56.2'
         self.check_output.return_value = json.dumps([1, 2, 3])
         self.assertEquals(ceph_utils.get_osds('test'), [1, 2, 3])
 
-    def test_get_osds_none(self):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_get_osds_argonaut(self, version):
+        version.return_value = '0.48.3'
+        self.assertEquals(ceph_utils.get_osds('test'), None)
+
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_get_osds_none(self, version):
+        version.return_value = '0.56.2'
         self.check_output.return_value = json.dumps(None)
         self.assertEquals(ceph_utils.get_osds('test'), None)
 
@@ -124,6 +133,20 @@ class CephUtilsTests(TestCase):
                   'create', 'foo', '100']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
                   'foo', 'size', '3'])
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    @patch.object(ceph_utils, 'pool_exists')
+    def test_create_pool_argonaut(self, _exists, _get_osds):
+        '''It creates rados pool correctly with 3 replicas'''
+        _exists.return_value = False
+        _get_osds.return_value = None
+        ceph_utils.create_pool(service='cinder', name='foo')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'cinder', 'osd', 'pool',
+                  'create', 'foo', '200']),
+            call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
+                  'foo', 'size', '2'])
         ])
 
     def test_create_pool_already_exists(self):
@@ -500,3 +523,23 @@ class CephUtilsTests(TestCase):
             'adam.users',
             '/etc/ceph/client.foo.keyring'
         ])
+
+    @patch('os.path.exists')
+    def test_ceph_version_not_installed(self, path):
+        path.return_value = False
+        self.assertEquals(ceph_utils.ceph_version(), None)
+
+    @patch.object(ceph_utils, 'check_output')
+    @patch('os.path.exists')
+    def test_ceph_version_error(self, path, output):
+        path.return_value = True
+        output.return_value = ''
+        self.assertEquals(ceph_utils.ceph_version(), None)
+
+    @patch.object(ceph_utils, 'check_output')
+    @patch('os.path.exists')
+    def test_ceph_version_ok(self, path, output):
+        path.return_value = True
+        output.return_value = 'ceph version 0.67.4'\
+            ' (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
+        self.assertEquals(ceph_utils.ceph_version(), '0.67.4')

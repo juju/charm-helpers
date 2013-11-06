@@ -34,7 +34,7 @@ def generate_selfsigned(keyfile, certfile, keysize="1024", config=None, subject=
         cmd = ["/usr/bin/openssl", "req", "-new", "-newkey",
                "rsa:{}".format(keysize), "-days", "365", "-nodes", "-x509",
                "-keyout", keyfile,
-               "-out",    certfile, "-config", config]
+               "-out", certfile, "-config", config]
     elif subject:
         ssl_subject = ""
         if "country" in subject:
@@ -50,8 +50,8 @@ def generate_selfsigned(keyfile, certfile, keysize="1024", config=None, subject=
         if "cn" in subject:
             ssl_subject = ssl_subject + "/CN={}".format(subject["cn"])
         else:
-            hookenv.log("When using \"subject\" argument you must " \
-                "provide \"cn\" field at very least")
+            hookenv.log("When using \"subject\" argument you must "
+                        "provide \"cn\" field at very least")
             return False
         if "email" in subject:
             ssl_subject = ssl_subject + "/emailAddress={}".format(subject["email"])
@@ -59,16 +59,16 @@ def generate_selfsigned(keyfile, certfile, keysize="1024", config=None, subject=
         cmd = ["/usr/bin/openssl", "req", "-new", "-newkey",
                "rsa:{}".format(keysize), "-days", "365", "-nodes", "-x509",
                "-keyout", keyfile,
-               "-out",    certfile, "-subj", ssl_subject]
+               "-out", certfile, "-subj", ssl_subject]
     elif cn:
         cmd = ["/usr/bin/openssl", "req", "-new", "-newkey",
                "rsa:{}".format(keysize), "-days", "365", "-nodes", "-x509",
                "-keyout", keyfile,
-               "-out",    certfile, "-subj", "/CN={}".format(cn)]
+               "-out", certfile, "-subj", "/CN={}".format(cn)]
 
     if not cmd:
-        hookenv.log("No config, subject or cn provided," \
-                "unable to generate self signed SSL certificates")
+        hookenv.log("No config, subject or cn provided,"
+                    "unable to generate self signed SSL certificates")
         return False
     try:
         subprocess.check_call(cmd)
@@ -76,4 +76,3 @@ def generate_selfsigned(keyfile, certfile, keysize="1024", config=None, subject=
     except Exception as e:
         print "Execution of openssl command failed:\n{}".format(e)
         return False
-
