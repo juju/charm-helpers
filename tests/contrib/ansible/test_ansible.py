@@ -155,7 +155,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
     def test_specifying_ansible_handled_hooks(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks(
-            'my/playbook.yaml', handled_hooks=['start', 'stop'])
+            'my/playbook.yaml', default_hooks=['start', 'stop'])
 
         hooks.execute(['start'])
 

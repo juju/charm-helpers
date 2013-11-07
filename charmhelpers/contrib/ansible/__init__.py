@@ -138,23 +138,23 @@ class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
         # for you:
         # hooks = AnsibleHooks(
         #     'playbooks/my_machine_state.yaml',
-        #     handled_hooks=['config-changed', 'start', 'stop'])
+        #     default_hooks=['config-changed', 'start', 'stop'])
 
         if __name__ == "__main__":
             # execute a hook based on the name the program is called by
             hooks.execute(sys.argv)
     """
 
-    def __init__(self, playbook_path, handled_hooks=None):
+    def __init__(self, playbook_path, default_hooks=None):
         """Register any hooks handled by ansible."""
         super(AnsibleHooks, self).__init__()
 
         self.playbook_path = playbook_path
 
-        handled_hooks = handled_hooks or []
+        default_hooks = default_hooks or []
         noop = lambda *args, **kwargs: None
-        for handled_hook in handled_hooks:
-            self.register(handled_hook, noop)
+        for hook in default_hooks:
+            self.register(hook, noop)
 
     def execute(self, args):
         """Execute the hook followed by the playbook using the hook as tag."""
