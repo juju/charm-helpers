@@ -62,4 +62,3 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':'):
     existing_vars.update(config)
     with open(yaml_path, "w+") as fp:
         fp.write(yaml.dump(existing_vars))
-

@@ -12,9 +12,9 @@ import yaml
 import charmhelpers.contrib.templating
 
 
-class JujuConfig2YamlTestCase(unittest.TestCase):
+class JujuState2YamlTestCase(unittest.TestCase):
     def setUp(self):
-        super(JujuConfig2YamlTestCase, self).setUp()
+        super(JujuState2YamlTestCase, self).setUp()
 
         # Hookenv patches (a single patch to hookenv doesn't work):
         patcher = mock.patch('charmhelpers.core.hookenv.config')
