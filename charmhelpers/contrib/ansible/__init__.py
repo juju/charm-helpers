@@ -107,5 +107,5 @@ def apply_playbook(playbook, tags=None):
         playbook,
     ]
     if tags:
-        call.extend(['--tags', '"{}"'.format(tags)])
+        call.extend(['--tags', '{}'.format(tags)])
     subprocess.check_call(call)
