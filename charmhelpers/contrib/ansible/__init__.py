@@ -109,3 +109,56 @@ def apply_playbook(playbook, tags=None):
     if tags:
         call.extend(['--tags', '{}'.format(tags)])
     subprocess.check_call(call)
+
+
+class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
+    """Run a playbook with the hook-name as the tag.
+
+    This helper builds on the standard hookenv.Hooks helper,
+    but additionally runs the playbook with the hook-name specified
+    using --tags (ie. running all the tasks tagged with the hook-name).
+
+    Example:
+        hooks = AnsibleHooks(playbook_path='playbooks/my_machine_state.yaml')
+
+        # All the tasks within my_machine_state.yaml tagged with 'install'
+        # will be run automatically after do_custom_work()
+        @hooks.hook()
+        def install():
+            do_custom_work()
+
+        # For most of your hooks, you won't need to do anything other
+        # than run the tagged tasks for the hook:
+        @hooks.hook('config-changed', 'start', 'stop')
+        def just_use_playbook():
+            pass
+
+        # As a convenience, you can avoid the above noop function by specifying
+        # the hooks which are handled by ansible-only and they'll be registered
+        # for you:
+        # hooks = AnsibleHooks(
+        #     'playbooks/my_machine_state.yaml',
+        #     handled_hooks=['config-changed', 'start', 'stop'])
+
+        if __name__ == "__main__":
+            # execute a hook based on the name the program is called by
+            hooks.execute(sys.argv)
+    """
+
+    def __init__(self, playbook_path, handled_hooks=None):
+        """Register any hooks handled by ansible."""
+        super(AnsibleHooks, self).__init__()
+
+        self.playbook_path = playbook_path
+
+        handled_hooks = handled_hooks or []
+        noop = lambda *args, **kwargs: None
+        for handled_hook in handled_hooks:
+            self.register(handled_hook, noop)
+
+    def execute(self, args):
+        """Execute the hook followed by the playbook using the hook as tag."""
+        super(AnsibleHooks, self).execute(args)
+        hook_name = os.path.basename(args[0])
+        charmhelpers.contrib.ansible.apply_playbook(
+            self.playbook_path, tags=[hook_name])
