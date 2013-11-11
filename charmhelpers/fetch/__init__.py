@@ -74,7 +74,7 @@ def apt_update(fatal=False):
 
 def apt_purge(packages, fatal=False):
     """Purge one or more packages"""
-    cmd = ['apt-get', '-y', 'purge']
+    cmd = ['apt-get', '--assume-yes', 'purge']
     if isinstance(packages, basestring):
         cmd.append(packages)
     else:
