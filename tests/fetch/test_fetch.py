@@ -7,6 +7,7 @@ from mock import (
 )
 from urlparse import urlparse
 from charmhelpers import fetch
+import os
 import yaml
 
 FAKE_APT_CACHE = {
@@ -36,7 +37,17 @@ def fake_apt_cache():
     return cache
 
 
+def getenv(update=None):
+    # return a copy of os.environ with update applied.
+    # this was necessary because some modules modify os.environment directly
+    copy = os.environ.copy()
+    if update is not None:
+        copy.update(update)
+    return copy
+
+
 class FetchTest(TestCase):
+
     @patch('apt_pkg.Cache')
     def test_filter_packages_missing(self, cache):
         cache.side_effect = fake_apt_cache
@@ -277,6 +288,7 @@ class InstallTest(TestCase):
 
 
 class PluginTest(TestCase):
+
     @patch('charmhelpers.fetch.importlib.import_module')
     def test_imports_plugins(self, import_):
         fetch_handlers = ['a.foo', 'b.foo', 'c.foo']
@@ -351,6 +363,7 @@ class BaseFetchHandlerTest(TestCase):
 
 
 class AptTests(TestCase):
+
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
     def test_installs_apt_packages(self, log, mock_call):
@@ -359,8 +372,9 @@ class AptTests(TestCase):
 
         fetch.apt_install(packages, options)
 
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo', 'bar'])
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      '--foo', '--bar', 'install', 'foo', 'bar'],
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -369,8 +383,12 @@ class AptTests(TestCase):
 
         fetch.apt_install(packages)
 
-        mock_call.assert_called_with(['apt-get', '-y', 'install', 'foo',
-                                      'bar'])
+        expected = ['apt-get', '--assume-yes',
+                    '--option=Dpkg::Options::=--force-confold',
+                    'install', 'foo', 'bar']
+
+        mock_call.assert_called_with(expected,
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -380,8 +398,11 @@ class AptTests(TestCase):
 
         fetch.apt_install(packages, options)
 
-        mock_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                      'install', 'foo bar'])
+        expected = ['apt-get', '--assume-yes',
+                    '--foo', '--bar', 'install', 'foo bar']
+
+        mock_call.assert_called_with(expected,
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
@@ -391,8 +412,9 @@ class AptTests(TestCase):
 
         fetch.apt_install(packages, options, fatal=True)
 
-        check_call.assert_called_with(['apt-get', '-y', '--foo', '--bar',
-                                       'install', 'foo', 'bar'])
+        check_call.assert_called_with(['apt-get', '--assume-yes',
+                                       '--foo', '--bar', 'install', 'foo', 'bar'],
+                                      env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
@@ -420,7 +442,8 @@ class AptTests(TestCase):
         fetch.apt_purge(packages)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo bar'])
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      'purge', 'foo bar'])
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -430,8 +453,8 @@ class AptTests(TestCase):
         fetch.apt_purge(packages)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-get', '-y', 'purge', 'foo',
-                                      'bar'])
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      'purge', 'foo', 'bar'])
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
