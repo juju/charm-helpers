@@ -24,6 +24,18 @@ DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
 
+IP_LINE_ETH0 = ("""
+2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
+    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
+""")
+
+IP_LINE_ETH1 = ("""
+3: eth1: <BROADCAST,MULTICAST> mtu 1546 qdisc noop state DOWN qlen 1000
+    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
+""")
+
+IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
+
 
 class HelpersTest(TestCase):
     @patch('subprocess.call')
@@ -645,3 +657,27 @@ class HelpersTest(TestCase):
 
         pw2 = host.pwgen(10)
         self.assertNotEqual(pw, pw2, 'Duplicated password')
+
+    @patch('subprocess.check_output')
+    def test_list_nics(self, check_output):
+        check_output.return_value = IP_LINES
+        nics = host.list_nics('eth')
+        self.assertEqual(nics, ['eth0', 'eth1'])
+        nics = host.list_nics(['eth'])
+        self.assertEqual(nics, ['eth0', 'eth1'])
+
+    @patch('subprocess.check_call')
+    def test_set_nic_mtu(self, mock_call):
+        mock_call.return_value = 0
+        nic = 'eth7'
+        mtu = '1546'
+        #result = host.set_nic_mtu(nic, mtu)
+        host.set_nic_mtu(nic, mtu)
+        mock_call.assert_called_with(['ip', 'link', 'set', nic, 'mtu', mtu])
+
+    @patch('subprocess.check_output')
+    def test_get_nic_mtu(self, check_output):
+        check_output.return_value = IP_LINE_ETH0
+        nic = "eth0"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
