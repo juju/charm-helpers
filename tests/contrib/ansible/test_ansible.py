@@ -132,3 +132,33 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
             }, result)
+
+    def test_calls_with_tags(self):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/complete-state.yaml', tags=['install', 'somethingelse'])
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            '--tags', 'install,somethingelse' ])
+
+    def test_hooks_executes_playbook_with_tag(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
+        foo = mock.MagicMock()
+        hooks.register('foo', foo)
+
+        hooks.execute(['foo'])
+
+        self.assertEqual(foo.call_count, 1)
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
+            '--tags', 'foo' ])
+
+    def test_specifying_ansible_handled_hooks(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks(
+            'my/playbook.yaml', default_hooks=['start', 'stop'])
+
+        hooks.execute(['start'])
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
+            '--tags', 'start' ])
