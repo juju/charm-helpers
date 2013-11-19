@@ -62,7 +62,6 @@ Read more online about playbooks[1] and standard ansible modules[2].
 import os
 import subprocess
 
-import charmhelpers.contrib.saltstack
 import charmhelpers.core.host
 import charmhelpers.core.hookenv
 import charmhelpers.fetch

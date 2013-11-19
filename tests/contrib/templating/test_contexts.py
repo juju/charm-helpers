@@ -13,6 +13,7 @@ import charmhelpers.contrib.templating
 
 
 class JujuState2YamlTestCase(unittest.TestCase):
+
     def setUp(self):
         super(JujuState2YamlTestCase, self).setUp()
 
@@ -164,4 +165,3 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
             }, result)
-

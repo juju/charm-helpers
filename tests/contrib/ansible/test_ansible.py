@@ -139,7 +139,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
-            '--tags', 'install,somethingelse' ])
+            '--tags', 'install,somethingelse'])
 
     def test_hooks_executes_playbook_with_tag(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
@@ -151,7 +151,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.assertEqual(foo.call_count, 1)
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
-            '--tags', 'foo' ])
+            '--tags', 'foo'])
 
     def test_specifying_ansible_handled_hooks(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks(
@@ -161,4 +161,4 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
-            '--tags', 'start' ])
+            '--tags', 'start'])
