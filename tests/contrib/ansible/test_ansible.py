@@ -111,11 +111,12 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
             'group_code_owner': 'webops_deploy',
             'user_code_runner': 'ubunet',
+            'private-address': '10.10.10.10',
         })
         self.mock_relation_type.return_value = 'wsgi-file'
         self.mock_relation_get.return_value = {
             'relation_key1': 'relation_value1',
-            'relation_key2': 'relation_value2',
+            'relation-key2': 'relation_value2',
         }
 
         charmhelpers.contrib.ansible.apply_playbook(
@@ -127,6 +128,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             self.assertEqual({
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
+                "private_address": "10.10.10.10",
                 "charm_dir": "",
                 "local_unit": {},
                 "wsgi_file__relation_key1": "relation_value1",

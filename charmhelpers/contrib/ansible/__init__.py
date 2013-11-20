@@ -98,7 +98,8 @@ def apply_playbook(playbook, tags=None):
     tags = tags or []
     tags = ",".join(tags)
     charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
-        ansible_vars_path, namespace_separator='__')
+        ansible_vars_path, namespace_separator='__',
+        allow_hyphens_in_keys=False)
     call = [
         'ansible-playbook',
         '-c',
