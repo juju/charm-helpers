@@ -125,9 +125,6 @@ define service {{
 
     def _locate_cmd(self, check_cmd):
         search_path = (
-            '/',
-            os.path.join(os.environ['CHARM_DIR'],
-                         'files/nrpe-external-master'),
             '/usr/lib/nagios/plugins',
             '/usr/local/lib/nagios/plugins',
         )
