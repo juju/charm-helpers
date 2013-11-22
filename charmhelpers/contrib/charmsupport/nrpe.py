@@ -129,6 +129,7 @@ define service {{
             os.path.join(os.environ['CHARM_DIR'],
                          'files/nrpe-external-master'),
             '/usr/lib/nagios/plugins',
+            '/usr/local/lib/nagios/plugins',
         )
         parts = shlex.split(check_cmd)
         for path in search_path:
