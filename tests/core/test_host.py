@@ -34,6 +34,8 @@ IP_LINE_ETH1 = ("""
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """)
 
+IP_LINE_HWADDR = ("""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff""")
+
 IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
 
 
@@ -681,3 +683,10 @@ class HelpersTest(TestCase):
         nic = "eth0"
         mtu = host.get_nic_mtu(nic)
         self.assertEqual(mtu, '1500')
+
+    @patch('subprocess.check_output')
+    def test_get_nic_hwaddr(self, check_output):
+        check_output.return_value = IP_LINE_HWADDR
+        nic = "eth0"
+        hwaddr = host.get_nic_hwaddr(nic)
+        self.assertEqual(hwaddr, 'e4:11:5b:ab:a7:3c')

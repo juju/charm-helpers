@@ -126,7 +126,7 @@ define service {
 """
         expected = [
             '# check myservice\n',
-            'command[check_myservice]=/check_http http://localhost\n',
+            'command[check_myservice]=/usr/lib/nagios/plugins/check_http http://localhost\n',
             service_file_contents,
         ]
         actual = [x[0][0] for x in outfile.write.call_args_list]
@@ -199,15 +199,14 @@ class NRPECheckTestCase(NRPEBaseTestCase):
         check = nrpe.Check('shortname', 'description', 'check_http -x -y -z')
 
         self.assertEqual('', check.check_cmd)
-        self.assertEqual(3, self.patched['exists'].call_count)
+        self.assertEqual(2, self.patched['exists'].call_count)
         expected = [
-            '/check_http',
-            '/usr/lib/test_charm_dir/files/nrpe-external-master/check_http',
             '/usr/lib/nagios/plugins/check_http',
+            '/usr/local/lib/nagios/plugins/check_http',
         ]
         actual = [x[0][0] for x in self.patched['exists'].call_args_list]
         self.assertEqual(expected, actual)
-        self.check_call_counts(exists=3, log=1)
+        self.check_call_counts(exists=2, log=1)
         expected = 'Check command not found: check_http'
         self.assertEqual(expected, self.patched['log'].call_args[0][0])
 

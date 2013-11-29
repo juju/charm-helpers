@@ -279,3 +279,13 @@ def get_nic_mtu(nic):
         if 'mtu' in words:
             mtu = words[words.index("mtu") + 1]
     return mtu
+
+
+def get_nic_hwaddr(nic):
+    cmd = ['ip', '-o', '-0', 'addr', 'show', nic]
+    ip_output = subprocess.check_output(cmd)
+    hwaddr = ""
+    words = ip_output.split()
+    if 'link/ether' in words:
+        hwaddr = words[words.index('link/ether') + 1]
+    return hwaddr
