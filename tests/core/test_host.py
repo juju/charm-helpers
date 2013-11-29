@@ -688,5 +688,5 @@ class HelpersTest(TestCase):
     def test_get_nic_hwaddr(self, check_output):
         check_output.return_value = IP_LINE_HWADDR
         nic = "eth0"
-        mtu = host.get_nic_hwaddr(nic)
-        self.assertEqual(mtu, 'e4:11:5b:ab:a7:3c')
+        hwaddr = host.get_nic_hwaddr(nic)
+        self.assertEqual(hwaddr, 'e4:11:5b:ab:a7:3c')
