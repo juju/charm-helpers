@@ -202,7 +202,7 @@ def os_release(package, base='essex'):
 
 
 def import_key(keyid):
-    cmd = "apt-key adv --keyserver keyserver.ubuntu.com " \
+    cmd = "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 " \
           "--recv-keys %s" % keyid
     try:
         subprocess.check_call(cmd.split(' '))

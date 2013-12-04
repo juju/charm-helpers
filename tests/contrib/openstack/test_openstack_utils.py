@@ -425,7 +425,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Ensure shell out apt-key during key import'''
         with patch('subprocess.check_call') as _subp:
             openstack.import_key('foo')
-            cmd = ['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+            cmd = ['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
                    '--recv-keys', 'foo']
             _subp.assert_called_with(cmd)
 
@@ -433,11 +433,11 @@ class OpenStackHelpersTestCase(TestCase):
     def test_import_bad_apt_key(self, mocked_error):
         '''Ensure error when importing apt key fails'''
         with patch('subprocess.check_call') as _subp:
-            cmd = ['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+            cmd = ['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
                    '--recv-keys', 'foo']
             _subp.side_effect = subprocess.CalledProcessError(1, cmd, '')
             openstack.import_key('foo')
-            cmd = ['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+            cmd = ['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
                    '--recv-keys', 'foo']
         mocked_error.assert_called_with('Error importing repo key foo')
 
