@@ -76,6 +76,10 @@ UCA_SOURCES = [
     ('cloud:precise-havana/proposed', url + ' precise-proposed/havana main'),
     ('cloud:precise-havana', url + ' precise-updates/havana main'),
     ('cloud:precise-havana/updates', url + ' precise-updates/havana main'),
+    ('cloud:precise-icehouse/proposed',
+     url + ' precise-proposed/icehouse main'),
+    ('cloud:precise-icehouse', url + ' precise-updates/icehouse main'),
+    ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
 ]
 
 
