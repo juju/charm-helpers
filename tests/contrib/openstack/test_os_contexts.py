@@ -636,6 +636,15 @@ class ContextTests(unittest.TestCase):
     def test_os_configflag_context(self, config):
         flags = context.OSConfigFlagContext()
 
+        # single
+        config.return_value = 'deadbeef=True'
+        self.assertEquals({
+            'user_config_flags': {
+                'deadbeef': 'True',
+            }
+        }, flags())
+
+        # multi
         config.return_value = 'floating_ip=True,use_virtio=False,max=5'
         self.assertEquals({
             'user_config_flags': {
@@ -649,13 +658,22 @@ class ContextTests(unittest.TestCase):
             config.return_value = empty
             self.assertEquals({}, flags())
 
+        # multi with commas
         config.return_value = 'good_flag=woot,badflag,great_flag=w00t'
         self.assertEquals({
             'user_config_flags': {
-                'good_flag': 'woot',
+                'good_flag': 'woot,badflag',
                 'great_flag': 'w00t',
             }
         }, flags())
+
+        # missing key
+        config.return_value = 'good_flag=woot=toow'
+        self.assertRaises(context.OSContextError, flags)
+
+        # bad value
+        config.return_value = 'good_flag=woot=='
+        self.assertRaises(context.OSContextError, flags)
 
     def test_os_subordinate_config_context(self):
         relation = FakeRelation(relation_data=SUB_CONFIG_RELATION)
