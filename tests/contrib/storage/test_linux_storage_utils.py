@@ -12,7 +12,8 @@ class MiscStorageUtilsTests(unittest.TestCase):
         '''It calls sgdisk correctly to zap disk'''
         with patch(STORAGE_LINUX_UTILS + '.check_call') as check_call:
             storage_utils.zap_disk('/dev/foo')
-            check_call.assert_called_with(['sgdisk', '--zap-all', '/dev/foo'])
+            check_call.assert_called_with(['sgdisk', '--zap-all', '--mbrtogpt',
+                                           '/dev/foo'])
 
     @patch(STORAGE_LINUX_UTILS + '.stat')
     @patch(STORAGE_LINUX_UTILS + '.S_ISBLK')
