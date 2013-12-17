@@ -70,7 +70,7 @@ def neutron_plugins():
                                         relation_prefix='neutron')],
             'services': ['neutron-plugin-openvswitch-agent'],
             'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
-                         ['quantum-plugin-openvswitch-agent']],
+                         ['neutron-plugin-openvswitch-agent']],
             'server_packages': ['neutron-server',
                                 'neutron-plugin-openvswitch'],
             'server_services': ['neutron-server']
