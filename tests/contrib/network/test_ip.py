@@ -26,10 +26,10 @@ class IPTest(unittest.TestCase):
                                    '255.0.0.0', 'addr': '127.0.0.1'}],
                               10: [{'netmask': ffff,
                                     'addr': '::1'}]
-                          },
+                              },
                        'eth0': {17: [{'broadcast': 'ff:ff:ff:ff:ff:ff',
                                       'addr': '28:92:4a:19:8c:e8'}]
-                            },
+                                },
                        'eth2': {17: [{'broadcast': 'ff:ff:ff:ff:ff:ff',
                                       'addr': 'e0:06:e6:41:dd:dd'}],
                                 2: [{'broadcast': '192.168.1.255',
@@ -37,9 +37,9 @@ class IPTest(unittest.TestCase):
                                      'addr': '192.168.1.108'}],
                                 10: [{'netmask': 'ffff:ffff:ffff:ffff::',
                                       'addr': 'fe80::e206:e6ff:fe41:dddd%eth2'}
-                                 ]
-                            },
-            }
+                                     ]
+                                },
+                       }
             return results[iface]
 
         with mock.patch.object(netifaces, 'interfaces') as interfaces:

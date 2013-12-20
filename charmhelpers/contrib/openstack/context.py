@@ -286,6 +286,7 @@ class ImageServiceContext(OSContextGenerator):
 
 
 class ApacheSSLContext(OSContextGenerator):
+
     """
     Generates a context for an apache vhost configuration that configures
     HTTPS reverse proxying for one or many endpoints.  Generated context
@@ -433,6 +434,7 @@ class NeutronContext(object):
 
 
 class OSConfigFlagContext(OSContextGenerator):
+
         """
         Responsible for adding user-defined config-flags in charm config to a
         template context.
@@ -441,6 +443,7 @@ class OSConfigFlagContext(OSContextGenerator):
               key=value pairs and some Openstack config files support
               comma-separated lists as values.
         """
+
         def __call__(self):
             config_flags = config('config-flags')
             if not config_flags:
@@ -485,6 +488,7 @@ class OSConfigFlagContext(OSContextGenerator):
 
 
 class SubordinateConfigContext(OSContextGenerator):
+
     """
     Responsible for inspecting relations to subordinates that
     may be exporting required config via a json blob.
@@ -525,6 +529,7 @@ class SubordinateConfigContext(OSContextGenerator):
         }
 
     """
+
     def __init__(self, service, config_file, interface):
         """
         :param service     : Service name key to query in any subordinate
