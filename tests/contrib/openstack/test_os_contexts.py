@@ -297,8 +297,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost'],
+            'rabbitmq_virtual_host': 'foo'
         }
         self.assertEquals(result, expected)
 
@@ -317,7 +316,6 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost'],
         }
         self.assertEquals(result, expected)
 
@@ -336,7 +334,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost2', 'rabbithost1'],
+            'rabbitmq_hosts': 'rabbithost2,rabbithost1',
         }
         self.assertEquals(result, expected)
 
