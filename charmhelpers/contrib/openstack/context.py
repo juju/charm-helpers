@@ -23,7 +23,6 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
-    WARNING,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -182,10 +181,12 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            ctxt['rabbitmq_hosts'] = []
-            for unit in related_units(rid):
-                ctxt['rabbitmq_hosts'].append(relation_get('private-address',
-                                                           rid=rid, unit=unit))
+            if 'clustered' not in ctxt and len(related_units(rid)) > 1:
+                rabbitmq_hosts = []
+                for unit in related_units(rid):
+                    rabbitmq_hosts.append(relation_get('private-address',
+                                                       rid=rid, unit=unit))
+                ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
         if not context_complete(ctxt):
             return {}
         else:
