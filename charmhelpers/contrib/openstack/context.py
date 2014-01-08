@@ -182,7 +182,7 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if relation_get('vip', rid=rid, unit=unit) is None:
+            if 'clustered' in ctxt and ctxt['clustered'] is True:
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
