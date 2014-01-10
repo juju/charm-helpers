@@ -94,6 +94,8 @@ def neutron_plugins():
     if release >= 'icehouse':
         plugins['ovs']['config'] = '/etc/neutron/plugins/ml2/ml2_conf.ini'
         plugins['ovs']['driver'] = 'neutron.plugins.ml2.plugin.Ml2Plugin'
+        plugins['ovs']['server_packages'] = ['neutron-server',
+                                             'neutron-plugin-ml2']
     return plugins
 
 
