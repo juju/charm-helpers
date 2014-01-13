@@ -36,6 +36,10 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     # file resources etc.
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
+    config['unit_private_address'] = charmhelpers.core.hookenv.unit_private_ip()
+    config['unit_public_address'] = charmhelpers.core.hookenv.unit_get(
+        'public-address'
+    )
 
     # Add any relation data prefixed with the relation type.
     relation_type = charmhelpers.core.hookenv.relation_type()
