@@ -591,6 +591,13 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(hn, 'www.ubuntu.com')
 
     @patch.object(openstack, 'apt_install')
+    def test_get_hostname_with_ip_not_fqdn(self, apt_install):
+        fake_dns = FakeDNS('packages.ubuntu.com')
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            hn = openstack.get_hostname('4.2.2.1', fqdn=False)
+        self.assertEquals(hn, 'packages')
+
+    @patch.object(openstack, 'apt_install')
     def test_get_hostname_with_hostname(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
         with patch('__builtin__.__import__', side_effect=[fake_dns]):
