@@ -168,7 +168,8 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'import', key])
+            call(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+                  '--recv', key])
         ])
 
     @patch.object(fetch, 'config')
