@@ -161,7 +161,6 @@ def add_source(source, key=None):
                                key])
 
 
-
 class SourceConfigError(Exception):
     pass
 
