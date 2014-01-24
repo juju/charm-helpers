@@ -1,167 +1,305 @@
-import os
-import subprocess
-import unittest
+
+from mock import call, patch, MagicMock
 from testtools import TestCase
 
-from copy import copy
-from mock import MagicMock, patch, call
-
-import charmhelpers.contrib.unison as unison
+from tests.helpers import patch_open, mock_open, FakeRelation
+from charmhelpers.contrib import unison
 
 
-class UnisonTestCase(TestCase):
+FAKE_RELATION_ENV = {
+    'cluster:0': ['cluster/0', 'cluster/1']
+}
+
+
+TO_PATCH = [
+    'log', 'check_call', 'check_output', 'relation_ids',
+    'related_units', 'relation_get', 'relation_set',
+    'hook_name', 'unit_private_ip',
+]
+
+FAKE_LOCAL_UNIT = 'test_host'
+FAKE_RELATION = {
+    'cluster:0': {
+        'cluster/0': {
+            'private-address': 'cluster0.local',
+            'ssh_authorized_hosts': 'someotherhost:test_host'
+        },
+        'clsuter/1': {
+            'private-address': 'cluster1.local',
+            'ssh_authorized_hosts': 'someotherhost'
+        },
+        'clsuter/3': {
+            'private-address': 'cluster2.local',
+            'ssh_authorized_hosts': 'someotherthirdhost'
+        },
+
+    },
+
+}
+
+
+class UnisonHelperTests(TestCase):
     def setUp(self):
-        super(UnisonTestCase, self).setUp()
-        self.user = 'ubuntu'
-        self.group = 'users'
-        self.host = 'host'
+        super(UnisonHelperTests, self).setUp()
+        for m in TO_PATCH:
+            setattr(self, m, self._patch(m))
+        self.fake_relation = FakeRelation(FAKE_RELATION)
+        self.unit_private_ip.return_value = FAKE_LOCAL_UNIT
+        self.relation_get.side_effect = self.fake_relation.get
+        self.relation_ids.side_effect = self.fake_relation.relation_ids
+        self.related_units.side_effect = self.fake_relation.related_units
+
+    def _patch(self, method):
+        _m = patch('charmhelpers.contrib.unison.' + method)
+        mock = _m.start()
+        self.addCleanup(_m.stop)
+        return mock
 
     @patch('pwd.getpwnam')
-    def test_get_homedir(self, getpwnam):
-        '''Tests that homedir is returned correctly'''
-        unison.get_homedir(self.user)
-        getpwnam.assert_called_with(self.user)
+    def test_get_homedir(self, pwnam):
+        fake_user = MagicMock()
+        fake_user.pw_dir = '/home/foo'
+        pwnam.return_value= fake_user
+        self.assertEquals(unison.get_homedir('foo'),
+                          '/home/foo')
 
-    @patch('charmhelpers.contrib.unison.get_homedir')
-    @patch('os.path.isdir')
+    @patch('pwd.getpwnam')
+    def test_get_homedir_no_user(self, pwnam):
+        e = KeyError
+        pwnam.side_effect = e
+        self.assertRaises(Exception, unison.get_homedir, user='foo')
+
+    def _ensure_calls_in(self, calls):
+        for _call in calls:
+            self.assertIn(call(_call), self.check_call.call_args_list)
+
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.unison.log')
-    @patch('subprocess.check_output')
-    @patch('subprocess.check_call')
-    @patch('__builtin__.open')
-    def get_test_keypair(self, open, check_call, check_output,
-                         log, isfile, isdir, homedir):
-        '''Tests that keypairs are generated and written correctly'''
-        homedir.return_value = '/home/ubuntu/'
-        isdir.return_value = True
+    def test_create_private_key(self, isfile):
+        create_cmd = [
+            'ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
+            '-f', '/home/foo/.ssh/id_rsa']
+
+        def _ensure_perms():
+            cmds = [
+                ['chown', 'foo', '/home/foo/.ssh/id_rsa'],
+                ['chmod', '0600', '/home/foo/.ssh/id_rsa'],
+            ]
+            self._ensure_calls_in(cmds)
+
         isfile.return_value = False
-        unison.get_keypair(self.user)
+        unison.create_private_key(
+            user='foo', priv_key_path='/home/foo/.ssh/id_rsa')
+        self.assertIn(call(create_cmd), self.check_call.call_args_list)
+        _ensure_perms()
+        self.check_call.call_args_list = []
 
-        # checks that all system calls are called in the right way
-        homedir.assert_called_with(self.user)
-        check_output.assert_called_with(['ssh-keygen', '-y', '-f',
-                                        '/home/ubuntu/.ssh/id_rsa'])
-        check_call.assert_called_with(['chown', '-R',
-                                      self.user, '/home/ubuntu/.ssh'])
+        isfile.return_value = True
+        unison.create_private_key(
+            user='foo', priv_key_path='/home/foo/.ssh/id_rsa')
+        self.assertNotIn(call(create_cmd), self.check_call.call_args_list)
+        _ensure_perms()
 
-    @patch('charmhelpers.contrib.unison.get_homedir')
-    @patch('charmhelpers.contrib.unison.log')
-    @patch('__builtin__.open')
-    def test_write_authorized_keys(self, open, log, homedir):
-        '''Tests that keys are written into proper directory'''
-        keys = ['key1', 'key2', 'key3']
-        homedir.return_value = '/home/ubuntu/'
-        unison.write_authorized_keys(self.user, keys)
-        open.assert_called_with('/home/ubuntu/.ssh/authorized_keys', 'wb')
 
-    @patch('charmhelpers.contrib.unison.get_homedir')
-    @patch('charmhelpers.contrib.unison.log')
-    @patch('__builtin__.open')
-    @patch('subprocess.check_output')
-    def test_write_known_hosts(self, check_output, open, log, homedir):
-        '''Tests that hosts are written properly'''
-        homedir.return_value = '/home/ubuntu/'
-        hosts = [self.host]
-        unison.write_known_hosts(self.user, hosts)
-        for host in hosts:
-            check_output.assert_called_with(['ssh-keyscan',
-                                            '-H', '-t', 'rsa', host])
-        open.assert_called_with('/home/ubuntu/.ssh/known_hosts', 'wb')
+    @patch('os.path.isfile')
+    def test_create_public_key(self, isfile):
+        create_cmd = ['ssh-keygen', '-y', '-f', '/home/foo/.ssh/id_rsa']
+        isfile.return_value = True
+        unison.create_public_key(
+            user='foo', priv_key_path='/home/foo/.ssh/id_rsa',
+            pub_key_path='/home/foo/.ssh/id_rsa.pub')
+        self.assertNotIn(call(create_cmd), self.check_output.call_args_list)
+
+        isfile.return_value = False
+        with patch_open() as (_open, _file):
+            self.check_output.return_value = 'fookey'
+            unison.create_public_key(
+                user='foo', priv_key_path='/home/foo/.ssh/id_rsa',
+                pub_key_path='/home/foo/.ssh/id_rsa.pub')
+            self.assertIn(call(create_cmd), self.check_output.call_args_list)
+            _open.assert_called_with('/home/foo/.ssh/id_rsa.pub', 'wb')
+            _file.write.assert_called_with('fookey')
+
+    @patch('os.mkdir')
+    @patch('os.path.isdir')
+    @patch.object(unison, 'get_homedir')
+    @patch.multiple(unison, create_private_key=MagicMock(),
+                    create_public_key=MagicMock())
+    def test_get_keypair(self, get_homedir, isdir, mkdir):
+        get_homedir.return_value = '/home/foo'
+        isdir.return_value = False
+        with patch_open() as (_open, _file):
+            _file.read.side_effect = [
+                'foopriv', 'foopub'
+            ]
+            priv, pub = unison.get_keypair('adam')
+            for f in [
+                '/home/foo/.ssh/id_rsa',
+                '/home/foo/.ssh/id_rsa.pub']:
+                self.assertIn(call(f, 'r'), _open.call_args_list)
+        self.assertEquals(priv, 'foopriv')
+        self.assertEquals(pub, 'foopub')
+
+
+    @patch.object(unison, 'get_homedir')
+    def test_write_auth_keys(self, get_homedir):
+        get_homedir.return_value = '/home/foo'
+        keys = [
+            'ssh-rsa AAAB3Nz adam',
+            'ssh-rsa ALKJFz adam@whereschuck.org',
+        ]
+        with patch_open() as (_open, _file):
+            unison.write_authorized_keys('foo', keys)
+            _open.assert_called_with('/home/foo/.ssh/authorized_keys', 'wb')
+            for k in keys:
+                self.assertIn(call('%s\n' % k), _file.write.call_args_list)
+
+    @patch.object(unison, 'get_homedir')
+    def test_write_known_hosts(self, get_homedir):
+        get_homedir.return_value = '/home/foo'
+        keys = [
+            '10.0.0.1 ssh-rsa KJDSJF=',
+            '10.0.0.2 ssh-rsa KJDSJF=',
+        ]
+        self.check_output.side_effect = keys
+        with patch_open() as (_open, _file):
+            unison.write_known_hosts('foo', ['10.0.0.1', '10.0.0.2'])
+            _open.assert_called_with('/home/foo/.ssh/known_hosts', 'wb')
+            for k in keys:
+                self.assertIn(call('%s\n' % k), _file.write.call_args_list)
+
+    @patch.object(unison, 'add_user_to_group')
+    @patch.object(unison, 'adduser')
+    def test_ensure_user(self, adduser, to_group):
+        unison.ensure_user('foo', group='foobar')
+        adduser.assert_called_with('foo')
+        to_group.assert_called_with('foo', 'foobar')
+
+    @patch.object(unison, '_run_as_user')
+    def test_run_as_user(self, _run):
+        with patch.object(unison, '_run_as_user') as _run:
+            fake_preexec = MagicMock()
+            _run.return_value = fake_preexec
+            unison.run_as_user('foo', ['echo', 'foo'])
+            self.check_output.assert_called_with(
+                ['echo', 'foo'], preexec_fn=fake_preexec, cwd='/')
 
     @patch('pwd.getpwnam')
-    def test_ensure_user_without_key_error(self, getpwnam):
-        '''Tests user creation, that already exists'''
-        unison.ensure_user(self.user, self.group)
-        getpwnam.assert_called_with(self.user)
-
-    @patch('pwd.getpwnam')
-    @patch('grp.getgrnam')
-    @patch('charmhelpers.contrib.unison.log')
-    @patch('subprocess.check_call')
-    def test_ensure_user_group_with_key_error(self, check_call, log,
-                                              getgrnam, getpwnam):
-        '''Tests creation of user that does not exist'''
-        e = KeyError('Invalid user')
+    def test_run_user_not_found(self, getpwnam):
+        e = KeyError
         getpwnam.side_effect = e
-        unison.ensure_user(self.user, self.group)
-        getpwnam.assert_called_with(self.user)
-        getgrnam.assert_called_with(self.group)
-        # checks generation of user
-        check_call.assert_called_with(
-            ['adduser', '--system', '--shell', '/bin/bash', self.user,
-             '--ingroup', self.group])
+        self.assertRaises(Exception, unison._run_as_user, 'nouser')
 
-    @patch('charmhelpers.contrib.unison.ensure_user')
-    @patch('charmhelpers.contrib.unison.get_keypair')
-    @patch('os.path.basename')
-    @patch('charmhelpers.contrib.unison.relation_set')
-    def test_ssh_autorized_peers_relation_joined(self, relation_set, basename,
-                                                 get_keypair, ensure_user):
-        '''Tests ssh method on cluster joined'''
-        basename.return_value = 'cluster-relation-joined'
-        get_keypair.return_value = ['priv', 'pub']
-        unison.ssh_authorized_peers('cluster', self.user, self.group, True)
-        ensure_user.assert_called_with(self.user, self.group)
-        get_keypair.assert_called_with(self.user)
-        # only need to check that relation_set is called
-        relation_set.assert_called_with(ssh_pub_key='pub')
+    @patch('os.setuid')
+    @patch('os.setgid')
+    @patch('os.environ', spec=dict)
+    @patch('pwd.getpwnam')
+    def test_run_as_user_preexec(self, pwnam, environ, setgid, setuid):
+        fake_env = {'HOME': '/root'}
+        environ.__getitem__ = MagicMock()
+        environ.__setitem__ = MagicMock()
+        environ.__setitem__.side_effect = fake_env.__setitem__
+        environ.__getitem__.side_effect = fake_env.__getitem__
 
-    @patch('charmhelpers.contrib.unison.ensure_user')
-    @patch('charmhelpers.contrib.unison.get_keypair')
-    @patch('os.path.basename')
-    @patch('charmhelpers.contrib.unison.relation_set')
-    @patch('charmhelpers.contrib.unison.relation_ids')
-    @patch('charmhelpers.contrib.unison.relation_list')
-    @patch('charmhelpers.contrib.unison.relation_get')
-    @patch('charmhelpers.contrib.unison.write_authorized_keys')
-    @patch('charmhelpers.contrib.unison.write_known_hosts')
-    @patch('charmhelpers.contrib.unison.log')
-    def test_ssh_autorized_peers_relation_changed(
-            self, log, write_known_hosts, write_authorized_keys, relation_get,
-            relation_list, relation_ids, relation_set, basename, get_keypair,
-            ensure_user):
-        '''Tests ssh for a cluster changed relation'''
-        basename.return_value = 'cluster-relation-changed'
-        get_keypair.return_value = ['pub', 'priv']
-        relation_ids.return_value = ['id0']
-        relation_list.return_value = ['unit0']
-        relation_get.return_value = {'ssh_pub_key': 'pub',
-                                     'private-address': self.host}
-        unison.ssh_authorized_peers('cluster', self.user, self.group, True)
+        fake_user = MagicMock()
+        fake_user.pw_uid = 1010
+        fake_user.pw_gid = 1011
+        fake_user.pw_dir = '/home/foo'
+        pwnam.return_value = fake_user
+        inner = unison._run_as_user('foo')
+        self.assertEquals(fake_env['HOME'], '/home/foo')
+        inner()
+        setgid.assert_called_with(1011)
+        setuid.assert_called_with(1010)
 
-        # need to check writing keys, hosts, and properly setting relation vars
-        ensure_user.assert_called_with(self.user, self.group)
-        get_keypair.assert_called_with(self.user)
-        write_authorized_keys.assert_called_with(self.user, ['pub'])
-        write_known_hosts.assert_called_with(self.user, [self.host])
-        relation_set.assert_called_with(ssh_authorized_hosts=self.host)
 
-    @patch('charmhelpers.contrib.unison.run_as_user')
-    @patch('charmhelpers.contrib.unison.log')
-    def test_sync_to_peer(self, log, run_as_user):
-        '''Tests that unison call is properly executed'''
-        paths = ['path1']
-        unison.sync_to_peer(self.host, self.user, paths, False)
-        base_cmd = ['unison', '-auto', '-batch=true', '-confirmbigdel=false',
-                    '-fastcheck=true', '-group=false', '-owner=false',
-                    '-prefer=newer', '-times=true', '-silent']
-        for path in paths:
-            base_cmd += [path, 'ssh://%s@%s/%s' % (self.user, self.host, path)]
-        run_as_user.assert_called_with(self.user, base_cmd)
+    @patch.object(unison, 'get_keypair')
+    @patch.object(unison, 'ensure_user')
+    def test_ssh_auth_peer_joined(self, ensure_user, get_keypair):
+        get_keypair.return_value = ('privkey', 'pubkey')
+        self.hook_name.return_value = 'cluster-relation-joined'
+        unison.ssh_authorized_peers(peer_interface='cluster',
+                                    user='foo', group='foo',
+                                    ensure_local_user=True)
+        self.relation_set.assert_called_with(ssh_pub_key='pubkey')
+        self.assertFalse(self.relation_get.called)
+        ensure_user.assert_called_with('foo', 'foo')
+        get_keypair.assert_called_with('foo')
 
-    @patch('charmhelpers.contrib.unison.relation_ids')
-    @patch('charmhelpers.contrib.unison.relation_list')
-    @patch('charmhelpers.contrib.unison.relation_get')
-    @patch('charmhelpers.contrib.unison.unit_get')
-    @patch('charmhelpers.contrib.unison.sync_to_peer')
-    def test_sync_to_peers(self, sync_to_peer, unit_get, relation_get,
-                           relation_list, relation_ids):
-        '''Tests that all the calls to sync_to_peer
-        for the unit are properly executed'''
-        relation_ids.return_value = ['id0']
-        relation_list.return_value = ['unit0']
-        relation_get.return_value = {'ssh_authorized_hosts': self.host,
-                                     'private-address': self.host}
-        unit_get.return_value = self.host
-        unison.sync_to_peers('cluster', self.user, ['path'], False)
-        sync_to_peer.assert_called_with(self.host, self.user, ['path'], False)
+    @patch.object(unison, 'write_known_hosts')
+    @patch.object(unison, 'write_authorized_keys')
+    @patch.object(unison, 'get_keypair')
+    @patch.object(unison, 'ensure_user')
+    def test_ssh_auth_peer_changed(self, ensure_user, get_keypair,
+                                   write_keys, write_hosts):
+        get_keypair.return_value = ('privkey', 'pubkey')
+
+        self.hook_name.return_value = 'cluster-relation-changed'
+
+        self.relation_get.side_effect = [
+            'key1',
+            'host1',
+            'key2',
+            'host2',
+            '', ''
+        ]
+        unison.ssh_authorized_peers(peer_interface='cluster',
+                                    user='foo', group='foo',
+                                    ensure_local_user=True)
+
+        ensure_user.assert_called_with('foo', 'foo')
+        get_keypair.assert_called_with('foo')
+        write_keys.assert_called_with('foo', ['key1', 'key2'])
+        write_hosts.assert_called_with('foo', ['host1', 'host2'])
+        self.relation_set.assert_called_with(
+                ssh_authorized_hosts='host1:host2')
+
+    def test_collect_authed_hosts(self):
+        # only one of the hosts in fake environment has auth'd
+        # the local peer
+        hosts = unison.collect_authed_hosts('cluster')
+        self.assertEquals(hosts, ['cluster0.local'])
+
+    def test_collect_authed_hosts_none_authed(self):
+        with patch.object(unison, 'relation_get') as relation_get:
+            relation_get.return_value = ''
+            hosts = unison.collect_authed_hosts('cluster')
+            self.assertEquals(hosts, [])
+
+
+    @patch.object(unison, 'run_as_user')
+    def test_sync_path_to_host(self, run_as_user, verbose=True):
+        for path in ['/tmp/foo', '/tmp/foo/']:
+            unison.sync_path_to_host(path=path, host='clusterhost1',
+                                     user='foo', verbose=verbose)
+            ex_cmd =  ['unison', '-auto', '-batch=true',
+                       '-confirmbigdel=false', '-fastcheck=true',
+                       '-group=false', '-owner=false',
+                       '-prefer=newer', '-times=true']
+            if not verbose:
+                ex_cmd.append('-silent')
+            ex_cmd += ['/tmp/foo', 'ssh://foo@clusterhost1//tmp/foo']
+            run_as_user.assert_called_with('foo', ex_cmd)
+
+    def test_sync_path_to_host_non_verbose(self):
+        return self.test_sync_path_to_host(verbose=False)
+
+    @patch.object(unison, 'sync_path_to_host')
+    def test_sync_to_peers(self, sync_path_to_host):
+        paths = ['/tmp/foo']
+        unison.sync_to_peer(self, 'foouser', paths, True)
+        c = call(path, host, 'foouser', True)
+        self.assertIn(c, sync_path_to_host.call_args_list)
+
+    @patch.object(unison, 'collect_authed_hosts')
+    @patch.object(unison, 'sync_to_peer')
+    def test_sync_to_peers(self, sync_to_peer, collect_hosts):
+        collect_hosts.return_value = ['host1', 'host2', 'host3']
+        hosts = ['host1', 'host2', 'host3']
+        paths = ['/tmp/foo']
+        unison.sync_to_peers(peer_interface='cluster', user='foouser',
+                             paths=paths, verbose=True)
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True),
+                 call('host2', 'foouser', ['/tmp/foo'], True),
+                 call('host3', 'foouser', ['/tmp/foo'], True)]
+        sync_to_peer.assert_has_calls(calls)
+

@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #
 # Easy file synchronization among peer units using ssh + unison.
 #
@@ -29,7 +30,7 @@
 #
 # files = ['/etc/fstab', '/etc/apt.conf.d/']
 # sync_to_peers(peer_interface='cluster',
-#                user='juju_ssh', paths=[files], verbose=False)
+#                user='juju_ssh, paths=[files])
 #
 # It is assumed the charm itself has setup permissions on each unit
 # such that 'juju_ssh' has read + write permissions.  Also assumed
@@ -38,22 +39,33 @@
 # Additionally files can be synchronized only to an specific unit:
 # sync_to_peer(slave_address, user='juju_ssh',
 #              paths=[files], verbose=False)
-import grp
+
 import os
+import grp
 import pwd
-import subprocess
-import sys
+
+from copy import copy
+from subprocess import check_call, check_output
+
+from charmhelpers.core.host import (
+    adduser,
+    add_user_to_group,
+)
 
 from charmhelpers.core.hookenv import (
     log,
-    ERROR,
-    INFO,
-    relation_get,
-    relation_set,
+    hook_name,
     relation_ids,
-    related_units as relation_list,
-    unit_get
+    related_units,
+    relation_set,
+    relation_get,
+    unit_private_ip,
+    ERROR,
 )
+
+BASE_CMD = ['unison', '-auto', '-batch=true', '-confirmbigdel=false',
+            '-fastcheck=true', '-group=false', '-owner=false',
+            '-prefer=newer', '-times=true']
 
 
 def get_homedir(user):
@@ -61,40 +73,59 @@ def get_homedir(user):
         user = pwd.getpwnam(user)
         return user.pw_dir
     except KeyError:
-        log('INFO', 'Could not get homedir for user %s: user exists?')
-        sys.exit(1)
+        log('Could not get homedir for user %s: user exists?', ERROR)
+        raise Exception
+
+
+def create_private_key(user, priv_key_path):
+    if not os.path.isfile(priv_key_path):
+        log('Generating new SSH key for user %s.' % user)
+        cmd = ['ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
+               '-f', priv_key_path]
+        check_call(cmd)
+    else:
+        log('SSH key already exists at %s.' % priv_key_path)
+    check_call(['chown', user, priv_key_path])
+    check_call(['chmod', '0600', priv_key_path])
+
+
+def create_public_key(user, priv_key_path, pub_key_path):
+    if not os.path.isfile(pub_key_path):
+        log('Generating missing ssh public key @ %s.' % pub_key_path)
+        cmd = ['ssh-keygen', '-y', '-f', priv_key_path]
+        p = check_output(cmd).strip()
+        with open(pub_key_path, 'wb') as out:
+            out.write(p)
+    check_call(['chown', user, pub_key_path])
 
 
 def get_keypair(user):
     home_dir = get_homedir(user)
     ssh_dir = os.path.join(home_dir, '.ssh')
+    priv_key = os.path.join(ssh_dir, 'id_rsa')
+    pub_key = '%s.pub' % priv_key
+
     if not os.path.isdir(ssh_dir):
         os.mkdir(ssh_dir)
+        check_call(['chown', '-R', user, ssh_dir])
 
-    priv_key = os.path.join(ssh_dir, 'id_rsa')
-    if not os.path.isfile(priv_key):
-        log('INFO', 'Generating new ssh key for user %s.' % user)
-        cmd = ['ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
-               '-f', priv_key]
-        subprocess.check_call(cmd)
+    create_private_key(user, priv_key)
+    create_public_key(user, priv_key, pub_key)
 
-    pub_key = '%s.pub' % priv_key
-    if not os.path.isfile(pub_key):
-        log('INFO', 'Generatring missing ssh public key @ %s.' % pub_key)
-        cmd = ['ssh-keygen', '-y', '-f', priv_key]
-        p = subprocess.check_output(cmd).strip()
-        with open(pub_key, 'wb') as out:
-            out.write(p)
-    subprocess.check_call(['chown', '-R', user, ssh_dir])
-    return open(priv_key, 'r').read().strip(), \
-        open(pub_key, 'r').read().strip()
+    with open(priv_key, 'r') as p:
+        _priv = p.read().strip()
+
+    with open(pub_key, 'r') as p:
+        _pub = p.read().strip()
+
+    return (_priv, _pub)
 
 
 def write_authorized_keys(user, keys):
     home_dir = get_homedir(user)
     ssh_dir = os.path.join(home_dir, '.ssh')
     auth_keys = os.path.join(ssh_dir, 'authorized_keys')
-    log('INFO', 'Syncing authorized_keys @ %s.' % auth_keys)
+    log('Syncing authorized_keys @ %s.' % auth_keys)
     with open(auth_keys, 'wb') as out:
         for k in keys:
             out.write('%s\n' % k)
@@ -107,28 +138,18 @@ def write_known_hosts(user, hosts):
     khosts = []
     for host in hosts:
         cmd = ['ssh-keyscan', '-H', '-t', 'rsa', host]
-        remote_key = subprocess.check_output(cmd).strip()
+        remote_key = check_output(cmd).strip()
         khosts.append(remote_key)
-    log('INFO', 'Syncing known_hosts @ %s.' % known_hosts)
+    log('Syncing known_hosts @ %s.' % known_hosts)
     with open(known_hosts, 'wb') as out:
         for host in khosts:
             out.write('%s\n' % host)
 
 
 def ensure_user(user, group=None):
-    # need to ensure a bash shell'd user exists.
-    try:
-        pwd.getpwnam(user)
-    except KeyError:
-        log('INFO', 'Creating new user %s.%s.' % (user, group))
-        cmd = ['adduser', '--system', '--shell', '/bin/bash', user]
-        if group:
-            try:
-                grp.getgrnam(group)
-            except KeyError:
-                subprocess.check_call(['addgroup', group])
-            cmd += ['--ingroup', group]
-        subprocess.check_call(cmd)
+    adduser(user)
+    if group:
+        add_user_to_group(user, group)
 
 
 def ssh_authorized_peers(peer_interface, user, group=None,
@@ -140,20 +161,26 @@ def ssh_authorized_peers(peer_interface, user, group=None,
     if ensure_local_user:
         ensure_user(user, group)
     priv_key, pub_key = get_keypair(user)
-    hook = os.path.basename(sys.argv[0])
+    hook = hook_name()
     if hook == '%s-relation-joined' % peer_interface:
         relation_set(ssh_pub_key=pub_key)
     elif hook == '%s-relation-changed' % peer_interface:
         hosts = []
         keys = []
+
         for r_id in relation_ids(peer_interface):
-            for unit in relation_list(r_id):
-                settings = relation_get(rid=r_id, unit=unit)
-                if 'ssh_pub_key' in settings:
-                    keys.append(settings['ssh_pub_key'])
-                    hosts.append(settings['private-address'])
+            for unit in related_units(r_id):
+                ssh_pub_key = relation_get('ssh_pub_key',
+                                           rid=r_id,
+                                           unit=unit)
+                priv_addr = relation_get('private-address',
+                                         rid=r_id,
+                                         unit=unit)
+                if ssh_pub_key:
+                    keys.append(ssh_pub_key)
+                    hosts.append(priv_addr)
                 else:
-                    log('INFO', 'ssh_authorized_peers(): ssh_pub_key '
+                    log('ssh_authorized_peers(): ssh_pub_key '
                         'missing for unit %s, skipping.' % unit)
         write_authorized_keys(user, keys)
         write_known_hosts(user, hosts)
@@ -165,8 +192,8 @@ def _run_as_user(user):
     try:
         user = pwd.getpwnam(user)
     except KeyError:
-        log('INFO', 'Invalid user: %s' % user)
-        sys.exit(1)
+        log('Invalid user: %s' % user)
+        raise Exception
     uid, gid = user.pw_uid, user.pw_gid
     os.environ['HOME'] = user.pw_dir
 
@@ -177,52 +204,57 @@ def _run_as_user(user):
 
 
 def run_as_user(user, cmd):
-    return subprocess.check_output(cmd, preexec_fn=_run_as_user(user), cwd='/')
+    return check_output(cmd, preexec_fn=_run_as_user(user), cwd='/')
+
+
+def collect_authed_hosts(peer_interface):
+    '''Iterate through the units on peer interface to find all that
+    have the calling host in its authorized hosts list'''
+    hosts = []
+    for r_id in (relation_ids(peer_interface) or []):
+        for unit in related_units(r_id):
+            private_addr = relation_get('private-address',
+                                        rid=r_id, unit=unit)
+            authed_hosts = relation_get('ssh_authorized_hosts',
+                                        rid=r_id, unit=unit)
+
+            if not authed_hosts:
+                log('Peer %s has not authorized *any* hosts yet, skipping.')
+                continue
+
+            if unit_private_ip() in authed_hosts.split(':'):
+                hosts.append(private_addr)
+            else:
+                log('Peer %s has not authorized *this* host yet, skipping.')
+
+    return hosts
+
+
+def sync_path_to_host(path, host, user, verbose=False):
+    cmd = copy(BASE_CMD)
+    if not verbose:
+        cmd.append('-silent')
+
+    # removing trailing slash from directory paths, unison
+    # doesn't like these.
+    if path.endswith('/'):
+        path = path[:(len(path) - 1)]
+
+    cmd = cmd + [path, 'ssh://%s@%s/%s' % (user, host, path)]
+
+    try:
+        log('Syncing local path %s to %s@%s:%s' % (path, user, host, path))
+        run_as_user(user, cmd)
+    except:
+        log('Error syncing remote files')
 
 
 def sync_to_peer(host, user, paths=[], verbose=False):
-    base_cmd = ['unison', '-auto', '-batch=true', '-confirmbigdel=false',
-                '-fastcheck=true', '-group=false', '-owner=false',
-                '-prefer=newer', '-times=true']
-    if not verbose:
-        base_cmd.append('-silent')
-
-    for path in paths:
-        # removing trailing slash from directory paths, unison
-        # doesn't like these.
-        if path.endswith('/'):
-            path = path[:(len(path) - 1)]
-        try:
-            cmd = base_cmd + [path, 'ssh://%s@%s/%s' % (user, host, path)]
-            log('INFO', 'Syncing local path %s to %s@%s:%s' %
-                (path, user, host, path))
-            run_as_user(user, cmd)
-        except:
-            # it may fail for permissions on some files
-            log('INFO', 'Error syncing rabbit passwd files')
+    '''Sync paths to an specific host'''
+    [sync_path_to_host(p, host, user, verbose) for p in paths]
 
 
 def sync_to_peers(peer_interface, user, paths=[], verbose=False):
-    for r_id in (relation_ids(peer_interface) or []):
-        for unit in relation_list(r_id):
-            settings = relation_get(rid=r_id, unit=unit)
-            try:
-                authed_hosts = settings['ssh_authorized_hosts'].split(':')
-            except KeyError:
-                log('INFO',
-                    'unison sync_to_peers: peer has not authorized '
-                    '*any* hosts yet.')
-                return
-
-            unit_hostname = unit_get('private-address')
-            add_host = None
-            for authed_host in authed_hosts:
-                if unit_hostname == authed_host:
-                    add_host = settings['private-address']
-            if add_host:
-                # sync to this peer
-                sync_to_peer(settings['private-address'], user, paths, verbose)
-            else:
-                log('INFO', 'unison sync_to_peers: peer (%s) '
-                    'has not authorized *this* host yet, skipping.' %
-                    settings['private-address'])
+    '''Sync all hosts to an specific path'''
+    for host in collect_authed_hosts():
+        sync_to_peer(host, user, paths, verbose)

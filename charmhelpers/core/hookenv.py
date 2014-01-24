@@ -148,6 +148,10 @@ def service_name():
     """The name service group this unit belongs to"""
     return local_unit().split('/')[0]
 
+def hook_name():
+    """The name of the currently executing hook"""
+    return os.path.basename(sys.argv[0])
+
 
 @cached
 def config(scope=None):
