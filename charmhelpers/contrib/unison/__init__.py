@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Easy file synchronization among peer units using ssh + unison.
 #
 # From *both* peer relation -joined and -changed, add a call to
