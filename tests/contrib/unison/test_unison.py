@@ -2,7 +2,7 @@
 from mock import call, patch, MagicMock
 from testtools import TestCase
 
-from tests.helpers import patch_open, mock_open, FakeRelation
+from tests.helpers import patch_open, FakeRelation
 from charmhelpers.contrib import unison
 
 
@@ -59,7 +59,7 @@ class UnisonHelperTests(TestCase):
     def test_get_homedir(self, pwnam):
         fake_user = MagicMock()
         fake_user.pw_dir = '/home/foo'
-        pwnam.return_value= fake_user
+        pwnam.return_value = fake_user
         self.assertEquals(unison.get_homedir('foo'),
                           '/home/foo')
 
@@ -99,7 +99,6 @@ class UnisonHelperTests(TestCase):
         self.assertNotIn(call(create_cmd), self.check_call.call_args_list)
         _ensure_perms()
 
-
     @patch('os.path.isfile')
     def test_create_public_key(self, isfile):
         create_cmd = ['ssh-keygen', '-y', '-f', '/home/foo/.ssh/id_rsa']
@@ -132,13 +131,11 @@ class UnisonHelperTests(TestCase):
                 'foopriv', 'foopub'
             ]
             priv, pub = unison.get_keypair('adam')
-            for f in [
-                '/home/foo/.ssh/id_rsa',
-                '/home/foo/.ssh/id_rsa.pub']:
+            for f in ['/home/foo/.ssh/id_rsa',
+                      '/home/foo/.ssh/id_rsa.pub']:
                 self.assertIn(call(f, 'r'), _open.call_args_list)
         self.assertEquals(priv, 'foopriv')
         self.assertEquals(pub, 'foopub')
-
 
     @patch.object(unison, 'get_homedir')
     def test_write_auth_keys(self, get_homedir):
@@ -211,7 +208,6 @@ class UnisonHelperTests(TestCase):
         setgid.assert_called_with(1011)
         setuid.assert_called_with(1010)
 
-
     @patch.object(unison, 'get_keypair')
     @patch.object(unison, 'ensure_user')
     def test_ssh_auth_peer_joined(self, ensure_user, get_keypair):
@@ -250,8 +246,7 @@ class UnisonHelperTests(TestCase):
         get_keypair.assert_called_with('foo')
         write_keys.assert_called_with('foo', ['key1', 'key2'])
         write_hosts.assert_called_with('foo', ['host1', 'host2'])
-        self.relation_set.assert_called_with(
-                ssh_authorized_hosts='host1:host2')
+        self.relation_set.assert_called_with(ssh_authorized_hosts='host1:host2')
 
     def test_collect_authed_hosts(self):
         # only one of the hosts in fake environment has auth'd
@@ -265,16 +260,15 @@ class UnisonHelperTests(TestCase):
             hosts = unison.collect_authed_hosts('cluster')
             self.assertEquals(hosts, [])
 
-
     @patch.object(unison, 'run_as_user')
     def test_sync_path_to_host(self, run_as_user, verbose=True):
         for path in ['/tmp/foo', '/tmp/foo/']:
             unison.sync_path_to_host(path=path, host='clusterhost1',
                                      user='foo', verbose=verbose)
-            ex_cmd =  ['unison', '-auto', '-batch=true',
-                       '-confirmbigdel=false', '-fastcheck=true',
-                       '-group=false', '-owner=false',
-                       '-prefer=newer', '-times=true']
+            ex_cmd = ['unison', '-auto', '-batch=true',
+                      '-confirmbigdel=false', '-fastcheck=true',
+                      '-group=false', '-owner=false',
+                      '-prefer=newer', '-times=true']
             if not verbose:
                 ex_cmd.append('-silent')
             ex_cmd += ['/tmp/foo', 'ssh://foo@clusterhost1//tmp/foo']
@@ -284,17 +278,18 @@ class UnisonHelperTests(TestCase):
         return self.test_sync_path_to_host(verbose=False)
 
     @patch.object(unison, 'sync_path_to_host')
-    def test_sync_to_peers(self, sync_path_to_host):
-        paths = ['/tmp/foo']
-        unison.sync_to_peer(self, 'foouser', paths, True)
-        c = call(path, host, 'foouser', True)
-        self.assertIn(c, sync_path_to_host.call_args_list)
+    def test_sync_to_peer(self, sync_path_to_host):
+        paths = ['/tmp/foo1', '/tmp/foo2']
+        host = 'host1'
+        unison.sync_to_peer(host, 'foouser', paths, True)
+        calls = [call('/tmp/foo1', host, 'foouser', True),
+                 call('/tmp/foo2', host, 'foouser', True)]
+        sync_path_to_host.assert_has_calls(calls)
 
     @patch.object(unison, 'collect_authed_hosts')
     @patch.object(unison, 'sync_to_peer')
     def test_sync_to_peers(self, sync_to_peer, collect_hosts):
         collect_hosts.return_value = ['host1', 'host2', 'host3']
-        hosts = ['host1', 'host2', 'host3']
         paths = ['/tmp/foo']
         unison.sync_to_peers(peer_interface='cluster', user='foouser',
                              paths=paths, verbose=True)
@@ -302,4 +297,3 @@ class UnisonHelperTests(TestCase):
                  call('host2', 'foouser', ['/tmp/foo'], True),
                  call('host3', 'foouser', ['/tmp/foo'], True)]
         sync_to_peer.assert_has_calls(calls)
-
