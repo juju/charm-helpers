@@ -151,7 +151,8 @@ def ensure_user(user, group=None):
 
 def ssh_authorized_peers(peer_interface, user, group=None,
                          ensure_local_user=False):
-    """Main setup function, should be called from both peer -changed and -joined
+    """
+    Main setup function, should be called from both peer -changed and -joined
     hooks with the same parameters.
     """
     if ensure_local_user:
@@ -205,8 +206,7 @@ def run_as_user(user, cmd):
 
 def collect_authed_hosts(peer_interface):
     '''Iterate through the units on peer interface to find all that
-    have the calling host in its authorized hosts list
-    '''
+    have the calling host in its authorized hosts list'''
     hosts = []
     for r_id in (relation_ids(peer_interface) or []):
         for unit in related_units(r_id):
@@ -242,16 +242,16 @@ def sync_path_to_host(path, host, user, verbose=False):
     try:
         log('Syncing local path %s to %s@%s:%s' % (path, user, host, path))
         run_as_user(user, cmd)
-    except Exception:
+    except:
         log('Error syncing remote files')
 
 
 def sync_to_peer(host, user, paths=[], verbose=False):
-    "Sync paths to an specific host"
+    '''Sync paths to an specific host'''
     [sync_path_to_host(p, host, user, verbose) for p in paths]
 
 
 def sync_to_peers(peer_interface, user, paths=[], verbose=False):
-    "Sync all hosts to an specific path"
+    '''Sync all hosts to an specific path'''
     for host in collect_authed_hosts():
         sync_to_peer(host, user, paths, verbose)
