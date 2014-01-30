@@ -67,7 +67,7 @@ def context_complete(ctxt):
     return True
 
 
-def config_flags_parser(config_flags)
+def config_flags_parser(config_flags):
     if config_flags.find('==') >= 0:
         log("config_flags is not in expected format (key=value)",
             level=ERROR)
