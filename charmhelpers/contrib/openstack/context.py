@@ -181,7 +181,9 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if 'clustered' not in ctxt and len(related_units(rid)) > 1:
+            if ('clustered' not in ctxt or relation_get('ha-vip-only') == 'True') and \
+               len(related_units(rid)) > 1:
+                ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
