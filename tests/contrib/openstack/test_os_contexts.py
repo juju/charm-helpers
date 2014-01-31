@@ -335,6 +335,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': 'rabbithost2,rabbithost1',
+            'rabbitmq_ha_queues': 'False'
         }
         self.assertEquals(result, expected)
 
