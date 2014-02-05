@@ -135,6 +135,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "private_address": "10.10.10.10",
                 "charm_dir": "",
                 "local_unit": {},
+                'relations': {'wsgi-file': []},
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
             }, result)

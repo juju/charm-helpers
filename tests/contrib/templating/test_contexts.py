@@ -63,6 +63,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
+                "relations": {},
                 "local_unit": "click-index/3",
             }, result)
 
@@ -84,6 +85,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
+                "relations": {},
             }, result)
 
     def test_output_with_relation(self):
@@ -110,6 +112,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file:relation_key1": "relation_value1",
                 "wsgi_file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+                "relations": {"wsgi-file": []},
             }, result)
 
     def test_output_with_multiple_relations(self):
@@ -173,6 +176,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+                "relations": {"wsgi-file": []},
             }, result)
 
     def test_updates_existing_values(self):
@@ -236,6 +240,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
+                "relations": {},
                 "local_unit": "click-index/3",
                 "private-address": "10.1.1.10",
             }, result)
@@ -264,6 +269,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
+                "relations": {"wsgi-file": []},
                 "private_address": "10.1.1.10",
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",

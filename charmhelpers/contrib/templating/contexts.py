@@ -72,9 +72,9 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
             (key.replace('-', '_'), val) for key, val in config.items())
     existing_vars.update(config)
 
-    if relations:
-        if 'relations' not in existing_vars:
-            existing_vars['relations'] = {}
+    if 'relations' not in existing_vars:
+        existing_vars['relations'] = {}
+    if relation_type is not None:
         existing_vars['relations'][relation_type] = relations
     with open(yaml_path, "w+") as fp:
         fp.write(yaml.dump(existing_vars))
