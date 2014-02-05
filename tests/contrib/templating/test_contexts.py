@@ -186,6 +186,9 @@ class JujuState2YamlTestCase(unittest.TestCase):
             context_file.write(yaml.dump({
                 'solr:hostname': 'example.com',
                 'user_code_runner': 'oldvalue',
+                'relations': {
+                    'website': [{u'private-address': u'10.0.3.107'}],
+                }
             }))
 
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
@@ -193,6 +196,10 @@ class JujuState2YamlTestCase(unittest.TestCase):
             'user_code_runner': 'newvalue',
         })
         self.mock_local_unit.return_value = "click-index/3"
+        self.mock_relation_type.return_value = 'cluster'
+        self.mock_relations_of_type.return_value = [{
+            u'private-address': u'10.0.3.105',
+        }]
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
             self.context_path)
@@ -205,6 +212,10 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "newvalue",
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
+                "relations": {
+                    'website': [{u'private-address': u'10.0.3.107'}],
+                    'cluster': [{u'private-address': u'10.0.3.105'}],
+                }
             }, result)
 
     def test_keys_with_hyphens(self):
