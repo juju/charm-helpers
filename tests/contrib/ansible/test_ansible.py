@@ -78,6 +78,10 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
         self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relations_of_type')
+        self.mock_relations_of_type = patcher.start()
+        self.mock_relations_of_type.return_value = []
+        self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
         self.mock_relation_type = patcher.start()
         self.mock_relation_type.return_value = None

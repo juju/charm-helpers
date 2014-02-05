@@ -39,6 +39,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
 
     # Add any relation data prefixed with the relation type.
     relation_type = charmhelpers.core.hookenv.relation_type()
+    relations = []
     if relation_type is not None:
         relation_data = charmhelpers.core.hookenv.relation_get()
         relation_data = dict(
@@ -48,6 +49,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
                 namespace_separator=namespace_separator), val)
             for key, val in relation_data.items())
         config.update(relation_data)
+        relations = charmhelpers.core.hookenv.relations_of_type(relation_type)
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
@@ -69,5 +71,10 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
         config = dict(
             (key.replace('-', '_'), val) for key, val in config.items())
     existing_vars.update(config)
+
+    if relations:
+        if 'relations' not in existing_vars:
+            existing_vars['relations'] = {}
+        existing_vars['relations'][relation_type] = relations
     with open(yaml_path, "w+") as fp:
         fp.write(yaml.dump(existing_vars))
