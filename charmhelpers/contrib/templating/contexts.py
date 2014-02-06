@@ -13,8 +13,33 @@ charm_dir = os.environ.get('CHARM_DIR', '')
 
 
 def dict_keys_without_hyphens(a_dict):
-        return dict(
-            (key.replace('-', '_'), val) for key, val in a_dict.items())
+    """Return the a new dict with underscores instead of hyphens in keys."""
+    return dict(
+        (key.replace('-', '_'), val) for key, val in a_dict.items())
+
+
+def update_relations(context, namespace_separator=':'):
+    """Update the context with the relation data."""
+    # Add any relation data prefixed with the relation type.
+    relation_type = charmhelpers.core.hookenv.relation_type()
+    relations = []
+    if relation_type is not None:
+        relation_data = charmhelpers.core.hookenv.relation_get()
+        relation_data = dict(
+            ("{relation_type}{namespace_separator}{key}".format(
+                relation_type=relation_type,
+                key=key,
+                namespace_separator=namespace_separator), val)
+            for key, val in relation_data.items())
+        relation_data = dict_keys_without_hyphens(relation_data)
+        context.update(relation_data)
+        relations = charmhelpers.core.hookenv.relations_of_type(relation_type)
+        relations = [dict_keys_without_hyphens(rel) for rel in relations]
+
+    if 'relations' not in context:
+        context['relations'] = {}
+    if relation_type is not None:
+        context['relations'][relation_type] = relations
 
 
 def juju_state_to_yaml(yaml_path, namespace_separator=':',
@@ -42,21 +67,6 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
 
-    # Add any relation data prefixed with the relation type.
-    relation_type = charmhelpers.core.hookenv.relation_type()
-    relations = []
-    if relation_type is not None:
-        relation_data = charmhelpers.core.hookenv.relation_get()
-        relation_data = dict(
-            ("{relation_type}{namespace_separator}{key}".format(
-                relation_type=relation_type,
-                key=key,
-                namespace_separator=namespace_separator), val)
-            for key, val in relation_data.items())
-        relation_data = dict_keys_without_hyphens(relation_data)
-        config.update(relation_data)
-        relations = charmhelpers.core.hookenv.relations_of_type(relation_type)
-        relations = [dict_keys_without_hyphens(rel) for rel in relations]
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
@@ -78,9 +88,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
         config = dict_keys_without_hyphens(config)
     existing_vars.update(config)
 
-    if 'relations' not in existing_vars:
-        existing_vars['relations'] = {}
-    if relation_type is not None:
-        existing_vars['relations'][relation_type] = relations
+    update_relations(existing_vars, namespace_separator)
+
     with open(yaml_path, "w+") as fp:
         fp.write(yaml.dump(existing_vars))
