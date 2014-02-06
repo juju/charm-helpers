@@ -12,6 +12,11 @@ import charmhelpers.core.hookenv
 charm_dir = os.environ.get('CHARM_DIR', '')
 
 
+def dict_keys_without_hyphens(a_dict):
+        return dict(
+            (key.replace('-', '_'), val) for key, val in a_dict.items())
+
+
 def juju_state_to_yaml(yaml_path, namespace_separator=':',
                        allow_hyphens_in_keys=True):
     """Update the juju config and state in a yaml file.
@@ -44,12 +49,14 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
         relation_data = charmhelpers.core.hookenv.relation_get()
         relation_data = dict(
             ("{relation_type}{namespace_separator}{key}".format(
-                relation_type=relation_type.replace('-', '_'),
+                relation_type=relation_type,
                 key=key,
                 namespace_separator=namespace_separator), val)
             for key, val in relation_data.items())
+        relation_data = dict_keys_without_hyphens(relation_data)
         config.update(relation_data)
         relations = charmhelpers.core.hookenv.relations_of_type(relation_type)
+        relations = [dict_keys_without_hyphens(rel) for rel in relations]
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
@@ -68,8 +75,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
         existing_vars = {}
 
     if not allow_hyphens_in_keys:
-        config = dict(
-            (key.replace('-', '_'), val) for key, val in config.items())
+        config = dict_keys_without_hyphens(config)
     existing_vars.update(config)
 
     if 'relations' not in existing_vars:

@@ -143,11 +143,11 @@ class JujuState2YamlTestCase(unittest.TestCase):
             self.assertIn('relations', result)
             self.assertIn('cluster', result['relations'])
             self.assertEqual([{
-                u'private-address': u'10.0.3.105',
+                u'private_address': u'10.0.3.105',
                 '__unit__': u'elasticsearch/1',
                 '__relid__': u'cluster:0',
             }, {
-                u'private-address': u'10.0.3.107',
+                u'private_address': u'10.0.3.107',
                 '__unit__': u'elasticsearch/2',
                 '__relid__': u'cluster:0',
             }], result['relations']['cluster'])
@@ -191,7 +191,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 'solr:hostname': 'example.com',
                 'user_code_runner': 'oldvalue',
                 'relations': {
-                    'website': [{u'private-address': u'10.0.3.107'}],
+                    'website': [{u'private_address': u'10.0.3.107'}],
                 }
             }))
 
@@ -217,8 +217,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
                 "relations": {
-                    'website': [{u'private-address': u'10.0.3.107'}],
-                    'cluster': [{u'private-address': u'10.0.3.105'}],
+                    'website': [{u'private_address': u'10.0.3.107'}],
+                    'cluster': [{u'private_address': u'10.0.3.105'}],
                 }
             }, result)
 
