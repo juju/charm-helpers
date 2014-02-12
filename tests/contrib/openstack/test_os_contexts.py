@@ -716,3 +716,12 @@ class ContextTests(unittest.TestCase):
 
         # subordinate supplies bad input
         self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+
+    def test_syslog_context(self):
+        self.config.side_effect = fake_config({'use-syslog': 'foo'})
+        syslog = context.SyslogContext()
+        result = syslog()
+        expected = {
+            'use_syslog': 'foo',
+        }
+        self.assertEquals(result, expected)
