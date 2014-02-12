@@ -583,3 +583,11 @@ class SubordinateConfigContext(OSContextGenerator):
             ctxt['sections'] = {}
 
         return ctxt
+
+
+class SyslogContext(OSContextGenerator):
+    def __call__(self):
+        ctxt = {
+            'use_syslog': config('use-syslog')
+        }
+        return ctxt
