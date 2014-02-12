@@ -86,6 +86,14 @@ class FetchTest(TestCase):
                                        source])
 
     @patch('subprocess.check_call')
+    def test_add_source_https(self, check_call):
+        source = "https://example.com"
+        fetch.add_source(source=source)
+        check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
+                                       source])
+
+    @patch('subprocess.check_call')
     def test_add_source_deb(self, check_call):
         """add-apt-repository behaves differently when using the deb prefix.
 
@@ -168,8 +176,21 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'import', key])
+            call(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+                  '--recv', key])
         ])
+
+    @patch('subprocess.check_call')
+    def test_add_source_https_and_key(self, check_call):
+        source = "http://USER:PASS@private-ppa.launchpad.net/project/awesome"
+        key = "GPGPGP"
+        fetch.add_source(source=source, key=key)
+        check_call.assert_has_calls([
+            call(['add-apt-repository', '--yes', source]),
+            call(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+                  '--recv', key])
+        ])
+
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
