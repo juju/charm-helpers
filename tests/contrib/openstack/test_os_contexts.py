@@ -117,11 +117,13 @@ CEPH_RELATION = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true',
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'false',
         },
     }
 }
@@ -375,6 +377,7 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node2 ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true'
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
