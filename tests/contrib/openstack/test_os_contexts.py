@@ -177,8 +177,6 @@ TO_PATCH = [
     'https',
     'determine_api_port',
     'determine_apache_port',
-    'peer_units',
-    'is_clustered',
     'config',
 ]
 
@@ -479,8 +477,6 @@ class ContextTests(unittest.TestCase):
             self.determine_apache_port.return_value = 8776
 
         self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = is_clustered
-        self.peer_units.return_value = peer_units
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
