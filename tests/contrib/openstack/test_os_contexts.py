@@ -176,7 +176,7 @@ TO_PATCH = [
     'unit_get',
     'https',
     'determine_api_port',
-    'determine_haproxy_port',
+    'determine_apache_port',
     'peer_units',
     'is_clustered',
 ]
@@ -470,11 +470,12 @@ class ContextTests(unittest.TestCase):
     def _test_https_context(self, apache, is_clustered, peer_units):
         self.https.return_value = True
 
-        if is_clustered or peer_units:
+        if is_clustered:
             self.determine_api_port.return_value = 8756
-            self.determine_haproxy_port.return_value = 8766
+            self.determine_apache_port.return_value = 8766
         else:
             self.determine_api_port.return_value = 8766
+            self.determine_apache_port.return_value = 8776
 
         self.unit_get.return_value = 'cinderhost1'
         self.is_clustered.return_value = is_clustered
