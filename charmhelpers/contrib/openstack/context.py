@@ -186,7 +186,7 @@ class AMQPContext(OSContextGenerator):
                 if relation_get('ha_queues'):
                     ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
                 else:
-                    ctxt['rabbitmq_ha_queues'] = 'False'
+                    ctxt['rabbitmq_ha_queues'] = False
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
