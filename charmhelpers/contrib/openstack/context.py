@@ -29,8 +29,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
     https,
-    is_clustered,
-    peer_units,
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
@@ -584,6 +582,7 @@ class SubordinateConfigContext(OSContextGenerator):
 
 
 class SyslogContext(OSContextGenerator):
+
     def __call__(self):
         ctxt = {
             'use_syslog': config('use-syslog')

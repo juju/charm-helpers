@@ -179,6 +179,7 @@ TO_PATCH = [
     'determine_apache_port',
     'peer_units',
     'is_clustered',
+    'config',
 ]
 
 
@@ -615,6 +616,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context.NeutronContext, '_ensure_packages')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_main_context_generation(self, nm, pkgs, plugin, ovs, ff):
+        self.config.return_value = None
         neutron = context.NeutronContext()
         nm.__get__ = MagicMock(return_value='flatdhcpmanager')
         self.assertEquals({}, neutron())
