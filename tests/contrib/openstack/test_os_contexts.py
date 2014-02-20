@@ -117,11 +117,13 @@ CEPH_RELATION = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true',
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'false',
         },
     }
 }
@@ -359,11 +361,14 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
+    @patch.object(context, 'config')
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
-    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir):
+    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir,
+                                    config):
         '''Test ceph context with all relation data'''
+        config.return_value = True
         isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -375,6 +380,7 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node2 ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true'
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])

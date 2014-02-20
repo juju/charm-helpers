@@ -250,11 +250,13 @@ class CephContext(OSContextGenerator):
                                               unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
+                use_syslog = str(config('use-syslog')).lower()
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
             'auth': auth,
             'key': key,
+            'use_syslog': use_syslog
         }
 
         if not os.path.isdir('/etc/ceph'):
