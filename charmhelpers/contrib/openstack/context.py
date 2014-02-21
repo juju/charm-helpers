@@ -114,7 +114,8 @@ class OSContextGenerator(object):
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
-    def __init__(self, database=None, user=None, relation_prefix=None):
+    def __init__(self,
+                 database=None, user=None, relation_prefix=None, ssl_dir=None):
         '''
         Allows inspecting relation for settings prefixed with relation_prefix.
         This is useful for parsing access for multiple databases returned via
@@ -123,6 +124,7 @@ class SharedDBContext(OSContextGenerator):
         self.relation_prefix = relation_prefix
         self.database = database
         self.user = user
+        self.ssl_dir = ssl_dir
 
     def __call__(self):
         self.database = self.database or config('database')
@@ -140,15 +142,21 @@ class SharedDBContext(OSContextGenerator):
 
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
-                passwd = relation_get(password_setting, rid=rid, unit=unit)
+                rdata = relation_get(rid=rid, unit=unit)
                 ctxt = {
-                    'database_host': relation_get('db_host', rid=rid,
-                                                  unit=unit),
+                    'database_host': rdata.get('db_host'),
                     'database': self.database,
                     'database_user': self.user,
-                    'database_password': passwd,
+                    'database_password': rdata.get(password_setting)
                 }
                 if context_complete(ctxt):
+                    if 'ssl_ca' in rdata and self.ssl_dir:
+                        ca_path = os.path.join(self.ssl_dir, 'db-client.ca')
+                        with open(ca_path, 'w') as fh:
+                            fh.write(b64decode(rdata['ssl_ca']))
+                        ctxt['database_ssl_ca'] = ca_path
+                    elif 'ssl_ca' in rdata:
+                        log("Charm not setup for ssl support but ssl ca found")
                     return ctxt
         return {}
 
