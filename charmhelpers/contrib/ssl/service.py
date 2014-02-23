@@ -26,6 +26,24 @@ class ServiceCA(object):
         self.ca_dir = ca_dir
         self.cert_type = cert_type
 
+    ###############
+    # Hook Helper API
+    @staticmethod
+    def get_ca(type=STD_CERT):
+        service_name = os.environ['JUJU_UNIT_NAME'].split('/')[0]
+        ca_path = os.path.join(os.environ['CHARM_DIR'], 'ca')
+        ca = ServiceCA(service_name, ca_path, type)
+        ca.init()
+        return ca
+
+    @classmethod
+    def get_service_cert(cls, type=STD_CERT):
+        service_name = os.environ['JUJU_UNIT_NAME'].split('/')[0]
+        ca = cls.get_ca()
+        ca.get_or_create(service_name)
+
+    ###############
+
     def init(self):
         log.debug("initializing service ca")
         if not exists(self.ca_dir):
