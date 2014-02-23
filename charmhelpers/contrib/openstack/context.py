@@ -251,6 +251,10 @@ class AMQPContext(OSContextGenerator):
 
                 if context_complete(ctxt):
                     if 'rabbit_ssl_ca' in ctxt:
+                        if not self.ssl_dir:
+                            log(("Charm not setup for ssl support "
+                                 "but ssl ca found"))
+                            break
                         ca_path = os.path.join(
                             self.ssl_dir, 'rabbit-client-ca.pem')
                         with open(ca_path, 'w') as fh:
