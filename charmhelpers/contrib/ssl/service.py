@@ -40,7 +40,8 @@ class ServiceCA(object):
     def get_service_cert(cls, type=STD_CERT):
         service_name = os.environ['JUJU_UNIT_NAME'].split('/')[0]
         ca = cls.get_ca()
-        ca.get_or_create(service_name)
+        crt, key = ca.get_or_create_cert(service_name)
+        return crt, key, ca.get_ca_bundle()
 
     ###############
 
