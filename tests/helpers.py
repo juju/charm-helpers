@@ -32,3 +32,67 @@ def mock_open(filename, contents=None):
             return open(*args)
     with patch('__builtin__.open', mock_file):
         yield
+
+
+class FakeRelation(object):
+    '''
+    A fake relation class. Lets tests specify simple relation data
+    for a default relation + unit (foo:0, foo/0, set in setUp()), eg:
+
+        rel = {
+            'private-address': 'foo',
+            'password': 'passwd',
+        }
+        relation = FakeRelation(rel)
+        self.relation_get.side_effect = relation.get
+        passwd = self.relation_get('password')
+
+    or more complex relations meant to be addressed by explicit relation id
+    + unit id combos:
+
+        rel = {
+            'mysql:0': {
+                'mysql/0': {
+                    'private-address': 'foo',
+                    'password': 'passwd',
+                }
+            }
+        }
+        relation = FakeRelation(rel)
+        self.relation_get.side_affect = relation.get
+        passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
+    '''
+    def __init__(self, relation_data):
+        self.relation_data = relation_data
+
+    def get(self, attr=None, unit=None, rid=None):
+        if not rid or rid == 'foo:0':
+            if attr is None:
+                return self.relation_data
+            elif attr in self.relation_data:
+                return self.relation_data[attr]
+            return None
+        else:
+            if rid not in self.relation_data:
+                return None
+            try:
+                relation = self.relation_data[rid][unit]
+            except KeyError:
+                return None
+            if attr in relation:
+                return relation[attr]
+            return None
+
+    def relation_ids(self, relation=None):
+        return self.relation_data.keys()
+
+    def related_units(self, relid=None):
+        try:
+            return self.relation_data[relid].keys()
+        except KeyError:
+            return []
+
+    def relation_units(self, relation_id):
+        if relation_id not in self.relation_data:
+            return None
+        return self.relation_data[relation_id].keys()

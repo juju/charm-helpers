@@ -117,11 +117,13 @@ CEPH_RELATION = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true',
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'false',
         },
     }
 }
@@ -176,9 +178,8 @@ TO_PATCH = [
     'unit_get',
     'https',
     'determine_api_port',
-    'determine_haproxy_port',
-    'peer_units',
-    'is_clustered',
+    'determine_apache_port',
+    'config',
 ]
 
 
@@ -297,8 +298,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost'],
+            'rabbitmq_virtual_host': 'foo'
         }
         self.assertEquals(result, expected)
 
@@ -317,7 +317,6 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost'],
         }
         self.assertEquals(result, expected)
 
@@ -336,7 +335,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost2', 'rabbithost1'],
+            'rabbitmq_hosts': 'rabbithost2,rabbithost1',
+            'rabbitmq_ha_queues': False
         }
         self.assertEquals(result, expected)
 
@@ -361,11 +361,14 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
+    @patch.object(context, 'config')
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
-    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir):
+    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir,
+                                    config):
         '''Test ceph context with all relation data'''
+        config.return_value = True
         isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -377,6 +380,7 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node2 ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true'
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -472,15 +476,14 @@ class ContextTests(unittest.TestCase):
     def _test_https_context(self, apache, is_clustered, peer_units):
         self.https.return_value = True
 
-        if is_clustered or peer_units:
+        if is_clustered:
             self.determine_api_port.return_value = 8756
-            self.determine_haproxy_port.return_value = 8766
+            self.determine_apache_port.return_value = 8766
         else:
             self.determine_api_port.return_value = 8766
+            self.determine_apache_port.return_value = 8776
 
         self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = is_clustered
-        self.peer_units.return_value = peer_units
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
@@ -616,6 +619,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context.NeutronContext, '_ensure_packages')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_main_context_generation(self, nm, pkgs, plugin, ovs, ff):
+        self.config.return_value = None
         neutron = context.NeutronContext()
         nm.__get__ = MagicMock(return_value='flatdhcpmanager')
         self.assertEquals({}, neutron())
@@ -636,6 +640,15 @@ class ContextTests(unittest.TestCase):
     def test_os_configflag_context(self, config):
         flags = context.OSConfigFlagContext()
 
+        # single
+        config.return_value = 'deadbeef=True'
+        self.assertEquals({
+            'user_config_flags': {
+                'deadbeef': 'True',
+            }
+        }, flags())
+
+        # multi
         config.return_value = 'floating_ip=True,use_virtio=False,max=5'
         self.assertEquals({
             'user_config_flags': {
@@ -649,13 +662,22 @@ class ContextTests(unittest.TestCase):
             config.return_value = empty
             self.assertEquals({}, flags())
 
+        # multi with commas
         config.return_value = 'good_flag=woot,badflag,great_flag=w00t'
         self.assertEquals({
             'user_config_flags': {
-                'good_flag': 'woot',
+                'good_flag': 'woot,badflag',
                 'great_flag': 'w00t',
             }
         }, flags())
+
+        # missing key
+        config.return_value = 'good_flag=woot=toow'
+        self.assertRaises(context.OSContextError, flags)
+
+        # bad value
+        config.return_value = 'good_flag=woot=='
+        self.assertRaises(context.OSContextError, flags)
 
     def test_os_subordinate_config_context(self):
         relation = FakeRelation(relation_data=SUB_CONFIG_RELATION)
@@ -700,3 +722,12 @@ class ContextTests(unittest.TestCase):
 
         # subordinate supplies bad input
         self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+
+    def test_syslog_context(self):
+        self.config.side_effect = fake_config({'use-syslog': 'foo'})
+        syslog = context.SyslogContext()
+        result = syslog()
+        expected = {
+            'use_syslog': 'foo',
+        }
+        self.assertEquals(result, expected)

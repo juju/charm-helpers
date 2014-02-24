@@ -16,3 +16,5 @@ simplejson==3.3.0
 testtools==0.9.31
 Tempita==0.5.1
 bzr+http://bazaar.launchpad.net/~yellow/python-shelltoolbox/trunk@17#egg=shelltoolbox
+netifaces==0.6
+netaddr==0.7.5
