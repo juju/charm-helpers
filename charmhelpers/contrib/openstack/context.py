@@ -109,15 +109,6 @@ class OSContextGenerator(object):
     def __call__(self):
         raise NotImplementedError
 
-    def post_execute(self, ctxt_data):
-        """Called after all contexts for a config template have been invoked.
-
-        Only invoked if the context returned data when invoked and
-        receives the final context data.
-
-        Used to work around dependency ordering issues and multiple contexts.
-        """
-
 
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
@@ -259,12 +250,21 @@ class AMQPContext(OSContextGenerator):
                     ctxt['rabbit_ssl_ca'] = ssl_ca
 
                 if context_complete(ctxt):
+                    if 'rabbit_ssl_ca' in ctxt:
+                        if not self.ssl_dir:
+                            log(("Charm not setup for ssl support "
+                                 "but ssl ca found"))
+                            break
+                        ca_path = os.path.join(
+                            self.ssl_dir, 'rabbit-client-ca.pem')
+                        with open(ca_path, 'w') as fh:
+                            fh.write(b64decode(ctxt['rabbit_ssl_ca']))
+                            ctxt['rabbit_ssl_ca'] = ca_path
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if (('clustered' not in ctxt or
-                    relation_get('ha-vip-only') == 'True') and
-                    len(related_units(rid)) > 1):
+            if ('clustered' not in ctxt or relation_get('ha-vip-only') == 'True') and \
+               len(related_units(rid)) > 1:
                 if relation_get('ha_queues'):
                     ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
                 else:
@@ -278,25 +278,6 @@ class AMQPContext(OSContextGenerator):
             return {}
         else:
             return ctxt
-
-    def post_execute(self, ctxt):
-        """
-        AMQP is sometimes called as part of a list of contexts where the later
-        contexts perform package installation that install parent directories
-        for ssl certs. We delay writing out certs till those directories
-        are present but before the config file is written.
-        """
-        if not 'rabbit_ssl_ca' in ctxt:
-            return
-
-        if not self.ssl_dir:
-            log("Charm not setup for ssl support but ssl ca found")
-            return
-
-        ca_path = os.path.join(self.ssl_dir, 'rabbit-client-ca.pem')
-        with open(ca_path, 'w') as fh:
-            fh.write(b64decode(ctxt['rabbit_ssl_ca']))
-            ctxt['rabbit_ssl_ca'] = ca_path
 
 
 class CephContext(OSContextGenerator):

@@ -19,10 +19,6 @@ class FakeContextGenerator(object):
     def __call__(self):
         return self.context
 
-    def post_execute(self, ctxt_data):
-        """
-        """
-
 
 class FakeLoader(object):
     def set(self, template):
