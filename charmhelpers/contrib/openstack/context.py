@@ -157,8 +157,6 @@ class SharedDBContext(OSContextGenerator):
 
 
 def db_ssl(rdata, ctxt, ssl_dir):
-    ctxt.update({'database_ssl_ca': '', 'database_ssl_key': '',
-                 'database_ssl_cert': ''})
     if 'ssl_ca' in rdata and ssl_dir:
         ca_path = os.path.join(ssl_dir, 'db-client.ca')
         with open(ca_path, 'w') as fh:
@@ -276,8 +274,6 @@ class AMQPContext(OSContextGenerator):
         if not context_complete(ctxt):
             return {}
         else:
-            ctxt.setdefault('rabbit_ssl_port', '')
-            ctxt.setdefault('rabbit_ssl_ca', '')
             return ctxt
 
 
