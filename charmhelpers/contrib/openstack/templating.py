@@ -84,14 +84,18 @@ class OSConfigTemplate(object):
 
     def context(self):
         ctxt = {}
+        data_contexts = []
         for context in self.contexts:
             _ctxt = context()
             if _ctxt:
+                data_contexts.append(context)
                 ctxt.update(_ctxt)
                 # track interfaces for every complete context.
                 [self._complete_contexts.append(interface)
                  for interface in context.interfaces
                  if interface not in self._complete_contexts]
+        for context in data_contexts:
+            context.post_execute(ctxt)
         return ctxt
 
     def complete_contexts(self):
