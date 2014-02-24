@@ -251,11 +251,17 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with object parameters'''
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
+        self.relation_get.return_value = {
+            'db_host': 'bar', 'quantum_password': 'bar2'}
         result = shared_db()
-        self.assertIn(call('quantum_password', rid='foo:0', unit='foo/0'),
-                      self.relation_get.call_args_list)
-        self.assertEquals(result['database'], 'quantum')
-        self.assertEquals(result['database_user'], 'quantum')
+        self.assertIn(
+            call(rid='foo:0', unit='foo/0'),
+            self.relation_get.call_args_list)
+        self.assertEquals(
+            result, {'database': 'quantum',
+                     'database_user': 'quantum',
+                     'database_password': 'bar2',
+                     'database_host': 'bar'})
 
     def test_identity_service_context_with_data(self):
         '''Test shared-db context with all required data'''
