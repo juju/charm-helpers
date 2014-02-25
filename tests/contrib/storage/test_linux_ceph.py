@@ -242,11 +242,10 @@ class CephUtilsTests(TestCase):
         _conf = ceph_utils.CEPH_CONF.format(
             auth='cephx',
             keyring=ceph_utils._keyring_path('cinder'),
-            mon_hosts=",".join(map(str, _hosts)),
-            use_syslog='true'
+            mon_hosts=",".join(map(str, _hosts))
         )
         with patch_open() as (_open, _file):
-            ceph_utils.configure('cinder', 'key', 'cephx', 'true')
+            ceph_utils.configure('cinder', 'key', 'cephx')
             _file.write.assert_called_with(_conf)
             _open.assert_called_with('/etc/ceph/ceph.conf', 'w')
         self.modprobe.assert_called_with('rbd')

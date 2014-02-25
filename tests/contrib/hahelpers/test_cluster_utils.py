@@ -187,18 +187,16 @@ class ClusterUtilsTests(TestCase):
         self.assertEquals(9676, cluster_utils.determine_api_port(9696))
 
     @patch.object(cluster_utils, 'https')
-    def test_determine_apache_port_https(self, https):
+    def test_determine_haproxy_port_https(self, https):
         '''It determines haproxy port with https enabled'''
         https.return_value = True
-        self.assertEquals(9696, cluster_utils.determine_apache_port(9696))
+        self.assertEquals(9686, cluster_utils.determine_haproxy_port(9696))
 
     @patch.object(cluster_utils, 'https')
-    @patch.object(cluster_utils, 'is_clustered')
-    def test_determine_apache_port_clustered(self, https, is_clustered):
+    def test_determine_haproxy_port_no_https(self, https):
         '''It determines haproxy port with https disabled'''
-        https.return_value = True
-        is_clustered.return_value = True
-        self.assertEquals(9686, cluster_utils.determine_apache_port(9696))
+        https.return_value = False
+        self.assertEquals(9696, cluster_utils.determine_haproxy_port(9696))
 
     def test_get_hacluster_config_complete(self):
         '''It fetches all hacluster charm config'''
