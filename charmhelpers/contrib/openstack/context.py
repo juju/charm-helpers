@@ -29,6 +29,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
     https,
+    is_clustered
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
@@ -393,7 +394,7 @@ class ApacheSSLContext(OSContextGenerator):
         return ctxt
 
 
-class NeutronContext(object):
+class NeutronContext(OSContextGenerator):
     interfaces = []
 
     @property
@@ -454,6 +455,22 @@ class NeutronContext(object):
 
         return nvp_ctxt
 
+    def neutron_ctxt(self):
+        if https():
+            proto = 'https'
+        else:
+            proto = 'http'
+        if is_clustered():
+            host = config('vip')
+        else:
+            host = unit_get('private-address')
+        url = '%s://%s:%s' % (proto, host, '9292')
+        ctxt = {
+            'network_manager': self.network_manager,
+            'neutron_url': url,
+        }
+        return ctxt
+
     def __call__(self):
         self._ensure_packages()
 
@@ -463,7 +480,7 @@ class NeutronContext(object):
         if not self.plugin:
             return {}
 
-        ctxt = {'network_manager': self.network_manager}
+        ctxt = self.neutron_ctxt()
 
         if self.plugin == 'ovs':
             ctxt.update(self.ovs_ctxt())
