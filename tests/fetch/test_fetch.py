@@ -191,7 +191,6 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
                   '--recv', key])
         ])
 
-
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
     def test_configure_sources_single_source(self, add_source, config):
