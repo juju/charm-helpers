@@ -79,7 +79,7 @@ SHARED_DB_CONFIG = {
     'database': 'foodb',
 }
 
-IDENTITY_SERVICE_RELATION = {
+IDENTITY_SERVICE_RELATION_HTTP = {
     'service_port': '5000',
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
@@ -87,6 +87,30 @@ IDENTITY_SERVICE_RELATION = {
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
+    'service_protocol': 'http',
+    'auth_protocol': 'http',
+}
+
+IDENTITY_SERVICE_RELATION_UNSET = {
+    'service_port': '5000',
+    'service_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'service_tenant': 'admin',
+    'service_password': 'foo',
+    'service_username': 'adam',
+}
+
+IDENTITY_SERVICE_RELATION_HTTPS = {
+    'service_port': '5000',
+    'service_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'service_tenant': 'admin',
+    'service_password': 'foo',
+    'service_username': 'adam',
+    'service_protocol': 'https',
+    'auth_protocol': 'https',
 }
 
 AMQP_RELATION = {
@@ -261,7 +285,7 @@ class ContextTests(unittest.TestCase):
 
     def test_identity_service_context_with_data(self):
         '''Test shared-db context with all required data'''
-        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION)
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -278,9 +302,47 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    def test_identity_service_context_with_data_http(self):
+        '''Test shared-db context with all required data'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'http'
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_data_https(self):
+        '''Test shared-db context with all required data'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https'
+        }
+        self.assertEquals(result, expected)
+
     def test_identity_service_context_with_missing_relation(self):
         '''Test shared-db context missing relation data'''
-        incomplete_relation = copy(IDENTITY_SERVICE_RELATION)
+        incomplete_relation = copy(IDENTITY_SERVICE_RELATION_UNSET)
         incomplete_relation['service_password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get

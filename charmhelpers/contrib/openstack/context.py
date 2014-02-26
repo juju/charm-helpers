@@ -161,22 +161,19 @@ class IdentityServiceContext(OSContextGenerator):
 
         for rid in relation_ids('identity-service'):
             for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
                 ctxt = {
-                    'service_port': relation_get('service_port', rid=rid,
-                                                 unit=unit),
-                    'service_host': relation_get('service_host', rid=rid,
-                                                 unit=unit),
-                    'auth_host': relation_get('auth_host', rid=rid, unit=unit),
-                    'auth_port': relation_get('auth_port', rid=rid, unit=unit),
-                    'admin_tenant_name': relation_get('service_tenant',
-                                                      rid=rid, unit=unit),
-                    'admin_user': relation_get('service_username', rid=rid,
-                                               unit=unit),
-                    'admin_password': relation_get('service_password', rid=rid,
-                                                   unit=unit),
-                    # XXX: Hard-coded http.
-                    'service_protocol': 'http',
-                    'auth_protocol': 'http',
+                    'service_port': rdata.get('service_port'),
+                    'service_host': rdata.get('service_host'),
+                    'auth_host': rdata.get('auth_host'),
+                    'auth_port': rdata.get('auth_port'),
+                    'admin_tenant_name': rdata.get('service_tenant'),
+                    'admin_user': rdata.get('service_username'),
+                    'admin_password': rdata.get('service_password'),
+                    'service_protocol':
+                    rdata.get('service_protocol') or 'http',
+                    'auth_protocol':
+                    rdata.get('auth_protocol') or 'http',
                 }
                 if context_complete(ctxt):
                     return ctxt
