@@ -39,6 +39,7 @@ def update_relations(context, namespace_separator=':'):
     if 'relations' not in context:
         context['relations'] = {}
     if relation_type is not None:
+        relation_type = relation_type.replace('-', '_')
         context['relations'][relation_type] = relations
 
 
