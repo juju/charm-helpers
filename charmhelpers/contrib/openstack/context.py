@@ -510,7 +510,7 @@ class NeutronContext(OSContextGenerator):
             host = config('vip')
         else:
             host = unit_get('private-address')
-        url = '%s://%s:%s' % (proto, host, '9292')
+        url = '%s://%s:%s' % (proto, host, '9696')
         ctxt = {
             'network_manager': self.network_manager,
             'neutron_url': url,

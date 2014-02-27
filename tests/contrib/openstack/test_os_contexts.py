@@ -699,14 +699,14 @@ class ContextTests(unittest.TestCase):
         mock_is_clustered.return_value = False
         self.assertEquals(
             {'network_manager': 'neutron',
-             'neutron_url': 'https://%s:9292' % (priv_addr)},
+             'neutron_url': 'https://%s:9696' % (priv_addr)},
             neutron.neutron_ctxt()
         )
 
         mock_is_clustered.return_value = True
         self.assertEquals(
             {'network_manager': 'neutron',
-             'neutron_url': 'https://%s:9292' % (vip)},
+             'neutron_url': 'https://%s:9696' % (vip)},
             neutron.neutron_ctxt()
         )
 
