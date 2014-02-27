@@ -557,8 +557,8 @@ class ContextTests(unittest.TestCase):
         image_service = context.ImageServiceContext()
         self.relation_ids.return_value = ['image-service:0']
         self.related_units.return_value = ['glance/0']
-        self.relation_get.return_value = 'http://glancehost:9292'
-        self.assertEquals({'glance_api_servers': 'http://glancehost:9292'},
+        self.relation_get.return_value = 'http://glancehost:9696'
+        self.assertEquals({'glance_api_servers': 'http://glancehost:9696'},
                           image_service())
 
     @patch.object(context, 'neutron_plugin_attribute')
@@ -631,14 +631,14 @@ class ContextTests(unittest.TestCase):
         mock_is_clustered.return_value = False
         self.assertEquals(
             {'network_manager': 'neutron',
-             'neutron_url': 'https://%s:9292' % (priv_addr)},
+             'neutron_url': 'https://%s:9696' % (priv_addr)},
             neutron.neutron_ctxt()
         )
 
         mock_is_clustered.return_value = True
         self.assertEquals(
             {'network_manager': 'neutron',
-             'neutron_url': 'https://%s:9292' % (vip)},
+             'neutron_url': 'https://%s:9696' % (vip)},
             neutron.neutron_ctxt()
         )
 
@@ -655,7 +655,7 @@ class ContextTests(unittest.TestCase):
                                              mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
-                                          'neutron_url': 'https://foo:9292'}
+                                          'neutron_url': 'https://foo:9696'}
         config = {'neutron-alchemy-flags': None}
         self.config.side_effect = lambda key: config[key]
         neutron = context.NeutronContext()
@@ -677,7 +677,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(
             {'network_manager': 'neutron',
              'ovs': 'ovs_context',
-             'neutron_url': 'https://foo:9292'},
+             'neutron_url': 'https://foo:9696'},
             neutron()
         )
 
