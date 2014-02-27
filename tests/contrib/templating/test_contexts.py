@@ -32,6 +32,10 @@ class JujuState2YamlTestCase(unittest.TestCase):
         patcher = mock.patch('charmhelpers.core.hookenv.local_unit')
         self.mock_local_unit = patcher.start()
         self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relations_of_type')
+        self.mock_relations_of_type = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_relations_of_type.return_value = []
 
         # patches specific to this test class.
         etc_dir = tempfile.mkdtemp()
@@ -59,6 +63,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
+                "relations": {},
                 "local_unit": "click-index/3",
             }, result)
 
@@ -80,6 +85,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
+                "relations": {},
             }, result)
 
     def test_output_with_relation(self):
@@ -106,7 +112,45 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file:relation_key1": "relation_value1",
                 "wsgi_file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+                "relations": {"wsgi_file": []},
             }, result)
+
+    def test_output_with_multiple_relations(self):
+        self.mock_config.return_value = {
+            'group_code_owner': 'webops_deploy',
+            'user_code_runner': 'ubunet',
+        }
+        self.mock_relation_type.return_value = 'cluster'
+        self.mock_relation_get.return_value = {
+            'private-address': '10.0.3.105',
+        }
+        self.mock_local_unit.return_value = "click-index/3"
+        self.mock_relations_of_type.return_value = [{
+            u'private-address': u'10.0.3.105',
+            '__unit__': u'elasticsearch/1',
+            '__relid__': u'cluster:0',
+        }, {
+            u'private-address': u'10.0.3.107',
+            '__unit__': u'elasticsearch/2',
+            '__relid__': u'cluster:0',
+        }]
+
+        charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
+            self.context_path)
+
+        with open(self.context_path, 'r') as context_file:
+            result = yaml.load(context_file.read())
+            self.assertIn('relations', result)
+            self.assertIn('cluster', result['relations'])
+            self.assertEqual([{
+                u'private_address': u'10.0.3.105',
+                '__unit__': u'elasticsearch/1',
+                '__relid__': u'cluster:0',
+            }, {
+                u'private_address': u'10.0.3.107',
+                '__unit__': u'elasticsearch/2',
+                '__relid__': u'cluster:0',
+            }], result['relations']['cluster'])
 
     def test_relation_with_separator(self):
         self.mock_config.return_value = {
@@ -132,6 +176,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+                "relations": {"wsgi_file": []},
             }, result)
 
     def test_updates_existing_values(self):
@@ -145,6 +190,9 @@ class JujuState2YamlTestCase(unittest.TestCase):
             context_file.write(yaml.dump({
                 'solr:hostname': 'example.com',
                 'user_code_runner': 'oldvalue',
+                'relations': {
+                    'website': [{u'private_address': u'10.0.3.107'}],
+                }
             }))
 
         self.mock_config.return_value = charmhelpers.core.hookenv.Serializable({
@@ -152,6 +200,10 @@ class JujuState2YamlTestCase(unittest.TestCase):
             'user_code_runner': 'newvalue',
         })
         self.mock_local_unit.return_value = "click-index/3"
+        self.mock_relation_type.return_value = 'cluster'
+        self.mock_relations_of_type.return_value = [{
+            u'private-address': u'10.0.3.105',
+        }]
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
             self.context_path)
@@ -164,6 +216,10 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "newvalue",
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
+                "relations": {
+                    'website': [{u'private_address': u'10.0.3.107'}],
+                    'cluster': [{u'private_address': u'10.0.3.105'}],
+                }
             }, result)
 
     def test_keys_with_hyphens(self):
@@ -184,6 +240,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
+                "relations": {},
                 "local_unit": "click-index/3",
                 "private-address": "10.1.1.10",
             }, result)
@@ -212,6 +269,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
+                "relations": {"wsgi_file": []},
                 "private_address": "10.1.1.10",
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
