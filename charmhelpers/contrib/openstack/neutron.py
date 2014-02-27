@@ -17,6 +17,7 @@ def headers_package():
     kver = check_output(['uname', '-r']).strip()
     return 'linux-headers-%s' % kver
 
+QUANTUM_CONF_DIR = '/etc/quantum'
 
 # legacy
 def quantum_plugins():
@@ -30,7 +31,8 @@ def quantum_plugins():
             'contexts': [
                 context.SharedDBContext(user=config('neutron-database-user'),
                                         database=config('neutron-database'),
-                                        relation_prefix='neutron')],
+                                        relation_prefix='neutron',
+                                        ssl_dir=QUANTUM_CONF_DIR)],
             'services': ['quantum-plugin-openvswitch-agent'],
             'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
@@ -45,7 +47,8 @@ def quantum_plugins():
             'contexts': [
                 context.SharedDBContext(user=config('neutron-database-user'),
                                         database=config('neutron-database'),
-                                        relation_prefix='neutron')],
+                                        relation_prefix='neutron',
+                                        ssl_dir=QUANTUM_CONF_DIR)],
             'services': [],
             'packages': [],
             'server_packages': ['quantum-server',
@@ -54,6 +57,7 @@ def quantum_plugins():
         }
     }
 
+NEUTRON_CONF_DIR = '/etc/neutron'
 
 def neutron_plugins():
     from charmhelpers.contrib.openstack import context
@@ -66,7 +70,8 @@ def neutron_plugins():
             'contexts': [
                 context.SharedDBContext(user=config('neutron-database-user'),
                                         database=config('neutron-database'),
-                                        relation_prefix='neutron')],
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
             'services': ['neutron-plugin-openvswitch-agent'],
             'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
@@ -81,7 +86,8 @@ def neutron_plugins():
             'contexts': [
                 context.SharedDBContext(user=config('neutron-database-user'),
                                         database=config('neutron-database'),
-                                        relation_prefix='neutron')],
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
             'services': [],
             'packages': [],
             'server_packages': ['neutron-server',
