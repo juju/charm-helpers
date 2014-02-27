@@ -31,7 +31,11 @@ class ApacheUtilsTests(TestCase):
         result = apache_utils.get_cert()
         self.assertEquals(('some_ca_cert', 'some_ca_key'), result)
 
-    def test_get_cert_from_Relation(self):
+    def test_get_ca_cert_from_config(self):
+        self.config_get.return_value = "some_ca_cert"
+        self.assertEquals('some_ca_cert', apache_utils.get_ca_cert())
+
+    def test_get_cert_from_relation(self):
         self.config_get.return_value = None
         self.relation_ids.return_value = 'identity-service:0'
         self.relation_list.return_value = 'keystone/0'
@@ -41,4 +45,15 @@ class ApacheUtilsTests(TestCase):
         ]
         result = apache_utils.get_cert()
         self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
+                          result)
+
+    def test_get_ca_cert_from_relation(self):
+        self.config_get.return_value = None
+        self.relation_ids.return_value = 'identity-service:0'
+        self.relation_list.return_value = 'keystone/0'
+        self.relation_get.side_effect = [
+            'keystone_provided_ca',
+        ]
+        result = apache_utils.get_ca_cert()
+        self.assertEquals('keystone_provided_ca',
                           result)
