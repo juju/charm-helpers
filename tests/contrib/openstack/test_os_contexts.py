@@ -557,8 +557,8 @@ class ContextTests(unittest.TestCase):
         image_service = context.ImageServiceContext()
         self.relation_ids.return_value = ['image-service:0']
         self.related_units.return_value = ['glance/0']
-        self.relation_get.return_value = 'http://glancehost:9696'
-        self.assertEquals({'glance_api_servers': 'http://glancehost:9696'},
+        self.relation_get.return_value = 'http://glancehost:9292'
+        self.assertEquals({'glance_api_servers': 'http://glancehost:9292'},
                           image_service())
 
     @patch.object(context, 'neutron_plugin_attribute')
