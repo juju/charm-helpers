@@ -1,14 +1,15 @@
+import charmhelpers.contrib.openstack.context as context
 import yaml
 import json
 import unittest
-
-from tests.helpers import patch_open
-
-from mock import patch, MagicMock, call
-
 from copy import copy
-
-import charmhelpers.contrib.openstack.context as context
+from mock import (
+    patch,
+    Mock,
+    MagicMock,
+    call
+)
+from tests.helpers import patch_open
 
 
 class FakeRelation(object):
@@ -117,11 +118,13 @@ CEPH_RELATION = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true',
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'false',
         },
     }
 }
@@ -176,9 +179,8 @@ TO_PATCH = [
     'unit_get',
     'https',
     'determine_api_port',
-    'determine_haproxy_port',
-    'peer_units',
-    'is_clustered',
+    'determine_apache_port',
+    'config',
 ]
 
 
@@ -297,8 +299,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost'],
+            'rabbitmq_virtual_host': 'foo'
         }
         self.assertEquals(result, expected)
 
@@ -317,7 +318,6 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost'],
         }
         self.assertEquals(result, expected)
 
@@ -336,7 +336,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': ['rabbithost2', 'rabbithost1'],
+            'rabbitmq_hosts': 'rabbithost2,rabbithost1',
+            'rabbitmq_ha_queues': False
         }
         self.assertEquals(result, expected)
 
@@ -361,11 +362,14 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
+    @patch.object(context, 'config')
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
-    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir):
+    def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir,
+                                    config):
         '''Test ceph context with all relation data'''
+        config.return_value = True
         isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -377,6 +381,7 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node2 ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'use_syslog': 'true'
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -472,15 +477,14 @@ class ContextTests(unittest.TestCase):
     def _test_https_context(self, apache, is_clustered, peer_units):
         self.https.return_value = True
 
-        if is_clustered or peer_units:
+        if is_clustered:
             self.determine_api_port.return_value = 8756
-            self.determine_haproxy_port.return_value = 8766
+            self.determine_apache_port.return_value = 8766
         else:
             self.determine_api_port.return_value = 8766
+            self.determine_apache_port.return_value = 8776
 
         self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = is_clustered
-        self.peer_units.return_value = peer_units
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
@@ -610,25 +614,70 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
 
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.is_clustered')
+    @patch.object(context.NeutronContext, 'network_manager')
+    def test_neutron_neutron_ctxt(self, mock_network_manager,
+                                  mock_is_clustered, mock_unit_get):
+        vip = '88.11.22.33'
+        priv_addr = '10.0.0.1'
+        mock_unit_get.return_value = priv_addr
+        neutron = context.NeutronContext()
+
+        config = {'vip': vip}
+        self.config.side_effect = lambda key: config[key]
+        mock_network_manager.__get__ = Mock(return_value='neutron')
+
+        mock_is_clustered.return_value = False
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'neutron_url': 'https://%s:9696' % (priv_addr)},
+            neutron.neutron_ctxt()
+        )
+
+        mock_is_clustered.return_value = True
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'neutron_url': 'https://%s:9696' % (vip)},
+            neutron.neutron_ctxt()
+        )
+
+    @patch.object(context.NeutronContext, 'neutron_ctxt')
     @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'ovs_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
     @patch.object(context.NeutronContext, 'network_manager')
-    def test_neutron_main_context_generation(self, nm, pkgs, plugin, ovs, ff):
+    def test_neutron_main_context_generation(self, mock_network_manager,
+                                             mock_ensure_packages,
+                                             mock_plugin, mock_ovs_ctxt,
+                                             mock_save_flag_file,
+                                             mock_neutron_ctxt):
+
+        mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
+                                          'neutron_url': 'https://foo:9696'}
+        config = {'neutron-alchemy-flags': None}
+        self.config.side_effect = lambda key: config[key]
         neutron = context.NeutronContext()
-        nm.__get__ = MagicMock(return_value='flatdhcpmanager')
-        self.assertEquals({}, neutron())
 
-        nm.__get__ = MagicMock(return_value='neutron')
-        plugin.__get__ = MagicMock(return_value=None)
-        self.assertEquals({}, neutron())
+        mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
+        mock_plugin.__get__ = Mock()
 
-        nm.__get__ = MagicMock(return_value='neutron')
-        ovs.return_value = {'ovs': 'ovs_context'}
-        plugin.__get__ = MagicMock(return_value='ovs')
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_network_manager.__get__.called)
+        self.assertFalse(mock_plugin.__get__.called)
+
+        mock_network_manager.__get__.return_value = 'neutron'
+        mock_plugin.__get__ = Mock(return_value=None)
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_plugin.__get__.called)
+
+        mock_ovs_ctxt.return_value = {'ovs': 'ovs_context'}
+        mock_plugin.__get__.return_value = 'ovs'
         self.assertEquals(
-            {'network_manager': 'neutron', 'ovs': 'ovs_context'},
+            {'network_manager': 'neutron',
+             'ovs': 'ovs_context',
+             'neutron_url': 'https://foo:9696'},
             neutron()
         )
 
@@ -718,3 +767,12 @@ class ContextTests(unittest.TestCase):
 
         # subordinate supplies bad input
         self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+
+    def test_syslog_context(self):
+        self.config.side_effect = fake_config({'use-syslog': 'foo'})
+        syslog = context.SyslogContext()
+        result = syslog()
+        expected = {
+            'use_syslog': 'foo',
+        }
+        self.assertEquals(result, expected)
