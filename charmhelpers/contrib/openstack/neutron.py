@@ -20,6 +20,8 @@ def headers_package():
 QUANTUM_CONF_DIR = '/etc/quantum'
 
 # legacy
+
+
 def quantum_plugins():
     from charmhelpers.contrib.openstack import context
     return {
@@ -58,6 +60,7 @@ def quantum_plugins():
     }
 
 NEUTRON_CONF_DIR = '/etc/neutron'
+
 
 def neutron_plugins():
     from charmhelpers.contrib.openstack import context

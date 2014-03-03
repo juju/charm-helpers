@@ -205,6 +205,7 @@ TO_PATCH = [
     'determine_api_port',
     'determine_apache_port',
     'config',
+    'is_clustered',
 ]
 
 
@@ -553,6 +554,7 @@ class ContextTests(unittest.TestCase):
             self.determine_apache_port.return_value = 8776
 
         self.unit_get.return_value = 'cinderhost1'
+        self.is_clustered.return_value = is_clustered
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
@@ -683,10 +685,9 @@ class ContextTests(unittest.TestCase):
             'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
-    @patch('charmhelpers.contrib.openstack.context.is_clustered')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
-                                  mock_is_clustered, mock_unit_get):
+                                  mock_unit_get):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
         mock_unit_get.return_value = priv_addr
@@ -696,14 +697,14 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = lambda key: config[key]
         mock_network_manager.__get__ = Mock(return_value='neutron')
 
-        mock_is_clustered.return_value = False
+        self.is_clustered.return_value = False
         self.assertEquals(
             {'network_manager': 'neutron',
              'neutron_url': 'https://%s:9696' % (priv_addr)},
             neutron.neutron_ctxt()
         )
 
-        mock_is_clustered.return_value = True
+        self.is_clustered.return_value = True
         self.assertEquals(
             {'network_manager': 'neutron',
              'neutron_url': 'https://%s:9696' % (vip)},
@@ -723,7 +724,7 @@ class ContextTests(unittest.TestCase):
                                              mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
-                                          'neutron_url': 'https://foo:9292'}
+                                          'neutron_url': 'https://foo:9696'}
         config = {'neutron-alchemy-flags': None}
         self.config.side_effect = lambda key: config[key]
         neutron = context.NeutronContext()
@@ -745,7 +746,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(
             {'network_manager': 'neutron',
              'ovs': 'ovs_context',
-             'neutron_url': 'https://foo:9292'},
+             'neutron_url': 'https://foo:9696'},
             neutron()
         )
 
