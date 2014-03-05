@@ -57,7 +57,7 @@ def peer_store(key, value, relation_name='cluster'):
         relation_set(relation_id=cluster_rid,
                      relation_settings={key: value})
     else:
-        raise ValueError('Unable to detect'
+        raise ValueError('Unable to detect '
                          'peer relation {}'.format(relation_name))
 
 
@@ -70,8 +70,8 @@ def peer_echo(includes=None):
     rdata = relation_get()
     echo_data = {}
     if includes is None:
-        echo_data.copy(rdata)
-        for ex in ['private-address', 'public-addresss']:
+        echo_data = rdata.copy()
+        for ex in ['private-address', 'public-address']:
             echo_data.pop(ex)
     else:
         for attribute, value in rdata.iteritems():

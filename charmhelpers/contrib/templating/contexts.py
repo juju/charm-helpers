@@ -68,7 +68,6 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
 
-
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
     yaml.add_representer(unicode, lambda dumper,
