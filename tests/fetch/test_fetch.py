@@ -404,6 +404,16 @@ class AptTests(TestCase):
                                       '--foo', '--bar', 'upgrade'],
                                      env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
 
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_apt_dist_upgrade_fatal(self, log, mock_call):
+        options = ['--foo', '--bar']
+        fetch.apt_upgrade(options, fatal=True, dist=True)
+
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      '--foo', '--bar', 'dist-upgrade'],
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
     def test_installs_apt_packages(self, log, mock_call):
