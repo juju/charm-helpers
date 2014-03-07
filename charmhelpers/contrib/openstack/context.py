@@ -213,10 +213,9 @@ class AMQPContext(OSContextGenerator):
                     'rabbitmq_password': relation_get('password', rid=rid,
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
-                    'rabbitmq_ha_queues': False
                 })
                 if relation_get('ha_queues', rid=rid, unit=unit):
-                    ctxt['rabbitmq_ha_queues'] = (relation_get('ha_queues', rid=rid, unit=unit) == 'True')
+                    ctxt['rabbitmq_ha_queues'] = True
 
                 ha_vip_only = (relation_get('ha-vip-only', rid=rid, unit=unit) == 'True')
 
