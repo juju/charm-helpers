@@ -296,7 +296,6 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
-            'rabbitmq_ha_queues': False,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -319,7 +318,6 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_ha_queues': False
         }
         self.assertEquals(result, expected)
 
@@ -339,7 +337,6 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': 'rabbithost2,rabbithost1',
-            'rabbitmq_ha_queues': False
         }
         self.assertEquals(result, expected)
 
