@@ -72,7 +72,8 @@ def peer_echo(includes=None):
     if includes is None:
         echo_data = rdata.copy()
         for ex in ['private-address', 'public-address']:
-            echo_data.pop(ex)
+            if ex in echo_data:
+                echo_data.pop(ex)
     else:
         for attribute, value in rdata.iteritems():
             for include in includes:
