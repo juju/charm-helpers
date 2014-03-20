@@ -1,14 +1,15 @@
+import charmhelpers.contrib.openstack.context as context
 import yaml
 import json
 import unittest
-
-from tests.helpers import patch_open
-
-from mock import patch, MagicMock, call
-
 from copy import copy
-
-import charmhelpers.contrib.openstack.context as context
+from mock import (
+    patch,
+    Mock,
+    MagicMock,
+    call
+)
+from tests.helpers import patch_open
 
 
 class FakeRelation(object):
@@ -613,26 +614,70 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
 
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.is_clustered')
+    @patch.object(context.NeutronContext, 'network_manager')
+    def test_neutron_neutron_ctxt(self, mock_network_manager,
+                                  mock_is_clustered, mock_unit_get):
+        vip = '88.11.22.33'
+        priv_addr = '10.0.0.1'
+        mock_unit_get.return_value = priv_addr
+        neutron = context.NeutronContext()
+
+        config = {'vip': vip}
+        self.config.side_effect = lambda key: config[key]
+        mock_network_manager.__get__ = Mock(return_value='neutron')
+
+        mock_is_clustered.return_value = False
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'neutron_url': 'https://%s:9696' % (priv_addr)},
+            neutron.neutron_ctxt()
+        )
+
+        mock_is_clustered.return_value = True
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'neutron_url': 'https://%s:9696' % (vip)},
+            neutron.neutron_ctxt()
+        )
+
+    @patch.object(context.NeutronContext, 'neutron_ctxt')
     @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'ovs_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
     @patch.object(context.NeutronContext, 'network_manager')
-    def test_neutron_main_context_generation(self, nm, pkgs, plugin, ovs, ff):
-        self.config.return_value = None
+    def test_neutron_main_context_generation(self, mock_network_manager,
+                                             mock_ensure_packages,
+                                             mock_plugin, mock_ovs_ctxt,
+                                             mock_save_flag_file,
+                                             mock_neutron_ctxt):
+
+        mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
+                                          'neutron_url': 'https://foo:9696'}
+        config = {'neutron-alchemy-flags': None}
+        self.config.side_effect = lambda key: config[key]
         neutron = context.NeutronContext()
-        nm.__get__ = MagicMock(return_value='flatdhcpmanager')
-        self.assertEquals({}, neutron())
 
-        nm.__get__ = MagicMock(return_value='neutron')
-        plugin.__get__ = MagicMock(return_value=None)
-        self.assertEquals({}, neutron())
+        mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
+        mock_plugin.__get__ = Mock()
 
-        nm.__get__ = MagicMock(return_value='neutron')
-        ovs.return_value = {'ovs': 'ovs_context'}
-        plugin.__get__ = MagicMock(return_value='ovs')
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_network_manager.__get__.called)
+        self.assertFalse(mock_plugin.__get__.called)
+
+        mock_network_manager.__get__.return_value = 'neutron'
+        mock_plugin.__get__ = Mock(return_value=None)
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_plugin.__get__.called)
+
+        mock_ovs_ctxt.return_value = {'ovs': 'ovs_context'}
+        mock_plugin.__get__.return_value = 'ovs'
         self.assertEquals(
-            {'network_manager': 'neutron', 'ovs': 'ovs_context'},
+            {'network_manager': 'neutron',
+             'ovs': 'ovs_context',
+             'neutron_url': 'https://foo:9696'},
             neutron()
         )
 

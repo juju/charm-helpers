@@ -69,6 +69,11 @@ class FetchTest(TestCase):
         log.assert_called_with('Package joe has no installation candidate.',
                                level='WARNING')
 
+    @patch.object(fetch, 'log')
+    def test_add_source_none(self, log):
+        fetch.add_source(source=None)
+        self.assertTrue(log.called)
+
     @patch('subprocess.check_call')
     def test_add_source_ppa(self, check_call):
         source = "ppa:test-ppa"

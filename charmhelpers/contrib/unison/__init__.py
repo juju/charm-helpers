@@ -253,5 +253,5 @@ def sync_to_peer(host, user, paths=[], verbose=False):
 
 def sync_to_peers(peer_interface, user, paths=[], verbose=False):
     '''Sync all hosts to an specific path'''
-    for host in collect_authed_hosts():
+    for host in collect_authed_hosts(peer_interface):
         sync_to_peer(host, user, paths, verbose)
