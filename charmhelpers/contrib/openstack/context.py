@@ -259,7 +259,7 @@ class CephContext(OSContextGenerator):
             'mon_hosts': ' '.join(mon_hosts),
             'auth': auth,
             'key': key,
-            'use_syslog': str(config('use-syslog')).lower()
+            'use_syslog': use_syslog
         }
 
         if not os.path.isdir('/etc/ceph'):
