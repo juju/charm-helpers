@@ -162,7 +162,7 @@ class PostgresqlDBContext(OSContextGenerator):
     def __call__(self):
         self.database = self.database or config('database')
         if self.database is None:
-            log('Could not generate shared_db context. '
+            log('Could not generate postgresql_db context. '
                 'Missing required charm config options. '
                 '(database name)')
             raise OSContextError
