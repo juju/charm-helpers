@@ -2,7 +2,8 @@ from os import stat
 from stat import S_ISBLK
 
 from subprocess import (
-    check_call
+    check_call,
+    check_output,
 )
 
 
@@ -22,5 +23,12 @@ def zap_disk(block_device):
 
     :param block_device: str: Full path of block device to clean.
     '''
-    check_call(['sgdisk', '--zap-all', '--clear',
-                '--mbrtogpt', block_device])
+    # sometimes sgdisk exits non-zero; this is OK, dd will clean up
+    check_output(['sgdisk', '--zap-all', '--mbrtogpt',
+                  '--clear', block_device])
+    dev_end = check_output(['blockdev', '--getsz', block_device])
+    gpt_end = int(dev_end.split()[0]) - 100
+    check_call(['dd', 'if=/dev/zero', 'of=%s'%(block_device),
+                'bs=1M', 'count=1'])
+    check_call(['dd', 'if=/dev/zero', 'of=%s'%(block_device),
+                'bs=512', 'count=100', 'seek=%s'%(gpt_end)])
