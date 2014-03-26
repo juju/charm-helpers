@@ -226,6 +226,7 @@ class AMQPContext(OSContextGenerator):
             raise OSContextError
         ctxt = {}
         for rid in relation_ids('amqp'):
+            ha_vip_only = False
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
@@ -240,12 +241,19 @@ class AMQPContext(OSContextGenerator):
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
                 })
+
                 ssl_port = relation_get('ssl_port', rid=rid, unit=unit)
                 if ssl_port:
                     ctxt['rabbit_ssl_port'] = ssl_port
                 ssl_ca = relation_get('ssl_ca', rid=rid, unit=unit)
                 if ssl_ca:
                     ctxt['rabbit_ssl_ca'] = ssl_ca
+
+                if relation_get('ha_queues', rid=rid, unit=unit) is not None:
+                    ctxt['rabbitmq_ha_queues'] = True
+
+                ha_vip_only = relation_get('ha-vip-only',
+                                           rid=rid, unit=unit) is not None
 
                 if context_complete(ctxt):
                     if 'rabbit_ssl_ca' in ctxt:
@@ -261,12 +269,8 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if ('clustered' not in ctxt or relation_get('ha-vip-only') == 'True') and \
-               len(related_units(rid)) > 1:
-                if relation_get('ha_queues'):
-                    ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
-                else:
-                    ctxt['rabbitmq_ha_queues'] = False
+            if ('clustered' not in ctxt or ha_vip_only) \
+                    and len(related_units(rid)) > 1:
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
