@@ -113,6 +113,26 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'auth_protocol': 'https',
 }
 
+POSTGRESQL_DB_RELATION = {
+    'host': 'dbserver.local',
+    'user': 'adam',
+    'password': 'foo',
+}
+
+POSTGRESQL_DB_CONFIG = {
+    'database': 'foodb',
+}
+
+IDENTITY_SERVICE_RELATION = {
+    'service_port': '5000',
+    'service_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'service_tenant': 'admin',
+    'service_password': 'foo',
+    'service_username': 'adam',
+}
+
 AMQP_RELATION = {
     'private-address': 'rabbithost',
     'password': 'foobar',
@@ -249,6 +269,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'foo',
+            'database_type': 'mysql',
         }
         self.assertEquals(result, expected)
 
@@ -288,7 +309,52 @@ class ContextTests(unittest.TestCase):
             result, {'database': 'quantum',
                      'database_user': 'quantum',
                      'database_password': 'bar2',
-                     'database_host': 'bar'})
+                     'database_host': 'bar',
+                     'database_type': 'mysql'})
+
+    def test_postgresql_db_context_with_data(self):
+        '''Test postgresql-db context with all required data'''
+        relation = FakeRelation(relation_data=POSTGRESQL_DB_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.config.side_effect = fake_config(POSTGRESQL_DB_CONFIG)
+        postgresql_db = context.PostgresqlDBContext()
+        result = postgresql_db()
+        expected = {
+            'database_host': 'dbserver.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'foo',
+            'database_type': 'postgresql',
+        }
+        self.assertEquals(result, expected)
+
+    def test_postgresql_db_context_with_missing_relation(self):
+        '''Test postgresql-db context missing relation data'''
+        incomplete_relation = copy(POSTGRESQL_DB_RELATION)
+        incomplete_relation['password'] = None
+        relation = FakeRelation(relation_data=incomplete_relation)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = POSTGRESQL_DB_CONFIG
+        postgresql_db = context.PostgresqlDBContext()
+        result = postgresql_db()
+        self.assertEquals(result, {})
+
+    def test_postgresql_db_context_with_missing_config(self):
+        '''Test postgresql-db context missing relation data'''
+        incomplete_config = copy(POSTGRESQL_DB_CONFIG)
+        del incomplete_config['database']
+        self.config.side_effect = fake_config(incomplete_config)
+        relation = FakeRelation(relation_data=POSTGRESQL_DB_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = incomplete_config
+        postgresql_db = context.PostgresqlDBContext()
+        self.assertRaises(context.OSContextError, postgresql_db)
+
+    def test_postgresql_db_context_with_params(self):
+        '''Test postgresql-db context with object parameters'''
+        postgresql_db = context.PostgresqlDBContext(database='quantum')
+        result = postgresql_db()
+        self.assertEquals(result['database'], 'quantum')
 
     def test_identity_service_context_with_data(self):
         '''Test shared-db context with all required data'''
