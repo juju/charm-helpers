@@ -79,6 +79,50 @@ SHARED_DB_CONFIG = {
     'database': 'foodb',
 }
 
+IDENTITY_SERVICE_RELATION_HTTP = {
+    'service_port': '5000',
+    'service_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'service_tenant': 'admin',
+    'service_password': 'foo',
+    'service_username': 'adam',
+    'service_protocol': 'http',
+    'auth_protocol': 'http',
+}
+
+IDENTITY_SERVICE_RELATION_UNSET = {
+    'service_port': '5000',
+    'service_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'service_tenant': 'admin',
+    'service_password': 'foo',
+    'service_username': 'adam',
+}
+
+IDENTITY_SERVICE_RELATION_HTTPS = {
+    'service_port': '5000',
+    'service_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'service_tenant': 'admin',
+    'service_password': 'foo',
+    'service_username': 'adam',
+    'service_protocol': 'https',
+    'auth_protocol': 'https',
+}
+
+POSTGRESQL_DB_RELATION = {
+    'host': 'dbserver.local',
+    'user': 'adam',
+    'password': 'foo',
+}
+
+POSTGRESQL_DB_CONFIG = {
+    'database': 'foodb',
+}
+
 IDENTITY_SERVICE_RELATION = {
     'service_port': '5000',
     'service_host': 'keystonehost.local',
@@ -181,6 +225,7 @@ TO_PATCH = [
     'determine_api_port',
     'determine_apache_port',
     'config',
+    'is_clustered',
 ]
 
 
@@ -224,6 +269,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'foo',
+            'database_type': 'mysql',
         }
         self.assertEquals(result, expected)
 
@@ -253,15 +299,66 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with object parameters'''
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
+        self.relation_get.return_value = {
+            'db_host': 'bar', 'quantum_password': 'bar2'}
         result = shared_db()
-        self.assertIn(call('quantum_password', rid='foo:0', unit='foo/0'),
-                      self.relation_get.call_args_list)
+        self.assertIn(
+            call(rid='foo:0', unit='foo/0'),
+            self.relation_get.call_args_list)
+        self.assertEquals(
+            result, {'database': 'quantum',
+                     'database_user': 'quantum',
+                     'database_password': 'bar2',
+                     'database_host': 'bar',
+                     'database_type': 'mysql'})
+
+    def test_postgresql_db_context_with_data(self):
+        '''Test postgresql-db context with all required data'''
+        relation = FakeRelation(relation_data=POSTGRESQL_DB_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.config.side_effect = fake_config(POSTGRESQL_DB_CONFIG)
+        postgresql_db = context.PostgresqlDBContext()
+        result = postgresql_db()
+        expected = {
+            'database_host': 'dbserver.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'foo',
+            'database_type': 'postgresql',
+        }
+        self.assertEquals(result, expected)
+
+    def test_postgresql_db_context_with_missing_relation(self):
+        '''Test postgresql-db context missing relation data'''
+        incomplete_relation = copy(POSTGRESQL_DB_RELATION)
+        incomplete_relation['password'] = None
+        relation = FakeRelation(relation_data=incomplete_relation)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = POSTGRESQL_DB_CONFIG
+        postgresql_db = context.PostgresqlDBContext()
+        result = postgresql_db()
+        self.assertEquals(result, {})
+
+    def test_postgresql_db_context_with_missing_config(self):
+        '''Test postgresql-db context missing relation data'''
+        incomplete_config = copy(POSTGRESQL_DB_CONFIG)
+        del incomplete_config['database']
+        self.config.side_effect = fake_config(incomplete_config)
+        relation = FakeRelation(relation_data=POSTGRESQL_DB_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = incomplete_config
+        postgresql_db = context.PostgresqlDBContext()
+        self.assertRaises(context.OSContextError, postgresql_db)
+
+    def test_postgresql_db_context_with_params(self):
+        '''Test postgresql-db context with object parameters'''
+        postgresql_db = context.PostgresqlDBContext(database='quantum')
+        result = postgresql_db()
         self.assertEquals(result['database'], 'quantum')
-        self.assertEquals(result['database_user'], 'quantum')
 
     def test_identity_service_context_with_data(self):
         '''Test shared-db context with all required data'''
-        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION)
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -278,9 +375,47 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    def test_identity_service_context_with_data_http(self):
+        '''Test shared-db context with all required data'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'http'
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_data_https(self):
+        '''Test shared-db context with all required data'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https'
+        }
+        self.assertEquals(result, expected)
+
     def test_identity_service_context_with_missing_relation(self):
         '''Test shared-db context missing relation data'''
-        incomplete_relation = copy(IDENTITY_SERVICE_RELATION)
+        incomplete_relation = copy(IDENTITY_SERVICE_RELATION_UNSET)
         incomplete_relation['service_password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
@@ -484,6 +619,7 @@ class ContextTests(unittest.TestCase):
             self.determine_apache_port.return_value = 8776
 
         self.unit_get.return_value = 'cinderhost1'
+        self.is_clustered.return_value = is_clustered
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock
         apache.enable_modules = MagicMock
@@ -614,10 +750,9 @@ class ContextTests(unittest.TestCase):
             'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
-    @patch('charmhelpers.contrib.openstack.context.is_clustered')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
-                                  mock_is_clustered, mock_unit_get):
+                                  mock_unit_get):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
         mock_unit_get.return_value = priv_addr
@@ -627,14 +762,14 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = lambda key: config[key]
         mock_network_manager.__get__ = Mock(return_value='neutron')
 
-        mock_is_clustered.return_value = False
+        self.is_clustered.return_value = False
         self.assertEquals(
             {'network_manager': 'neutron',
              'neutron_url': 'https://%s:9696' % (priv_addr)},
             neutron.neutron_ctxt()
         )
 
-        mock_is_clustered.return_value = True
+        self.is_clustered.return_value = True
         self.assertEquals(
             {'network_manager': 'neutron',
              'neutron_url': 'https://%s:9696' % (vip)},
