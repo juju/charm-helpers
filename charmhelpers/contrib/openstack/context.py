@@ -234,6 +234,7 @@ class IdentityServiceContext(OSContextGenerator):
                     rdata.get('auth_protocol') or 'http',
                 }
                 if context_complete(ctxt):
+                    ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
                     return ctxt
         return {}
 
