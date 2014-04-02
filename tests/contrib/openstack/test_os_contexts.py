@@ -85,6 +85,7 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
     'service_tenant': 'admin',
+    'service_tenant_id': '123456',
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'http',
@@ -365,6 +366,7 @@ class ContextTests(unittest.TestCase):
         expected = {
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -384,6 +386,7 @@ class ContextTests(unittest.TestCase):
         expected = {
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
+            'admin_tenant_id': '123456',
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -403,6 +406,7 @@ class ContextTests(unittest.TestCase):
         expected = {
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
