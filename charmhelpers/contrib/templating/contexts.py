@@ -36,11 +36,13 @@ def update_relations(context, namespace_separator=':'):
         relations = charmhelpers.core.hookenv.relations_of_type(relation_type)
         relations = [dict_keys_without_hyphens(rel) for rel in relations]
 
-    if 'relations' not in context:
-        context['relations'] = {}
+    if 'relations_deprecated' not in context:
+        context['relations_deprecated'] = {}
     if relation_type is not None:
         relation_type = relation_type.replace('-', '_')
-        context['relations'][relation_type] = relations
+        context['relations_deprecated'][relation_type] = relations
+
+    context['relations'] = charmhelpers.core.hookenv.relations()
 
 
 def juju_state_to_yaml(yaml_path, namespace_separator=':',

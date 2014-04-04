@@ -78,6 +78,14 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
         self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relations')
+        self.mock_relations = patcher.start()
+        self.mock_relations.return_value = {
+            'wsgi-file': {},
+            'website': {},
+            'nrpe-external-master': {},
+        }
+        self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relations_of_type')
         self.mock_relations_of_type = patcher.start()
         self.mock_relations_of_type.return_value = []
@@ -135,7 +143,12 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "private_address": "10.10.10.10",
                 "charm_dir": "",
                 "local_unit": {},
-                'relations': {'wsgi_file': []},
+                'relations_deprecated': {'wsgi_file': []},
+                'relations': {
+                    'nrpe-external-master': {},
+                    'website': {},
+                    'wsgi-file': {},
+                },
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
             }, result)

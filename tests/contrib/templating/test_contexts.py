@@ -9,7 +9,7 @@ import tempfile
 import unittest
 import yaml
 
-import charmhelpers.contrib.templating
+import charmhelpers.contrib.templating.contexts
 
 
 class JujuState2YamlTestCase(unittest.TestCase):
@@ -22,8 +22,17 @@ class JujuState2YamlTestCase(unittest.TestCase):
         self.mock_config = patcher.start()
         self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relation_get')
+        # XXX delete
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relations')
+        self.mock_relations = patcher.start()
+        self.mock_relations.return_value = {
+            'wsgi-file': {},
+            'website': {},
+            'nrpe-external-master': {},
+        }
         self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
         self.mock_relation_type = patcher.start()
@@ -63,7 +72,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
-                "relations": {},
+                "relations_deprecated": {},
+                "relations": {
+                    'wsgi-file': {},
+                    'website': {},
+                    'nrpe-external-master': {},
+                },
                 "local_unit": "click-index/3",
             }, result)
 
@@ -85,7 +99,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
-                "relations": {},
+                "relations_deprecated": {},
+                "relations": {
+                    'wsgi-file': {},
+                    'website': {},
+                    'nrpe-external-master': {},
+                }
             }, result)
 
     def test_output_with_relation(self):
@@ -97,6 +116,20 @@ class JujuState2YamlTestCase(unittest.TestCase):
         self.mock_relation_get.return_value = {
             'relation_key1': 'relation_value1',
             'relation_key2': 'relation_value2',
+        }
+        self.mock_relations.return_value = {
+            'wsgi-file': {
+                u'wsgi-file:0': {
+                    u'gunicorn/1': {
+                        u'private-address': u'10.0.3.99',
+                    },
+                    'your-wsgi-service/0': {
+                        u'wsgi_group': u'ubunet',
+                    },
+                },
+            },
+            'website': {},
+            'nrpe-external-master': {},
         }
         self.mock_local_unit.return_value = "click-index/3"
 
@@ -112,7 +145,21 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file:relation_key1": "relation_value1",
                 "wsgi_file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
-                "relations": {"wsgi_file": []},
+                "relations_deprecated": {"wsgi_file": []},
+                "relations": {
+                    'wsgi-file': {
+                        u'wsgi-file:0': {
+                            u'gunicorn/1': {
+                                u'private-address': u'10.0.3.99',
+                            },
+                            'your-wsgi-service/0': {
+                                u'wsgi_group': u'ubunet',
+                            },
+                        },
+                    },
+                    'website': {},
+                    'nrpe-external-master': {},
+                },
             }, result)
 
     def test_output_with_multiple_relations(self):
@@ -140,8 +187,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertIn('relations', result)
-            self.assertIn('cluster', result['relations'])
+            self.assertIn('relations_deprecated', result)
+            self.assertIn('cluster', result['relations_deprecated'])
             self.assertEqual([{
                 u'private_address': u'10.0.3.105',
                 '__unit__': u'elasticsearch/1',
@@ -150,7 +197,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 u'private_address': u'10.0.3.107',
                 '__unit__': u'elasticsearch/2',
                 '__relid__': u'cluster:0',
-            }], result['relations']['cluster'])
+            }], result['relations_deprecated']['cluster'])
 
     def test_relation_with_separator(self):
         self.mock_config.return_value = {
@@ -176,7 +223,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
-                "relations": {"wsgi_file": []},
+                "relations_deprecated": {"wsgi_file": []},
+                "relations": {
+                    'wsgi-file': {},
+                    'website': {},
+                    'nrpe-external-master': {},
+                }
             }, result)
 
     def test_updates_existing_values(self):
@@ -184,13 +236,18 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         This may be helpful so that templates can access information
         from relations outside the current execution environment.
+        XXX Remove. As all relation data is avaliable in any hook,
+        we're now creating the relations entry whenever a hook is
+        run (to avoid having to do any book-keeping for relations
+        departing etc.) For the moment, we'll leave the functionality
+        on the relations_deprecated property.
         """
         os.makedirs(os.path.dirname(self.context_path))
         with open(self.context_path, 'w+') as context_file:
             context_file.write(yaml.dump({
                 'solr:hostname': 'example.com',
                 'user_code_runner': 'oldvalue',
-                'relations': {
+                'relations_deprecated': {
                     'website': [{u'private_address': u'10.0.3.107'}],
                 }
             }))
@@ -216,9 +273,14 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "newvalue",
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
-                "relations": {
+                "relations_deprecated": {
                     'website': [{u'private_address': u'10.0.3.107'}],
                     'cluster': [{u'private_address': u'10.0.3.105'}],
+                },
+                "relations": {
+                    'wsgi-file': {},
+                    'website': {},
+                    'nrpe-external-master': {},
                 }
             }, result)
 
@@ -240,7 +302,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "charm_dir": "/tmp/charm_dir",
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
-                "relations": {},
+                "relations_deprecated": {},
+                "relations": {
+                    'wsgi-file': {},
+                    'website': {},
+                    'nrpe-external-master': {},
+                },
                 "local_unit": "click-index/3",
                 "private-address": "10.1.1.10",
             }, result)
@@ -269,7 +336,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
-                "relations": {"wsgi_file": []},
+                "relations_deprecated": {"wsgi_file": []},
+                "relations": {
+                    'wsgi-file': {},
+                    'website': {},
+                    'nrpe-external-master': {},
+                },
                 "private_address": "10.1.1.10",
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
