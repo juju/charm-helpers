@@ -1,9 +1,10 @@
 import os
 
 import unittest
-from mock import patch, call, MagicMock
+from mock import patch, call, MagicMock, Mock
 
 import charmhelpers.contrib.openstack.neutron as neutron
+from charmhelpers.contrib.openstack import context
 import charmhelpers.core.hookenv as hookenv
 from jinja2.exceptions import TemplateNotFound
 
@@ -34,14 +35,29 @@ class NeutronTests(unittest.TestCase):
         dkms_package = neutron.determine_dkms_package()
         self.assertEquals(dkms_package, [])
 
-    @patch.object(neutron, 'os_release')
-    @patch.object(neutron, 'network_manager')
-    def test_neutron_plugin_attribute(self, _network_manager, _os_release):
-        _network_manager.return_value = 'quantum'
-        _os_release.return_value = 'folsom'
-        bob = neutron.neutron_plugin_attribute('ovs', 'services')
-        self.assertEquals(bob, ['neutron-plugin-openvswitch-agent'])
+ #   @patch('charmhelpers.contrib.openstack.neutron.charmhelpers.contrib.openstack.context')
+  
+#    def test_quantum_plugins(self):
+#        mock = Mock()
+#        modules = {'neutron': mock, 'neutron.context': mock.module}
+#        with patch.dict('sys.modules', modules):
+#            bob = neutron.quantum_plugins()
         
+#    @patch.object(neutron, 'network_manager')
+#   def test_neutron_plugin_attribute(self, _network_manager):
+#      _network_manager.return_value = 'quantum'
+#     #_db_context.return_value = {}
+#        bob = neutron.neutron_plugin_attribute('ovs', 'services')
+#        self.assertEquals(bob, ['neutron-plugin-openvswitch-agent'])
+
+
+    @patch.object(neutron, 'config')
+    def test_quantum_plugins(self, _config):
+        _config.return_value = 'arse'
+        bob = neutron.quantum_plugins()
+        self.assertEquals(bob['ovs']['services'], ['quantum-plugin-openvswitch-agent'])
+
+
     @patch.object(neutron, 'os_release')
     @patch.object(neutron, 'config')
     @patch.object(neutron, 'log')
