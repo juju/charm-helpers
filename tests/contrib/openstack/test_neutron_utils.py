@@ -30,6 +30,7 @@ class NeutronTests(unittest.TestCase):
     def test_kernel_version(self):
         self.check_output.return_value = '3.13.0-19-generic'
         kver_maj, kver_min = neutron.kernel_version()
+        self.assertEquals((kver_maj, kver_min), (3, 13))
         self.assertEquals(kver_maj, 3)
         self.assertEquals(kver_min, 13)
 
