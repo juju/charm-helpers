@@ -74,6 +74,14 @@ SHARED_DB_RELATION = {
     'password': 'foo',
 }
 
+SHARED_DB_RELATION_SSL = {
+    'db_host': 'dbserver.local',
+    'password': 'foo',
+    'ssl_ca': 'Zm9vCg==',
+    'ssl_cert': 'YmFyCg==',
+    'ssl_key': 'Zm9vYmFyCg==',
+}
+
 SHARED_DB_CONFIG = {
     'database-user': 'adam',
     'database': 'foodb',
@@ -138,6 +146,15 @@ AMQP_RELATION = {
     'private-address': 'rabbithost',
     'password': 'foobar',
     'vip': '10.0.0.1',
+}
+
+AMQP_RELATION_WITH_SSL = {
+    'private-address': 'rabbithost',
+    'password': 'foobar',
+    'vip': '10.0.0.1',
+    'ssl_port': 5671,
+    'ssl_ca': 'cert',
+    'ha_queues': 'queues',
 }
 
 AMQP_AA_RELATION = {
@@ -227,6 +244,7 @@ TO_PATCH = [
     'determine_apache_port',
     'config',
     'is_clustered',
+    'time',
 ]
 
 
@@ -273,6 +291,36 @@ class ContextTests(unittest.TestCase):
             'database_type': 'mysql',
         }
         self.assertEquals(result, expected)
+
+    @patch('os.path.exists')
+    @patch('__builtin__.open')
+    def test_db_ssl(self, _open, osexists):
+        osexists.return_value = False
+        ssl_dir = '/etc/dbssl'
+        db_ssl_ctxt = context.db_ssl(SHARED_DB_RELATION_SSL, {}, ssl_dir)
+        expected = {
+            'database_ssl_ca': ssl_dir + '/db-client.ca',
+            'database_ssl_cert': ssl_dir + '/db-client.cert',
+            'database_ssl_key': ssl_dir + '/db-client.key',
+        }
+        files = [
+            call(expected['database_ssl_ca'], 'w'),
+            call(expected['database_ssl_cert'], 'w'),
+            call(expected['database_ssl_key'], 'w')
+        ]
+        for f in files:
+            self.assertIn(f, _open.call_args_list)
+        self.assertEquals(db_ssl_ctxt, expected)
+        decode = [
+            call(SHARED_DB_RELATION_SSL['ssl_ca']),
+            call(SHARED_DB_RELATION_SSL['ssl_cert']),
+            call(SHARED_DB_RELATION_SSL['ssl_key'])
+        ]
+        self.assertEquals(decode, self.b64decode.call_args_list)
+
+    def test_db_ssl_nossldir(self):
+        db_ssl_ctxt = context.db_ssl(SHARED_DB_RELATION_SSL, {}, None)
+        self.assertEquals(db_ssl_ctxt, {})
 
     def test_shared_db_context_with_missing_relation(self):
         '''Test shared-db context missing relation data'''
@@ -442,6 +490,46 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    @patch('__builtin__.open')
+    def test_amqp_context_with_data_ssl(self, _open):
+        '''Test amqp context with all required data and ssl'''
+        relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = AMQP_CONFIG
+        ssl_dir = '/etc/sslamqp'
+        amqp = context.AMQPContext(ssl_dir=ssl_dir)
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbit_ssl_port': 5671,
+            'rabbitmq_virtual_host': 'foo',
+            'rabbit_ssl_ca': ssl_dir + '/rabbit-client-ca.pem',
+            'rabbitmq_ha_queues': True,
+        }
+        _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'w')
+        self.assertEquals(result, expected)
+        self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])], self.b64decode.call_args_list)
+
+    def test_amqp_context_with_data_ssl_noca(self):
+        '''Test amqp context with all required data with ssl but missing ca'''
+        relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = AMQP_CONFIG
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbit_ssl_port': 5671,
+            'rabbitmq_virtual_host': 'foo',
+            'rabbit_ssl_ca': 'cert',
+            'rabbitmq_ha_queues': True,
+        }
+        self.assertEquals(result, expected)
+
     def test_amqp_context_with_data_clustered(self):
         '''Test amqp context with all required data with clustered rabbit'''
         relation_data = copy(AMQP_RELATION)
@@ -499,6 +587,14 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = incomplete_config
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
+
+    def test_ceph_no_relids(self):
+        '''Test empty ceph realtion'''
+        relation = FakeRelation(relation_data={})
+        self.relation_ids.side_effect = relation.get
+        ceph = context.CephContext()
+        result = ceph()
+        self.assertEquals(result, {})
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
@@ -752,6 +848,21 @@ class ContextTests(unittest.TestCase):
             'neutron_plugin': 'ovs',
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
+
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_nvp_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'config': 'some.quantum.driver.class',
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'nvp',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.nvp_ctxt())
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')
