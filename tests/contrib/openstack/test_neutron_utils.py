@@ -31,8 +31,6 @@ class NeutronTests(unittest.TestCase):
         self.check_output.return_value = '3.13.0-19-generic'
         kver_maj, kver_min = neutron.kernel_version()
         self.assertEquals((kver_maj, kver_min), (3, 13))
-        self.assertEquals(kver_maj, 3)
-        self.assertEquals(kver_min, 13)
 
     @patch.object(neutron, 'kernel_version')
     def test_determine_dkms_package_old_kernel(self, _kernel_version):
@@ -47,50 +45,59 @@ class NeutronTests(unittest.TestCase):
         self.assertEquals(dkms_package, [])
 
     def test_quantum_plugins(self):
-        self.config.return_value = 'arse'
-        bob = neutron.quantum_plugins()
-        self.assertEquals(bob['ovs']['services'], ['quantum-plugin-openvswitch-agent'])
+        self.config.return_value = 'foo'
+        plugins = neutron.quantum_plugins()
+        self.assertEquals(plugins['ovs']['services'], ['quantum-plugin-openvswitch-agent'])
+        self.assertEquals(plugins['nvp']['services'], [])
+
+    def test_neutron_plugins_preicehouse(self):
+        self.config.return_value = 'foo'
+        self.os_release .return_value = 'havana'
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini')
+        self.assertEquals(plugins['nvp']['services'], [])
 
     def test_neutron_plugins(self):
-        self.config.return_value = 'arse'
+        self.config.return_value = 'foo'
         self.os_release .return_value = 'icehouse'
-        bob = neutron.neutron_plugins()
-        self.assertEquals(bob['ovs']['services'], ['neutron-plugin-openvswitch-agent'])
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/ml2/ml2_conf.ini')
+        self.assertEquals(plugins['nvp']['services'], [])
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_quantum(self, _network_manager):
-        self.config.return_value = 'arse'
+        self.config.return_value = 'foo'
         _network_manager.return_value = 'quantum'
-        bob = neutron.neutron_plugin_attribute('ovs', 'services')
-        self.assertEquals(bob, ['quantum-plugin-openvswitch-agent'])
+        plugins = neutron.neutron_plugin_attribute('ovs', 'services')
+        self.assertEquals(plugins, ['quantum-plugin-openvswitch-agent'])
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_neutron(self, _network_manager):
-        self.config.return_value = 'arse'
+        self.config.return_value = 'foo'
         self.os_release .return_value = 'icehouse'
         _network_manager.return_value = 'neutron'
-        bob = neutron.neutron_plugin_attribute('ovs', 'services')
-        self.assertEquals(bob, ['neutron-plugin-openvswitch-agent'])
+        plugins = neutron.neutron_plugin_attribute('ovs', 'services')
+        self.assertEquals(plugins, ['neutron-plugin-openvswitch-agent'])
 
     @raises(Exception)
     @patch.object(neutron, 'network_manager')
-    def test_neutron_plugin_attribute_another(self, _network_manager):
-        _network_manager.return_value = 'another'
+    def test_neutron_plugin_attribute_foo(self, _network_manager):
+        _network_manager.return_value = 'foo'
         self.assertRaises(Exception, neutron.neutron_plugin_attribute('ovs', 'services'))
 
     @raises(Exception)
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_plugin_keyerror(self, _network_manager):
-        self.config.return_value = 'arse'
+        self.config.return_value = 'foo'
         _network_manager.return_value = 'quantum'
         self.assertRaises(Exception, neutron.neutron_plugin_attribute('foo', 'foo'))
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_attr_keyerror(self, _network_manager):
-        self.config.return_value = 'arse'
+        self.config.return_value = 'foo'
         _network_manager.return_value = 'quantum'
-        bob = neutron.neutron_plugin_attribute('ovs', 'foo')
-        self.assertEquals(bob, None)
+        plugins = neutron.neutron_plugin_attribute('ovs', 'foo')
+        self.assertEquals(plugins, None)
 
     @raises(Exception)
     def test_network_manager_essex(self):
