@@ -106,9 +106,9 @@ class NeutronTests(unittest.TestCase):
             'neutron': 'quantum',
             'newhotness': 'newhotness',
         }
+        self.os_release.return_value = 'essex'
         for nwmanager in essex_cases:
             self.config.return_value = nwmanager
-            self.os_release.return_value = 'essex'
             self.assertRaises(Exception, neutron.network_manager())
 
     def test_network_manager_folsom(self):
@@ -117,9 +117,9 @@ class NeutronTests(unittest.TestCase):
             'neutron': 'quantum',
             'newhotness': 'newhotness',
         }
+        self.os_release.return_value = 'folsom'
         for nwmanager in folsom_cases:
             self.config.return_value = nwmanager
-            self.os_release.return_value = 'folsom'
             renamed_manager = neutron.network_manager()
             self.assertEquals(renamed_manager, folsom_cases[nwmanager])
 
@@ -129,11 +129,23 @@ class NeutronTests(unittest.TestCase):
             'neutron': 'quantum',
             'newhotness': 'newhotness',
         }
+        self.os_release.return_value = 'grizzly'
         for nwmanager in grizzly_cases:
             self.config.return_value = nwmanager
-            self.os_release.return_value = 'grizzly'
             renamed_manager = neutron.network_manager()
             self.assertEquals(renamed_manager, grizzly_cases[nwmanager])
+
+    def test_network_manager_havana(self):
+        havana_cases = {
+            'quantum': 'neutron',
+            'neutron': 'neutron',
+            'newhotness': 'newhotness',
+        }
+        self.os_release.return_value = 'havana'
+        for nwmanager in havana_cases:
+            self.config.return_value = nwmanager
+            renamed_manager = neutron.network_manager()
+            self.assertEquals(renamed_manager, havana_cases[nwmanager])
 
     def test_network_manager_icehouse(self):
         icehouse_cases = {
@@ -141,8 +153,8 @@ class NeutronTests(unittest.TestCase):
             'neutron': 'neutron',
             'newhotness': 'newhotness',
         }
+        self.os_release.return_value = 'icehouse'
         for nwmanager in icehouse_cases:
             self.config.return_value = nwmanager
-            self.os_release.return_value = 'icehouse'
             renamed_manager = neutron.network_manager()
             self.assertEquals(renamed_manager, icehouse_cases[nwmanager])
