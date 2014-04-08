@@ -14,6 +14,11 @@ import charmhelpers.contrib.templating
 
 class JujuState2YamlTestCase(unittest.TestCase):
 
+    unit_data = {
+        'private-address': '10.0.3.2',
+        'public-address': '123.123.123.123',
+    }
+
     def setUp(self):
         super(JujuState2YamlTestCase, self).setUp()
 
@@ -36,6 +41,15 @@ class JujuState2YamlTestCase(unittest.TestCase):
         self.mock_relations_of_type = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_relations_of_type.return_value = []
+
+        def unit_get_data(argument):
+            "dummy unit_get that accesses dummy unit data"
+            return self.unit_data[argument]
+
+        patcher = mock.patch(
+            'charmhelpers.core.hookenv.unit_get', unit_get_data)
+        self.mock_unit_get = patcher.start()
+        self.addCleanup(patcher.stop)
 
         # patches specific to this test class.
         etc_dir = tempfile.mkdtemp()
@@ -65,6 +79,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "ubunet",
                 "relations": {},
                 "local_unit": "click-index/3",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
             }, result)
 
     def test_output_with_no_relation(self):
@@ -85,6 +101,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
                 "relations": {},
             }, result)
 
@@ -112,6 +130,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file:relation_key1": "relation_value1",
                 "wsgi_file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
                 "relations": {"wsgi_file": []},
             }, result)
 
@@ -176,6 +196,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
                 "relations": {"wsgi_file": []},
             }, result)
 
@@ -216,6 +238,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "newvalue",
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
                 "relations": {
                     'website': [{u'private_address': u'10.0.3.107'}],
                     'cluster': [{u'private_address': u'10.0.3.105'}],
@@ -243,6 +267,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "relations": {},
                 "local_unit": "click-index/3",
                 "private-address": "10.1.1.10",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
             }, result)
 
     def test_keys_with_hypens_not_allowed_in_keys(self):
@@ -273,4 +299,6 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "private_address": "10.1.1.10",
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
             }, result)
