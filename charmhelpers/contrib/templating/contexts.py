@@ -23,8 +23,12 @@ def update_relations(context, namespace_separator=':'):
     # Add any relation data prefixed with the relation type.
     relation_type = charmhelpers.core.hookenv.relation_type()
     relations = []
+    context['current_relation'] = {}
     if relation_type is not None:
         relation_data = charmhelpers.core.hookenv.relation_get()
+        context['current_relation'][relation_type] = relation_data
+        # Deprecated: the following use of relation data as keys
+        # directly in the context will be removed.
         relation_data = dict(
             ("{relation_type}{namespace_separator}{key}".format(
                 relation_type=relation_type,

@@ -73,6 +73,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "relations_deprecated": {},
+                "current_relation": {},
                 "relations": {
                     'wsgi-file': {},
                     'website': {},
@@ -100,6 +101,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
                 "relations_deprecated": {},
+                "current_relation": {},
                 "relations": {
                     'wsgi-file': {},
                     'website': {},
@@ -146,6 +148,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file:relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
                 "relations_deprecated": {"wsgi_file": []},
+                "current_relation": {
+                    'wsgi-file': {
+                        "relation_key1": "relation_value1",
+                        "relation_key2": "relation_value2",
+                    }
+                },
                 "relations": {
                     'wsgi-file': {
                         u'wsgi-file:0': {
@@ -224,6 +232,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "wsgi_file__relation_key2": "relation_value2",
                 "local_unit": "click-index/3",
                 "relations_deprecated": {"wsgi_file": []},
+                "current_relation": {
+                    "wsgi-file": {
+                        "relation_key1": "relation_value1",
+                        "relation_key2": "relation_value2",
+                    },
+                },
                 "relations": {
                     'wsgi-file': {},
                     'website': {},
@@ -261,6 +275,9 @@ class JujuState2YamlTestCase(unittest.TestCase):
         self.mock_relations_of_type.return_value = [{
             u'private-address': u'10.0.3.105',
         }]
+        self.mock_relation_get.return_value = {
+            u'private-address': u'10.0.3.105',
+        }
 
         charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
             self.context_path)
@@ -273,9 +290,15 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "newvalue",
                 "local_unit": "click-index/3",
                 "solr:hostname": "example.com",
+                "cluster:private_address": "10.0.3.105",
                 "relations_deprecated": {
                     'website': [{u'private_address': u'10.0.3.107'}],
                     'cluster': [{u'private_address': u'10.0.3.105'}],
+                },
+                "current_relation": {
+                    'cluster': {
+                        'private-address': '10.0.3.105',
+                    },
                 },
                 "relations": {
                     'wsgi-file': {},
@@ -303,6 +326,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
                 "relations_deprecated": {},
+                'current_relation': {},
                 "relations": {
                     'wsgi-file': {},
                     'website': {},
@@ -337,6 +361,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "user_code_runner": "ubunet",
                 "local_unit": "click-index/3",
                 "relations_deprecated": {"wsgi_file": []},
+                'current_relation': {
+                    'wsgi-file': {
+                        'relation-key1': 'relation_value1',
+                        'relation-key2': 'relation_value2',
+                    },
+                },
                 "relations": {
                     'wsgi-file': {},
                     'website': {},

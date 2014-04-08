@@ -144,6 +144,12 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "charm_dir": "",
                 "local_unit": {},
                 'relations_deprecated': {'wsgi_file': []},
+                'current_relation': {
+                    'wsgi-file': {
+                        'relation_key1': 'relation_value1',
+                        'relation-key2': 'relation_value2',
+                    },
+                },
                 'relations': {
                     'nrpe-external-master': {},
                     'website': {},
