@@ -65,6 +65,11 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
 class ApplyPlaybookTestCases(unittest.TestCase):
 
+    unit_data = {
+        'private-address': '10.0.3.2',
+        'public-address': '123.123.123.123',
+    }
+
     def setUp(self):
         super(ApplyPlaybookTestCases, self).setUp()
 
@@ -98,6 +103,15 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_local_unit = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_local_unit.return_value = {}
+
+        def unit_get_data(argument):
+            "dummy unit_get that accesses dummy unit data"
+            return self.unit_data[argument]
+
+        patcher = mock.patch(
+            'charmhelpers.core.hookenv.unit_get', unit_get_data)
+        self.mock_unit_get = patcher.start()
+        self.addCleanup(patcher.stop)
 
         patcher = mock.patch('charmhelpers.contrib.ansible.subprocess')
         self.mock_subprocess = patcher.start()
@@ -155,6 +169,8 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 },
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
             }, result)
 
     def test_calls_with_tags(self):
