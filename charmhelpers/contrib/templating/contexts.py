@@ -26,7 +26,7 @@ def update_relations(context, namespace_separator=':'):
     context['current_relation'] = {}
     if relation_type is not None:
         relation_data = charmhelpers.core.hookenv.relation_get()
-        context['current_relation'][relation_type] = relation_data
+        context['current_relation'] = relation_data
         # Deprecated: the following use of relation data as keys
         # directly in the context will be removed.
         relation_data = dict(

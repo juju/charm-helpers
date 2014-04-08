@@ -149,10 +149,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
                 "relations_deprecated": {"wsgi_file": []},
                 "current_relation": {
-                    'wsgi-file': {
-                        "relation_key1": "relation_value1",
-                        "relation_key2": "relation_value2",
-                    }
+                    "relation_key1": "relation_value1",
+                    "relation_key2": "relation_value2",
                 },
                 "relations": {
                     'wsgi-file': {
@@ -233,10 +231,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
                 "relations_deprecated": {"wsgi_file": []},
                 "current_relation": {
-                    "wsgi-file": {
-                        "relation_key1": "relation_value1",
-                        "relation_key2": "relation_value2",
-                    },
+                    "relation_key1": "relation_value1",
+                    "relation_key2": "relation_value2",
                 },
                 "relations": {
                     'wsgi-file': {},
@@ -296,9 +292,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                     'cluster': [{u'private_address': u'10.0.3.105'}],
                 },
                 "current_relation": {
-                    'cluster': {
-                        'private-address': '10.0.3.105',
-                    },
+                    'private-address': '10.0.3.105',
                 },
                 "relations": {
                     'wsgi-file': {},
@@ -362,10 +356,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 "local_unit": "click-index/3",
                 "relations_deprecated": {"wsgi_file": []},
                 'current_relation': {
-                    'wsgi-file': {
-                        'relation-key1': 'relation_value1',
-                        'relation-key2': 'relation_value2',
-                    },
+                    'relation-key1': 'relation_value1',
+                    'relation-key2': 'relation_value2',
                 },
                 "relations": {
                     'wsgi-file': {},
