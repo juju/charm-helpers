@@ -22,7 +22,6 @@ class JujuState2YamlTestCase(unittest.TestCase):
         self.mock_config = patcher.start()
         self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relation_get')
-        # XXX delete
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
         self.addCleanup(patcher.stop)
