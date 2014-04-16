@@ -181,7 +181,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+            call(['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
                   '--recv', key])
         ])
 
@@ -192,7 +192,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         fetch.add_source(source=source, key=key)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com',
+            call(['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
                   '--recv', key])
         ])
 
