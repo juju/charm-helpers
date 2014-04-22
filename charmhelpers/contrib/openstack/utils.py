@@ -396,7 +396,7 @@ def ns_query(address):
     except ImportError:
         apt_install('python-dnspython')
         import dns.resolver
-    print type(dns.name.Name)
+
     if isinstance(address, dns.name.Name):
         rtype = 'PTR'
     elif isinstance(address, basestring):
@@ -405,7 +405,6 @@ def ns_query(address):
         return None
 
     answers = dns.resolver.query(address, rtype)
-
     if answers:
         return str(answers[0])
     return None
