@@ -98,7 +98,7 @@ class FakeResolver(object):
         self.ip = ip
 
     def query(self, hostname, query_type):
-        if self.ip == 'nonexistant':
+        if self.ip == '':
             return []
         else:
             return [FakeAnswer(self.ip)]
@@ -109,12 +109,17 @@ class FakeReverse(object):
         return '156.94.189.91.in-addr.arpa'
 
 
+class FakeDNSName(object):
+    def __init__(self, dnsname):
+        pass
+
+
 class FakeDNS(object):
-    def __init__(self, ip, name_type=basestring):
+    def __init__(self, ip):
         self.resolver = FakeResolver(ip)
         self.reversename = FakeReverse()
         self.name = MagicMock()
-        self.name.Name = name_type
+        self.name.Name = FakeDNSName
 
 
 class OpenStackHelpersTestCase(TestCase):
@@ -596,10 +601,18 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(nsq, '5.5.5.5')
 
     @patch.object(openstack, 'apt_install')
-    def test_ns_query_arecord(self, apt_install):
-        fake_dns = FakeDNS('127.0.0.1', name_type=int)
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
-            nsq = openstack.ns_query('bob.com')
+    def test_ns_query_ptr_record(self, apt_install):
+        fake_dns = FakeDNS('127.0.0.1')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            nsq = openstack.ns_query('127.0.0.1')
+        self.assertEquals(nsq, '127.0.0.1')
+
+    @patch.object(openstack, 'apt_install')
+    def test_ns_query_a_record(self, apt_install):
+        fake_dns = FakeDNS('127.0.0.1')
+        fake_dns_name = FakeDNSName('www.somedomain.tld')
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+            nsq = openstack.ns_query(fake_dns_name)
         self.assertEquals(nsq, '127.0.0.1')
 
     @patch.object(openstack, 'apt_install')
@@ -611,7 +624,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_lookup_fail(self, apt_install):
-        fake_dns = FakeDNS('nonexistant')
+        fake_dns = FakeDNS('')
         with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             nsq = openstack.ns_query('nonexistant')
         self.assertEquals(nsq, None)
