@@ -245,6 +245,7 @@ TO_PATCH = [
     'config',
     'is_clustered',
     'time',
+    'https',
 ]
 
 
@@ -711,6 +712,7 @@ class ContextTests(unittest.TestCase):
     def _test_https_context(self, apache, is_clustered, peer_units):
         self.https.return_value = True
 
+
         if is_clustered:
             self.determine_api_port.return_value = 8756
             self.determine_apache_port.return_value = 8766
@@ -718,6 +720,8 @@ class ContextTests(unittest.TestCase):
             self.determine_api_port.return_value = 8766
             self.determine_apache_port.return_value = 8776
 
+        config = {'vip': 'cinderhost1vip'}
+        self.config.side_effect = lambda key: config[key]
         self.unit_get.return_value = 'cinderhost1'
         self.is_clustered.return_value = is_clustered
         apache = context.ApacheSSLContext()
@@ -726,11 +730,19 @@ class ContextTests(unittest.TestCase):
         apache.external_ports = '8776'
         apache.service_namespace = 'cinder'
 
-        ex = {
-            'private_address': 'cinderhost1',
-            'namespace': 'cinder',
-            'endpoints': [(8776, 8766)],
-        }
+        if is_clustered:
+            ex = {
+                'private_address': 'cinderhost1vip',
+                'namespace': 'cinder',
+                'endpoints': [(8766, 8756)],
+            }
+        else:
+            ex = {
+                'private_address': 'cinderhost1',
+                'namespace': 'cinder',
+                'endpoints': [(8776, 8766)],
+            }
+
         self.assertEquals(ex, apache())
         self.assertTrue(apache.configure_cert.called)
         self.assertTrue(apache.enable_modules.called)
@@ -744,6 +756,11 @@ class ContextTests(unittest.TestCase):
         '''Test apache2 https on a unclustered unit with peers'''
         apache = context.ApacheSSLContext()
         self._test_https_context(apache, is_clustered=False, peer_units=[1, 2])
+
+    def test_https_context_wth_peers_cluster(self):
+        '''Test apache2 https on a clustered unit with peers'''
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=True, peer_units=[1, 2])
 
     def test_https_context_loads_correct_apache_mods(self):
         '''Test apache2 context also loads required apache modules'''
@@ -891,6 +908,34 @@ class ContextTests(unittest.TestCase):
             neutron.neutron_ctxt()
         )
 
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch.object(context.NeutronContext, 'network_manager')
+    def test_neutron_neutron_ctxt_http(self, mock_network_manager,
+                                  mock_unit_get):
+        vip = '88.11.22.33'
+        priv_addr = '10.0.0.1'
+        mock_unit_get.return_value = priv_addr
+        neutron = context.NeutronContext()
+
+        config = {'vip': vip}
+        self.config.side_effect = lambda key: config[key]
+        self.https.return_value = False
+        mock_network_manager.__get__ = Mock(return_value='neutron')
+
+        self.is_clustered.return_value = False
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'neutron_url': 'http://%s:9696' % (priv_addr)},
+            neutron.neutron_ctxt()
+        )
+
+        self.is_clustered.return_value = True
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'neutron_url': 'http://%s:9696' % (vip)},
+            neutron.neutron_ctxt()
+        )
+        
     @patch.object(context.NeutronContext, 'neutron_ctxt')
     @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'ovs_ctxt')
@@ -930,6 +975,46 @@ class ContextTests(unittest.TestCase):
             neutron()
         )
 
+    @patch.object(context.NeutronContext, 'neutron_ctxt')
+    @patch.object(context.NeutronContext, '_save_flag_file')
+    @patch.object(context.NeutronContext, 'nvp_ctxt')
+    @patch.object(context.NeutronContext, 'plugin')
+    @patch.object(context.NeutronContext, '_ensure_packages')
+    @patch.object(context.NeutronContext, 'network_manager')
+    def test_neutron_main_context_gen_nvp_and_alchemy(self, mock_network_manager,
+                                             mock_ensure_packages,
+                                             mock_plugin, mock_nvp_ctxt,
+                                             mock_save_flag_file,
+                                             mock_neutron_ctxt):
+
+        mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
+                                          'neutron_url': 'https://foo:9696'}
+        config = {'neutron-alchemy-flags': 'pool_size=20'}
+        self.config.side_effect = lambda key: config[key]
+        neutron = context.NeutronContext()
+
+        mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
+        mock_plugin.__get__ = Mock()
+
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_network_manager.__get__.called)
+        self.assertFalse(mock_plugin.__get__.called)
+
+        mock_network_manager.__get__.return_value = 'neutron'
+        mock_plugin.__get__ = Mock(return_value=None)
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_plugin.__get__.called)
+
+        mock_nvp_ctxt.return_value = {'nvp': 'nvp_context'}
+        mock_plugin.__get__.return_value = 'nvp'
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'nvp': 'nvp_context',
+             'neutron_alchemy_flags': {'pool_size': '20'},
+             'neutron_url': 'https://foo:9696'},
+            neutron()
+        )        
+        
     @patch.object(context, 'config')
     def test_os_configflag_context(self, config):
         flags = context.OSConfigFlagContext()
