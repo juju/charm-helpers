@@ -7,7 +7,7 @@ from testtools import TestCase
 from mock import MagicMock, patch, call
 
 import charmhelpers.contrib.openstack.utils as openstack
-
+from nose.tools import raises
 
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
@@ -84,6 +84,8 @@ UCA_SOURCES = [
 
 
 # Mock python-dnspython resolver used by get_host_ip()
+
+
 class FakeAnswer(object):
     def __init__(self, ip):
         self.ip = ip
@@ -97,7 +99,10 @@ class FakeResolver(object):
         self.ip = ip
 
     def query(self, hostname, query_type):
-        return [FakeAnswer(self.ip)]
+        if self.ip == 'nonexistant':
+            return []
+        else:
+            return [FakeAnswer(self.ip)]
 
 
 class FakeReverse(object):
@@ -106,11 +111,11 @@ class FakeReverse(object):
 
 
 class FakeDNS(object):
-    def __init__(self, ip):
+    def __init__(self, ip, name_type = basestring):
         self.resolver = FakeResolver(ip)
         self.reversename = FakeReverse()
         self.name = MagicMock()
-        self.name.Name = basestring
+        self.name.Name = name_type
 
 
 class OpenStackHelpersTestCase(TestCase):
@@ -584,6 +589,36 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(ip, '4.2.2.1')
 
     @patch.object(openstack, 'apt_install')
+    def test_ns_query_trigger_apt_install(self, apt_install):
+        fake_dns = FakeDNS('5.5.5.5')
+        with patch('__builtin__.__import__', side_effect=[ImportError, fake_dns]):
+            nsq = openstack.ns_query('5.5.5.5')
+            apt_install.assert_called_with('python-dnspython')
+        self.assertEquals(nsq, '5.5.5.5')
+
+    @patch.object(openstack, 'apt_install')
+    def test_ns_query_arecord(self, apt_install):
+        fake_dns = FakeDNS('127.0.0.1', name_type = int)
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            nsq = openstack.ns_query('bob.com')
+        self.assertEquals(nsq, '127.0.0.1')
+
+    @patch.object(openstack, 'apt_install')
+    def test_ns_query_blank_record(self, apt_install):
+        fake_dns = FakeDNS(None)
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            nsq = openstack.ns_query(None)
+        self.assertEquals(nsq, None)
+    
+    #@raises(NXDOMAIN)
+    @patch.object(openstack, 'apt_install')
+    def test_ns_query_lookup_fail(self, apt_install):
+        fake_dns = FakeDNS('nonexistant')
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            nsq = openstack.ns_query('nonexistant')
+        self.assertEquals(nsq, None)
+    
+    @patch.object(openstack, 'apt_install')
     def test_get_hostname_with_ip(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
         with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
@@ -606,7 +641,23 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_hostname_with_hostname_not_fqdn(self, apt_install):
         hn = openstack.get_hostname('packages.ubuntu.com', fqdn=False)
         self.assertEquals(hn, 'packages')
+                
+    @patch.object(openstack, 'apt_install')
+    def test_get_hostname_trigger_apt_install(self, apt_install):
+        fake_dns = FakeDNS('www.ubuntu.com')
+        with patch('__builtin__.__import__', side_effect=[ImportError, fake_dns, fake_dns]):            
+            hn = openstack.get_hostname('4.2.2.1')
+            apt_install.assert_called_with('python-dnspython')
+        self.assertEquals(hn, 'www.ubuntu.com')  
 
-
+    @patch.object(openstack, 'ns_query')         
+    @patch.object(openstack, 'apt_install')
+    def test_get_hostname_lookup_fail(self, apt_install, ns_query):
+        fake_dns = FakeDNS('www.ubuntu.com')
+        ns_query.return_value = []
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+            hn = openstack.get_hostname('4.2.2.1')
+        self.assertEquals(hn, None)
+            
 if __name__ == '__main__':
     unittest.main()
