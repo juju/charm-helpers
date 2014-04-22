@@ -5,7 +5,7 @@ from tests.helpers import patch_open
 
 import charmhelpers.contrib.hahelpers.apache as apache_utils
 
-cert='''
+cert = '''
         -----BEGIN CERTIFICATE-----
 MIIDXTCCAkWgAwIBAgIJAMO1fWOu8ntUMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
 BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
@@ -28,6 +28,7 @@ E2zl3kh9gkZnMuV1uzHdfKJbtTcNn4hCls5x7T21jn4joADHaVez8FloykBUABu3
 qw==
 -----END CERTIFICATE-----
 '''
+
 
 class ApacheUtilsTests(TestCase):
     def setUp(self):
@@ -88,4 +89,4 @@ class ApacheUtilsTests(TestCase):
             apache_utils.install_ca_cert(cert)
             _open.assert_called_with('/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt', 'w')
             _file.write.assert_called_with(cert)
-        self.subprocess.assertCalledWith(['update-ca-certificates', '--fresh']) 
+        self.subprocess.assertCalledWith(['update-ca-certificates', '--fresh'])

@@ -712,7 +712,6 @@ class ContextTests(unittest.TestCase):
     def _test_https_context(self, apache, is_clustered, peer_units):
         self.https.return_value = True
 
-
         if is_clustered:
             self.determine_api_port.return_value = 8756
             self.determine_apache_port.return_value = 8766
@@ -911,7 +910,7 @@ class ContextTests(unittest.TestCase):
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt_http(self, mock_network_manager,
-                                  mock_unit_get):
+                                       mock_unit_get):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
         mock_unit_get.return_value = priv_addr
@@ -935,7 +934,7 @@ class ContextTests(unittest.TestCase):
              'neutron_url': 'http://%s:9696' % (vip)},
             neutron.neutron_ctxt()
         )
-        
+
     @patch.object(context.NeutronContext, 'neutron_ctxt')
     @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'ovs_ctxt')
@@ -982,10 +981,10 @@ class ContextTests(unittest.TestCase):
     @patch.object(context.NeutronContext, '_ensure_packages')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_main_context_gen_nvp_and_alchemy(self, mock_network_manager,
-                                             mock_ensure_packages,
-                                             mock_plugin, mock_nvp_ctxt,
-                                             mock_save_flag_file,
-                                             mock_neutron_ctxt):
+                                                      mock_ensure_packages,
+                                                      mock_plugin, mock_nvp_ctxt,
+                                                      mock_save_flag_file,
+                                                      mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
                                           'neutron_url': 'https://foo:9696'}
@@ -1013,8 +1012,8 @@ class ContextTests(unittest.TestCase):
              'neutron_alchemy_flags': {'pool_size': '20'},
              'neutron_url': 'https://foo:9696'},
             neutron()
-        )        
-        
+        )
+
     @patch.object(context, 'config')
     def test_os_configflag_context(self, config):
         flags = context.OSConfigFlagContext()

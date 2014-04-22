@@ -405,7 +405,7 @@ def ns_query(address):
         return None
 
     answers = dns.resolver.query(address, rtype)
-    
+
     if answers:
         return str(answers[0])
     return None
