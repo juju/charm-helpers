@@ -13,8 +13,9 @@ PyYAML==3.10
 # Note: This is compiled and will require libapt-pkg-dev for headers.
 python-apt
 simplejson==3.3.0
-testtools==0.9.31
+testtools
 Tempita==0.5.1
 bzr+http://bazaar.launchpad.net/~yellow/python-shelltoolbox/trunk@17#egg=shelltoolbox
-netifaces==0.6
+http://alastairs-place.net/projects/netifaces/netifaces-0.6.tar.gz
 netaddr==0.7.5
+bzr==2.6.0
