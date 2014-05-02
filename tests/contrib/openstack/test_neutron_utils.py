@@ -62,6 +62,7 @@ class NeutronTests(unittest.TestCase):
         self.os_release .return_value = 'icehouse'
         plugins = neutron.neutron_plugins()
         self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/ml2/ml2_conf.ini')
+        self.assertEquals(plugins['nvp']['config'], '/etc/neutron/plugins/vmware/nsx.ini')
         self.assertEquals(plugins['nvp']['services'], [])
 
     @patch.object(neutron, 'network_manager')

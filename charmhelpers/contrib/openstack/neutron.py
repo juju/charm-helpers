@@ -116,12 +116,17 @@ def neutron_plugins():
             'server_services': ['neutron-server']
         }
     }
-    # NOTE: patch in ml2 plugin for icehouse onwards
     if release >= 'icehouse':
+        # NOTE: patch in ml2 plugin for icehouse onwards
         plugins['ovs']['config'] = '/etc/neutron/plugins/ml2/ml2_conf.ini'
         plugins['ovs']['driver'] = 'neutron.plugins.ml2.plugin.Ml2Plugin'
         plugins['ovs']['server_packages'] = ['neutron-server',
                                              'neutron-plugin-ml2']
+        # NOTE: patch in vmware renames for icehouse onwards
+        plugins['nvp']['config'] = '/etc/neutron/plugins/vmware/nsx.ini'
+        plugins['nvp']['driver'] = 'vmware'
+        plugins['nvp']['server_packages'] = ['neutron-server',
+                                             'neutron-plugin-vmware']
     return plugins
 
 
