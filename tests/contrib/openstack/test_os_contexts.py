@@ -849,13 +849,15 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.ovs_ctxt())
 
+    @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, 'neutron_security_groups')
     @patch.object(context, 'unit_private_ip')
     @patch.object(context, 'neutron_plugin_attribute')
-    def test_neutron_nvp_plugin_context(self, attr, ip, sec_groups):
+    def test_neutron_nvp_plugin_context(self, attr, ip, sec_groups, plugin):
         ip.return_value = '10.0.0.1'
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
+        plugin.__get__ = MagicMock(return_value='nvp')
         neutron = context.NeutronContext()
         self.assertEquals({
             'config': 'some.quantum.driver.class',
