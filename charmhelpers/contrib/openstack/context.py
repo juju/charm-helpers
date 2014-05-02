@@ -533,7 +533,7 @@ class NeutronContext(OSContextGenerator):
                                           self.network_manager)
         nvp_ctxt = {
             'core_plugin': driver,
-            'neutron_plugin': 'nvp',
+            'neutron_plugin': self.plugin,
             'neutron_security_groups': self.neutron_security_groups,
             'local_ip': unit_private_ip(),
             'config': config
