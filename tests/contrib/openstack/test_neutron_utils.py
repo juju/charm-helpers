@@ -52,18 +52,19 @@ class NeutronTests(unittest.TestCase):
 
     def test_neutron_plugins_preicehouse(self):
         self.config.return_value = 'foo'
-        self.os_release .return_value = 'havana'
+        self.os_release.return_value = 'havana'
         plugins = neutron.neutron_plugins()
         self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini')
         self.assertEquals(plugins['nvp']['services'], [])
 
     def test_neutron_plugins(self):
         self.config.return_value = 'foo'
-        self.os_release .return_value = 'icehouse'
+        self.os_release.return_value = 'icehouse'
         plugins = neutron.neutron_plugins()
         self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/ml2/ml2_conf.ini')
         self.assertEquals(plugins['nvp']['config'], '/etc/neutron/plugins/vmware/nsx.ini')
         self.assertEquals(plugins['nvp']['services'], [])
+        self.assertEquals(plugins['nsx'], plugins['nvp'])
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_quantum(self, _network_manager):
@@ -75,7 +76,7 @@ class NeutronTests(unittest.TestCase):
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_neutron(self, _network_manager):
         self.config.return_value = 'foo'
-        self.os_release .return_value = 'icehouse'
+        self.os_release.return_value = 'icehouse'
         _network_manager.return_value = 'neutron'
         plugins = neutron.neutron_plugin_attribute('ovs', 'services')
         self.assertEquals(plugins, ['neutron-plugin-openvswitch-agent'])
