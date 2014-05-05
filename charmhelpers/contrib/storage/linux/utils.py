@@ -1,4 +1,4 @@
-from os import stat
+import os
 from stat import S_ISBLK
 
 from subprocess import (
@@ -14,7 +14,9 @@ def is_block_device(path):
 
     :returns: boolean: True if path is a block device, False if not.
     '''
-    return S_ISBLK(stat(path).st_mode)
+    if not os.path.exists(path):
+        return False
+    return S_ISBLK(os.stat(path).st_mode)
 
 
 def zap_disk(block_device):
