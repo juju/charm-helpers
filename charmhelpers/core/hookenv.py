@@ -196,45 +196,53 @@ class Config(dict):
 
     def __init__(self, *args, **kw):
         super(Config, self).__init__(*args, **kw)
-        self.prev_dict = None
+        self._prev_dict = None
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
         if os.path.exists(self.path):
             self.load_previous()
 
-    def load_previous(self):
+    def load_previous(self, path=None):
         """Load previous copy of config from disk so that current values
         can be compared to previous values.
 
+        :param path:
+
+            File path from which to load the previous config. If `None`,
+            config is loaded from the default location. If `path` is
+            specified, subsequent `save()` calls will write to the same
+            path.
+
         """
+        self.path = path or self.path
         with open(self.path) as f:
-            self.prev_dict = json.load(f)
+            self._prev_dict = json.load(f)
 
     def changed(self, key):
         """Return true if the value for this key has changed since
         the last save.
 
         """
-        if self.prev_dict is None:
+        if self._prev_dict is None:
             return True
-        return self.prev_dict.get(key) != self.get(key)
+        return self.previous(key) != self.get(key)
 
     def previous(self, key):
         """Return previous value for this key, or None if there
         is no "previous" value.
 
         """
-        if self.prev_dict:
-            return self.prev_dict.get(key)
+        if self._prev_dict:
+            return self._prev_dict.get(key)
         return None
 
     def save(self):
         """Save this config to disk.
 
-        Preserves items in prev_dict that do not exist in self.
+        Preserves items in _prev_dict that do not exist in self.
 
         """
-        if self.prev_dict:
-            for k, v in self.prev_dict.iteritems():
+        if self._prev_dict:
+            for k, v in self._prev_dict.iteritems():
                 if k not in self:
                     self[k] = v
         with open(self.path, 'w') as f:

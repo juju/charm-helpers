@@ -1,3 +1,4 @@
+import os
 import json
 from subprocess import CalledProcessError
 import shutil
@@ -43,7 +44,7 @@ class ConfigTest(TestCase):
         c = hookenv.Config(d)
 
         self.assertEqual(c['foo'], 'bar')
-        self.assertEqual(c.prev_dict, None)
+        self.assertEqual(c._prev_dict, None)
 
     def test_load_previous(self):
         d = dict(foo='bar')
@@ -53,7 +54,19 @@ class ConfigTest(TestCase):
             json.dump(d, f)
 
         c.load_previous()
-        self.assertEqual(c.prev_dict, d)
+        self.assertEqual(c._prev_dict, d)
+
+    def test_load_previous_alternate_path(self):
+        d = dict(foo='bar')
+        c = hookenv.Config()
+
+        alt_path = os.path.join(self.charm_dir, '.alt-config')
+        with open(alt_path, 'w') as f:
+            json.dump(d, f)
+
+        c.load_previous(path=alt_path)
+        self.assertEqual(c._prev_dict, d)
+        self.assertEqual(c.path, alt_path)
 
     def test_changed_without_prev_dict(self):
         d = dict(foo='bar')
