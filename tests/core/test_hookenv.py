@@ -1,5 +1,7 @@
 import json
 from subprocess import CalledProcessError
+import shutil
+import tempfile
 
 import cPickle as pickle
 from mock import patch, call, mock_open
@@ -23,6 +25,80 @@ peers:
     testpeer:
         interface: mock
 """
+
+
+class ConfigTest(TestCase):
+    def setUp(self):
+        super(ConfigTest, self).setUp()
+
+        self.charm_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(self.charm_dir))
+
+        patcher = patch.object(hookenv, 'charm_dir', lambda: self.charm_dir)
+        self.addCleanup(patcher.stop)
+        patcher.start()
+
+    def test_init(self):
+        d = dict(foo='bar')
+        c = hookenv.Config(d)
+
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c.prev_dict, None)
+
+    def test_load_previous(self):
+        d = dict(foo='bar')
+        c = hookenv.Config()
+
+        with open(c.path, 'w') as f:
+            json.dump(d, f)
+
+        c.load_previous()
+        self.assertEqual(c.prev_dict, d)
+
+    def test_changed_without_prev_dict(self):
+        d = dict(foo='bar')
+        c = hookenv.Config(d)
+
+        self.assertTrue(c.changed('foo'))
+
+    def test_changed_with_prev_dict(self):
+        c = hookenv.Config(dict(foo='bar', a='b'))
+        c.save()
+        c = hookenv.Config(dict(foo='baz', a='b'))
+
+        self.assertTrue(c.changed('foo'))
+        self.assertFalse(c.changed('a'))
+
+    def test_previous_without_prev_dict(self):
+        c = hookenv.Config()
+
+        self.assertEqual(c.previous('foo'), None)
+
+    def test_previous_with_prev_dict(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(foo='baz', a='b'))
+
+        self.assertEqual(c.previous('foo'), 'bar')
+        self.assertEqual(c.previous('a'), None)
+
+    def test_save_without_prev_dict(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+
+        with open(c.path, 'r') as f:
+            self.assertEqual(c, json.load(f))
+            self.assertEqual(c, dict(foo='bar'))
+
+    def test_save_with_prev_dict(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(a='b'))
+        c.save()
+
+        with open(c.path, 'r') as f:
+            self.assertEqual(c, json.load(f))
+            self.assertEqual(c, dict(foo='bar', a='b'))
 
 
 class SerializableTest(TestCase):
@@ -164,6 +240,18 @@ class HelpersTest(TestCase):
 
         self.assertEqual(result, None)
         check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_config_without_scope(self, check_output, charm_dir):
+        check_output.return_value = json.dumps(dict(foo='bar'))
+        charm_dir.side_effect = tempfile.mkdtemp
+
+        result = hookenv.config()
+
+        self.assertIsInstance(result, hookenv.Config)
+        self.assertEqual(result['foo'], 'bar')
+        check_output.assert_called_with(['config-get', '--format=json'])
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
