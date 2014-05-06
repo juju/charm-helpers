@@ -31,3 +31,19 @@ class MiscStorageUtilsTests(unittest.TestCase):
         with patch(STORAGE_LINUX_UTILS + '.S_ISBLK') as isblk:
             isblk.return_value = True
             self.assertTrue(storage_utils.is_block_device('/dev/foo'))
+
+    @patch(STORAGE_LINUX_UTILS + '.check_output')
+    def test_is_device_mounted(self, check_output):
+        '''It detects mounted devices as mounted.'''
+        check_output.return_value = (
+            "/dev/sda1 on / type ext4 (rw,errors=remount-ro)\n")
+        result = storage_utils.is_device_mounted('/dev/sda')
+        self.assertTrue(result)
+
+    @patch(STORAGE_LINUX_UTILS + '.check_output')
+    def test_is_device_mounted_not_mounted(self, check_output):
+        '''It detects unmounted devices as mounted.'''
+        check_output.return_value = (
+            "/dev/foo on / type ext4 (rw,errors=remount-ro)\n")
+        result = storage_utils.is_device_mounted('/dev/sda')
+        self.assertFalse(result)
