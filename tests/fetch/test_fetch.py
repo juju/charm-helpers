@@ -497,8 +497,9 @@ class AptTests(TestCase):
         fetch.apt_purge(packages)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-get', '--assume-yes',
-                                      'purge', 'foo bar'])
+        mock_call.assert_called_with(
+            ['apt-get', '--assume-yes', 'purge', 'foo bar'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -508,8 +509,9 @@ class AptTests(TestCase):
         fetch.apt_purge(packages)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-get', '--assume-yes',
-                                      'purge', 'foo', 'bar'])
+        mock_call.assert_called_with(
+            ['apt-get', '--assume-yes', 'purge', 'foo', 'bar'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
@@ -562,9 +564,13 @@ class AptTests(TestCase):
     @patch('subprocess.check_call')
     def test_apt_update_fatal(self, check_call):
         fetch.apt_update(fatal=True)
-        check_call.assert_called_with(['apt-get', 'update'])
+        check_call.assert_called_with(
+            ['apt-get', 'update'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     def test_apt_update_nonfatal(self, call):
         fetch.apt_update()
-        call.assert_called_with(['apt-get', 'update'])
+        call.assert_called_with(
+            ['apt-get', 'update'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
