@@ -316,26 +316,19 @@ def _run_apt_command(cmd, fatal=False):
     if fatal:
         retry_count = 0
         result = None
-        original_exception = None
 
         # If the command is considered "fatal", we need to retry if the apt
         # lock was not acquired.
 
         while result is None or result == APT_NO_LOCK:
-
-            if retry_count > APT_NO_LOCK_RETRY_COUNT:
-                raise original_exception
-
-            if retry_count != 0:  # Don't sleep the first time.
-                time.sleep(APT_NO_LOCK_RETRY_DELAY)
-
             try:
                 result = subprocess.check_call(cmd, env=env)
             except subprocess.CalledProcessError, e:
-                result = e.returncode
-                original_exception = e
-            finally:
                 retry_count = retry_count + 1
+                if retry_count > APT_NO_LOCK_RETRY_COUNT:
+                    raise
+                result = e.returncode
+                time.sleep(APT_NO_LOCK_RETRY_DELAY)
 
     else:
         subprocess.call(cmd, env=env)
