@@ -307,7 +307,6 @@ def _run_apt_command(cmd, fatal=False):
     :param: fatal: bool: Whether the command's output should be checked and
         retried.
     """
-
     env = os.environ.copy()
 
     if 'DEBIAN_FRONTEND' not in env:
