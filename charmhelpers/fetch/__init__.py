@@ -327,6 +327,8 @@ def _run_apt_command(cmd, fatal=False):
                 if retry_count > APT_NO_LOCK_RETRY_COUNT:
                     raise
                 result = e.returncode
+                log("Couldn't acquire DPKG lock. Will retry in {} seconds."
+                    "".format(APT_NO_LOCK_RETRY_DELAY))
                 time.sleep(APT_NO_LOCK_RETRY_DELAY)
 
     else:
