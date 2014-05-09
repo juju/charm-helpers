@@ -47,4 +47,4 @@ def is_device_mounted(device):
         it doesn't.
     '''
     out = check_output(['mount'])
-    return bool(re.match(device + r"[0-9]+\b", out))
+    return bool(re.search(device + r"[0-9]+\b", out))
