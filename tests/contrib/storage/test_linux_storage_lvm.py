@@ -19,6 +19,20 @@ PVDISPLAY = """
 
 """
 
+EMPTY_VG_IN_PVDISPLAY = """
+  --- Physical volume ---
+  PV Name               /dev/loop0
+  VG Name   
+  PV Size               10.00 MiB / not usable 2.00 MiB
+  Allocatable           yes
+  PE Size               4.00 MiB
+  Total PE              2
+  Free PE               2
+  Allocated PE          0
+  PV UUID               fyVqlr-pyrL-89On-f6MD-U91T-dEfc-SL0V2V
+
+"""
+
 # It's a mouthful.
 STORAGE_LINUX_LVM = 'charmhelpers.contrib.storage.linux.lvm'
 
@@ -30,6 +44,13 @@ class LVMStorageUtilsTests(unittest.TestCase):
             check_output.return_value = PVDISPLAY
             vg = lvm.list_lvm_volume_group('/dev/loop0')
             self.assertEquals(vg, 'foo')
+
+    def test_find_empty_volume_group_on_pv(self):
+        '''Return empty string when no volume group is assigned to the PV'''
+        with patch(STORAGE_LINUX_LVM + '.check_output') as check_output:
+            check_output.return_value = EMPTY_VG_IN_PVDISPLAY
+            vg = lvm.list_lvm_volume_group('/dev/loop0')
+            self.assertEquals(vg, '')
 
     @patch(STORAGE_LINUX_LVM + '.list_lvm_volume_group')
     def test_deactivate_lvm_volume_groups(self, ls_vg):
