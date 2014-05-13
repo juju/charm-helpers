@@ -1,4 +1,5 @@
-from os import stat
+import os
+import re
 from stat import S_ISBLK
 
 from subprocess import (
@@ -14,7 +15,9 @@ def is_block_device(path):
 
     :returns: boolean: True if path is a block device, False if not.
     '''
-    return S_ISBLK(stat(path).st_mode)
+    if not os.path.exists(path):
+        return False
+    return S_ISBLK(os.stat(path).st_mode)
 
 
 def zap_disk(block_device):
@@ -33,3 +36,14 @@ def zap_disk(block_device):
                 'bs=1M', 'count=1'])
     check_call(['dd', 'if=/dev/zero', 'of=%s' % (block_device),
                 'bs=512', 'count=100', 'seek=%s' % (gpt_end)])
+
+def is_device_mounted(device):
+    '''Given a device path, return True if that device is mounted, and False
+    if it isn't.
+
+    :param device: str: Full path of the device to check.
+    :returns: boolean: True if the path represents a mounted device, False if
+        it doesn't.
+    '''
+    out = check_output(['mount'])
+    return bool(re.search(device + r"[0-9]+\b", out))
