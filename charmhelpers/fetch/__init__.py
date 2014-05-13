@@ -12,7 +12,7 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-import apt
+import apt_pkg
 import os
 
 CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
@@ -59,7 +59,8 @@ CLOUD_ARCHIVE_POCKETS = {
 
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
-    cache = apt.Cache(memonly=True)
+    apt_pkg.init()
+    cache = apt_pkg.Cache()
     _pkgs = []
     for package in packages:
         try:
