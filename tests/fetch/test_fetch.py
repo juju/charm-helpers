@@ -21,7 +21,7 @@ FAKE_APT_CACHE = {
 }
 
 
-def fake_apt_cache():
+def fake_apt_cache(**kwargs):
     def _get(package):
         pkg = MagicMock()
         if package not in FAKE_APT_CACHE:
@@ -48,20 +48,20 @@ def getenv(update=None):
 
 class FetchTest(TestCase):
 
-    @patch('apt_pkg.Cache')
+    @patch('apt.Cache')
     def test_filter_packages_missing(self, cache):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim', 'emacs'])
         self.assertEquals(result, ['emacs'])
 
-    @patch('apt_pkg.Cache')
+    @patch('apt.Cache')
     def test_filter_packages_none_missing(self, cache):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim'])
         self.assertEquals(result, [])
 
     @patch.object(fetch, 'log')
-    @patch('apt_pkg.Cache')
+    @patch('apt.Cache')
     def test_filter_packages_not_available(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim', 'joe'])
