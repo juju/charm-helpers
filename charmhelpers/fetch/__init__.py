@@ -60,6 +60,11 @@ CLOUD_ARCHIVE_POCKETS = {
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
     apt_pkg.init()
+
+    # Tell apt to build an in-memory cache to prevent race conditions (if
+    # another process is already building the cache).
+    apt_pkg.config.set("Dir::Cache::pkgcache", "")
+
     cache = apt_pkg.Cache()
     _pkgs = []
     for package in packages:
