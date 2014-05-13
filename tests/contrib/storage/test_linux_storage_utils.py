@@ -24,10 +24,40 @@ class MiscStorageUtilsTests(unittest.TestCase):
         check_call.assert_any_call(['dd', 'if=/dev/zero', 'of=/dev/foo',
                                     'bs=512', 'count=100', 'seek=100'])
 
-    @patch(STORAGE_LINUX_UTILS + '.stat')
     @patch(STORAGE_LINUX_UTILS + '.S_ISBLK')
-    def test_is_block_device(self, s_isblk, stat):
+    @patch('os.path.exists')
+    @patch('os.stat')
+    def test_is_block_device(self, S_ISBLK, exists, stat):
         '''It detects device node is block device'''
-        with patch(STORAGE_LINUX_UTILS + '.S_ISBLK') as isblk:
-            isblk.return_value = True
-            self.assertTrue(storage_utils.is_block_device('/dev/foo'))
+        class fake_stat:
+            st_mode = True
+        S_ISBLK.return_value = fake_stat()
+        exists.return_value = True
+        self.assertTrue(storage_utils.is_block_device('/dev/foo'))
+
+    @patch(STORAGE_LINUX_UTILS + '.S_ISBLK')
+    @patch('os.path.exists')
+    @patch('os.stat')
+    def test_is_block_device_does_not_exist(self, S_ISBLK, exists, stat):
+        '''It detects device node is block device'''
+        class fake_stat:
+            st_mode = True
+        S_ISBLK.return_value = fake_stat()
+        exists.return_value = False
+        self.assertFalse(storage_utils.is_block_device('/dev/foo'))
+
+    @patch(STORAGE_LINUX_UTILS + '.check_output')
+    def test_is_device_mounted(self, check_output):
+        '''It detects mounted devices as mounted.'''
+        check_output.return_value = (
+            "/dev/sda1 on / type ext4 (rw,errors=remount-ro)\n")
+        result = storage_utils.is_device_mounted('/dev/sda')
+        self.assertTrue(result)
+
+    @patch(STORAGE_LINUX_UTILS + '.check_output')
+    def test_is_device_mounted_not_mounted(self, check_output):
+        '''It detects unmounted devices as mounted.'''
+        check_output.return_value = (
+            "/dev/foo on / type ext4 (rw,errors=remount-ro)\n")
+        result = storage_utils.is_device_mounted('/dev/sda')
+        self.assertFalse(result)
