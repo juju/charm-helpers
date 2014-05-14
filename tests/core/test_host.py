@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import subprocess
+import apt_pkg
 
 from mock import patch, call
 from testtools import TestCase
@@ -690,3 +691,21 @@ class HelpersTest(TestCase):
         nic = "eth0"
         hwaddr = host.get_nic_hwaddr(nic)
         self.assertEqual(hwaddr, 'e4:11:5b:ab:a7:3c')
+
+    @patch.object(apt_pkg, 'Cache')
+    def test_cmp_pkgrevno_revnos(self, pkg_cache):
+        class MockPackage:
+            class MockPackageRevno:
+                def __init__(self, ver_str):
+                    self.ver_str = ver_str
+
+            def __init__(self, current_ver):
+                self.current_ver = self.MockPackageRevno(current_ver)
+
+        pkg_dict = {
+            'python': MockPackage('2.4')
+        }
+        pkg_cache.return_value = pkg_dict
+        self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
+        self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
+        self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
