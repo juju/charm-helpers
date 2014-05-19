@@ -131,6 +131,11 @@ def get_os_version_codename(codename):
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     apt.init()
+
+    # Tell apt to build an in-memory cache to prevent race conditions (if
+    # another process is already building the cache).
+    apt.config.set("Dir::Cache::pkgcache", "")
+
     cache = apt.Cache()
 
     try:
