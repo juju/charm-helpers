@@ -17,6 +17,7 @@ import apt_pkg
 from collections import OrderedDict
 
 from hookenv import log
+from fstab import Fstab
 
 
 def service_start(service_name):
@@ -144,7 +145,7 @@ def write_file(path, content, owner='root', group='root', perms=0444):
         target.write(content)
 
 
-def mount(device, mountpoint, options=None, persist=False):
+def mount(device, mountpoint, options=None, persist=False, filesystem="ext3"):
     """Mount a filesystem at a particular mountpoint"""
     cmd_args = ['mount']
     if options is not None:
@@ -155,9 +156,10 @@ def mount(device, mountpoint, options=None, persist=False):
     except subprocess.CalledProcessError, e:
         log('Error mounting {} at {}\n{}'.format(device, mountpoint, e.output))
         return False
+
     if persist:
-        # TODO: update fstab
-        pass
+        return Fstab.add(device, mountpoint, filesystem)
+
     return True
 
 
@@ -170,8 +172,7 @@ def umount(mountpoint, persist=False):
         log('Error unmounting {}\n{}'.format(mountpoint, e.output))
         return False
     if persist:
-        # TODO: update fstab
-        pass
+        Fstab.remove_by_mountpoint(mountpoint)
     return True
 
 
