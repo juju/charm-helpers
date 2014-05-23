@@ -83,8 +83,6 @@ class Fstab(file):
 
     @classmethod
     def remove_by_mountpoint(cls, mountpoint):
-        """Remove the given mountpoint entry from /etc/fstab
-        """
         fstab = cls()
         entry = fstab.get_entry_by_attr('mountpoint', mountpoint)
         if entry:
@@ -93,7 +91,5 @@ class Fstab(file):
 
     @classmethod
     def add(cls, device, mountpoint, filesystem, options=None):
-        """Adds the given device entry to the /etc/fstab file
-        """
         return cls().add_entry(Fstab.Entry(device, mountpoint, filesystem,
                                            options=options))

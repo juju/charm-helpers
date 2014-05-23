@@ -146,6 +146,18 @@ def write_file(path, content, owner='root', group='root', perms=0444):
         target.write(content)
 
 
+def fstab_remove(mp):
+    """Remove the given mountpoint entry from /etc/fstab
+    """
+    return Fstab.remove_by_mountpoint(mp)
+
+
+def fstab_add(dev, mp, fs, options=None):
+    """Adds the given device entry to the /etc/fstab file
+    """
+    return Fstab.add(dev, mp, fs, options=options)
+
+
 def mount(device, mountpoint, options=None, persist=False, filesystem="ext3"):
     """Mount a filesystem at a particular mountpoint"""
     cmd_args = ['mount']
@@ -159,8 +171,7 @@ def mount(device, mountpoint, options=None, persist=False, filesystem="ext3"):
         return False
 
     if persist:
-        return Fstab.add(device, mountpoint, filesystem, options=options)
-
+        return fstab_add(device, mountpoint, filesystem, options=options)
     return True
 
 
@@ -174,8 +185,7 @@ def umount(mountpoint, persist=False):
         return False
 
     if persist:
-        return Fstab.remove_by_mountpoint(mountpoint)
-
+        return fstab_remove(mountpoint)
     return True
 
 
