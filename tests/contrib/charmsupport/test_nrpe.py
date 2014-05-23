@@ -59,6 +59,16 @@ class NRPETestCase(NRPEBaseTestCase):
         self.assertEqual('testctx-testunit', checker.hostname)
         self.check_call_counts(config=1)
 
+    def test_init_hostname(self):
+        """Test that the hostname parameter is correctly set"""
+        checker = nrpe.NRPE()
+        self.assertEqual(checker.hostname,
+                         "{}-{}".format(checker.nagios_context,
+                                        checker.unit_name))
+        hostname = "test.host"
+        checker = nrpe.NRPE(hostname="test.host")
+        self.assertEqual(checker.hostname, hostname)
+
     def test_no_nagios_installed_bails(self):
         self.patched['config'].return_value = {'nagios_context': 'test'}
         self.patched['getgrnam'].side_effect = KeyError
