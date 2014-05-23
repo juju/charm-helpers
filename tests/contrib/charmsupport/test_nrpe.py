@@ -66,7 +66,7 @@ class NRPETestCase(NRPEBaseTestCase):
                          "{}-{}".format(checker.nagios_context,
                                         checker.unit_name))
         hostname = "test.host"
-        checker = nrpe.NRPE(hostname="test.host")
+        checker = nrpe.NRPE(hostname=hostname)
         self.assertEqual(checker.hostname, hostname)
 
     def test_no_nagios_installed_bails(self):
