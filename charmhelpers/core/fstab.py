@@ -7,9 +7,13 @@ import os
 
 
 class Fstab(file):
+    """This class extends file in order to implement a file reader/writer
+    for file `/etc/fstab`
+    """
 
     class Entry(object):
-
+        """Entry class represents a non-comment line on the `/etc/fstab` file
+        """
         def __init__(self, device, mountpoint, filesystem,
                      options, d=0, p=0):
             self.device = device
@@ -42,10 +46,11 @@ class Fstab(file):
 
     @property
     def entries(self):
+        self.seek(0)
         for line in self.readlines():
             if not line.startswith("#"):
                 try:
-                    (dev, mp, fs, options, d, p) = line.split(" ")
+                    (dev, mp, fs, options, d, p) = line.strip("\n").split(" ")
                     yield Fstab.Entry(dev, mp, fs, options, d=d, p=p)
                 except ValueError:
                     pass
@@ -58,16 +63,17 @@ class Fstab(file):
         return None
 
     def add_entry(self, entry):
-        if not self.get_entry_by_attr('device', entry.device):
-            self.write(str(entry))
-            return entry
-        return True
+        if self.get_entry_by_attr('device', entry.device):
+            return False
+
+        self.write(str(entry) + '\n')
+        return entry
 
     def remove_entry(self, entry):
         self.seek(0)
         lines = self.readlines()
         for index, line in enumerate(lines):
-            if line == str(entry):
+            if line == str(entry) + '\n':
                 lines.remove(line)
 
         self.seek(0)
