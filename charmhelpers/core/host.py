@@ -36,7 +36,8 @@ def service_restart(service_name):
 
 
 def service_reload(service_name, restart_on_failure=False):
-    """Reload a system service, optionally falling back to restart if reload fails"""
+    """Reload a system service, optionally falling back to restart if
+    reload fails"""
     service_result = service('reload', service_name)
     if not service_result and restart_on_failure:
         service_result = service('restart', service_name)
@@ -158,7 +159,7 @@ def mount(device, mountpoint, options=None, persist=False, filesystem="ext3"):
         return False
 
     if persist:
-        return Fstab.add(device, mountpoint, filesystem)
+        return Fstab.add(device, mountpoint, filesystem, options=options)
 
     return True
 
@@ -171,8 +172,10 @@ def umount(mountpoint, persist=False):
     except subprocess.CalledProcessError, e:
         log('Error unmounting {}\n{}'.format(mountpoint, e.output))
         return False
+
     if persist:
-        Fstab.remove_by_mountpoint(mountpoint)
+        return Fstab.remove_by_mountpoint(mountpoint)
+
     return True
 
 
