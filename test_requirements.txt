@@ -4,13 +4,13 @@
 # $ virtualenv .env
 # $ . .env/bin/activate
 # $ pip install -r test_requirements.txt
+# NOTE: python-apt is compiled and will require libapt-pkg-dev for headers.
 # Then `make test` should find all its dependencies.
 coverage==3.6
 launchpadlib==1.10.2
 mock==1.0.1
-nose==1.1.2
+nose==1.3.1
 PyYAML==3.10
-# Note: This is compiled and will require libapt-pkg-dev for headers.
 python-apt
 simplejson==3.3.0
 testtools
