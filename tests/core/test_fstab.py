@@ -14,6 +14,7 @@ import os
 DEFAULT_FSTAB_FILE = """/dev/sda /mnt/sda ext3 defaults 0 0
 /dev/sdb /mnt/sdb ext3 defaults 0 0
 /dev/sdc /mnt/sdc ext3 defaults 0 0
+UUID=3af44368-c50b-4768-8e58-aff003cef8be / ext4 errors=remount-ro 0 1
 """
 
 
@@ -76,6 +77,10 @@ class FstabTest(unittest.TestCase):
             self.fstab.add_entry(
                 Fstab.Entry('/dev/%s' % device, '/mnt/%s' % device, 'ext3',
                             None))
+
+        self.fstab.add_entry(Fstab.Entry(
+            'UUID=3af44368-c50b-4768-8e58-aff003cef8be',
+            '/', 'ext4', 'errors=remount-ro', 0, 1))
 
         assert_equal(sorted(DEFAULT_FSTAB_FILE.splitlines()),
                      sorted(str(entry) for entry in self.fstab.entries))
