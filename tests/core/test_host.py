@@ -524,7 +524,6 @@ class HelpersTest(TestCase):
         self.assertTrue(result)
         check_output.assert_called_with(['umount', '/mnt/guido'])
 
-
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_doesnt_umount_on_error(self, log, check_output):
