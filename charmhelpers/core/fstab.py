@@ -50,7 +50,9 @@ class Fstab(file):
         for line in self.readlines():
             if not line.startswith("#"):
                 try:
-                    (dev, mp, fs, options, d, p) = line.strip("\n").split(" ")
+                    (dev, mp, fs, options, d, p) = filter(
+                        lambda x: x not in ('', None),
+                        line.strip("\n").split(" "))
                     yield Fstab.Entry(dev, mp, fs, options, d=d, p=p)
                 except ValueError:
                     pass
