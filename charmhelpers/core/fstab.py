@@ -27,6 +27,9 @@ class Fstab(file):
             self.d = d
             self.p = p
 
+        def __eq__(self, o):
+            return str(self) == str(o)
+
         def __str__(self):
             return "{} {} {} {} {} {}".format(self.device,
                                               self.mountpoint,
@@ -44,18 +47,20 @@ class Fstab(file):
             self._path = self.DEFAULT_PATH
         file.__init__(self, self._path, 'r+')
 
+    def _hydrate_entry(self, line):
+        return Fstab.Entry(*filter(
+            lambda x: x not in ('', None),
+            line.strip("\n").split(" ")))
+
     @property
     def entries(self):
         self.seek(0)
         for line in self.readlines():
-            if not line.startswith("#"):
-                try:
-                    (dev, mp, fs, options, d, p) = filter(
-                        lambda x: x not in ('', None),
-                        line.strip("\n").split(" "))
-                    yield Fstab.Entry(dev, mp, fs, options, d=d, p=p)
-                except ValueError:
-                    pass
+            try:
+                if not line.startswith("#"):
+                    yield self._hydrate_entry(line)
+            except ValueError:
+                pass
 
     def get_entry_by_attr(self, attr, value):
         for entry in self.entries:
@@ -69,14 +74,25 @@ class Fstab(file):
             return False
 
         self.write(str(entry) + '\n')
+        self.truncate()
         return entry
 
     def remove_entry(self, entry):
         self.seek(0)
+
         lines = self.readlines()
+
+        found = False
         for index, line in enumerate(lines):
-            if line == str(entry) + '\n':
-                lines.remove(line)
+            if not line.startswith("#"):
+                if self._hydrate_entry(line) == entry:
+                    found = True
+                    break
+
+        if not found:
+            return False
+
+        lines.remove(line)
 
         self.seek(0)
         self.write(''.join(lines))
@@ -84,14 +100,15 @@ class Fstab(file):
         return True
 
     @classmethod
-    def remove_by_mountpoint(cls, mountpoint):
-        fstab = cls()
+    def remove_by_mountpoint(cls, mountpoint, path=None):
+        fstab = cls(path=path)
         entry = fstab.get_entry_by_attr('mountpoint', mountpoint)
         if entry:
             return fstab.remove_entry(entry)
         return False
 
     @classmethod
-    def add(cls, device, mountpoint, filesystem, options=None):
-        return cls().add_entry(Fstab.Entry(device, mountpoint, filesystem,
-                                           options=options))
+    def add(cls, device, mountpoint, filesystem, options=None, path=None):
+        return cls(path=path).add_entry(Fstab.Entry(device,
+                                                    mountpoint, filesystem,
+                                                    options=options))
