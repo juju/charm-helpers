@@ -476,9 +476,47 @@ class HelpersTest(TestCase):
         self.assertTrue(result)
         check_output.assert_called_with(['mount', '/dev/guido', '/mnt/guido'])
 
+    @patch.object(host, 'Fstab')
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
-    def test_umounts_a_device(self, log, check_output):
+    def test_mounts_and_persist_a_device(self, log, check_output, fstab):
+        """Check if a mount works with the persist flag set to True
+        """
+        device = '/dev/guido'
+        mountpoint = '/mnt/guido'
+        options = 'foo,bar'
+
+        result = host.mount(device, mountpoint, options, persist=True)
+
+        self.assertTrue(result)
+        check_output.assert_called_with(['mount', '-o', 'foo,bar',
+                                         '/dev/guido', '/mnt/guido'])
+
+        fstab.add.assert_called_with('/dev/guido', '/mnt/guido', 'ext3',
+                                     options='foo,bar')
+
+        result = host.mount(device, mountpoint, options, persist=True,
+                            filesystem="xfs")
+
+        self.assertTrue(result)
+        fstab.add.assert_called_with('/dev/guido', '/mnt/guido', 'xfs',
+                                     options='foo,bar')
+
+    @patch.object(host, 'Fstab')
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_umounts_a_device(self, log, check_output, fstab):
+        mountpoint = '/mnt/guido'
+
+        result = host.umount(mountpoint, persist=True)
+
+        self.assertTrue(result)
+        check_output.assert_called_with(['umount', mountpoint])
+        fstab.remove_by_mountpoint_called_with(mountpoint)
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_umounts_and_persist_device(self, log, check_output):
         mountpoint = '/mnt/guido'
 
         result = host.umount(mountpoint)
