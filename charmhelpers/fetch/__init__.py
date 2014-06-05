@@ -235,7 +235,10 @@ def configure_sources(update=False,
                       sources_var='install_sources',
                       keys_var='install_keys'):
     """
-    Configure multiple sources from charm configuration
+    Configure multiple sources from charm configuration.
+
+    The lists are encoded as yaml fragments in the configuration.
+    The frament needs to be included as a string.
 
     Example config:
         install_sources: |
