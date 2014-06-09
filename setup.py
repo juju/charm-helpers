@@ -38,6 +38,11 @@ SETUP = {
     'long_description': open('README.txt').read(),
 }
 
+try:
+    from sphinx_pypi_upload import UploadDoc
+    SETUP['cmdclass'] = {'upload_sphinx': UploadDoc}
+except ImportError:
+    pass
 
 if __name__ == '__main__':
     setup(**SETUP)
