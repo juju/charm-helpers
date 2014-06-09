@@ -3,10 +3,19 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Charm Helpers' documentation!
-========================================
+Charm Helpers Documentation
+===========================
 
-Contents:
+The ``charmhelpers`` Python library is an extensive collection of functions and classes
+for simplifying the development of `Juju Charms`_. It includes utilities for:
+
+* Interacting with the host environment
+* Managing hook events
+* Reading and writing charm configuration
+* Installing dependencies
+* Much, much more!
+
+To get started, watch the `video introduction`_.
 
 .. toctree::
    :maxdepth: 2
@@ -18,5 +27,7 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
 
+
+.. _Juju Charms: https://juju.ubuntu.com/docs/
+.. _video introduction: http://www.youtube.com/watch?v=6kWfLujVwNI

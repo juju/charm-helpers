@@ -1,5 +1,5 @@
-charmhelpers package
-====================
+API Documentation
+=================
 
 .. toctree::
     :maxdepth: 2
