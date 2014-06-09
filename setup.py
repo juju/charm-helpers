@@ -36,6 +36,7 @@ SETUP = {
     ],
     'license': "Affero GNU Public License v3",
     'long_description': open('README.txt').read(),
+    'description': 'Helpers for Juju Charm development',
 }
 
 try:
