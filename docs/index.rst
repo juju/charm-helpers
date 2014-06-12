@@ -15,11 +15,12 @@ for simplifying the development of `Juju Charms`_. It includes utilities for:
 * Installing dependencies
 * Much, much more!
 
-To get started, watch the `video introduction`_.
-
 .. toctree::
    :maxdepth: 2
 
+   getting-started
+   example-index
+   contributing
    api/charmhelpers
 
 Indices and tables
@@ -30,4 +31,3 @@ Indices and tables
 
 
 .. _Juju Charms: https://juju.ubuntu.com/docs/
-.. _video introduction: http://www.youtube.com/watch?v=6kWfLujVwNI
