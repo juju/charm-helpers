@@ -3,7 +3,6 @@
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
 
-import apt_pkg as apt
 import subprocess
 import os
 import socket
@@ -130,6 +129,7 @@ def get_os_version_codename(codename):
 
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
+    import apt_pkg as apt
     apt.init()
 
     # Tell apt to build an in-memory cache to prevent race conditions (if
@@ -320,6 +320,7 @@ def openstack_upgrade_available(package):
 
     """
 
+    import apt_pkg as apt
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     available_vers = get_os_version_install_source(src)
