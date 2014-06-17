@@ -13,7 +13,6 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-import apt_pkg
 import os
 
 
@@ -117,6 +116,7 @@ class BaseFetchHandler(object):
 
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
+    import apt_pkg
     apt_pkg.init()
 
     # Tell apt to build an in-memory cache to prevent race conditions (if
