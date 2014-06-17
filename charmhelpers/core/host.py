@@ -12,7 +12,6 @@ import random
 import string
 import subprocess
 import hashlib
-import apt_pkg
 
 from collections import OrderedDict
 
@@ -318,6 +317,7 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
        0 => Installed revno is the same as supplied arg
       -1 => Installed revno is less than supplied arg
     '''
+    import apt_pkg
     if not pkgcache:
         apt_pkg.init()
         pkgcache = apt_pkg.Cache()
