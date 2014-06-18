@@ -13,7 +13,6 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-import apt_pkg
 import os
 
 
@@ -56,6 +55,15 @@ CLOUD_ARCHIVE_POCKETS = {
     'icehouse/proposed': 'precise-proposed/icehouse',
     'precise-icehouse/proposed': 'precise-proposed/icehouse',
     'precise-proposed/icehouse': 'precise-proposed/icehouse',
+    # Juno
+    'juno': 'trusty-updates/juno',
+    'trusty-juno': 'trusty-updates/juno',
+    'trusty-juno/updates': 'trusty-updates/juno',
+    'trusty-updates/juno': 'trusty-updates/juno',
+    'juno/proposed': 'trusty-proposed/juno',
+    'juno/proposed': 'trusty-proposed/juno',
+    'trusty-juno/proposed': 'trusty-proposed/juno',
+    'trusty-proposed/juno': 'trusty-proposed/juno',
 }
 
 # The order of this list is very important. Handlers should be listed in from
@@ -108,6 +116,7 @@ class BaseFetchHandler(object):
 
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
+    import apt_pkg
     apt_pkg.init()
 
     # Tell apt to build an in-memory cache to prevent race conditions (if

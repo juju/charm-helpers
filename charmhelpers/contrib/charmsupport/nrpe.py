@@ -179,12 +179,15 @@ class NRPE(object):
     nagios_exportdir = '/var/lib/nagios/export'
     nrpe_confdir = '/etc/nagios/nrpe.d'
 
-    def __init__(self):
+    def __init__(self, hostname=None):
         super(NRPE, self).__init__()
         self.config = config()
         self.nagios_context = self.config['nagios_context']
         self.unit_name = local_unit().replace('/', '-')
-        self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
+        if hostname:
+            self.hostname = hostname
+        else:
+            self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
         self.checks = []
 
     def add_check(self, *args, **kwargs):
