@@ -30,7 +30,7 @@ def parse_config(conf_file):
 def clone_helpers(work_dir, branch):
     dest = os.path.join(work_dir, 'charm-helpers')
     logging.info('Checking out %s to %s.' % (branch, dest))
-    cmd = ['bzr', 'branch', branch, dest]
+    cmd = ['bzr', 'checkout', '--lightweight', branch, dest]
     subprocess.check_call(cmd)
     return dest
 
@@ -149,7 +149,7 @@ def extract_options(inc, global_options=None):
 
 def sync_helpers(include, src, dest, options=None):
     if not os.path.isdir(dest):
-        os.mkdir(dest)
+        os.makedirs(dest)
 
     global_options = parse_sync_options(options)
 
