@@ -541,6 +541,25 @@ class NeutronContext(OSContextGenerator):
 
         return nvp_ctxt
 
+    def n1kv_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        n1kv_config = neutron_plugin_attribute(self.plugin, 'config',
+                                               self.network_manager)
+        n1kv_ctxt = {
+            'core_plugin': driver,
+            'neutron_plugin': 'n1kv',
+            'neutron_security_groups': self.neutron_security_groups,
+            'local_ip': unit_private_ip(),
+            'config': n1kv_config,
+            'vsm_ip': config('n1kv-vsm-ip'),
+            'vsm_username': config('n1kv-vsm-username'),
+            'vsm_password': config('n1kv-vsm-password'),
+            'restrict_policy_profiles': config('n1kv_restrict_policy_profiles'),
+        }
+
+        return n1kv_ctxt
+
     def neutron_ctxt(self):
         if https():
             proto = 'https'
@@ -572,6 +591,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.ovs_ctxt())
         elif self.plugin in ['nvp', 'nsx']:
             ctxt.update(self.nvp_ctxt())
+        elif self.plugin == 'n1kv':
+            ctxt.update(self.n1kv_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
