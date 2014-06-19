@@ -13,9 +13,12 @@ import os
 
 DEFAULT_FSTAB_FILE = """/dev/sda /mnt/sda ext3 defaults 0 0
 /dev/sdb /mnt/sdb ext3 defaults 0 0
-/dev/sdc /mnt/sdc ext3 defaults 0 0
+/dev/sdc	/mnt/sdc	ext3	defaults	0	0
 UUID=3af44368-c50b-4768-8e58-aff003cef8be / ext4 errors=remount-ro 0 1
 """
+
+# NOTE: helper will writeback with spaces instead of tabs
+GENERATED_FSTAB_FILE = DEFAULT_FSTAB_FILE.replace('\t', ' ')
 
 
 class FstabTest(unittest.TestCase):
@@ -31,7 +34,7 @@ class FstabTest(unittest.TestCase):
 
     def test_entries(self):
         """Test if entries are correctly readed from fstab file"""
-        assert_equal(sorted(DEFAULT_FSTAB_FILE.splitlines()),
+        assert_equal(sorted(GENERATED_FSTAB_FILE.splitlines()),
                      sorted(str(entry) for entry in self.fstab.entries))
 
     def test_get_entry_by_device_attr(self):
@@ -82,5 +85,5 @@ class FstabTest(unittest.TestCase):
             'UUID=3af44368-c50b-4768-8e58-aff003cef8be',
             '/', 'ext4', 'errors=remount-ro', 0, 1))
 
-        assert_equal(sorted(DEFAULT_FSTAB_FILE.splitlines()),
+        assert_equal(sorted(GENERATED_FSTAB_FILE.splitlines()),
                      sorted(str(entry) for entry in self.fstab.entries))
