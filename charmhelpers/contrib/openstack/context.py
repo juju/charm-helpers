@@ -555,7 +555,8 @@ class NeutronContext(OSContextGenerator):
             'vsm_ip': config('n1kv-vsm-ip'),
             'vsm_username': config('n1kv-vsm-username'),
             'vsm_password': config('n1kv-vsm-password'),
-            'restrict_policy_profiles': config('n1kv_restrict_policy_profiles'),
+            'restrict_policy_profiles': config(
+                'n1kv_restrict_policy_profiles'),
         }
 
         return n1kv_ctxt
