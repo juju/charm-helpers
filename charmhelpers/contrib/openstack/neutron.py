@@ -136,7 +136,7 @@ def neutron_plugins():
                 context.SharedDBContext(user=config('neutron-database-user'),
                                         database=config('neutron-database'),
                                         relation_prefix='neutron',
-                                        ssl_dir=QUANTUM_CONF_DIR)],
+                                        ssl_dir=NEUTRON_CONF_DIR)],
             'services': [],
             'packages': [['neutron-plugin-cisco']],
             'server_packages': ['neutron-server',
