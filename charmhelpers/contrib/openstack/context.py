@@ -334,10 +334,10 @@ class CephContext(OSContextGenerator):
             for unit in related_units(rid):
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
-                ceph_public_addr = \
-                    relation_get('ceph_public_addr', rid=rid, unit=unit) or \
+                ceph_addr = \
+                    relation_get('ceph-public-address', rid=rid, unit=unit) or \
                     relation_get('private-address', rid=rid, unit=unit)
-                mon_hosts.append(ceph_public_addr)
+                mon_hosts.append(ceph_addr)
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
