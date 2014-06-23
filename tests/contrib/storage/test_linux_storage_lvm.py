@@ -22,7 +22,7 @@ PVDISPLAY = """
 EMPTY_VG_IN_PVDISPLAY = """
   --- Physical volume ---
   PV Name               /dev/loop0
-  VG Name   
+  VG Name
   PV Size               10.00 MiB / not usable 2.00 MiB
   Allocatable           yes
   PE Size               4.00 MiB
@@ -38,6 +38,7 @@ STORAGE_LINUX_LVM = 'charmhelpers.contrib.storage.linux.lvm'
 
 
 class LVMStorageUtilsTests(unittest.TestCase):
+
     def test_find_volume_group_on_pv(self):
         '''It determines any volume group assigned to a LVM PV'''
         with patch(STORAGE_LINUX_LVM + '.check_output') as check_output:
