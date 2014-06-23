@@ -189,7 +189,7 @@ def get_os_version_package(pkg, fatal=True):
     for version, cname in vers_map.iteritems():
         if cname == codename:
             return version
-    #e = "Could not determine OpenStack version for package: %s" % pkg
+    # e = "Could not determine OpenStack version for package: %s" % pkg
     # error_out(e)
 
 
