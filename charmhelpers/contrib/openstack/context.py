@@ -244,7 +244,7 @@ class IdentityServiceContext(OSContextGenerator):
 
 class AMQPContext(OSContextGenerator):
 
-    def __init__(self, rel_name='amqp', relation_prefix=None, ssl_dir=None):
+    def __init__(self, ssl_dir=None, rel_name='amqp', relation_prefix=None):
         self.ssl_dir = ssl_dir
         self.rel_name = rel_name
         self.relation_prefix = relation_prefix
