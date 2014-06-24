@@ -176,6 +176,11 @@ AMQP_CONFIG = {
     'rabbit-vhost': 'foo',
 }
 
+AMQP_NOVA_CONFIG = {
+    'nova-rabbit-user': 'adam',
+    'nova-rabbit-vhost': 'foo',
+}
+
 CEPH_RELATION = {
     'ceph:0': {
         'ceph/0': {
@@ -486,6 +491,21 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.config.return_value = AMQP_CONFIG
         amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo'
+        }
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_data_altname(self):
+        '''Test amqp context with alternative relation name'''
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = AMQP_NOVA_CONFIG
+        amqp = context.AMQPContext(rel_name='amqp-nova', relation_prefix='nova')
         result = amqp()
         expected = {
             'rabbitmq_host': 'rabbithost',
