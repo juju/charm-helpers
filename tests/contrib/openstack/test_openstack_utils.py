@@ -169,6 +169,8 @@ class OpenStackHelpersTestCase(TestCase):
                'precise-havana main')
         self.assertEquals(openstack.get_os_codename_install_source(src),
                           'havana')
+        self.assertEquals(openstack.get_os_codename_install_source(None),
+                          '')
 
     @patch.object(openstack, 'get_os_version_codename')
     @patch.object(openstack, 'get_os_codename_install_source')
