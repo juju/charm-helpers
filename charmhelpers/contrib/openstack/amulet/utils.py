@@ -1,4 +1,7 @@
 import logging
+import os
+import time
+import urllib
 
 import glanceclient.v1.client as glance_client
 import keystoneclient.v2_0 as keystone_client
@@ -149,3 +152,58 @@ class OpenStackAmuletUtils(AmuletUtils):
                                               endpoint_type='publicURL')
         return nova_client.Client(username=user, api_key=password,
                                   project_id=tenant, auth_url=ep)
+
+    def create_cirros_image(self, glance, image_name):
+        """Download the latest cirros image and upload it to glance."""
+        http_proxy = os.getenv('AMULET_HTTP_PROXY')
+        self.log.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
+        if http_proxy:
+            proxies = {'http': http_proxy}
+            opener = urllib.FancyURLopener(proxies)
+        else:
+            opener = urllib.FancyURLopener()
+
+        f = opener.open("http://download.cirros-cloud.net/version/released")
+        version = f.read().strip()
+        cirros_img = "tests/cirros-{}-x86_64-disk.img".format(version)
+
+        if not os.path.exists(cirros_img):
+            cirros_url = "http://{}/{}/{}".format("download.cirros-cloud.net",
+                                                  version, cirros_img)
+            opener.retrieve(cirros_url, cirros_img)
+        f.close()
+
+        with open(cirros_img) as f:
+            image = glance.images.create(name=image_name, is_public=True,
+                                         disk_format='qcow2',
+                                         container_format='bare', data=f)
+        return image
+
+    def delete_image(self, glance, image):
+        """Delete the specified image."""
+        glance.images.delete(image)
+
+    def create_instance(self, nova, image_name, instance_name, flavor):
+        """Create the specified instance."""
+        image = nova.images.find(name=image_name)
+        flavor = nova.flavors.find(name=flavor)
+        instance = nova.servers.create(name=instance_name, image=image,
+                                       flavor=flavor)
+
+        count = 1
+        status = instance.status
+        while status == 'BUILD' and count < 10:
+            time.sleep(5)
+            instance = nova.servers.get(instance.id)
+            status = instance.status
+            self.log.debug('instance status: {}'.format(status))
+            count += 1
+
+        if status == 'BUILD':
+            return None
+
+        return instance
+
+    def delete_instance(self, nova, instance):
+        """Delete the specified instance."""
+        nova.servers.delete(instance)
