@@ -156,12 +156,15 @@ def hook_name():
 
 
 class Config(dict):
-    """A Juju charm config dictionary that can write itself to
-    disk (as json) and track which values have changed since
-    the previous hook invocation.
+    """A dictionary representation of the charm's config.yaml, with some
+    extra features:
 
-    Do not instantiate this object directly - instead call
-    ``hookenv.config()``
+    - See which values in the dictionary have changed since the previous hook.
+    - For values that have changed, see what the previous value was.
+    - Store arbitrary data for use in a later hook.
+
+    NOTE: Do not instantiate this object directly - instead call
+    ``hookenv.config()``, which will return an instance of :class:`Config`.
 
     Example usage::
 
@@ -170,8 +173,8 @@ class Config(dict):
         >>> config = hookenv.config()
         >>> config['foo']
         'bar'
+        >>> # store a new key/value for later use
         >>> config['mykey'] = 'myval'
-        >>> config.save()
 
 
         >>> # user runs `juju set mycharm foo=baz`
@@ -188,22 +191,31 @@ class Config(dict):
         >>> # keys/values that we add are preserved across hooks
         >>> config['mykey']
         'myval'
-        >>> # don't forget to save at the end of hook!
-        >>> config.save()
 
     """
     CONFIG_FILE_NAME = '.juju-persistent-config'
 
     def __init__(self, *args, **kw):
         super(Config, self).__init__(*args, **kw)
+        self.implicit_save = True
         self._prev_dict = None
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
         if os.path.exists(self.path):
             self.load_previous()
 
+    def __del__(self):
+        """Automatically save this ``Config`` to disk when the it goes
+        out of scope.
+
+        """
+        if self.implicit_save:
+            self.save()
+
     def load_previous(self, path=None):
-        """Load previous copy of config from disk so that current values
-        can be compared to previous values.
+        """Load previous copy of config from disk.
+
+        In normal usage you don't need to call this method directly - it
+        is called automatically at object initialization.
 
         :param path:
 
@@ -218,8 +230,8 @@ class Config(dict):
             self._prev_dict = json.load(f)
 
     def changed(self, key):
-        """Return true if the value for this key has changed since
-        the last save.
+        """Return True if the current value for this key is different from
+        the previous value.
 
         """
         if self._prev_dict is None:
@@ -228,7 +240,7 @@ class Config(dict):
 
     def previous(self, key):
         """Return previous value for this key, or None if there
-        is no "previous" value.
+        is no previous value.
 
         """
         if self._prev_dict:
@@ -238,7 +250,9 @@ class Config(dict):
     def save(self):
         """Save this config to disk.
 
-        Preserves items in _prev_dict that do not exist in self.
+        By default, ``save()`` is called automatically when the
+        instance goes out of scope. To disable implicit saves,
+        set ``implicit_save=False`` on this instance.
 
         """
         if self._prev_dict:

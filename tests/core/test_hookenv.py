@@ -113,6 +113,23 @@ class ConfigTest(TestCase):
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
 
+    def test_implicit_save(self):
+        c = hookenv.Config()
+        c['test'] = 'foo'
+        del c
+        c = hookenv.Config()
+
+        self.assertEqual(c.previous('test'), 'foo')
+
+    def test_no_implicit_save(self):
+        c = hookenv.Config()
+        c.implicit_save = False
+        c['test'] = 'foo'
+        del c
+        c = hookenv.Config()
+
+        self.assertEqual(c.previous('test'), None)
+
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
