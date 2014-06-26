@@ -237,7 +237,8 @@ def configure_sources(update=False,
     """
     Configure multiple sources from charm configuration
 
-    Example config:
+    Example config::
+
         install_sources:
           - "ppa:foo"
           - "http://example.com/repo precise main"

@@ -9,6 +9,8 @@ all:
 	@echo "make deb - Create debian package"
 	@echo "make clean"
 	@echo "make userinstall - Install locally"
+	@echo "make docs - Build html documentation"
+	@echo "make release - Build and upload package and docs to PyPI"
 
 sdeb: source
 	scripts/build source
@@ -43,4 +45,14 @@ lint:
 	@echo Checking for Python syntax...
 	@flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
 
-build: test lint
+docs:
+	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y
+	- [ -z "`dpkg -l | grep python-pip`" ] && sudo apt-get install python-pip -y
+	- [ -z "`pip list | grep -i sphinx-pypi-upload`" ] && sudo pip install sphinx-pypi-upload
+	cd docs && make html && cd -
+.PHONY: docs
+
+release: docs
+	$(PYTHON) setup.py sdist upload upload_sphinx
+
+build: test lint docs
