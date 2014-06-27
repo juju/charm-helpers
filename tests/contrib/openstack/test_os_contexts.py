@@ -13,6 +13,7 @@ from tests.helpers import patch_open
 
 
 class FakeRelation(object):
+
     '''
     A fake relation class. Lets tests specify simple relation data
     for a default relation + unit (foo:0, foo/0, set in setUp()), eg:
@@ -40,6 +41,7 @@ class FakeRelation(object):
         self.relation_get.side_affect = relation.get
         passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
     '''
+
     def __init__(self, relation_data):
         self.relation_data = relation_data
 
@@ -174,6 +176,11 @@ AMQP_CONFIG = {
     'rabbit-vhost': 'foo',
 }
 
+AMQP_NOVA_CONFIG = {
+    'nova-rabbit-user': 'adam',
+    'nova-rabbit-vhost': 'foo',
+}
+
 CEPH_RELATION = {
     'ceph:0': {
         'ceph/0': {
@@ -267,6 +274,7 @@ TO_PATCH = [
 
 
 class fake_config(object):
+
     def __init__(self, data):
         self.data = data
 
@@ -277,6 +285,7 @@ class fake_config(object):
 
 
 class ContextTests(unittest.TestCase):
+
     def setUp(self):
         for m in TO_PATCH:
             setattr(self, m, self._patch(m))
@@ -508,6 +517,21 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    def test_amqp_context_with_data_altname(self):
+        '''Test amqp context with alternative relation name'''
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.config.return_value = AMQP_NOVA_CONFIG
+        amqp = context.AMQPContext(rel_name='amqp-nova', relation_prefix='nova')
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo'
+        }
+        self.assertEquals(result, expected)
+
     @patch('__builtin__.open')
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
@@ -528,7 +552,8 @@ class ContextTests(unittest.TestCase):
         }
         _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'w')
         self.assertEquals(result, expected)
-        self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])], self.b64decode.call_args_list)
+        self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
+                          self.b64decode.call_args_list)
 
     def test_amqp_context_with_data_ssl_noca(self):
         '''Test amqp context with all required data with ssl but missing ca'''
@@ -952,6 +977,28 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.nvp_ctxt())
 
+    @patch.object(context, 'config')
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_n1kv_plugin_context(self, attr, ip, sec_groups, config):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        config.return_value = 'n1kv'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'n1kv',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1',
+            'config': 'some.quantum.driver.class',
+            'vsm_ip': 'n1kv',
+            'vsm_username': 'n1kv',
+            'vsm_password': 'n1kv',
+            'restrict_policy_profiles': 'n1kv',
+        }, neutron.n1kv_ctxt())
+
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
@@ -1052,9 +1099,11 @@ class ContextTests(unittest.TestCase):
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
     @patch.object(context.NeutronContext, 'network_manager')
-    def test_neutron_main_context_gen_nvp_and_alchemy(self, mock_network_manager,
+    def test_neutron_main_context_gen_nvp_and_alchemy(self,
+                                                      mock_network_manager,
                                                       mock_ensure_packages,
-                                                      mock_plugin, mock_nvp_ctxt,
+                                                      mock_plugin,
+                                                      mock_nvp_ctxt,
                                                       mock_save_flag_file,
                                                       mock_neutron_ctxt):
 
@@ -1155,7 +1204,7 @@ class ContextTests(unittest.TestCase):
                 'DEFAULT': [
                     ['nova-key1', 'value1'],
                     ['nova-key2', 'value2']]
-                }}
+            }}
         )
         self.assertEquals(
             glance_sub_ctxt(),
@@ -1163,7 +1212,7 @@ class ContextTests(unittest.TestCase):
                 'DEFAULT': [
                     ['glance-key1', 'value1'],
                     ['glance-key2', 'value2']]
-                }}
+            }}
         )
 
         # subrodinate supplies nothing for given config

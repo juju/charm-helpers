@@ -127,7 +127,7 @@ class ServiceCA(object):
         return self.get_certificate(common_name)
 
     def get_certificate(self, common_name):
-        if not common_name in self:
+        if common_name not in self:
             raise ValueError("No certificate for %s" % common_name)
         key_p = path_join(self.ca_dir, "certs", "%s.key" % common_name)
         crt_p = path_join(self.ca_dir, "certs", "%s.crt" % common_name)
