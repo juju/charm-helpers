@@ -712,7 +712,6 @@ class HelpersTest(TestCase):
         mock_call.return_value = 0
         nic = 'eth7'
         mtu = '1546'
-        #result = host.set_nic_mtu(nic, mtu)
         host.set_nic_mtu(nic, mtu)
         mock_call.assert_called_with(['ip', 'link', 'set', nic, 'mtu', mtu])
 

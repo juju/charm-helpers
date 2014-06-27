@@ -37,6 +37,7 @@ def zap_disk(block_device):
     check_call(['dd', 'if=/dev/zero', 'of=%s' % (block_device),
                 'bs=512', 'count=100', 'seek=%s' % (gpt_end)])
 
+
 def is_device_mounted(device):
     '''Given a device path, return True if that device is mounted, and False
     if it isn't.
