@@ -45,12 +45,12 @@ class FakeRelation(object):
     def __init__(self, relation_data):
         self.relation_data = relation_data
 
-    def get(self, attr=None, unit=None, rid=None):
+    def get(self, attribute=None, unit=None, rid=None):
         if not rid or rid == 'foo:0':
-            if attr is None:
+            if attribute is None:
                 return self.relation_data
-            elif attr in self.relation_data:
-                return self.relation_data[attr]
+            elif attribute in self.relation_data:
+                return self.relation_data[attribute]
             return None
         else:
             if rid not in self.relation_data:
@@ -59,8 +59,8 @@ class FakeRelation(object):
                 relation = self.relation_data[rid][unit]
             except KeyError:
                 return None
-            if attr in relation:
-                return relation[attr]
+            if attribute in relation:
+                return relation[attribute]
             return None
 
     def relation_ids(self, relation):
@@ -73,7 +73,7 @@ class FakeRelation(object):
 
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
-    'password': 'foo',
+    'password': 'foo'
 }
 
 SHARED_DB_RELATION_SSL = {
@@ -88,6 +88,19 @@ SHARED_DB_CONFIG = {
     'database-user': 'adam',
     'database': 'foodb',
 }
+
+SHARED_DB_RELATION_NAMESPACED = {
+    'db_host': 'bar',
+    'quantum_password': 'bar2'
+}
+
+SHARED_DB_RELATION_ACCESS_NETWORK = {
+    'db_host': 'dbserver.local',
+    'password': 'foo',
+    'access-network': '10.5.5.0/24',
+    'hostname': 'bar',
+}
+
 
 IDENTITY_SERVICE_RELATION_HTTP = {
     'service_port': '5000',
@@ -262,6 +275,7 @@ TO_PATCH = [
     'relation_get',
     'relation_ids',
     'related_units',
+    'relation_set',
     'unit_get',
     'https',
     'determine_api_port',
@@ -270,6 +284,8 @@ TO_PATCH = [
     'is_clustered',
     'time',
     'https',
+    'get_address_in_network',
+    'local_unit'
 ]
 
 
@@ -292,6 +308,7 @@ class ContextTests(unittest.TestCase):
         # mock at least a single relation + unit
         self.relation_ids.return_value = ['foo:0']
         self.related_units.return_value = ['foo/0']
+        self.local_unit.return_value = 'localunit'
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -307,6 +324,35 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = ''
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
+        shared_db = context.SharedDBContext()
+        result = shared_db()
+        expected = {
+            'database_host': 'dbserver.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'foo',
+            'database_type': 'mysql',
+        }
+        self.assertEquals(result, expected)
+
+    def test_shared_db_context_with_data_and_access_net_mismatch(self):
+        '''Mismatch between hostname and hostname for access net - defers execution'''
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
+        self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = '10.5.5.1'
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
+        shared_db = context.SharedDBContext()
+        result = shared_db()
+        self.assertEquals(result, {})
+        self.relation_set.assert_called_with(hostname='10.5.5.1')
+
+    def test_shared_db_context_with_data_and_access_net_match(self):
+        '''Correctly set hostname for access net returns complete context'''
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
+        self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = 'bar'
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
@@ -375,8 +421,8 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with object parameters'''
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
-        self.relation_get.return_value = {
-            'db_host': 'bar', 'quantum_password': 'bar2'}
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
+        self.relation_get.side_effect = relation.get
         result = shared_db()
         self.assertIn(
             call(rid='foo:0', unit='foo/0'),
