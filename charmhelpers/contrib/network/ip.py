@@ -75,7 +75,8 @@ def is_address_in_network(network, address):
 
     :param network (str): CIDR presentation format. For example,
         '192.168.1.0/24'.
-    :param address: IP address to check, for example '192.168.1.1'.
+    :param address: An individual IPv4 or IPv6 address without a net
+        mask or subnet prefix. For example, '192.168.1.1'.
     :returns boolean: Flag indicating whether address is in network.
     """
     try:
