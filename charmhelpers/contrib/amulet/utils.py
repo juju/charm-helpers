@@ -53,9 +53,10 @@ class AmuletUtils(object):
         """Verify the specified services are running on the corresponding
            service units."""
         for k, v in commands.iteritems():
-            output, code = k.run(v)
-            if code != 0:
-                return "command `{}` returned {}".format(v, str(code))
+            for cmd in v:
+                output, code = k.run(cmd)
+                if code != 0:
+                    return "command `{}` returned {}".format(cmd, str(code))
         return None
 
     def _get_config(self, unit, filename):
