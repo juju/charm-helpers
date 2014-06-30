@@ -74,7 +74,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                     if ret:
                         return "unexpected tenant data - {}".format(ret)
             if not found:
-                return "tenant {} does not exist".format(e.name)
+                return "tenant {} does not exist".format(e['name'])
         return ret
 
     def validate_role_data(self, expected, actual):
@@ -91,7 +91,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                     if ret:
                         return "unexpected role data - {}".format(ret)
             if not found:
-                return "role {} does not exist".format(e.name)
+                return "role {} does not exist".format(e['name'])
         return ret
 
     def validate_user_data(self, expected, actual):
@@ -110,7 +110,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                     if ret:
                         return "unexpected user data - {}".format(ret)
             if not found:
-                return "user {} does not exist".format(e.name)
+                return "user {} does not exist".format(e['name'])
         return ret
 
     def validate_flavor_data(self, expected, actual):
