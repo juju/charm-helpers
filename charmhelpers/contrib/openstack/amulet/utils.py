@@ -192,8 +192,8 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         count = 1
         status = instance.status
-        while status == 'BUILD' and count < 10:
-            time.sleep(5)
+        while status != 'ACTIVE' and count < 60:
+            time.sleep(3)
             instance = nova.servers.get(instance.id)
             status = instance.status
             self.log.debug('instance status: {}'.format(status))
