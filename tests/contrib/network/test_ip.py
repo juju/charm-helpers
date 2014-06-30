@@ -79,3 +79,11 @@ class IPTest(unittest.TestCase):
 
     def test_get_address_in_network_not_found_not_fatal(self):
         self._test_get_address_in_network(None, '172.16.0.0/16', fatal=False)
+
+    def test_is_address_in_network(self):
+        self.assertTrue(net_ip.is_address_in_network('192.168.1.0/24', '192.168.1.1'))
+        self.assertFalse(net_ip.is_address_in_network('192.168.1.0/24', '10.5.1.1'))
+        self.assertRaises(ValueError, net_ip.is_address_in_network,
+                          'broken', '192.168.1.1')
+        self.assertRaises(ValueError, net_ip.is_address_in_network,
+                          '192.168.1.0/24', 'hostname')
