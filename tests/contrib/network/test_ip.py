@@ -5,6 +5,30 @@ import mock
 import netifaces
 
 import charmhelpers.contrib.network.ip as net_ip
+from mock import patch
+
+DUMMY_ADDRESSES = {
+    'eth0': {
+        2: [{'addr': '192.168.1.55',
+             'broadcast': '192.168.1.255',
+             'netmask': '255.255.255.0'}],
+        10: [{'addr': '2a01:348:2f4:0:685e:5748:ae62:209f',
+              'netmask': 'ffff:ffff:ffff:ffff::'},
+             {'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
+              'netmask': 'ffff:ffff:ffff:ffff::'}],
+        17: [{'addr': '3c:97:0e:8b:1c:f7',
+              'broadcast': 'ff:ff:ff:ff:ff:ff'}]
+    },
+    'eth1': {
+        2: [{'addr': '10.5.0.1',
+             'broadcast': '10.5.255.255',
+             'netmask': '255.255.0.0'}],
+        10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth1',
+              'netmask': 'ffff:ffff:ffff:ffff::'}],
+        17: [{'addr': '3c:97:0e:8b:1c:f7',
+              'broadcast': 'ff:ff:ff:ff:ff:ff'}]
+    }
+}
 
 
 class IPTest(unittest.TestCase):
@@ -87,3 +111,25 @@ class IPTest(unittest.TestCase):
                           'broken', '192.168.1.1')
         self.assertRaises(ValueError, net_ip.is_address_in_network,
                           '192.168.1.0/24', 'hostname')
+
+    @patch.object(netifaces, 'ifaddresses')
+    @patch.object(netifaces, 'interfaces')
+    def test_get_iface_for_address(self, _interfaces, _ifaddresses):
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+        _interfaces.return_value = ['eth0', 'eth1']
+        _ifaddresses.side_effect = mock_ifaddresses
+        self.assertEquals(net_ip.get_iface_for_address('192.168.1.220'), 'eth0')
+        self.assertEquals(net_ip.get_iface_for_address('10.5.20.4'), 'eth1')
+        self.assertEquals(net_ip.get_iface_for_address('172.4.5.5'), None)
+
+    @patch.object(netifaces, 'ifaddresses')
+    @patch.object(netifaces, 'interfaces')
+    def test_get_netmask_for_address(self,  _interfaces, _ifaddresses):
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+        _interfaces.return_value = ['eth0', 'eth1']
+        _ifaddresses.side_effect = mock_ifaddresses
+        self.assertEquals(net_ip.get_netmask_for_address('192.168.1.220'), '255.255.255.0')
+        self.assertEquals(net_ip.get_netmask_for_address('10.5.20.4'), '255.255.0.0')
+        self.assertEquals(net_ip.get_netmask_for_address('172.4.5.5'), None)
