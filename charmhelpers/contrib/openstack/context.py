@@ -150,7 +150,11 @@ class SharedDBContext(OSContextGenerator):
             set_hostname = relation_get(attribute='hostname',
                                         unit=local_unit())
             if set_hostname != access_hostname:
-                relation_set(hostname=access_hostname)
+                if self.relation_prefix is not None:
+                    hostname_key = "{}_hostname".format(self.relation_prefix)
+                else:
+                    hostname_key = "hostname"
+                relation_set(relation_settings={hostname_key: access_hostname})
                 return ctxt  # Defer any further hook execution for now....
 
         password_setting = 'password'
