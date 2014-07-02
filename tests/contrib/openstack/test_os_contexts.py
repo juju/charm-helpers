@@ -346,7 +346,7 @@ class ContextTests(unittest.TestCase):
         shared_db = context.SharedDBContext()
         result = shared_db()
         self.assertEquals(result, {})
-        self.relation_set.assert_called_with(hostname='10.5.5.1')
+        self.relation_set.assert_called_with(relation_settings={'hostname': '10.5.5.1'})
 
     def test_shared_db_context_with_data_and_access_net_match(self):
         '''Correctly set hostname for access net returns complete context'''
