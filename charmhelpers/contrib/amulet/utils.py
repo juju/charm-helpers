@@ -53,9 +53,10 @@ class AmuletUtils(object):
         """Verify the specified services are running on the corresponding
            service units."""
         for k, v in commands.iteritems():
-            output, code = k.run(v)
-            if code != 0:
-                return "command `{}` returned {}".format(v, str(code))
+            for cmd in v:
+                output, code = k.run(cmd)
+                if code != 0:
+                    return "command `{}` returned {}".format(cmd, str(code))
         return None
 
     def _get_config(self, unit, filename):
@@ -126,21 +127,24 @@ class AmuletUtils(object):
         """Get last modification time of directory."""
         return sentry_unit.directory_stat(directory)['mtime']
 
-    def _get_proc_start_time(self, sentry_unit, service):
+    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=False):
         """Determine start time of the process based on the last modification
-           time of the /proc/pid directory.  The servie string will be matched
-           against any substring in the full command line, choosing the oldest
-           process."""
-        cmd = 'pgrep -f -o {}'.format(service)
+           time of the /proc/pid directory. If pgrep_full is True, the process
+           name is matched against the full command line."""
+        if pgrep_full:
+            cmd = 'pgrep -o -f {}'.format(service)
+        else:
+            cmd = 'pgrep -o {}'.format(service)
         proc_dir = '/proc/{}'.format(sentry_unit.run(cmd)[0].strip())
         return self._get_dir_mtime(sentry_unit, proc_dir)
 
-    def service_restarted(self, sentry_unit, service, filename):
+    def service_restarted(self, sentry_unit, service, filename,
+                          pgrep_full=False):
         """Compare a service's start time vs a file's last modification time
            (such as a config file for that service) to determine if the service
            has been restarted."""
         sleep(10)
-        if self._get_proc_start_time(sentry_unit, service) >= \
+        if self._get_proc_start_time(sentry_unit, service, pgrep_full) >= \
            self._get_file_mtime(sentry_unit, filename):
             return True
         else:
