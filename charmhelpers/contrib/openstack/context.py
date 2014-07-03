@@ -148,7 +148,7 @@ class SharedDBContext(OSContextGenerator):
             if self.relation_prefix is not None:
                 hostname_key = "{}_hostname".format(self.relation_prefix)
             else:
-                hostname_key = "hostname"            
+                hostname_key = "hostname"
             access_hostname = get_address_in_network(access_network,
                                                      unit_get('private-address'))
             set_hostname = relation_get(attribute=hostname_key,

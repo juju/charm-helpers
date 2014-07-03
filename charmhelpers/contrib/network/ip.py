@@ -98,7 +98,7 @@ def is_address_in_network(network, address):
 def _get_for_address(address, key):
     """Retrieve an attribute of or the physical interface that
     the IP address provided could be bound to.
-    
+
     :param address (str): An individual IPv4 or IPv6 address without a net
         mask or subnet prefix. For example, '192.168.1.1'.
     :param key: 'iface' for the physical interface name or an attribute
@@ -125,7 +125,7 @@ def get_iface_for_address(address):
 
     :param address (str): An individual IPv4 or IPv6 address without a net
         mask or subnet prefix. For example, '192.168.1.1'.
-    :returns str: Interface name or None if address is not bindable.    
+    :returns str: Interface name or None if address is not bindable.
     """
     return _get_for_address(address, 'iface')
 
@@ -137,6 +137,6 @@ def get_netmask_for_address(address):
     :param address (str): An individual IPv4 or IPv6 address without a net
         mask or subnet prefix. For example, '192.168.1.1'.
     :returns str: Netmask of configured interface or None if address is
-        not bindable.    
+        not bindable.
     """
     return _get_for_address(address, 'netmask')

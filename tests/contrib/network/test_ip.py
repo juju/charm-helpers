@@ -105,8 +105,14 @@ class IPTest(unittest.TestCase):
         self._test_get_address_in_network(None, '172.16.0.0/16', fatal=False)
 
     def test_is_address_in_network(self):
-        self.assertTrue(net_ip.is_address_in_network('192.168.1.0/24', '192.168.1.1'))
-        self.assertFalse(net_ip.is_address_in_network('192.168.1.0/24', '10.5.1.1'))
+        self.assertTrue(
+            net_ip.is_address_in_network(
+                '192.168.1.0/24',
+                '192.168.1.1'))
+        self.assertFalse(
+            net_ip.is_address_in_network(
+                '192.168.1.0/24',
+                '10.5.1.1'))
         self.assertRaises(ValueError, net_ip.is_address_in_network,
                           'broken', '192.168.1.1')
         self.assertRaises(ValueError, net_ip.is_address_in_network,
@@ -119,17 +125,23 @@ class IPTest(unittest.TestCase):
             return DUMMY_ADDRESSES[iface]
         _interfaces.return_value = ['eth0', 'eth1']
         _ifaddresses.side_effect = mock_ifaddresses
-        self.assertEquals(net_ip.get_iface_for_address('192.168.1.220'), 'eth0')
+        self.assertEquals(
+            net_ip.get_iface_for_address('192.168.1.220'),
+            'eth0')
         self.assertEquals(net_ip.get_iface_for_address('10.5.20.4'), 'eth1')
         self.assertEquals(net_ip.get_iface_for_address('172.4.5.5'), None)
 
     @patch.object(netifaces, 'ifaddresses')
     @patch.object(netifaces, 'interfaces')
-    def test_get_netmask_for_address(self,  _interfaces, _ifaddresses):
+    def test_get_netmask_for_address(self, _interfaces, _ifaddresses):
         def mock_ifaddresses(iface):
             return DUMMY_ADDRESSES[iface]
         _interfaces.return_value = ['eth0', 'eth1']
         _ifaddresses.side_effect = mock_ifaddresses
-        self.assertEquals(net_ip.get_netmask_for_address('192.168.1.220'), '255.255.255.0')
-        self.assertEquals(net_ip.get_netmask_for_address('10.5.20.4'), '255.255.0.0')
+        self.assertEquals(
+            net_ip.get_netmask_for_address('192.168.1.220'),
+            '255.255.255.0')
+        self.assertEquals(
+            net_ip.get_netmask_for_address('10.5.20.4'),
+            '255.255.0.0')
         self.assertEquals(net_ip.get_netmask_for_address('172.4.5.5'), None)
