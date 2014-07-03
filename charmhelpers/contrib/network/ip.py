@@ -61,11 +61,12 @@ def get_address_in_network(network, fallback=None, fatal=False):
             if cidr in network:
                 return str(cidr.ip)
         if network.version == 6 and netifaces.AF_INET6 in addresses:
-            addr = addresses[netifaces.AF_INET6][0]['addr']
-            netmask = addresses[netifaces.AF_INET6][0]['netmask']
-            cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
-            if cidr in network:
-                return str(cidr.ip)
+            for addr in addresses[netifaces.AF_INET6]:
+                if 'fe80' not in addr['addr']:
+                    netmask = addr['netmask']
+                    cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
+                    if cidr in network:
+                        return str(cidr.ip)
 
     if fallback is not None:
         return fallback
