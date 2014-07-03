@@ -400,7 +400,9 @@ class HAProxyContext(OSContextGenerator):
 
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
-        cluster_hosts[l_unit] = unit_get('private-address')
+        cluster_hosts[l_unit] = \
+            get_address_in_network(config('os-internal-network'),
+                                   unit_get('private-address'))
 
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
