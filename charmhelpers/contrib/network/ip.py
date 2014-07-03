@@ -67,7 +67,7 @@ def get_address_in_network(network, fallback=None, fatal=False):
                     cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
                                                         netmask))
                     if cidr in network:
-                        return "[{}]".format(cidr.ip)
+                        return str(cidr.ip)
 
     if fallback is not None:
         return fallback
@@ -77,6 +77,16 @@ def get_address_in_network(network, fallback=None, fatal=False):
 
     return None
 
+
+def is_ipv6(address):
+    '''Determine whether provided address is IPv6 or not'''
+    try:
+        address = netaddr.IPAddress(address)
+    except netaddr.AddrFormatError:
+        return False
+    else:
+        return address.version == 6
+ 
 
 def is_address_in_network(network, address):
     """
