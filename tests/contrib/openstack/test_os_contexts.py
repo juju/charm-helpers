@@ -227,6 +227,8 @@ cinder:
         sections:
             cinder-2-section:
                 - [key2, value2]
+        not-a-section:
+            1234
 """
 
 SUB_CONFIG_RELATION = {
@@ -1182,7 +1184,8 @@ class ContextTests(unittest.TestCase):
                     ['key1', 'value1']],
                 'cinder-2-section': [
                     ['key2', 'value2']]
-            }}
+             
+            }, 'not-a-section': 1234}
         )
 
         # subrodinate supplies nothing for given config
