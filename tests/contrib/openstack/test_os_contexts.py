@@ -802,6 +802,7 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
