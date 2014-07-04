@@ -117,6 +117,16 @@ class IPTest(unittest.TestCase):
                           'broken', '192.168.1.1')
         self.assertRaises(ValueError, net_ip.is_address_in_network,
                           '192.168.1.0/24', 'hostname')
+        self.assertTrue(
+            net_ip.is_address_in_network(
+                '2a01:348:2f4::/64',
+                '2a01:348:2f4:0:685e:5748:ae62:209f')
+        )
+        self.assertFalse(
+            net_ip.is_address_in_network(
+                '2a01:348:2f4::/64',
+                'fdfc:3bd5:210b:cc8d:8c80:9e10:3f07:371')
+        )
 
     @patch.object(netifaces, 'ifaddresses')
     @patch.object(netifaces, 'interfaces')
@@ -129,6 +139,10 @@ class IPTest(unittest.TestCase):
             net_ip.get_iface_for_address('192.168.1.220'),
             'eth0')
         self.assertEquals(net_ip.get_iface_for_address('10.5.20.4'), 'eth1')
+        self.assertEquals(
+            net_ip.get_iface_for_address('2a01:348:2f4:0:685e:5748:ae62:210f'),
+            'eth0'
+        )
         self.assertEquals(net_ip.get_iface_for_address('172.4.5.5'), None)
 
     @patch.object(netifaces, 'ifaddresses')
@@ -145,3 +159,12 @@ class IPTest(unittest.TestCase):
             net_ip.get_netmask_for_address('10.5.20.4'),
             '255.255.0.0')
         self.assertEquals(net_ip.get_netmask_for_address('172.4.5.5'), None)
+        self.assertEquals(
+            net_ip.get_netmask_for_address('2a01:348:2f4:0:685e:5748:ae62:210f'),
+            'ffff:ffff:ffff:ffff::'
+        )
+
+    def test_is_ipv6(self):
+        self.assertFalse(net_ip.is_ipv6('myhost'))
+        self.assertFalse(net_ip.is_ipv6('172.4.5.5'))
+        self.assertTrue(net_ip.is_ipv6('2a01:348:2f4:0:685e:5748:ae62:209f'))        
