@@ -12,6 +12,8 @@ import random
 import string
 import subprocess
 import hashlib
+import shutil
+from contextlib import contextmanager
 
 from collections import OrderedDict
 
@@ -52,7 +54,7 @@ def service(action, service_name):
 def service_running(service):
     """Determine whether a system service is running"""
     try:
-        output = subprocess.check_output(['service', service, 'status'])
+        output = subprocess.check_output(['service', service, 'status'], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError:
         return False
     else:
@@ -60,6 +62,16 @@ def service_running(service):
             return True
         else:
             return False
+
+
+def service_available(service_name):
+    """Determine whether a system service is available"""
+    try:
+        subprocess.check_output(['service', service_name, 'status'], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError:
+        return False
+    else:
+        return True
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False):
@@ -143,6 +155,21 @@ def write_file(path, content, owner='root', group='root', perms=0444):
         os.fchown(target.fileno(), uid, gid)
         os.fchmod(target.fileno(), perms)
         target.write(content)
+
+
+def copy_file(src, dst, owner='root', group='root', perms=0444):
+    """Create or overwrite a file with the contents of another file"""
+    log("Writing file {} {}:{} {:o} from {}".format(dst, owner, group, perms, src))
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    shutil.copyfile(src, dst)
+    os.chown(dst, uid, gid)
+    os.chmod(dst, perms)
+
+
+def read_file(path):
+    with open(path) as fp:
+        return fp.read()
 
 
 def fstab_remove(mp):
@@ -325,3 +352,24 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
         pkgcache = apt_pkg.Cache()
     pkg = pkgcache[package]
     return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
+
+
+@contextmanager
+def chdir(d):
+    cur = os.getcwd()
+    try:
+        yield os.chdir(d)
+    finally:
+        os.chdir(cur)
+
+
+def chownr(path, owner, group):
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+
+    for root, dirs, files in os.walk(path):
+        for name in dirs + files:
+            full = os.path.join(root, name)
+            broken_symlink = os.path.lexists(full) and not os.path.exists(full)
+            if not broken_symlink:
+                os.chown(full, uid, gid)
