@@ -1,3 +1,4 @@
+import os
 import pkg_resources
 import tempfile
 import unittest
@@ -26,27 +27,32 @@ class TestTemplating(unittest.TestCase):
     def test_render(self, log, mkdir, fchown):
         _, fn1 = tempfile.mkstemp()
         _, fn2 = tempfile.mkstemp()
-        context = {
-            'nats': {
-                'port': '1234',
-                'host': 'example.com',
-            },
-            'router': {
-                'domain': 'api.foo.com'
-            },
-            'nginx_port': 80,
-        }
-        templating.render('fake_cc.yml', fn1, context, templates_dir=TEMPLATES_DIR)
-        contents = open(fn1).read()
-        self.assertRegexpMatches(contents, 'port: 1234')
-        self.assertRegexpMatches(contents, 'host: example.com')
-        self.assertRegexpMatches(contents, 'domain: api.foo.com')
+        try:
+            context = {
+                'nats': {
+                    'port': '1234',
+                    'host': 'example.com',
+                },
+                'router': {
+                    'domain': 'api.foo.com'
+                },
+                'nginx_port': 80,
+            }
+            templating.render('fake_cc.yml', fn1, context, templates_dir=TEMPLATES_DIR)
+            contents = open(fn1).read()
+            self.assertRegexpMatches(contents, 'port: 1234')
+            self.assertRegexpMatches(contents, 'host: example.com')
+            self.assertRegexpMatches(contents, 'domain: api.foo.com')
 
-        templating.render('test.conf', fn2, context, templates_dir=TEMPLATES_DIR)
-        contents = open(fn2).read()
-        self.assertRegexpMatches(contents, 'listen 80')
-        self.assertEqual(fchown.call_count, 2)
-        self.assertEqual(mkdir.call_count, 2)
+            templating.render('test.conf', fn2, context, templates_dir=TEMPLATES_DIR)
+            contents = open(fn2).read()
+            self.assertRegexpMatches(contents, 'listen 80')
+            self.assertEqual(fchown.call_count, 2)
+            self.assertEqual(mkdir.call_count, 2)
+        finally:
+            for fn in (fn1, fn2):
+                if os.path.exists(fn):
+                    os.remove(fn)
 
     @mock.patch.object(templating, 'hookenv')
     @mock.patch('jinja2.Environment')
