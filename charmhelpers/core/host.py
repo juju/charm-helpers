@@ -157,21 +157,6 @@ def write_file(path, content, owner='root', group='root', perms=0444):
         target.write(content)
 
 
-def copy_file(src, dst, owner='root', group='root', perms=0444):
-    """Create or overwrite a file with the contents of another file"""
-    log("Writing file {} {}:{} {:o} from {}".format(dst, owner, group, perms, src))
-    uid = pwd.getpwnam(owner).pw_uid
-    gid = grp.getgrnam(group).gr_gid
-    shutil.copyfile(src, dst)
-    os.chown(dst, uid, gid)
-    os.chmod(dst, perms)
-
-
-def read_file(path):
-    with open(path) as fp:
-        return fp.read()
-
-
 def fstab_remove(mp):
     """Remove the given mountpoint entry from /etc/fstab
     """

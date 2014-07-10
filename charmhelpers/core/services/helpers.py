@@ -102,8 +102,6 @@ class RelationContext(dict):
 class TemplateCallback(ManagerCallback):
     """
     Callback class that will render a template, for use as a ready action.
-
-    The `target` param, if omitted, will default to `/etc/init/<service name>`.
     """
     def __init__(self, source, target, owner='root', group='root', perms=0444):
         self.source = source

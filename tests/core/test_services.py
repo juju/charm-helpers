@@ -298,8 +298,8 @@ class TestServiceManager(unittest.TestCase):
         jload.return_value = ['bar']
         manager._load_ready_file()
         self.assertEqual(manager._ready, set(['bar']))
-        exists.assert_called_once_with('charm_dir/.ready')
-        mopen.assert_called_once_with('charm_dir/.ready')
+        exists.assert_called_once_with('charm_dir/READY-SERVICES.json')
+        mopen.assert_called_once_with('charm_dir/READY-SERVICES.json')
 
     @mock.patch('json.dump')
     @mock.patch.object(services.base, 'open', create=True)
@@ -309,7 +309,7 @@ class TestServiceManager(unittest.TestCase):
         assert not mopen.called
         manager._ready = set(['foo'])
         manager._save_ready_file()
-        mopen.assert_called_once_with('charm_dir/.ready', 'w')
+        mopen.assert_called_once_with('charm_dir/READY-SERVICES.json', 'w')
         jdump.assert_called_once_with(['foo'], mopen.return_value.__enter__())
 
     @mock.patch.object(services.base.ServiceManager, '_save_ready_file')

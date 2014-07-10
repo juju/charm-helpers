@@ -21,7 +21,7 @@ class ServiceManager(object):
         the charm author is thinking in terms of "What hook am I handling; what
         does this hook need to do?"  However, in most cases, the real question
         should be "Do I have the information I need to configure and start this
-        piece of software and, if so, what are the steps for doing so."  The
+        piece of software and, if so, what are the steps for doing so?"  The
         ServiceManager framework tries to bring the focus to the data and the
         setup tasks, in the most declarative way possible.
 
@@ -79,7 +79,7 @@ class ServiceManager(object):
 
         The following registers an Upstart service called bingod that depends on
         a mongodb relation and which runs a custom `db_migrate` function prior to
-        restarting the service, and a Runit serivce called spadesd.
+        restarting the service, and a Runit service called spadesd.
 
             manager = services.ServiceManager([
                 {
@@ -104,7 +104,7 @@ class ServiceManager(object):
             ])
             manager.manage()
         """
-        self._ready_file = os.path.join(hookenv.charm_dir(), '.ready')
+        self._ready_file = os.path.join(hookenv.charm_dir(), 'READY-SERVICES.json')
         self._ready = None
         self.services = {}
         for service in services or []:
