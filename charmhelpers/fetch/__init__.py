@@ -1,3 +1,4 @@
+from cStringIO import StringIO
 import importlib
 import time
 from yaml import safe_load
@@ -229,9 +230,16 @@ def add_source(source, key=None):
         raise SourceConfigError("Unknown source: {!r}".format(source))
 
     if key:
-        subprocess.check_call(['apt-key', 'adv', '--keyserver',
-                               'hkp://keyserver.ubuntu.com:80', '--recv',
-                               key])
+        if '-----BEGIN PGP PUBLIC KEY BLOCK-----' in key:
+            subprocess.check_call(['apt-key', 'add', '-'],
+                                  stdin=StringIO(key))
+        else:
+            # Note that hkp: is in no way a secure protocol. Using a
+            # GPG key id is pointless from a security POV unless you
+            # absolutely trust your network and DNS.
+            subprocess.check_call(['apt-key', 'adv', '--keyserver',
+                                   'hkp://keyserver.ubuntu.com:80', '--recv',
+                                   key])
 
 
 def configure_sources(update=False,
