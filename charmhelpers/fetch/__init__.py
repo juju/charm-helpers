@@ -225,6 +225,9 @@ def add_source(source, key=None):
         release = lsb_release()['DISTRIB_CODENAME']
         with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
             apt.write(PROPOSED_POCKET.format(release))
+    else:
+        raise SourceConfigError("Unknown source: {!r}".format(source))
+
     if key:
         subprocess.check_call(['apt-key', 'adv', '--keyserver',
                                'hkp://keyserver.ubuntu.com:80', '--recv',
