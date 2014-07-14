@@ -1,5 +1,5 @@
-from cStringIO import StringIO
 import importlib
+from tempfile import NamedTemporaryFile
 import time
 from yaml import safe_load
 from charmhelpers.core.host import (
@@ -231,8 +231,11 @@ def add_source(source, key=None):
 
     if key:
         if '-----BEGIN PGP PUBLIC KEY BLOCK-----' in key:
-            subprocess.check_call(['apt-key', 'add', '-'],
-                                  stdin=StringIO(key))
+            with NamedTemporaryFile() as key_file:
+                key_file.write(key)
+                key_file.flush()
+                key_file.seek(0)
+                subprocess.check_call(['apt-key', 'add', '-'], stdin=key_file)
         else:
             # Note that hkp: is in no way a secure protocol. Using a
             # GPG key id is pointless from a security POV unless you
