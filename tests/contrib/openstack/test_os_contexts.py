@@ -243,6 +243,24 @@ glance:
                 - [glance-key2, value2]
 """
 
+CINDER_SUB_CONFIG1 = """
+cinder:
+    /etc/cinder/cinder.conf:
+        sections:
+            cinder-1-section:
+                - [key1, value1]
+"""
+
+CINDER_SUB_CONFIG2 = """
+cinder:
+    /etc/cinder/cinder.conf:
+        sections:
+            cinder-2-section:
+                - [key2, value2]
+        not-a-section:
+            1234
+"""
+
 SUB_CONFIG_RELATION = {
     'nova-subordinate:0': {
         'nova-subordinate/0': {
@@ -261,7 +279,19 @@ SUB_CONFIG_RELATION = {
             'private-address': 'foo_node1',
             'subordinate_configuration': 'ea8e09324jkadsfh',
         },
-    }
+    },
+    'cinder-subordinate:0': {
+        'cinder-subordinate/0': {
+            'private-address': 'cinder_node1',
+            'subordinate_configuration': json.dumps(yaml.load(CINDER_SUB_CONFIG1)),
+        },
+    },
+    'cinder-subordinate:1': {
+        'cinder-subordinate/1': {
+            'private-address': 'cinder_node1',
+            'subordinate_configuration': json.dumps(yaml.load(CINDER_SUB_CONFIG2)),
+        },
+    },
 }
 
 # Imported in contexts.py and needs patching in setUp()
@@ -1240,6 +1270,11 @@ class ContextTests(unittest.TestCase):
             config_file='/etc/glance/glance.conf',
             interface='glance-subordinate',
         )
+        cinder_sub_ctxt = context.SubordinateConfigContext(
+            service='cinder',
+            config_file='/etc/cinder/cinder.conf',
+            interface='cinder-subordinate',
+        )
         foo_sub_ctxt = context.SubordinateConfigContext(
             service='foo',
             config_file='/etc/foo/foo.conf',
@@ -1260,6 +1295,16 @@ class ContextTests(unittest.TestCase):
                     ['glance-key1', 'value1'],
                     ['glance-key2', 'value2']]
             }}
+        )
+        self.assertEquals(
+            cinder_sub_ctxt(),
+            {'sections': {
+                'cinder-1-section': [
+                    ['key1', 'value1']],
+                'cinder-2-section': [
+                    ['key2', 'value2']]
+             
+            }, 'not-a-section': 1234}
         )
 
         # subrodinate supplies nothing for given config
