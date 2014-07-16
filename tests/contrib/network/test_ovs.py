@@ -132,7 +132,20 @@ class OVSHelpersTest(TestCase):
         check_call.assert_has_calls([
             call(["ovs-vsctl", "--", "--may-exist", "add-port",
                   'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'up'])
+            call(['ip', 'link', 'set', 'eth1', 'up']),
+            call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
+        ])
+        self.assertTrue(log.call_count == 1)
+
+    @patch.object(ovs, 'log')
+    @patch('subprocess.check_call')
+    def test_add_bridge_port_promisc(self, check_call, log):
+        ovs.add_bridge_port('test', 'eth1', promisc=True)
+        check_call.assert_has_calls([
+            call(["ovs-vsctl", "--", "--may-exist", "add-port",
+                  'test', 'eth1']),
+            call(['ip', 'link', 'set', 'eth1', 'up']),
+            call(['ip', 'link', 'set', 'eth1', 'promisc', 'on'])
         ])
         self.assertTrue(log.call_count == 1)
 
@@ -143,7 +156,8 @@ class OVSHelpersTest(TestCase):
         check_call.assert_has_calls([
             call(["ovs-vsctl", "--", "--if-exists", "del-port",
                   'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'down'])
+            call(['ip', 'link', 'set', 'eth1', 'down']),
+            call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
         ])
         self.assertTrue(log.call_count == 1)
 
