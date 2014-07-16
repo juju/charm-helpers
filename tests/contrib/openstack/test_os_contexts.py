@@ -535,7 +535,9 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=AMQP_RELATION)
         self.relation_get.side_effect = relation.get
         self.config.return_value = AMQP_NOVA_CONFIG
-        amqp = context.AMQPContext(rel_name='amqp-nova', relation_prefix='nova')
+        amqp = context.AMQPContext(
+            rel_name='amqp-nova',
+            relation_prefix='nova')
         result = amqp()
         expected = {
             'rabbitmq_host': 'rabbithost',
@@ -1184,7 +1186,7 @@ class ContextTests(unittest.TestCase):
                     ['key1', 'value1']],
                 'cinder-2-section': [
                     ['key2', 'value2']]
-             
+
             }, 'not-a-section': 1234}
         )
 
