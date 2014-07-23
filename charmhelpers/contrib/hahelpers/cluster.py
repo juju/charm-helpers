@@ -180,7 +180,7 @@ def canonical_url(configs, vip_setting='vip'):
         scheme = 'https'
     if is_clustered():
         addr = config_get(vip_setting)
-    elif config_get('use-ipv6'):
+    elif config_get('prefer-ipv6'):
         addr = '[%s]' % get_ipv6_addr()
     else:
         addr = unit_get('private-address')
