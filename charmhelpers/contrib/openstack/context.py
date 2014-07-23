@@ -267,7 +267,7 @@ class AMQPContext(OSContextGenerator):
                     ctxt['rabbitmq_host'] = relation_get('vip', rid=rid,
                                                          unit=unit)
                 else:
-                    ctxt['rabbitmq_host'] = relation_get('private-address',
+                    ctxt['rabbitmq_host'] = relation_get('hostname',
                                                          rid=rid, unit=unit)
                 ctxt.update({
                     'rabbitmq_user': username,
