@@ -241,17 +241,6 @@ class ClusterUtilsTests(TestCase):
         self.assertEquals('http://foohost1', url)
 
     @patch.object(cluster_utils, 'is_clustered')
-    def test_canonical_url_with_address_override(self, is_clustered):
-        '''Ensure that address override is used when passed'''
-        self.unit_get.return_value = 'foohost1'
-        is_clustered.return_value = False
-        configs = MagicMock()
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        url = cluster_utils.canonical_url(configs, address="foohost2")
-        self.assertEquals('http://foohost2', url)
-
-    @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_https_no_cluster(self, is_clustered):
         '''It constructs a URL to host with https and no cluster present'''
         self.unit_get.return_value = 'foohost1'
