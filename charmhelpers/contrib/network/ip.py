@@ -138,7 +138,7 @@ def _get_for_address(address, key):
                     return addresses[netifaces.AF_INET][0][key]
         if address.version == 6 and netifaces.AF_INET6 in addresses:
             for addr in addresses[netifaces.AF_INET6]:
-                if 'fe80' not in addr['addr']:
+                if not addr['addr'].startswith('fe80'):
                     cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
                                                         addr['netmask']))
                     if address in cidr:
