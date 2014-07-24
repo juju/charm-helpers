@@ -1,5 +1,7 @@
 import sys
 
+from functools import partial
+
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
     ERROR, log,
@@ -149,23 +151,6 @@ def _get_for_address(address, key):
     return None
 
 
-def get_iface_for_address(address):
-    """Determine the physical interface to which an IP address could be bound
+get_iface_for_address = partial(_get_for_address, key='iface')
 
-    :param address (str): An individual IPv4 or IPv6 address without a net
-        mask or subnet prefix. For example, '192.168.1.1'.
-    :returns str: Interface name or None if address is not bindable.
-    """
-    return _get_for_address(address, 'iface')
-
-
-def get_netmask_for_address(address):
-    """Determine the netmask of the physical interface to which and IP address
-    could be bound
-
-    :param address (str): An individual IPv4 or IPv6 address without a net
-        mask or subnet prefix. For example, '192.168.1.1'.
-    :returns str: Netmask of configured interface or None if address is
-        not bindable.
-    """
-    return _get_for_address(address, 'netmask')
+get_netmask_for_address = partial(_get_for_address, key='netmask')
