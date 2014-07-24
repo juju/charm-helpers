@@ -1205,3 +1205,16 @@ class ContextTests(unittest.TestCase):
             'use_syslog': 'foo',
         }
         self.assertEquals(result, expected)
+
+    def test_loglevel_context(self):
+        self.config.side_effect = fake_config({
+            'debug': True,
+            'verbose': True,
+        })
+        syslog = context.LogLevelContext()
+        result = syslog()
+        expected = {
+            'debug': True,
+            'verbose': True,
+        }
+        self.assertEquals(result, expected)
