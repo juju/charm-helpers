@@ -1206,7 +1206,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    def test_loglevel_context(self):
+    def test_loglevel_context_set(self):
         self.config.side_effect = fake_config({
             'debug': True,
             'verbose': True,
@@ -1216,5 +1216,18 @@ class ContextTests(unittest.TestCase):
         expected = {
             'debug': True,
             'verbose': True,
+        }
+        self.assertEquals(result, expected)
+
+    def test_loglevel_context_unset(self):
+        self.config.side_effect = fake_config({
+            'debug': None,
+            'verbose': None,
+        })
+        syslog = context.LogLevelContext()
+        result = syslog()
+        expected = {
+            'debug': False,
+            'verbose': False,
         }
         self.assertEquals(result, expected)

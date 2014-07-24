@@ -731,10 +731,11 @@ class SubordinateConfigContext(OSContextGenerator):
 class LogLevelContext(OSContextGenerator):
 
     def __call__(self):
-        ctxt = {
-            'debug': config('debug'),
-            'verbose': config('verbose'),
-        }
+        ctxt = {}
+        ctxt['debug'] = \
+            False if config('debug') is None else config('debug')
+        ctxt['verbose'] = \
+            False if config('verbose') is None else config('verbose')
         return ctxt
 
 
