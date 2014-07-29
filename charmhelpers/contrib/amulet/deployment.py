@@ -1,4 +1,5 @@
 import amulet
+import os
 
 
 class AmuletDeployment(object):
@@ -20,7 +21,12 @@ class AmuletDeployment(object):
            that we're focused on testing and other_services are the other
            charms that come from the charm store."""
         name, units = range(2)
-        self.this_service = this_service[name]
+
+        if this_service[name] != os.path.basename(os.getcwd()):
+            s = this_service[name]
+            msg = "The charm's root directory name needs to be {}".format(s)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
         self.d.add(this_service[name], units=this_service[units])
 
         for svc in other_services:
