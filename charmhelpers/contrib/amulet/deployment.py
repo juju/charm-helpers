@@ -1,10 +1,14 @@
 import amulet
+
 import os
 
 
 class AmuletDeployment(object):
-    """This class provides generic Amulet deployment and test runner
-       methods."""
+    """Amulet deployment.
+
+       This class provides generic Amulet deployment and test runner
+       methods.
+       """
 
     def __init__(self, series=None):
         """Initialize the deployment environment."""
@@ -17,9 +21,12 @@ class AmuletDeployment(object):
             self.d = amulet.Deployment()
 
     def _add_services(self, this_service, other_services):
-        """Add services to the deployment where this_service is the local charm
+        """Add services.
+
+           Add services to the deployment where this_service is the local charm
            that we're focused on testing and other_services are the other
-           charms that come from the charm store."""
+           charms that come from the charm store.
+           """
         name, units = range(2)
 
         if this_service[name] != os.path.basename(os.getcwd()):
@@ -54,7 +61,7 @@ class AmuletDeployment(object):
             self.d.sentry.wait(timeout=900)
         except amulet.helpers.TimeoutError:
             amulet.raise_status(amulet.FAIL, msg="Deployment timed out")
-        except:
+        except Exception:
             raise
 
     def run_tests(self):
