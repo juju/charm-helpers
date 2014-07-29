@@ -38,7 +38,7 @@ class AmuletUtils(object):
     def valid_url(self, url):
         p = re.compile(
             r'^(?:http|ftp)s?://'
-            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' # flake8: noqa
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' # noqa
             r'localhost|'
             r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
             r'(?::\d+)?'
