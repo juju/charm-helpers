@@ -62,6 +62,15 @@ def peer_units():
     return peers
 
 
+def peer_ips(peer_relation='cluster', addr_key='private-address'):
+    '''Return a dict of peers and their private-address'''
+    peers = {}
+    for r_id in relation_ids(peer_relation):
+        for unit in relation_list(r_id):
+            peers[unit] = relation_get(addr_key, rid=r_id, unit=unit)
+    return peers
+
+
 def oldest_peer(peers):
     local_unit_no = int(os.getenv('JUJU_UNIT_NAME').split('/')[1])
     for peer in peers:
