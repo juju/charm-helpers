@@ -65,8 +65,8 @@ def peer_units():
 def peer_ips(peer_relation='cluster', addr_key='private-address'):
     '''Return a dict of peers and their private-address'''
     peers = {}
-    for r_id in (relation_ids(peer_relation)):
-        for unit in (relation_list(r_id)):
+    for r_id in relation_ids(peer_relation):
+        for unit in relation_list(r_id):
             peers[unit] = relation_get(addr_key, rid=r_id, unit=unit)
     return peers
 
