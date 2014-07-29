@@ -69,6 +69,20 @@ class ClusterUtilsTests(TestCase):
         self.relation_list.return_value = peers
         self.assertEquals(peers, cluster_utils.peer_units())
 
+    def test_peer_ips(self):
+        '''Get a dict of peers and their ips'''
+        peers = {
+            'peer_node/1': '10.0.0.1',
+            'peer_node/2': '10.0.0.2',
+        }
+
+        def _relation_get(attr, rid, unit):
+            return peers[unit]
+        self.relation_ids.return_value = ['cluster:0']
+        self.relation_list.return_value = peers.keys()
+        self.relation_get.side_effect = _relation_get
+        self.assertEquals(peers, cluster_utils.peer_ips())
+
     @patch('os.getenv')
     def test_is_oldest_peer(self, getenv):
         '''It detects local unit is the oldest of all peers'''
