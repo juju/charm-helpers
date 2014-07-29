@@ -47,22 +47,28 @@ class NeutronTests(unittest.TestCase):
     def test_quantum_plugins(self):
         self.config.return_value = 'foo'
         plugins = neutron.quantum_plugins()
-        self.assertEquals(plugins['ovs']['services'], ['quantum-plugin-openvswitch-agent'])
+        self.assertEquals(plugins['ovs']['services'],
+                          ['quantum-plugin-openvswitch-agent'])
         self.assertEquals(plugins['nvp']['services'], [])
 
     def test_neutron_plugins_preicehouse(self):
         self.config.return_value = 'foo'
         self.os_release.return_value = 'havana'
         plugins = neutron.neutron_plugins()
-        self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini')
+        self.assertEquals(plugins['ovs']['config'],
+                          '/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini')
         self.assertEquals(plugins['nvp']['services'], [])
 
     def test_neutron_plugins(self):
         self.config.return_value = 'foo'
         self.os_release.return_value = 'icehouse'
         plugins = neutron.neutron_plugins()
-        self.assertEquals(plugins['ovs']['config'], '/etc/neutron/plugins/ml2/ml2_conf.ini')
-        self.assertEquals(plugins['nvp']['config'], '/etc/neutron/plugins/vmware/nsx.ini')
+        self.assertEquals(plugins['ovs']['config'],
+                          '/etc/neutron/plugins/ml2/ml2_conf.ini')
+        self.assertEquals(plugins['nvp']['config'],
+                          '/etc/neutron/plugins/vmware/nsx.ini')
+        self.assertEquals(plugins['n1kv']['config'],
+                          '/etc/neutron/plugins/cisco/cisco_plugins.ini')
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 

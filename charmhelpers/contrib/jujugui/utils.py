@@ -217,12 +217,12 @@ def parse_source(source):
 
     Return a tuple of two elements representing info on how to deploy Juju GUI.
     Examples:
-       - ('stable', None): latest stable release;
-       - ('stable', '0.1.0'): stable release v0.1.0;
-       - ('trunk', None): latest trunk release;
-       - ('trunk', '0.1.0+build.1'): trunk release v0.1.0 bzr revision 1;
-       - ('branch', 'lp:juju-gui'): release is made from a branch;
-       - ('url', 'http://example.com/gui'): release from a downloaded file.
+    - ('stable', None): latest stable release;
+    - ('stable', '0.1.0'): stable release v0.1.0;
+    - ('trunk', None): latest trunk release;
+    - ('trunk', '0.1.0+build.1'): trunk release v0.1.0 bzr revision 1;
+    - ('branch', 'lp:juju-gui'): release is made from a branch;
+    - ('url', 'http://example.com/gui'): release from a downloaded file.
     """
     if source.startswith('url:'):
         source = source[4:]

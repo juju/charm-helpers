@@ -11,8 +11,6 @@ import os
 
 from socket import gethostname as get_unit_hostname
 
-from charmhelpers.fetch import apt_install
-
 from charmhelpers.core.hookenv import (
     log,
     relation_ids,
@@ -148,12 +146,12 @@ def get_hacluster_config():
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
-        ha-bindiface, ha-mcastport, vip, vip_iface, vip_cidr
+        ha-bindiface, ha-mcastport, vip
 
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing.
     '''
-    settings = ['ha-bindiface', 'ha-mcastport', 'vip', 'vip_iface', 'vip_cidr']
+    settings = ['ha-bindiface', 'ha-mcastport', 'vip']
     conf = {}
     for setting in settings:
         conf[setting] = config_get(setting)
@@ -172,6 +170,7 @@ def canonical_url(configs, vip_setting='vip'):
 
     :configs    : OSTemplateRenderer: A config tempating object to inspect for
                                       a complete https context.
+
     :vip_setting:                str: Setting in charm config that specifies
                                       VIP address.
     '''
@@ -185,30 +184,3 @@ def canonical_url(configs, vip_setting='vip'):
     else:
         addr = unit_get('private-address')
     return '%s://%s' % (scheme, addr)
-
-
-def get_ipv6_addr(iface="eth0"):
-# TODO Is there a scenario that the ipv6 will be gone in the middle
-# phrase, which caused ipv6 address async.
-
-    try:
-        try:
-            import netifaces
-        except ImportError:
-            apt_install('python-netifaces')
-            import netifaces
-
-        iface_addrs = netifaces.ifaddresses(iface)
-        if netifaces.AF_INET6 not in iface_addrs:
-            raise Exception("Interface '%s' doesn't have an ipv6 address.")
-
-        addresses = netifaces.ifaddresses(iface)[netifaces.AF_INET6]
-        ipv6_addr = [addr['addr']  for addr in addresses \
-                        if 'fe80' not in addr['addr']]
-        if not ipv6_addr:
-            raise Exception("Interface '%s' doesn't have global ipv6 address.") 
-
-        return ipv6_addr[0]
-
-    except ValueError:
-        raise Exception("Invalid interface '%s'" % iface)

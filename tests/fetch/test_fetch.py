@@ -207,6 +207,20 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
+    def test_configure_sources_null_source(self, add_source, config):
+        config.side_effect = [None, None]
+        fetch.configure_sources()
+        self.assertEqual(add_source.call_count, 0)
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_empty_source(self, add_source, config):
+        config.side_effect = ['', '']
+        fetch.configure_sources()
+        self.assertEqual(add_source.call_count, 0)
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
     def test_configure_sources_single_source_no_key(self, add_source, config):
         config.side_effect = ['source', None]
         fetch.configure_sources()

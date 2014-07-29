@@ -84,6 +84,8 @@ def get_os_codename_install_source(src):
     '''Derive OpenStack release codename from a given installation source.'''
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
     rel = ''
+    if src is None:
+        return rel
     if src in ['distro', 'distro-proposed']:
         try:
             rel = UBUNTU_OPENSTACK_RELEASE[ubuntu_rel]
@@ -189,7 +191,7 @@ def get_os_version_package(pkg, fatal=True):
     for version, cname in vers_map.iteritems():
         if cname == codename:
             return version
-    #e = "Could not determine OpenStack version for package: %s" % pkg
+    # e = "Could not determine OpenStack version for package: %s" % pkg
     # error_out(e)
 
 

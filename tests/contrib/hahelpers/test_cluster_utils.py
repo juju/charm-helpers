@@ -206,8 +206,6 @@ class ClusterUtilsTests(TestCase):
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
             'vip': '10.0.0.1',
-            'vip_iface': 'eth1',
-            'vip_cidr': '19'
         }
 
         def _fake_config_get(setting):
@@ -222,8 +220,6 @@ class ClusterUtilsTests(TestCase):
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
             'vip': None,
-            'vip_iface': 'eth1',
-            'vip_cidr': '19'
         }
 
         def _fake_config_get(setting):

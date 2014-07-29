@@ -211,13 +211,13 @@ def file_hash(path):
 def restart_on_change(restart_map, stopstart=False):
     """Restart services based on configuration files changing
 
-    This function is used a decorator, for example
+    This function is used a decorator, for example::
 
         @restart_on_change({
             '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
             })
         def ceph_client_changed():
-            ...
+            pass  # your code here
 
     In this example, the cinder-api and cinder-volume services
     would be restarted if /etc/ceph/ceph.conf is changed by the
@@ -313,13 +313,19 @@ def get_nic_hwaddr(nic):
 
 def cmp_pkgrevno(package, revno, pkgcache=None):
     '''Compare supplied revno with the revno of the installed package
-       1 => Installed revno is greater than supplied arg
-       0 => Installed revno is the same as supplied arg
-      -1 => Installed revno is less than supplied arg
+
+    *  1 => Installed revno is greater than supplied arg
+    *  0 => Installed revno is the same as supplied arg
+    * -1 => Installed revno is less than supplied arg
+
     '''
     import apt_pkg
     if not pkgcache:
         apt_pkg.init()
+        # Force Apt to build its cache in memory. That way we avoid race
+        # conditions with other applications building the cache in the same
+        # place.
+        apt_pkg.config.set("Dir::Cache::pkgcache", "")
         pkgcache = apt_pkg.Cache()
     pkg = pkgcache[package]
     return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
