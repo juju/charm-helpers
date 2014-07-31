@@ -158,12 +158,14 @@ IDENTITY_SERVICE_RELATION = {
 }
 
 AMQP_RELATION = {
+    'hostname': 'rabbithost',
     'private-address': 'rabbithost',
     'password': 'foobar',
     'vip': '10.0.0.1',
 }
 
 AMQP_RELATION_WITH_SSL = {
+    'hostname': 'rabbithost',
     'private-address': 'rabbithost',
     'password': 'foobar',
     'vip': '10.0.0.1',
@@ -175,10 +177,12 @@ AMQP_RELATION_WITH_SSL = {
 AMQP_AA_RELATION = {
     'amqp:0': {
         'rabbitmq/0': {
+            'hostname': 'rabbithost1',
             'private-address': 'rabbithost1',
             'password': 'foobar',
         },
         'rabbitmq/1': {
+            'hostname': 'rabbithost2',
             'private-address': 'rabbithost2',
         }
     }
@@ -315,7 +319,8 @@ TO_PATCH = [
     'time',
     'https',
     'get_address_in_network',
-    'local_unit'
+    'local_unit',
+    'get_ipv6_addr'
 ]
 
 
@@ -835,6 +840,48 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        self.config.return_value = False
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'units': {
+                'peer-0': 'cluster-peer0.localnet',
+                'peer-1': 'cluster-peer1.localnet',
+                'peer-2': 'cluster-peer2.localnet'
+            }
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
+    def test_haproxy_context_with_data_ipv6(
+            self, local_unit, unit_get, get_ipv6_addr):
+        '''Test haproxy context with all relation data'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-ipv6-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-ipv6-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+
+        unit_get.return_value = 'peer/0'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
+        self.config.side_effect = [True, None, True, True]
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -876,6 +923,7 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
+        self.config.return_value = False
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
 
