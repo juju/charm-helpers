@@ -157,10 +157,14 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "private_address": "10.10.10.10",
                 "charm_dir": "",
                 "local_unit": {},
-                'relations_deprecated': {'wsgi_file': []},
                 'current_relation': {
                     'relation_key1': 'relation_value1',
                     'relation-key2': 'relation_value2',
+                },
+                'relations_full': {
+                    'nrpe-external-master': {},
+                    'website': {},
+                    'wsgi-file': {},
                 },
                 'relations': {
                     'nrpe-external-master': {},
