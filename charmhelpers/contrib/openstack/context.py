@@ -32,7 +32,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
     https,
-    is_clustered
+    is_clustered,
+    get_ipv6_addr
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
@@ -138,7 +139,6 @@ class SharedDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name and user)')
             raise OSContextError
-
         ctxt = {}
 
         # NOTE(jamespage) if mysql charm provides a network upon which
@@ -362,8 +362,10 @@ class CephContext(OSContextGenerator):
         use_syslog = str(config('use-syslog')).lower()
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
-                mon_hosts.append(relation_get('host-ip', rid=rid,
-                                              unit=unit))
+                # Note(xianghui): comment temporarily, cause it conflicts with
+                # the split network, need to be solved later.
+                # mon_hosts.append(relation_get('host-ip', rid=rid,
+                #                              unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
                 ceph_addr = \
@@ -403,14 +405,22 @@ class HAProxyContext(OSContextGenerator):
 
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
-        cluster_hosts[l_unit] = \
-            get_address_in_network(config('os-internal-network'),
-                                   unit_get('private-address'))
+        if config('prefer-ipv6'):
+            cluster_hosts[l_unit] = \
+                get_address_in_network(config('os-internal-network'),
+                                       get_ipv6_addr())
+        else:
+            cluster_hosts[l_unit] = \
+                get_address_in_network(config('os-internal-network'),
+                                       unit_get('private-address'))
 
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
                 _unit = unit.replace('/', '-')
-                addr = relation_get('private-address', rid=rid, unit=unit)
+                if config('prefer-ipv6'):
+                    addr = relation_get('private-ipv6-address', rid=rid, unit=unit)
+                else:
+                    addr = relation_get('private-address', rid=rid, unit=unit)
                 cluster_hosts[_unit] = addr
 
         ctxt = {
