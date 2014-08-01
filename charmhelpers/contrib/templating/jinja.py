@@ -3,7 +3,6 @@ Templating using the python-jinja2 package.
 """
 from charmhelpers.fetch import (
     apt_install,
-    filter_installed_packages
 )
 
 
@@ -13,7 +12,7 @@ DEFAULT_TEMPLATES_DIR = 'templates'
 try:
     import jinja2
 except ImportError:
-    apt_install(filter_installed_packages(["python-jinja2"]))
+    apt_install(["python-jinja2"])
     import jinja2
 
 
