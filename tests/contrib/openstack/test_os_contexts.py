@@ -158,14 +158,12 @@ IDENTITY_SERVICE_RELATION = {
 }
 
 AMQP_RELATION = {
-    'hostname': 'rabbithost',
     'private-address': 'rabbithost',
     'password': 'foobar',
     'vip': '10.0.0.1',
 }
 
 AMQP_RELATION_WITH_SSL = {
-    'hostname': 'rabbithost',
     'private-address': 'rabbithost',
     'password': 'foobar',
     'vip': '10.0.0.1',
@@ -177,12 +175,10 @@ AMQP_RELATION_WITH_SSL = {
 AMQP_AA_RELATION = {
     'amqp:0': {
         'rabbitmq/0': {
-            'hostname': 'rabbithost1',
             'private-address': 'rabbithost1',
             'password': 'foobar',
         },
         'rabbitmq/1': {
-            'hostname': 'rabbithost2',
             'private-address': 'rabbithost2',
         }
     }
