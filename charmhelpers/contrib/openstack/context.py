@@ -33,7 +33,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     https,
     is_clustered,
-    get_ipv6_addr
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
@@ -45,7 +44,10 @@ from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
 )
 
-from charmhelpers.contrib.network.ip import get_address_in_network
+from charmhelpers.contrib.network.ip import (
+    get_address_in_network,
+    get_ipv6_addr,
+)
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
@@ -417,15 +419,22 @@ class HAProxyContext(OSContextGenerator):
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
                 _unit = unit.replace('/', '-')
-                if config('prefer-ipv6'):
-                    addr = relation_get('private-ipv6-address', rid=rid, unit=unit)
-                else:
-                    addr = relation_get('private-address', rid=rid, unit=unit)
-                cluster_hosts[_unit] = addr
+                cluster_hosts[_unit] = relation_get('private-address',
+                                                    rid=rid, unit=unit)
 
         ctxt = {
             'units': cluster_hosts,
         }
+
+        if config('prefer-ipv6'):
+            ctxt['local_host'] = 'ip6-localhost'
+            ctxt['haproxy_host'] = '::'
+            ctxt['stat_port'] = ':::8888'
+        else:
+            ctxt['local_host'] = '127.0.0.1'
+            ctxt['haproxy_host'] = '0.0.0.0'
+            ctxt['stat_port'] = ':8888'
+
         if len(cluster_hosts.keys()) > 1:
             # Enable haproxy when we have enough peers.
             log('Ensuring haproxy enabled in /etc/default/haproxy.')
