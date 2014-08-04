@@ -11,8 +11,6 @@ import os
 
 from socket import gethostname as get_unit_hostname
 
-from charmhelpers.fetch import apt_install
-
 from charmhelpers.core.hookenv import (
     log,
     relation_ids,
@@ -179,42 +177,8 @@ def canonical_url(configs, vip_setting='vip'):
     scheme = 'http'
     if 'https' in configs.complete_contexts():
         scheme = 'https'
-
-    if config_get('prefer-ipv6'):
-        if is_clustered():
-            addr = '[%s]' % config_get(vip_setting)
-        else:
-            addr = '[%s]' % get_ipv6_addr()
+    if is_clustered():
+        addr = config_get(vip_setting)
     else:
-        if is_clustered():
-            addr = config_get(vip_setting)
-        else:
-            addr = unit_get('private-address')
+        addr = unit_get('private-address')
     return '%s://%s' % (scheme, addr)
-
-
-def get_ipv6_addr(iface="eth0"):
-# TODO Is there a scenario that the ipv6 will be gone in the middle
-# phrase, which caused ipv6 address async.
-
-    try:
-        try:
-            import netifaces
-        except ImportError:
-            apt_install('python-netifaces')
-            import netifaces
-
-        iface_addrs = netifaces.ifaddresses(iface)
-        if netifaces.AF_INET6 not in iface_addrs:
-            raise Exception("Interface '%s' doesn't have an ipv6 address.")
-
-        addresses = netifaces.ifaddresses(iface)[netifaces.AF_INET6]
-        ipv6_addr = [a['addr'] for a in addresses if 'fe80' not in a['addr']
-                     and config_get('vip') != a['addr']]
-        if not ipv6_addr:
-            raise Exception("Interface '%s' doesn't have global ipv6 address.")
-
-        return ipv6_addr[0]
-
-    except ValueError:
-        raise Exception("Invalid interface '%s'" % iface)
