@@ -848,8 +848,12 @@ class ContextTests(unittest.TestCase):
             'units': {
                 'peer-0': 'cluster-peer0.localnet',
                 'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet'
-            }
+                'peer-2': 'cluster-peer2.localnet',
+            },
+
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
         }
         # the context gets generated.
         self.assertEquals(ex, result)
@@ -866,10 +870,10 @@ class ContextTests(unittest.TestCase):
         cluster_relation = {
             'cluster:0': {
                 'peer/1': {
-                    'private-ipv6-address': 'cluster-peer1.localnet',
+                    'private-address': 'cluster-peer1.localnet',
                 },
                 'peer/2': {
-                    'private-ipv6-address': 'cluster-peer2.localnet',
+                    'private-address': 'cluster-peer2.localnet',
                 },
             },
         }
@@ -881,7 +885,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
         self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
-        self.config.side_effect = [True, None, True, True]
+        self.config.side_effect = [True, None, True]
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -890,7 +894,11 @@ class ContextTests(unittest.TestCase):
                 'peer-0': 'cluster-peer0.localnet',
                 'peer-1': 'cluster-peer1.localnet',
                 'peer-2': 'cluster-peer2.localnet'
-            }
+            },
+
+            'local_host': 'ip6-localhost',
+            'haproxy_host': '::',
+            'stat_port': ':::8888',
         }
         # the context gets generated.
         self.assertEquals(ex, result)
