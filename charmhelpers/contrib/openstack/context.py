@@ -32,7 +32,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
     https,
-    is_clustered,
+    is_clustered
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
@@ -193,6 +193,7 @@ class PostgresqlDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name)')
             raise OSContextError
+
         ctxt = {}
 
         for rid in relation_ids(self.interfaces[0]):
@@ -299,7 +300,7 @@ class AMQPContext(OSContextGenerator):
                     ctxt['rabbitmq_host'] = relation_get('vip', rid=rid,
                                                          unit=unit)
                 else:
-                    ctxt['rabbitmq_host'] = relation_get('hostname',
+                    ctxt['rabbitmq_host'] = relation_get('private-address',
                                                          rid=rid, unit=unit)
                 ctxt.update({
                     'rabbitmq_user': username,
@@ -364,10 +365,6 @@ class CephContext(OSContextGenerator):
         use_syslog = str(config('use-syslog')).lower()
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
-                # Note(xianghui): comment temporarily, cause it conflicts with
-                # the split network, need to be solved later.
-                # mon_hosts.append(relation_get('host-ip', rid=rid,
-                #                              unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
                 ceph_addr = \
@@ -419,8 +416,8 @@ class HAProxyContext(OSContextGenerator):
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
                 _unit = unit.replace('/', '-')
-                cluster_hosts[_unit] = relation_get('private-address',
-                                                    rid=rid, unit=unit)
+                addr = relation_get('private-address', rid=rid, unit=unit)
+                cluster_hosts[_unit] = addr
 
         ctxt = {
             'units': cluster_hosts,
