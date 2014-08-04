@@ -18,7 +18,6 @@ class ClusterUtilsTests(TestCase):
             'get_unit_hostname',
             'config_get',
             'unit_get',
-            'get_ipv6_addr',
         ]]
 
     def _patch(self, method):
@@ -69,6 +68,20 @@ class ClusterUtilsTests(TestCase):
         self.relation_ids.return_value = ['cluster:0']
         self.relation_list.return_value = peers
         self.assertEquals(peers, cluster_utils.peer_units())
+
+    def test_peer_ips(self):
+        '''Get a dict of peers and their ips'''
+        peers = {
+            'peer_node/1': '10.0.0.1',
+            'peer_node/2': '10.0.0.2',
+        }
+
+        def _relation_get(attr, rid, unit):
+            return peers[unit]
+        self.relation_ids.return_value = ['cluster:0']
+        self.relation_list.return_value = peers.keys()
+        self.relation_get.side_effect = _relation_get
+        self.assertEquals(peers, cluster_utils.peer_ips())
 
     @patch('os.getenv')
     def test_is_oldest_peer(self, getenv):
@@ -238,7 +251,6 @@ class ClusterUtilsTests(TestCase):
         configs = MagicMock()
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
-        self.config_get.return_value = False
         url = cluster_utils.canonical_url(configs)
         self.assertEquals('http://foohost1', url)
 
@@ -250,19 +262,17 @@ class ClusterUtilsTests(TestCase):
         configs = MagicMock()
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
-        self.config_get.return_value = False
         url = cluster_utils.canonical_url(configs)
         self.assertEquals('https://foohost1', url)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_https_cluster(self, is_clustered):
         '''It constructs a URL to host with https and cluster present'''
-        #self.config_get.return_value = '10.0.0.1'
+        self.config_get.return_value = '10.0.0.1'
         is_clustered.return_value = True
         configs = MagicMock()
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
-        self.config_get.side_effect = [False, '10.0.0.1']
         url = cluster_utils.canonical_url(configs)
         self.assertEquals('https://10.0.0.1', url)
 
@@ -275,29 +285,5 @@ class ClusterUtilsTests(TestCase):
         configs = MagicMock()
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
-        self.config_get.side_effect = [False, '10.0.0.1']
         url = cluster_utils.canonical_url(configs)
         self.assertEquals('http://10.0.0.1', url)
-
-    @patch.object(cluster_utils, 'is_clustered')
-    def test_canonical_url_ipv6_no_cluster(self, is_clustered):
-        '''It constructs a URL to host with ipv6 address.'''
-        self.config_get('prefer-ipv6').return_value = True
-        self.get_ipv6_addr.return_value = '2001:db8:1:0:216:3eff:fe39:4eeb'
-        is_clustered.return_value = False
-        configs = MagicMock()
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        url = cluster_utils.canonical_url(configs)
-        self.assertEquals('http://[2001:db8:1:0:216:3eff:fe39:4eeb]', url)
-
-    @patch.object(cluster_utils, 'is_clustered')
-    def test_canonical_url_ipv6_with_cluster(self, is_clustered):
-        '''It constructs a URL to host with ipv6 address.'''
-        self.config_get.side_effect = [True, '2001:db8:1:0:216:3eff:fe39:4eeb']
-        is_clustered.return_value = True
-        configs = MagicMock()
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        url = cluster_utils.canonical_url(configs)
-        self.assertEquals('http://[2001:db8:1:0:216:3eff:fe39:4eeb]', url)

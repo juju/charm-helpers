@@ -167,7 +167,7 @@ def get_ipv6_addr(iface="eth0"):
 
         addresses = netifaces.ifaddresses(iface)[netifaces.AF_INET6]
         ipv6_addr = [a['addr'] for a in addresses if not a['addr'].startswith('fe80')
-                        and config('vip') != a['addr']]
+                     and config('vip') != a['addr']]
         if not ipv6_addr:
             raise Exception("Interface '%s' doesn't have global ipv6 address.")
 

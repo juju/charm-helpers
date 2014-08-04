@@ -158,4 +158,50 @@ class IPTest(unittest.TestCase):
     def test_is_ipv6(self):
         self.assertFalse(net_ip.is_ipv6('myhost'))
         self.assertFalse(net_ip.is_ipv6('172.4.5.5'))
-        self.assertTrue(net_ip.is_ipv6('2a01:348:2f4:0:685e:5748:ae62:209f'))        
+        self.assertTrue(net_ip.is_ipv6('2a01:348:2f4:0:685e:5748:ae62:209f'))
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv6_addr_no_ipv6(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                2: [{'addr': '192.168.1.55',
+                     'broadcast': '192.168.1.255',
+                     'netmask': '255.255.255.0'}]
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _ifaddresses.side_effect = mock_ifaddresses
+        self.assertRaises(Exception, net_ip.get_ipv6_addr)
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv6_addr_no_global_ipv6(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
+                      'netmask': 'ffff:ffff:ffff:ffff::'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _ifaddresses.side_effect = mock_ifaddresses
+        self.assertRaises(Exception, net_ip.get_ipv6_addr)
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv6_addr_invalid_nic(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
+                      'netmask': 'ffff:ffff:ffff:ffff::'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _ifaddresses.side_effect = ValueError()
+        self.assertRaises(ValueError, net_ip.get_ipv6_addr, 'eth1')
