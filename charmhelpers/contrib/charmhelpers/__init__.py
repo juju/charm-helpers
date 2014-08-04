@@ -29,18 +29,16 @@ __all__ = [
 ]
 
 import operator
-from shelltoolbox import (
-    command,
-)
 import tempfile
 import time
 import urllib2
 import yaml
+import subprocess
 
 SLEEP_AMOUNT = 0.1
 # We create a juju_status Command here because it makes testing much,
 # much easier.
-juju_status = lambda: command('juju')('status')
+juju_status = lambda: subprocess.check_call(['juju', 'status'])
 
 # re-implemented as charmhelpers.fetch.configure_sources()
 #def configure_source(update=False):
