@@ -25,6 +25,20 @@ charmhelpers.core.host module
     :undoc-members:
     :show-inheritance:
 
+charmhelpers.core.services package
+----------------------------------
+
+.. automodule:: charmhelpers.core.services.base
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :special-members: __init__
+
+.. automodule:: charmhelpers.core.services.helpers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 .. automodule:: charmhelpers.core
     :members:
