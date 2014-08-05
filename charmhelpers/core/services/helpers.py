@@ -73,7 +73,7 @@ class RelationContext(dict):
         If you only care about a single unit on the relation, you can just
         access it as `{{ interface[0]['key'] }}`.  However, if you can at all
         support multiple units on a relation, you should iterate over the list,
-        like:
+        like::
 
             {% for unit in interface -%}
                 {{ unit['key'] }}{% if not loop.last %},{% endif %}

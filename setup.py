@@ -26,7 +26,6 @@ SETUP = {
         "charmhelpers.contrib.charmsupport",
         "charmhelpers.contrib.saltstack",
         "charmhelpers.contrib.hahelpers",
-        "charmhelpers.contrib.jujugui",
         "charmhelpers.contrib.templating",
     ],
     'scripts': [
