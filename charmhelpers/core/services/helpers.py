@@ -12,10 +12,12 @@ class RelationContext(dict):
     """
     Base class for a context generator that gets relation data from juju.
 
-    Subclasses must provide `interface`, which is the interface type of interest,
-    and `required_keys`, which is the set of keys required for the relation to
-    be considered complete.  The first relation for the interface that is complete
-    will be used to populate the data for template.
+    Subclasses must provide the attributes `name`, which is the name of the
+    interface of interest, `interface`, which is the type of the interface of
+    interest, and `required_keys`, which is the set of keys required for the
+    relation to be considered complete.  The data for all interfaces matching
+    the `name` attribute that are complete will used to populate the dictionary
+    values (see `get_data`, below).
 
     The generated context will be namespaced under the interface type, to prevent
     potential naming conflicts.
@@ -57,7 +59,7 @@ class RelationContext(dict):
 
     def get_data(self):
         """
-        Retrieve the relation data for each unit involved in a realtion and,
+        Retrieve the relation data for each unit involved in a relation and,
         if complete, store it in a list under `self[self.name]`.  This
         is automatically called when the RelationContext is instantiated.
 
