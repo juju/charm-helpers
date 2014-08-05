@@ -7,7 +7,6 @@ charmhelpers.contrib package
     charmhelpers.contrib.charmhelpers
     charmhelpers.contrib.charmsupport
     charmhelpers.contrib.hahelpers
-    charmhelpers.contrib.jujugui
     charmhelpers.contrib.network
     charmhelpers.contrib.openstack
     charmhelpers.contrib.peerstorage

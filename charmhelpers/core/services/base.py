@@ -26,7 +26,7 @@ class ServiceManager(object):
         setup tasks, in the most declarative way possible.
 
         Service definitions are dicts in the following formats (all keys except
-        'service' are optional):
+        'service' are optional)::
 
             {
                 "service": <service name>,
@@ -79,7 +79,7 @@ class ServiceManager(object):
 
         The following registers an Upstart service called bingod that depends on
         a mongodb relation and which runs a custom `db_migrate` function prior to
-        restarting the service, and a Runit service called spadesd.
+        restarting the service, and a Runit service called spadesd::
 
             manager = services.ServiceManager([
                 {
