@@ -47,13 +47,13 @@ class ServiceManager(object):
         The 'data_ready' value should be either a single callback, or a list of
         callbacks, to be called when all items in 'required_data' pass `is_ready()`.
         Each callback will be called with the service name as the only parameter.
-        After these all of the 'data_ready' callbacks are called, the 'start'
-        callbacks are fired.
+        After all of the 'data_ready' callbacks are called, the 'start' callbacks
+        are fired.
 
         The 'data_lost' value should be either a single callback, or a list of
         callbacks, to be called when a 'required_data' item no longer passes
         `is_ready()`.  Each callback will be called with the service name as the
-        only parameter.  After these all of the 'data_ready' callbacks are called,
+        only parameter.  After all of the 'data_lost' callbacks are called,
         the 'stop' callbacks are fired.
 
         The 'start' value should be either a single callback, or a list of
@@ -244,7 +244,7 @@ class ManagerCallback(object):
     Special case of a callback that takes the `ServiceManager` instance
     in addition to the service name.
 
-    Subclasses should implement `__call__` which should accept two parameters:
+    Subclasses should implement `__call__` which should accept three parameters:
 
         * `manager`       The `ServiceManager` instance
         * `service_name`  The name of the service it's being triggered for
