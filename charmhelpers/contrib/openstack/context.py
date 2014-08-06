@@ -141,6 +141,7 @@ class SharedDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name and user)')
             raise OSContextError
+
         ctxt = {}
 
         # NOTE(jamespage) if mysql charm provides a network upon which
@@ -193,7 +194,6 @@ class PostgresqlDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name)')
             raise OSContextError
-
         ctxt = {}
 
         for rid in relation_ids(self.interfaces[0]):
@@ -405,13 +405,11 @@ class HAProxyContext(OSContextGenerator):
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
         if config('prefer-ipv6'):
-            cluster_hosts[l_unit] = \
-                get_address_in_network(config('os-internal-network'),
-                                       get_ipv6_addr())
+            addr = get_ipv6_addr()
         else:
-            cluster_hosts[l_unit] = \
-                get_address_in_network(config('os-internal-network'),
-                                       unit_get('private-address'))
+            addr = unit_get('private-address')
+        cluster_hosts[l_unit] = get_address_in_network(config('os-internal-network'),
+                                                       addr)
 
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
