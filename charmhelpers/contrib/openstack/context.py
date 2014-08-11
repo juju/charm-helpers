@@ -420,6 +420,8 @@ class HAProxyContext(OSContextGenerator):
         ctxt = {
             'units': cluster_hosts,
         }
+        ctxt['haproxy-server-timeout'] =  config.get('haproxy-server-timeout')
+        ctxt['haproxy-client-timeout'] =  config.get('haproxy-client-timeout')
 
         if config('prefer-ipv6'):
             ctxt['local_host'] = 'ip6-localhost'
