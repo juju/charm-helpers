@@ -167,9 +167,9 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                     'wsgi-file': {},
                 },
                 'relations': {
-                    'nrpe-external-master': {},
-                    'website': {},
-                    'wsgi-file': {},
+                    'nrpe-external-master': [],
+                    'website': [],
+                    'wsgi-file': [],
                 },
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
