@@ -1,6 +1,6 @@
 from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
-    log,
+    is_relation_made,
     relation_ids,
     relation_get,
     local_unit,
@@ -47,8 +47,8 @@ def peer_retrieve(key, relation_name='cluster'):
         return relation_get(attribute=key, rid=cluster_rid,
                             unit=local_unit())
     else:
-        log('peer_retrieve failed. Unable to detect'
-            'peer relation {}'.format(relation_name))
+        raise ValueError('Unable to detect'
+                         'peer relation {}'.format(relation_name))
 
 
 def peer_store(key, value, relation_name='cluster'):
@@ -59,8 +59,8 @@ def peer_store(key, value, relation_name='cluster'):
         relation_set(relation_id=cluster_rid,
                      relation_settings={key: value})
     else:
-        log('peer_store failed. Unable to detect '
-            'peer relation {}'.format(relation_name))
+        raise ValueError('Unable to detect '
+                         'peer relation {}'.format(relation_name))
 
 
 def peer_echo(includes=None):
@@ -94,9 +94,10 @@ def peer_store_and_set(relation_id=None, peer_relation_name='cluster',
     relation_set(relation_id=relation_id,
                  relation_settings=relation_settings,
                  **kwargs)
-    for key, value in dict(kwargs.items() +
-                           relation_settings.items()).iteritems():
-        key_prefix = relation_id or current_relation_id()
-        peer_store(key_prefix + '_' + key,
-                   value,
-                   relation_name=peer_relation_name)
+    if is_relation_made(peer_relation_name):
+        for key, value in dict(kwargs.items() +
+                               relation_settings.items()).iteritems():
+            key_prefix = relation_id or current_relation_id()
+            peer_store(key_prefix + '_' + key,
+                       value,
+                       relation_name=peer_relation_name)
