@@ -104,7 +104,7 @@ def apply_playbook(playbook, tags=None):
         allow_hyphens_in_keys=False)
     # we want ansible's log output to be unbuffered
     env = os.environ.copy()
-    env['PYTHONUNBUFFERED'] = 1
+    env['PYTHONUNBUFFERED'] = "1"
     call = [
         'ansible-playbook',
         '-c',
