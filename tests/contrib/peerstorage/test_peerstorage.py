@@ -85,6 +85,15 @@ class TestPeerStorage(TestCase):
         peer_store.assert_not_called()
 
     @patch.object(peerstorage, 'peer_store')
+    def test_peer_store_and_set_no_relation_fatal(self, peer_store):
+        self.is_relation_made.return_value = False
+        self.assertRaises(ValueError,
+                          peerstorage.peer_store_and_set,
+                          relation_id='db',
+                          kwarg1='kwarg1_v',
+                          peer_store_fatal=True)
+
+    @patch.object(peerstorage, 'peer_store')
     def test_peer_store_and_set_kwargs(self, peer_store):
         self.is_relation_made.return_value = True
         peerstorage.peer_store_and_set(relation_id='db', kwarg1='kwarg1_v')

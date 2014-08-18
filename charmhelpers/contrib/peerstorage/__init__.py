@@ -86,7 +86,7 @@ def peer_echo(includes=None):
 
 
 def peer_store_and_set(relation_id=None, peer_relation_name='cluster',
-                       relation_settings={}, **kwargs):
+                       peer_store_fatal=False, relation_settings={}, **kwargs):
     """ For each pair set them in the relation and store in peer db
 
     Note that the relation set is done within the provided relation_id and
@@ -101,3 +101,7 @@ def peer_store_and_set(relation_id=None, peer_relation_name='cluster',
             peer_store(key_prefix + '_' + key,
                        value,
                        relation_name=peer_relation_name)
+    else:
+        if peer_store_fatal:
+            raise ValueError('Unable to detect '
+                             'peer relation {}'.format(peer_relation_name))
