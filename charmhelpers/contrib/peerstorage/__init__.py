@@ -1,4 +1,6 @@
+from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
+    is_relation_made,
     relation_ids,
     relation_get,
     local_unit,
@@ -81,3 +83,21 @@ def peer_echo(includes=None):
                     echo_data[attribute] = value
     if len(echo_data) > 0:
         relation_set(relation_settings=echo_data)
+
+
+def peer_store_and_set(relation_id=None, peer_relation_name='cluster',
+                       relation_settings={}, **kwargs):
+    """ For each pair set them in the relation and store in peer db
+
+    Note that the relation set is done within the provided relation_id and
+    if none is provided defaults to the current relation"""
+    relation_set(relation_id=relation_id,
+                 relation_settings=relation_settings,
+                 **kwargs)
+    if is_relation_made(peer_relation_name):
+        for key, value in dict(kwargs.items() +
+                               relation_settings.items()).iteritems():
+            key_prefix = relation_id or current_relation_id()
+            peer_store(key_prefix + '_' + key,
+                       value,
+                       relation_name=peer_relation_name)

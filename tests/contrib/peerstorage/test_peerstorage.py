@@ -1,10 +1,17 @@
 from tests.helpers import FakeRelation
 from testtools import TestCase
-from mock import patch
+from mock import patch, call
 from charmhelpers.contrib import peerstorage
 
 
-TO_PATCH = ['relation_ids', 'relation_set', 'relation_get', 'local_unit']
+TO_PATCH = [
+    'current_relation_id',
+    'is_relation_made',
+    'local_unit',
+    'relation_get',
+    'relation_ids',
+    'relation_set',
+]
 FAKE_RELATION_NAME = 'cluster'
 FAKE_RELATION = {
     'cluster:0': {
@@ -67,3 +74,51 @@ class TestPeerStorage(TestCase):
     def test_peer_echo_includes(self):
         peerstorage.peer_echo(['key1'])
         self.relation_set.assert_called_with(relation_settings={'key1': 'value1'})
+
+    @patch.object(peerstorage, 'peer_store')
+    def test_peer_store_and_set_no_relation(self, peer_store):
+        self.is_relation_made.return_value = False
+        peerstorage.peer_store_and_set(relation_id='db', kwarg1='kwarg1_v')
+        self.relation_set.assert_called_with(relation_id='db',
+                                             relation_settings={},
+                                             kwarg1='kwarg1_v')
+        peer_store.assert_not_called()
+
+    @patch.object(peerstorage, 'peer_store')
+    def test_peer_store_and_set_kwargs(self, peer_store):
+        self.is_relation_made.return_value = True
+        peerstorage.peer_store_and_set(relation_id='db', kwarg1='kwarg1_v')
+        self.relation_set.assert_called_with(relation_id='db',
+                                             relation_settings={},
+                                             kwarg1='kwarg1_v')
+        calls = [call('db_kwarg1', 'kwarg1_v', relation_name='cluster')]
+        peer_store.assert_has_calls(calls, any_order=True)
+
+    @patch.object(peerstorage, 'peer_store')
+    def test_peer_store_and_rel_settings(self, peer_store):
+        self.is_relation_made.return_value = True
+        rel_setting = {
+            'rel_set1': 'relset1_v'
+        }
+        peerstorage.peer_store_and_set(relation_id='db',
+                                       relation_settings=rel_setting)
+        self.relation_set.assert_called_with(relation_id='db',
+                                             relation_settings=rel_setting)
+        calls = [call('db_rel_set1', 'relset1_v', relation_name='cluster')]
+        peer_store.assert_has_calls(calls, any_order=True)
+
+    @patch.object(peerstorage, 'peer_store')
+    def test_peer_store_and_set(self, peer_store):
+        self.is_relation_made.return_value = True
+        rel_setting = {
+            'rel_set1': 'relset1_v'
+        }
+        peerstorage.peer_store_and_set(relation_id='db',
+                                       relation_settings=rel_setting,
+                                       kwarg1='kwarg1_v')
+        self.relation_set.assert_called_with(relation_id='db',
+                                             relation_settings=rel_setting,
+                                             kwarg1='kwarg1_v')
+        calls = [call('db_rel_set1', 'relset1_v', relation_name='cluster'),
+                 call('db_kwarg1', 'kwarg1_v', relation_name='cluster')]
+        peer_store.assert_has_calls(calls, any_order=True)
