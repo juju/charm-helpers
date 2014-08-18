@@ -6,8 +6,8 @@ from charmhelpers.contrib import peerstorage
 
 TO_PATCH = [
     'current_relation_id',
-    'is_relation_made',
     'local_unit',
+    'log',
     'relation_get',
     'relation_ids',
     'relation_set',
@@ -49,7 +49,8 @@ class TestPeerStorage(TestCase):
 
     def test_peer_retrieve_no_relation(self):
         self.relation_ids.return_value = []
-        self.assertRaises(ValueError, peerstorage.peer_retrieve, 'key', relation_name=self.fake_relation_name)
+        peerstorage.peer_retrieve('key', self.fake_relation_name)
+        self.relation_get.assert_not_called()
 
     def test_peer_retrieve_with_relation(self):
         self.relation_ids.return_value = FAKE_RELATION_IDS
@@ -58,7 +59,8 @@ class TestPeerStorage(TestCase):
 
     def test_peer_store_no_relation(self):
         self.relation_ids.return_value = []
-        self.assertRaises(ValueError, peerstorage.peer_store, 'key', 'value', relation_name=self.fake_relation_name)
+        peerstorage.peer_store('key', 'value', self.fake_relation_name)
+        self.relation_set.assert_not_called()
 
     def test_peer_store_with_relation(self):
         self.relation_ids.return_value = FAKE_RELATION_IDS
@@ -76,17 +78,7 @@ class TestPeerStorage(TestCase):
         self.relation_set.assert_called_with(relation_settings={'key1': 'value1'})
 
     @patch.object(peerstorage, 'peer_store')
-    def test_peer_store_and_set_no_relation(self, peer_store):
-        self.is_relation_made.return_value = False
-        peerstorage.peer_store_and_set(relation_id='db', kwarg1='kwarg1_v')
-        self.relation_set.assert_called_with(relation_id='db',
-                                             relation_settings={},
-                                             kwarg1='kwarg1_v')
-        peer_store.assert_not_called()
-
-    @patch.object(peerstorage, 'peer_store')
     def test_peer_store_and_set_kwargs(self, peer_store):
-        self.is_relation_made.return_value = True
         peerstorage.peer_store_and_set(relation_id='db', kwarg1='kwarg1_v')
         self.relation_set.assert_called_with(relation_id='db',
                                              relation_settings={},
@@ -96,7 +88,6 @@ class TestPeerStorage(TestCase):
 
     @patch.object(peerstorage, 'peer_store')
     def test_peer_store_and_rel_settings(self, peer_store):
-        self.is_relation_made.return_value = True
         rel_setting = {
             'rel_set1': 'relset1_v'
         }
@@ -109,7 +100,6 @@ class TestPeerStorage(TestCase):
 
     @patch.object(peerstorage, 'peer_store')
     def test_peer_store_and_set(self, peer_store):
-        self.is_relation_made.return_value = True
         rel_setting = {
             'rel_set1': 'relset1_v'
         }
