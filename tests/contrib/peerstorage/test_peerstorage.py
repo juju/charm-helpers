@@ -124,10 +124,52 @@ class TestPeerStorage(TestCase):
         }
         peerstorage.peer_store_and_set(relation_id='db',
                                        relation_settings=rel_setting,
-                                       kwarg1='kwarg1_v')
+                                       kwarg1='kwarg1_v',
+                                       delimiter='+')
         self.relation_set.assert_called_with(relation_id='db',
                                              relation_settings=rel_setting,
                                              kwarg1='kwarg1_v')
-        calls = [call('db_rel_set1', 'relset1_v', relation_name='cluster'),
-                 call('db_kwarg1', 'kwarg1_v', relation_name='cluster')]
+        calls = [call('db+rel_set1', 'relset1_v', relation_name='cluster'),
+                 call('db+kwarg1', 'kwarg1_v', relation_name='cluster')]
         peer_store.assert_has_calls(calls, any_order=True)
+
+    @patch.object(peerstorage, 'peer_retrieve')
+    def test_peer_retrieve_by_prefix(self, peer_retrieve):
+        rel_id = 'db:2'
+        settings = {
+            'user': 'bob',
+            'pass': 'reallyhardpassword',
+            'host': 'myhost',
+        }
+        peer_settings = {rel_id + '_' + k: v for k, v in settings.items()}
+        peer_retrieve.return_value = peer_settings
+        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id), settings)
+
+    @patch.object(peerstorage, 'peer_retrieve')
+    def test_peer_retrieve_by_prefix_exc_list(self, peer_retrieve):
+        rel_id = 'db:2'
+        settings = {
+            'user': 'bob',
+            'pass': 'reallyhardpassword',
+            'host': 'myhost',
+        }
+        peer_settings = {rel_id + '_' + k: v for k, v in settings.items()}
+        del settings['host']
+        peer_retrieve.return_value = peer_settings
+        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id,
+                                                              exc_list=['host']),
+                          settings)
+
+    @patch.object(peerstorage, 'peer_retrieve')
+    def test_peer_retrieve_by_prefix_inc_list(self, peer_retrieve):
+        rel_id = 'db:2'
+        settings = {
+            'user': 'bob',
+            'pass': 'reallyhardpassword',
+            'host': 'myhost',
+        }
+        peer_settings = {rel_id + '_' + k: v for k, v in settings.items()}
+        peer_retrieve.return_value = peer_settings
+        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id,
+                                                              inc_list=['host']),
+                          {'host': 'myhost'})
