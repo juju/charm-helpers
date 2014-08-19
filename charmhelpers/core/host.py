@@ -13,6 +13,7 @@ import string
 import subprocess
 import hashlib
 import shutil
+#from charmhelpers.fetch import apt_cache
 from contextlib import contextmanager
 
 from collections import OrderedDict
@@ -332,13 +333,9 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
 
     '''
     import apt_pkg
+    from charmhelpers.fetch import apt_cache
     if not pkgcache:
-        apt_pkg.init()
-        # Force Apt to build its cache in memory. That way we avoid race
-        # conditions with other applications building the cache in the same
-        # place.
-        apt_pkg.config.set("Dir::Cache::pkgcache", "")
-        pkgcache = apt_pkg.Cache()
+        pkgcache = apt_cache()
     pkg = pkgcache[package]
     return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
 
