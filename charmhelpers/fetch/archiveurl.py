@@ -1,6 +1,9 @@
 import os
 import urllib2
+from urllib import urlretrieve
 import urlparse
+import hashlib
+import pdb
 
 from charmhelpers.fetch import (
     BaseFetchHandler,
@@ -61,3 +64,32 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return extract(dld_file)
+
+    # Mandatory file validation via Sha1 or MD5 hashing.
+    def download_and_validate(self, url, hashsum, validate="sha1"):
+        if validate == 'sha1' and len(hashsum) != 40:
+            raise ValueError("HashSum must be = 40 characters when using sha1"
+                             " validation")
+        if validate == 'md5' and len(hashsum) != 32:
+            raise ValueError("HashSum must be = 32 characters when using md5"
+                             " validation")
+        #pdb.set_trace()
+        tempfile, headers = urlretrieve(url)
+        self.validate_file(tempfile, hashsum, validate)
+        return tempfile
+
+    # Predicate method that returns status of hash matching expected hash.
+    def validate_file(self, source, hashsum, vmethod='sha1'):
+        if vmethod != 'sha1' and vmethod != 'md5':
+            raise ValueError("Validation Method not supported")
+
+        if vmethod == 'md5':
+            m = hashlib.md5()
+        if vmethod == 'sha1':
+            m = hashlib.sha1()
+        with open(source) as f:
+            for line in f:
+                m.update(line)
+        if hashsum != m.hexdigest():
+            msg = "Hash Mismatch on {} expected {} got {}"
+            raise ValueError(msg.format(source, hashsum, m.hexdigest()))
