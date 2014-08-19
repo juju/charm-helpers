@@ -3,7 +3,6 @@ import urllib2
 from urllib import urlretrieve
 import urlparse
 import hashlib
-import pdb
 
 from charmhelpers.fetch import (
     BaseFetchHandler,
@@ -73,7 +72,6 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         if validate == 'md5' and len(hashsum) != 32:
             raise ValueError("HashSum must be = 32 characters when using md5"
                              " validation")
-        #pdb.set_trace()
         tempfile, headers = urlretrieve(url)
         self.validate_file(tempfile, hashsum, validate)
         return tempfile
