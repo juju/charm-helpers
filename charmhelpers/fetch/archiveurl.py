@@ -14,7 +14,17 @@ from charmhelpers.payload.archive import (
 )
 from charmhelpers.core.host import mkdir
 
+"""
+This class is a plugin for charmhelpers.fetch.install_remote.
 
+It grabs, validates and installs remote archives fetched over "http", "https", "ftp" or "file" protocols. The contents of the archive are installed in $CHARM_DIR/fetched/.
+
+Example usage:
+install_remote("https://example.com/some/archive.tar.gz")
+# Installs the contents of archive.tar.gz in $CHARM_DIR/fetched/.
+
+See charmhelpers.fetch.archiveurl.get_archivehandler for supported archive types.
+"""
 class ArchiveUrlFetchHandler(BaseFetchHandler):
     """Handler for archives via generic URLs"""
     def can_handle(self, source):
