@@ -13,7 +13,6 @@ import string
 import subprocess
 import hashlib
 import shutil
-#from charmhelpers.fetch import apt_cache
 from contextlib import contextmanager
 
 from collections import OrderedDict
