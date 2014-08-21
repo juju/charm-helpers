@@ -202,6 +202,27 @@ def apt_hold(packages, fatal=False):
 
 
 def add_source(source, key=None):
+    """Add a package source to this system.
+
+    @param source: a URL or sources.list entry, as supported by
+    add-apt-repository(1). Examples:
+        ppa:charmers/example
+        deb https://stub:key@private.example.com/ubuntu trusty main
+
+    In addition:
+        'proposed:' may be used to enable the standard 'proposed'
+        pocket for the release.
+        'cloud:' may be used to activate official cloud archive pockets,
+        such as 'cloud:icehouse'
+
+    @param key: A key to be added to the system's APT keyring and used
+    to verify the signatures on packages. Ideally, this should be an
+    ASCII format GPG public key including the block headers. A GPG key
+    id may also be used, but be aware that only insecure protocols are
+    available to retrieve the actual public key from a public keyserver
+    placing your Juju environment at risk. ppa and cloud archive keys
+    are securely added automtically, so sould not be provided.
+    """
     if source is None:
         log('Source is not present. Skipping')
         return
@@ -252,7 +273,8 @@ def configure_sources(update=False,
     Configure multiple sources from charm configuration.
 
     The lists are encoded as yaml fragments in the configuration.
-    The frament needs to be included as a string.
+    The frament needs to be included as a string. Sources and their
+    corresponding keys are of the types supported by add_source().
 
     Example config:
         install_sources: |
