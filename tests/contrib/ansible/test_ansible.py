@@ -125,12 +125,18 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+        patcher = mock.patch.object(charmhelpers.contrib.ansible.os,
+                                    'environ', {})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_calls_ansible_playbook(self):
         charmhelpers.contrib.ansible.apply_playbook(
             'playbooks/dependencies.yaml')
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'])
+            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'],
+            env={'PYTHONUNBUFFERED': '1'})
 
     def test_writes_vars_file(self):
         self.assertFalse(os.path.exists(self.vars_path))
@@ -183,7 +189,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
-            '--tags', 'install,somethingelse'])
+            '--tags', 'install,somethingelse'], env={'PYTHONUNBUFFERED': '1'})
 
     def test_hooks_executes_playbook_with_tag(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
@@ -195,7 +201,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.assertEqual(foo.call_count, 1)
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
-            '--tags', 'foo'])
+            '--tags', 'foo'], env={'PYTHONUNBUFFERED': '1'})
 
     def test_specifying_ansible_handled_hooks(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks(
@@ -205,4 +211,4 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
-            '--tags', 'start'])
+            '--tags', 'start'], env={'PYTHONUNBUFFERED': '1'})
