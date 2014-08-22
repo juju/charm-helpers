@@ -194,6 +194,11 @@ AMQP_NOVA_CONFIG = {
     'nova-rabbit-vhost': 'foo',
 }
 
+HAPROXY_CONFIG = {
+    'haproxy-server-timeout': 50000,
+    'haproxy-client-timeout': 50000,
+}
+
 CEPH_RELATION = {
     'ceph:0': {
         'ceph/0': {
@@ -859,6 +864,50 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
+        '''Test haproxy context with all relation data and timeout'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'cluster-peer0.localnet'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        self.config.side_effect = fake_config(HAPROXY_CONFIG)
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'units': {
+                'peer-0': 'cluster-peer0.localnet',
+                'peer-1': 'cluster-peer1.localnet',
+                'peer-2': 'cluster-peer2.localnet',
+            },
+
+            'local_host': '127.0.0.1',
+            'haproxy-server-timeout': 50000,
+            'haproxy-client-timeout': 50000,
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
     def test_haproxy_context_with_data_ipv6(
             self, local_unit, unit_get, get_ipv6_addr):
@@ -881,8 +930,9 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
         self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
-        self.config.side_effect = [True, None, True]
+        self.config.side_effect = [True, None, None, None, True]
         haproxy = context.HAProxyContext()
+
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
