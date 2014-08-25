@@ -17,6 +17,5 @@ testtools
 Tempita==0.5.1
 bzr+http://bazaar.launchpad.net/~yellow/python-shelltoolbox/trunk@17#egg=shelltoolbox
 http://alastairs-place.net/projects/netifaces/netifaces-0.6.tar.gz
-netaddr==0.7.5
 bzr==2.6.0
 Jinja2==2.7.2

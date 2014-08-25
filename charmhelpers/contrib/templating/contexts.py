@@ -40,13 +40,22 @@ def update_relations(context, namespace_separator=':'):
         relations = charmhelpers.core.hookenv.relations_of_type(relation_type)
         relations = [dict_keys_without_hyphens(rel) for rel in relations]
 
-    if 'relations_deprecated' not in context:
-        context['relations_deprecated'] = {}
-    if relation_type is not None:
-        relation_type = relation_type.replace('-', '_')
-        context['relations_deprecated'][relation_type] = relations
+    context['relations_full'] = charmhelpers.core.hookenv.relations()
 
-    context['relations'] = charmhelpers.core.hookenv.relations()
+    # the hookenv.relations() data structure is effectively unusable in
+    # templates and other contexts when trying to access relation data other
+    # than the current relation. So provide a more useful structure that works
+    # with any hook
+    local_unit = charmhelpers.core.hookenv.local_unit()
+    relations = {}
+    for rname, rids in context['relations_full'].items():
+        relations[rname] = {}
+        for rid, rdata in rids.items():
+            data = rdata.copy()
+            if local_unit in rdata:
+                data.pop(local_unit)
+            relations[rname][rid] = data
+    context['relations'] = relations
 
 
 def juju_state_to_yaml(yaml_path, namespace_separator=':',

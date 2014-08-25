@@ -1,0 +1,531 @@
+import mock
+import unittest
+from charmhelpers.core import hookenv
+from charmhelpers.core import services
+
+
+class TestServiceManager(unittest.TestCase):
+    def setUp(self):
+        self.pcharm_dir = mock.patch.object(hookenv, 'charm_dir')
+        self.mcharm_dir = self.pcharm_dir.start()
+        self.mcharm_dir.return_value = 'charm_dir'
+
+    def tearDown(self):
+        self.pcharm_dir.stop()
+
+    def test_register(self):
+        manager = services.ServiceManager([
+            {'service': 'service1',
+             'foo': 'bar'},
+            {'service': 'service2',
+             'qux': 'baz'},
+        ])
+        self.assertEqual(manager.services, {
+            'service1': {'service': 'service1',
+                         'foo': 'bar'},
+            'service2': {'service': 'service2',
+                         'qux': 'baz'},
+        })
+
+    @mock.patch.object(services.ServiceManager, 'reconfigure_services')
+    @mock.patch.object(services.ServiceManager, 'stop_services')
+    @mock.patch.object(hookenv, 'hook_name')
+    def test_manage_stop(self, hook_name, stop_services, reconfigure_services):
+        manager = services.ServiceManager()
+        hook_name.return_value = 'stop'
+        manager.manage()
+        stop_services.assert_called_once_with()
+        assert not reconfigure_services.called
+
+    @mock.patch.object(services.ServiceManager, 'provide_data')
+    @mock.patch.object(services.ServiceManager, 'reconfigure_services')
+    @mock.patch.object(services.ServiceManager, 'stop_services')
+    @mock.patch.object(hookenv, 'hook_name')
+    def test_manage_other(self, hook_name, stop_services, reconfigure_services, provide_data):
+        manager = services.ServiceManager()
+        hook_name.return_value = 'config-changed'
+        manager.manage()
+        assert not stop_services.called
+        reconfigure_services.assert_called_once_with()
+        provide_data.assert_called_once_with()
+
+    @mock.patch.object(services.ServiceManager, 'save_ready')
+    @mock.patch.object(services.ServiceManager, 'fire_event')
+    @mock.patch.object(services.ServiceManager, 'is_ready')
+    def test_reconfigure_ready(self, is_ready, fire_event, save_ready):
+        manager = services.ServiceManager([
+            {'service': 'service1'}, {'service': 'service2'}])
+        is_ready.return_value = True
+        manager.reconfigure_services()
+        is_ready.assert_has_calls([
+            mock.call('service1'),
+            mock.call('service2'),
+        ], any_order=True)
+        fire_event.assert_has_calls([
+            mock.call('data_ready', 'service1'),
+            mock.call('start', 'service1', default=[
+                services.service_restart,
+                services.manage_ports]),
+        ], any_order=False)
+        fire_event.assert_has_calls([
+            mock.call('data_ready', 'service2'),
+            mock.call('start', 'service2', default=[
+                services.service_restart,
+                services.manage_ports]),
+        ], any_order=False)
+        save_ready.assert_has_calls([
+            mock.call('service1'),
+            mock.call('service2'),
+        ], any_order=True)
+
+    @mock.patch.object(services.ServiceManager, 'save_ready')
+    @mock.patch.object(services.ServiceManager, 'fire_event')
+    @mock.patch.object(services.ServiceManager, 'is_ready')
+    def test_reconfigure_ready_list(self, is_ready, fire_event, save_ready):
+        manager = services.ServiceManager([
+            {'service': 'service1'}, {'service': 'service2'}])
+        is_ready.return_value = True
+        manager.reconfigure_services('service3', 'service4')
+        self.assertEqual(is_ready.call_args_list, [
+            mock.call('service3'),
+            mock.call('service4'),
+        ])
+        self.assertEqual(fire_event.call_args_list, [
+            mock.call('data_ready', 'service3'),
+            mock.call('start', 'service3', default=[
+                services.service_restart,
+                services.open_ports]),
+            mock.call('data_ready', 'service4'),
+            mock.call('start', 'service4', default=[
+                services.service_restart,
+                services.open_ports]),
+        ])
+        self.assertEqual(save_ready.call_args_list, [
+            mock.call('service3'),
+            mock.call('service4'),
+        ])
+
+    @mock.patch.object(services.ServiceManager, 'save_lost')
+    @mock.patch.object(services.ServiceManager, 'fire_event')
+    @mock.patch.object(services.ServiceManager, 'was_ready')
+    @mock.patch.object(services.ServiceManager, 'is_ready')
+    def test_reconfigure_not_ready(self, is_ready, was_ready, fire_event, save_lost):
+        manager = services.ServiceManager([
+            {'service': 'service1'}, {'service': 'service2'}])
+        is_ready.return_value = False
+        was_ready.return_value = False
+        manager.reconfigure_services()
+        is_ready.assert_has_calls([
+            mock.call('service1'),
+            mock.call('service2'),
+        ], any_order=True)
+        fire_event.assert_has_calls([
+            mock.call('stop', 'service1', default=[
+                services.close_ports,
+                services.service_stop]),
+            mock.call('stop', 'service2', default=[
+                services.close_ports,
+                services.service_stop]),
+        ], any_order=True)
+        save_lost.assert_has_calls([
+            mock.call('service1'),
+            mock.call('service2'),
+        ], any_order=True)
+
+    @mock.patch.object(services.ServiceManager, 'save_lost')
+    @mock.patch.object(services.ServiceManager, 'fire_event')
+    @mock.patch.object(services.ServiceManager, 'was_ready')
+    @mock.patch.object(services.ServiceManager, 'is_ready')
+    def test_reconfigure_no_longer_ready(self, is_ready, was_ready, fire_event, save_lost):
+        manager = services.ServiceManager([
+            {'service': 'service1'}, {'service': 'service2'}])
+        is_ready.return_value = False
+        was_ready.return_value = True
+        manager.reconfigure_services()
+        is_ready.assert_has_calls([
+            mock.call('service1'),
+            mock.call('service2'),
+        ], any_order=True)
+        fire_event.assert_has_calls([
+            mock.call('data_lost', 'service1'),
+            mock.call('stop', 'service1', default=[
+                services.close_ports,
+                services.service_stop]),
+        ], any_order=False)
+        fire_event.assert_has_calls([
+            mock.call('data_lost', 'service2'),
+            mock.call('stop', 'service2', default=[
+                services.close_ports,
+                services.service_stop]),
+        ], any_order=False)
+        save_lost.assert_has_calls([
+            mock.call('service1'),
+            mock.call('service2'),
+        ], any_order=True)
+
+    @mock.patch.object(services.ServiceManager, 'fire_event')
+    def test_stop_services(self, fire_event):
+        manager = services.ServiceManager([
+            {'service': 'service1'}, {'service': 'service2'}])
+        manager.stop_services()
+        fire_event.assert_has_calls([
+            mock.call('stop', 'service1', default=[
+                services.close_ports,
+                services.service_stop]),
+            mock.call('stop', 'service2', default=[
+                services.close_ports,
+                services.service_stop]),
+        ], any_order=True)
+
+    @mock.patch.object(services.ServiceManager, 'fire_event')
+    def test_stop_services_list(self, fire_event):
+        manager = services.ServiceManager([
+            {'service': 'service1'}, {'service': 'service2'}])
+        manager.stop_services('service3', 'service4')
+        self.assertEqual(fire_event.call_args_list, [
+            mock.call('stop', 'service3', default=[
+                services.close_ports,
+                services.service_stop]),
+            mock.call('stop', 'service4', default=[
+                services.close_ports,
+                services.service_stop]),
+        ])
+
+    def test_get_service(self):
+        service = {'service': 'test', 'test': 'test_service'}
+        manager = services.ServiceManager([service])
+        self.assertEqual(manager.get_service('test'), service)
+
+    def test_get_service_not_registered(self):
+        service = {'service': 'test', 'test': 'test_service'}
+        manager = services.ServiceManager([service])
+        self.assertRaises(KeyError, manager.get_service, 'foo')
+
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_fire_event_default(self, get_service):
+        get_service.return_value = {}
+        cb = mock.Mock()
+        manager = services.ServiceManager()
+        manager.fire_event('event', 'service', cb)
+        cb.assert_called_once_with('service')
+
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_fire_event_default_list(self, get_service):
+        get_service.return_value = {}
+        cb = mock.Mock()
+        manager = services.ServiceManager()
+        manager.fire_event('event', 'service', [cb])
+        cb.assert_called_once_with('service')
+
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_fire_event_simple_callback(self, get_service):
+        cb = mock.Mock()
+        dcb = mock.Mock()
+        get_service.return_value = {'event': cb}
+        manager = services.ServiceManager()
+        manager.fire_event('event', 'service', dcb)
+        assert not dcb.called
+        cb.assert_called_once_with('service')
+
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_fire_event_simple_callback_list(self, get_service):
+        cb = mock.Mock()
+        dcb = mock.Mock()
+        get_service.return_value = {'event': [cb]}
+        manager = services.ServiceManager()
+        manager.fire_event('event', 'service', dcb)
+        assert not dcb.called
+        cb.assert_called_once_with('service')
+
+    @mock.patch.object(services.ManagerCallback, '__call__')
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_fire_event_manager_callback(self, get_service, mcall):
+        cb = services.ManagerCallback()
+        dcb = mock.Mock()
+        get_service.return_value = {'event': cb}
+        manager = services.ServiceManager()
+        manager.fire_event('event', 'service', dcb)
+        assert not dcb.called
+        mcall.assert_called_once_with(manager, 'service', 'event')
+
+    @mock.patch.object(services.ManagerCallback, '__call__')
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_fire_event_manager_callback_list(self, get_service, mcall):
+        cb = services.ManagerCallback()
+        dcb = mock.Mock()
+        get_service.return_value = {'event': [cb]}
+        manager = services.ServiceManager()
+        manager.fire_event('event', 'service', dcb)
+        assert not dcb.called
+        mcall.assert_called_once_with(manager, 'service', 'event')
+
+    @mock.patch.object(services.ServiceManager, 'get_service')
+    def test_is_ready(self, get_service):
+        get_service.side_effect = [
+            {},
+            {'required_data': [True]},
+            {'required_data': [False]},
+            {'required_data': [True, False]},
+        ]
+        manager = services.ServiceManager()
+        assert manager.is_ready('foo')
+        assert manager.is_ready('bar')
+        assert not manager.is_ready('foo')
+        assert not manager.is_ready('foo')
+        get_service.assert_has_calls([mock.call('foo'), mock.call('bar')])
+
+    def test_load_ready_file_short_circuit(self):
+        manager = services.ServiceManager()
+        manager._ready = 'foo'
+        manager._load_ready_file()
+        self.assertEqual(manager._ready, 'foo')
+
+    @mock.patch('os.path.exists')
+    @mock.patch.object(services.base, 'open', create=True)
+    def test_load_ready_file_new(self, mopen, exists):
+        manager = services.ServiceManager()
+        exists.return_value = False
+        manager._load_ready_file()
+        self.assertEqual(manager._ready, set())
+        assert not mopen.called
+
+    @mock.patch('json.load')
+    @mock.patch('os.path.exists')
+    @mock.patch.object(services.base, 'open', create=True)
+    def test_load_ready_file(self, mopen, exists, jload):
+        manager = services.ServiceManager()
+        exists.return_value = True
+        jload.return_value = ['bar']
+        manager._load_ready_file()
+        self.assertEqual(manager._ready, set(['bar']))
+        exists.assert_called_once_with('charm_dir/READY-SERVICES.json')
+        mopen.assert_called_once_with('charm_dir/READY-SERVICES.json')
+
+    @mock.patch('json.dump')
+    @mock.patch.object(services.base, 'open', create=True)
+    def test_save_ready_file(self, mopen, jdump):
+        manager = services.ServiceManager()
+        manager._save_ready_file()
+        assert not mopen.called
+        manager._ready = set(['foo'])
+        manager._save_ready_file()
+        mopen.assert_called_once_with('charm_dir/READY-SERVICES.json', 'w')
+        jdump.assert_called_once_with(['foo'], mopen.return_value.__enter__())
+
+    @mock.patch.object(services.base.ServiceManager, '_save_ready_file')
+    @mock.patch.object(services.base.ServiceManager, '_load_ready_file')
+    def test_save_ready(self, _lrf, _srf):
+        manager = services.ServiceManager()
+        manager._ready = set(['foo'])
+        manager.save_ready('bar')
+        _lrf.assert_called_once_with()
+        self.assertEqual(manager._ready, set(['foo', 'bar']))
+        _srf.assert_called_once_with()
+
+    @mock.patch.object(services.base.ServiceManager, '_save_ready_file')
+    @mock.patch.object(services.base.ServiceManager, '_load_ready_file')
+    def test_save_lost(self, _lrf, _srf):
+        manager = services.ServiceManager()
+        manager._ready = set(['foo', 'bar'])
+        manager.save_lost('bar')
+        _lrf.assert_called_once_with()
+        self.assertEqual(manager._ready, set(['foo']))
+        _srf.assert_called_once_with()
+        manager.save_lost('bar')
+        self.assertEqual(manager._ready, set(['foo']))
+
+    @mock.patch.object(services.base.ServiceManager, '_save_ready_file')
+    @mock.patch.object(services.base.ServiceManager, '_load_ready_file')
+    def test_was_ready(self, _lrf, _srf):
+        manager = services.ServiceManager()
+        manager._ready = set()
+        manager.save_ready('foo')
+        manager.save_ready('bar')
+        assert manager.was_ready('foo')
+        assert manager.was_ready('bar')
+        manager.save_lost('bar')
+        assert manager.was_ready('foo')
+        assert not manager.was_ready('bar')
+
+    @mock.patch.object(services.base.hookenv, 'relation_set')
+    @mock.patch.object(services.base.hookenv, 'hook_name')
+    def test_provide_data_no_match(self, hook_name, relation_set):
+        provider = mock.Mock()
+        provider.name = 'provided'
+        manager = services.ServiceManager([
+            {'service': 'service', 'provided_data': [provider]}
+        ])
+        hook_name.return_value = 'not-provided-relation-joined'
+        manager.provide_data()
+        assert not provider.provide_data.called
+
+        hook_name.return_value = 'provided-relation-broken'
+        manager.provide_data()
+        assert not provider.provide_data.called
+
+    @mock.patch.object(services.base.hookenv, 'relation_set')
+    @mock.patch.object(services.base.hookenv, 'hook_name')
+    def test_provide_data_not_ready(self, hook_name, relation_set):
+        provider = mock.Mock()
+        provider.name = 'provided'
+        data = provider.provide_data.return_value = {'data': True}
+        provider._is_ready.return_value = False
+        manager = services.ServiceManager([
+            {'service': 'service', 'provided_data': [provider]}
+        ])
+        hook_name.return_value = 'provided-relation-joined'
+        manager.provide_data()
+        assert not relation_set.called
+        provider._is_ready.assert_called_once_with(data)
+
+    @mock.patch.object(services.base.hookenv, 'relation_set')
+    @mock.patch.object(services.base.hookenv, 'hook_name')
+    def test_provide_data_ready(self, hook_name, relation_set):
+        provider = mock.Mock()
+        provider.name = 'provided'
+        data = provider.provide_data.return_value = {'data': True}
+        provider._is_ready.return_value = True
+        manager = services.ServiceManager([
+            {'service': 'service', 'provided_data': [provider]}
+        ])
+        hook_name.return_value = 'provided-relation-changed'
+        manager.provide_data()
+        relation_set.assert_called_once_with(None, data)
+
+
+class TestRelationContext(unittest.TestCase):
+    def setUp(self):
+        self.phookenv = mock.patch.object(services.helpers, 'hookenv')
+        self.mhookenv = self.phookenv.start()
+        self.mhookenv.relation_ids.return_value = []
+        self.context = services.RelationContext()
+        self.context.name = 'http'
+        self.context.interface = 'http'
+        self.context.required_keys = ['foo', 'bar']
+        self.mhookenv.reset_mock()
+
+    def tearDown(self):
+        self.phookenv.stop()
+
+    def test_no_relations(self):
+        self.context.get_data()
+        self.assertFalse(self.context.is_ready())
+        self.assertEqual(self.context, {})
+        self.mhookenv.relation_ids.assert_called_once_with('http')
+
+    def test_no_units(self):
+        self.mhookenv.relation_ids.return_value = ['nginx']
+        self.mhookenv.related_units.return_value = []
+        self.context.get_data()
+        self.assertFalse(self.context.is_ready())
+        self.assertEqual(self.context, {'http': []})
+
+    def test_incomplete(self):
+        self.mhookenv.relation_ids.return_value = ['nginx', 'apache']
+        self.mhookenv.related_units.side_effect = lambda i: [i+'/0']
+        self.mhookenv.relation_get.side_effect = [{}, {'foo': '1'}]
+        self.context.get_data()
+        self.assertFalse(bool(self.context))
+        self.assertEqual(self.mhookenv.relation_get.call_args_list, [
+            mock.call(rid='apache', unit='apache/0'),
+            mock.call(rid='nginx', unit='nginx/0'),
+        ])
+
+    def test_complete(self):
+        self.mhookenv.relation_ids.return_value = ['nginx', 'apache', 'tomcat']
+        self.mhookenv.related_units.side_effect = lambda i: [i+'/0']
+        self.mhookenv.relation_get.side_effect = [{'foo': '1'}, {'foo': '2', 'bar': '3'}, {}]
+        self.context.get_data()
+        self.assertTrue(self.context.is_ready())
+        self.assertEqual(self.context, {'http': [
+            {
+                'foo': '2',
+                'bar': '3',
+            },
+        ]})
+        self.mhookenv.relation_ids.assert_called_with('http')
+        self.assertEqual(self.mhookenv.relation_get.call_args_list, [
+            mock.call(rid='apache', unit='apache/0'),
+            mock.call(rid='nginx', unit='nginx/0'),
+            mock.call(rid='tomcat', unit='tomcat/0'),
+        ])
+
+    def test_provide(self):
+        self.assertEqual(self.context.provide_data(), {})
+
+
+class TestTemplateCallback(unittest.TestCase):
+    @mock.patch.object(services.helpers, 'templating')
+    def test_template_defaults(self, mtemplating):
+        manager = mock.Mock(**{'get_service.return_value': {
+            'required_data': [{'foo': 'bar'}]}})
+        self.assertRaises(TypeError, services.template, source='foo.yml')
+        callback = services.template(source='foo.yml', target='bar.yml')
+        assert isinstance(callback, services.ManagerCallback)
+        assert not mtemplating.render.called
+        callback(manager, 'test', 'event')
+        mtemplating.render.assert_called_once_with(
+            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'root', 'root', 0444)
+
+    @mock.patch.object(services.helpers, 'templating')
+    def test_template_explicit(self, mtemplating):
+        manager = mock.Mock(**{'get_service.return_value': {
+            'required_data': [{'foo': 'bar'}]}})
+        callback = services.template(
+            source='foo.yml', target='bar.yml',
+            owner='user', group='group', perms=0555
+        )
+        assert isinstance(callback, services.ManagerCallback)
+        assert not mtemplating.render.called
+        callback(manager, 'test', 'event')
+        mtemplating.render.assert_called_once_with(
+            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'user', 'group', 0555)
+
+
+class TestPortsCallback(unittest.TestCase):
+    def setUp(self):
+        self.phookenv = mock.patch.object(services.base, 'hookenv')
+        self.mhookenv = self.phookenv.start()
+        self.mhookenv.relation_ids.return_value = []
+        self.mhookenv.charm_dir.return_value = 'charm_dir'
+        self.popen = mock.patch.object(services.base, 'open', create=True)
+        self.mopen = self.popen.start()
+
+    def tearDown(self):
+        self.phookenv.stop()
+        self.popen.stop()
+
+    def test_no_ports(self):
+        manager = mock.Mock(**{'get_service.return_value': {}})
+        services.PortManagerCallback()(manager, 'service', 'event')
+        assert not self.mhookenv.open_port.called
+        assert not self.mhookenv.close_port.called
+
+    def test_open_ports(self):
+        manager = mock.Mock(**{'get_service.return_value': {'ports': [1, 2]}})
+        services.open_ports(manager, 'service', 'start')
+        self.mhookenv.open_port.has_calls([mock.call(1), mock.call(2)])
+        assert not self.mhookenv.close_port.called
+
+    def test_close_ports(self):
+        manager = mock.Mock(**{'get_service.return_value': {'ports': [1, 2]}})
+        services.close_ports(manager, 'service', 'stop')
+        assert not self.mhookenv.open_port.called
+        self.mhookenv.close_port.has_calls([mock.call(1), mock.call(2)])
+
+    def test_close_old_ports(self):
+        self.mopen.return_value.read.return_value = '10,20'
+        manager = mock.Mock(**{'get_service.return_value': {'ports': [1, 2]}})
+        services.close_ports(manager, 'service', 'stop')
+        assert not self.mhookenv.open_port.called
+        self.mhookenv.close_port.has_calls([
+            mock.call(10),
+            mock.call(20),
+            mock.call(1),
+            mock.call(2)])
+
+
+if __name__ == '__main__':
+    unittest.main()

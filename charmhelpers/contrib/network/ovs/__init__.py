@@ -21,12 +21,16 @@ def del_bridge(name):
     subprocess.check_call(["ovs-vsctl", "--", "--if-exists", "del-br", name])
 
 
-def add_bridge_port(name, port):
+def add_bridge_port(name, port, promisc=False):
     ''' Add a port to the named openvswitch bridge '''
     log('Adding port {} to bridge {}'.format(port, name))
     subprocess.check_call(["ovs-vsctl", "--", "--may-exist", "add-port",
                            name, port])
     subprocess.check_call(["ip", "link", "set", port, "up"])
+    if promisc:
+        subprocess.check_call(["ip", "link", "set", port, "promisc", "on"])
+    else:
+        subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
 def del_bridge_port(name, port):
@@ -35,6 +39,7 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ovs-vsctl", "--", "--if-exists", "del-port",
                            name, port])
     subprocess.check_call(["ip", "link", "set", port, "down"])
+    subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
 def set_manager(manager):

@@ -35,7 +35,7 @@ userinstall:
 
 test:
 	@echo Starting tests...
-	@$(PYTHON) /usr/bin/nosetests --nologcapture tests/
+	@$(PYTHON) /usr/bin/nosetests -s --nologcapture tests/
 
 ftest:
 	@echo Starting fast tests...

@@ -41,12 +41,12 @@ class ClusterUtilsTests(TestCase):
         self.assertFalse(cluster_utils.is_clustered())
 
     @patch('subprocess.check_output')
-    def test_is_leader(self, check_output):
+    def test_is_crm_leader(self, check_output):
         '''It determines its unit is leader'''
         self.get_unit_hostname.return_value = 'node1'
         crm = 'resource vip is running on: node1'
         check_output.return_value = crm
-        self.assertTrue(cluster_utils.is_leader('vip'))
+        self.assertTrue(cluster_utils.is_crm_leader('vip'))
 
     @patch('subprocess.check_output')
     def test_is_not_leader(self, check_output):
@@ -54,13 +54,13 @@ class ClusterUtilsTests(TestCase):
         self.get_unit_hostname.return_value = 'node1'
         crm = 'resource vip is running on: node2'
         check_output.return_value = crm
-        self.assertFalse(cluster_utils.is_leader('some_resource'))
+        self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
 
     @patch('subprocess.check_output')
-    def test_is_leader_no_cluster(self, check_output):
+    def test_is_crm_leader_no_cluster(self, check_output):
         '''It is not leader if there is no cluster up'''
         check_output.side_effect = CalledProcessError(1, 'crm')
-        self.assertFalse(cluster_utils.is_leader('vip'))
+        self.assertFalse(cluster_utils.is_crm_leader('vip'))
 
     def test_peer_units(self):
         '''It lists all peer units for cluster relation'''
@@ -68,6 +68,20 @@ class ClusterUtilsTests(TestCase):
         self.relation_ids.return_value = ['cluster:0']
         self.relation_list.return_value = peers
         self.assertEquals(peers, cluster_utils.peer_units())
+
+    def test_peer_ips(self):
+        '''Get a dict of peers and their ips'''
+        peers = {
+            'peer_node/1': '10.0.0.1',
+            'peer_node/2': '10.0.0.2',
+        }
+
+        def _relation_get(attr, rid, unit):
+            return peers[unit]
+        self.relation_ids.return_value = ['cluster:0']
+        self.relation_list.return_value = peers.keys()
+        self.relation_get.side_effect = _relation_get
+        self.assertEquals(peers, cluster_utils.peer_ips())
 
     @patch('os.getenv')
     def test_is_oldest_peer(self, getenv):
@@ -83,41 +97,41 @@ class ClusterUtilsTests(TestCase):
         getenv.return_value = 'peer_node/2'
         self.assertFalse(cluster_utils.oldest_peer(peers))
 
-    @patch.object(cluster_utils, 'is_leader')
+    @patch.object(cluster_utils, 'is_crm_leader')
     @patch.object(cluster_utils, 'is_clustered')
-    def test_is_eligible_leader_clustered(self, is_clustered, is_leader):
+    def test_is_elected_leader_clustered(self, is_clustered, is_crm_leader):
         '''It detects it is the eligible leader in a hacluster of units'''
         is_clustered.return_value = True
-        is_leader.return_value = True
-        self.assertTrue(cluster_utils.eligible_leader('vip'))
+        is_crm_leader.return_value = True
+        self.assertTrue(cluster_utils.is_elected_leader('vip'))
 
-    @patch.object(cluster_utils, 'is_leader')
+    @patch.object(cluster_utils, 'is_crm_leader')
     @patch.object(cluster_utils, 'is_clustered')
-    def test_not_eligible_leader_clustered(self, is_clustered, is_leader):
+    def test_not_is_elected_leader_clustered(self, is_clustered, is_crm_leader):
         '''It detects it is not the eligible leader in a hacluster of units'''
         is_clustered.return_value = True
-        is_leader.return_value = False
-        self.assertFalse(cluster_utils.eligible_leader('vip'))
+        is_crm_leader.return_value = False
+        self.assertFalse(cluster_utils.is_elected_leader('vip'))
 
     @patch.object(cluster_utils, 'oldest_peer')
     @patch.object(cluster_utils, 'peer_units')
     @patch.object(cluster_utils, 'is_clustered')
-    def test_is_eligible_leader_unclustered(self, is_clustered,
+    def test_is_is_elected_leader_unclustered(self, is_clustered,
                                             peer_units, oldest_peer):
         '''It detects it is the eligible leader in non-clustered peer group'''
         is_clustered.return_value = False
         oldest_peer.return_value = True
-        self.assertTrue(cluster_utils.eligible_leader('vip'))
+        self.assertTrue(cluster_utils.is_elected_leader('vip'))
 
     @patch.object(cluster_utils, 'oldest_peer')
     @patch.object(cluster_utils, 'peer_units')
     @patch.object(cluster_utils, 'is_clustered')
-    def test_not_eligible_leader_unclustered(self, is_clustered,
+    def test_not_is_elected_leader_unclustered(self, is_clustered,
                                              peer_units, oldest_peer):
         '''It detects it is not the eligible leader in non-clustered group'''
         is_clustered.return_value = False
         oldest_peer.return_value = False
-        self.assertFalse(cluster_utils.eligible_leader('vip'))
+        self.assertFalse(cluster_utils.is_elected_leader('vip'))
 
     def test_https_explict(self):
         '''It determines https is available if configured explicitly'''
@@ -206,8 +220,6 @@ class ClusterUtilsTests(TestCase):
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
             'vip': '10.0.0.1',
-            'vip_iface': 'eth1',
-            'vip_cidr': '19'
         }
 
         def _fake_config_get(setting):
@@ -222,8 +234,6 @@ class ClusterUtilsTests(TestCase):
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
             'vip': None,
-            'vip_iface': 'eth1',
-            'vip_cidr': '19'
         }
 
         def _fake_config_get(setting):
