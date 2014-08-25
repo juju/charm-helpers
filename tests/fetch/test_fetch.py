@@ -1,3 +1,4 @@
+from cStringIO import StringIO
 import subprocess
 
 from tests.helpers import patch_open
@@ -177,26 +178,54 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
             mock_file.write.assert_called_with(result)
 
     @patch('subprocess.check_call')
-    def test_add_source_http_and_key(self, check_call):
+    def test_add_source_http_and_key_id(self, check_call):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
-        key = "akey"
-        fetch.add_source(source=source, key=key)
+        key_id = "akey"
+        fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
-                  '--recv', key])
+            call(['apt-key', 'adv', '--keyserver',
+                  'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
         ])
 
     @patch('subprocess.check_call')
-    def test_add_source_https_and_key(self, check_call):
-        source = "http://USER:PASS@private-ppa.launchpad.net/project/awesome"
-        key = "GPGPGP"
-        fetch.add_source(source=source, key=key)
+    def test_add_source_https_and_key_id(self, check_call):
+        source = "https://USER:PASS@private-ppa.launchpad.net/project/awesome"
+        key_id = "GPGPGP"
+        fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
-                  '--recv', key])
+            call(['apt-key', 'adv', '--keyserver',
+                  'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
         ])
+
+    @patch('subprocess.check_call')
+    def test_add_source_http_and_key(self, check_call):
+        source = "http://archive.ubuntu.com/ubuntu raring-backports main"
+        key = '''
+            -----BEGIN PGP PUBLIC KEY BLOCK-----
+            [...]
+            -----END PGP PUBLIC KEY BLOCK-----
+            '''
+
+        received_args = []
+        received_key = StringIO()
+        def _check_call(arg, stdin=None):
+            '''side_effect to store the stdin passed to check_call process.'''
+            if stdin is not None:
+                received_args.extend(arg)
+                received_key.write(stdin.read())
+
+        with patch('subprocess.check_call',
+                   side_effect=_check_call) as check_call:
+            fetch.add_source(source=source, key=key)
+            check_call.assert_any_call(['add-apt-repository', '--yes', source])
+            self.assertEqual(['apt-key', 'add', '-'], received_args)
+            self.assertEqual(key, received_key.getvalue())
+
+    def test_add_unparsable_source(self):
+        source = "propsed"  # Minor typo
+        self.assertRaises(fetch.SourceConfigError, fetch.add_source, source)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
@@ -204,6 +233,20 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         config.side_effect = ['source', 'key']
         fetch.configure_sources()
         add_source.assert_called_with('source', 'key')
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_null_source(self, add_source, config):
+        config.side_effect = [None, None]
+        fetch.configure_sources()
+        self.assertEqual(add_source.call_count, 0)
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_empty_source(self, add_source, config):
+        config.side_effect = ['', '']
+        fetch.configure_sources()
+        self.assertEqual(add_source.call_count, 0)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')

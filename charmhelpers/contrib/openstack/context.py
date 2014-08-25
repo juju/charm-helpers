@@ -21,9 +21,11 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    relation_set,
     unit_get,
     unit_private_ip,
     ERROR,
+    INFO
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -40,6 +42,11 @@ from charmhelpers.contrib.hahelpers.apache import (
 
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
+)
+
+from charmhelpers.contrib.network.ip import (
+    get_address_in_network,
+    get_ipv6_addr,
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -134,7 +141,25 @@ class SharedDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name and user)')
             raise OSContextError
+
         ctxt = {}
+
+        # NOTE(jamespage) if mysql charm provides a network upon which
+        # access to the database should be made, reconfigure relation
+        # with the service units local address and defer execution
+        access_network = relation_get('access-network')
+        if access_network is not None:
+            if self.relation_prefix is not None:
+                hostname_key = "{}_hostname".format(self.relation_prefix)
+            else:
+                hostname_key = "hostname"
+            access_hostname = get_address_in_network(access_network,
+                                                     unit_get('private-address'))
+            set_hostname = relation_get(attribute=hostname_key,
+                                        unit=local_unit())
+            if set_hostname != access_hostname:
+                relation_set(relation_settings={hostname_key: access_hostname})
+                return ctxt  # Defer any further hook execution for now....
 
         password_setting = 'password'
         if self.relation_prefix:
@@ -340,10 +365,12 @@ class CephContext(OSContextGenerator):
         use_syslog = str(config('use-syslog')).lower()
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
-                mon_hosts.append(relation_get('private-address', rid=rid,
-                                              unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
+                ceph_addr = \
+                    relation_get('ceph-public-address', rid=rid, unit=unit) or \
+                    relation_get('private-address', rid=rid, unit=unit)
+                mon_hosts.append(ceph_addr)
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
@@ -377,7 +404,12 @@ class HAProxyContext(OSContextGenerator):
 
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
-        cluster_hosts[l_unit] = unit_get('private-address')
+        if config('prefer-ipv6'):
+            addr = get_ipv6_addr()
+        else:
+            addr = unit_get('private-address')
+        cluster_hosts[l_unit] = get_address_in_network(config('os-internal-network'),
+                                                       addr)
 
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
@@ -388,6 +420,16 @@ class HAProxyContext(OSContextGenerator):
         ctxt = {
             'units': cluster_hosts,
         }
+
+        if config('prefer-ipv6'):
+            ctxt['local_host'] = 'ip6-localhost'
+            ctxt['haproxy_host'] = '::'
+            ctxt['stat_port'] = ':::8888'
+        else:
+            ctxt['local_host'] = '127.0.0.1'
+            ctxt['haproxy_host'] = '0.0.0.0'
+            ctxt['stat_port'] = ':8888'
+
         if len(cluster_hosts.keys()) > 1:
             # Enable haproxy when we have enough peers.
             log('Ensuring haproxy enabled in /etc/default/haproxy.')
@@ -689,7 +731,7 @@ class SubordinateConfigContext(OSContextGenerator):
         self.interface = interface
 
     def __call__(self):
-        ctxt = {}
+        ctxt = {'sections': {}}
         for rid in relation_ids(self.interface):
             for unit in related_units(rid):
                 sub_config = relation_get('subordinate_configuration',
@@ -715,11 +757,26 @@ class SubordinateConfigContext(OSContextGenerator):
 
                     sub_config = sub_config[self.config_file]
                     for k, v in sub_config.iteritems():
-                        ctxt[k] = v
+                        if k == 'sections':
+                            for section, config_dict in v.iteritems():
+                                log("adding section '%s'" % (section))
+                                ctxt[k][section] = config_dict
+                        else:
+                            ctxt[k] = v
 
-        if not ctxt:
-            ctxt['sections'] = {}
+        log("%d section(s) found" % (len(ctxt['sections'])), level=INFO)
 
+        return ctxt
+
+
+class LogLevelContext(OSContextGenerator):
+
+    def __call__(self):
+        ctxt = {}
+        ctxt['debug'] = \
+            False if config('debug') is None else config('debug')
+        ctxt['verbose'] = \
+            False if config('verbose') is None else config('verbose')
         return ctxt
 
 

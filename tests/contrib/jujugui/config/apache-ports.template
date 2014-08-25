@@ -1,2 +1,0 @@
-NameVirtualHost *:{{port}}
-Listen {{port}}
