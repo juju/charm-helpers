@@ -138,7 +138,7 @@ def apt_cache(in_memory=True):
         apt_pkg.config.set("Dir::Cache::pkgcache", "")
         apt_pkg.config.set("Dir::Cache::srcpkgcache", "")
     return apt_pkg.Cache()
-    
+
 
 def apt_install(packages, options=None, fatal=False):
     """Install one or more packages"""
