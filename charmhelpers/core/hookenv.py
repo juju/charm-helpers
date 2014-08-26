@@ -203,14 +203,6 @@ class Config(dict):
         if os.path.exists(self.path):
             self.load_previous()
 
-    def __del__(self):
-        """Automatically save this ``Config`` to disk when the it goes
-        out of scope.
-
-        """
-        if self.implicit_save:
-            self.save()
-
     def load_previous(self, path=None):
         """Load previous copy of config from disk.
 
@@ -250,9 +242,13 @@ class Config(dict):
     def save(self):
         """Save this config to disk.
 
-        By default, ``save()`` is called automatically when the
-        instance goes out of scope. To disable implicit saves,
-        set ``implicit_save=False`` on this instance.
+        If the charm is using the :mod:`Services Framework <services.base>`
+        or :meth:'@hook <Hooks.hook>' decorator, this
+        is called automatically at the end of successful hook execution.
+        Otherwise, it should be called directly by user code.
+
+        To disable automatic saves, set ``implicit_save=False`` on this
+        instance.
 
         """
         if self._prev_dict:
@@ -492,6 +488,9 @@ class Hooks(object):
         hook_name = os.path.basename(args[0])
         if hook_name in self._hooks:
             self._hooks[hook_name]()
+            cfg = config()
+            if cfg.implicit_save:
+                cfg.save()
         else:
             raise UnregisteredHookError(hook_name)
 
