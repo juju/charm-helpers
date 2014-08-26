@@ -113,14 +113,6 @@ class ConfigTest(TestCase):
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
 
-    def test_implicit_save(self):
-        """Save in @hook"""
-        pass
-
-    def test_no_implicit_save(self):
-        """Don't save in @hook"""
-        pass
-
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
