@@ -117,15 +117,7 @@ class BaseFetchHandler(object):
 
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
-    import apt_pkg
-    apt_pkg.init()
-
-    # Tell apt to build an in-memory cache to prevent race conditions (if
-    # another process is already building the cache).
-    apt_pkg.config.set("Dir::Cache::pkgcache", "")
-    apt_pkg.config.set("Dir::Cache::srcpkgcache", "")
-
-    cache = apt_pkg.Cache()
+    cache = apt_cache()
     _pkgs = []
     for package in packages:
         try:
@@ -136,6 +128,16 @@ def filter_installed_packages(packages):
                 level='WARNING')
             _pkgs.append(package)
     return _pkgs
+
+
+def apt_cache(in_memory=True):
+    """Build and return an apt cache"""
+    import apt_pkg
+    apt_pkg.init()
+    if in_memory:
+        apt_pkg.config.set("Dir::Cache::pkgcache", "")
+        apt_pkg.config.set("Dir::Cache::srcpkgcache", "")
+    return apt_pkg.Cache()
 
 
 def apt_install(packages, options=None, fatal=False):
