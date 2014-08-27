@@ -30,7 +30,8 @@ class TestServiceManager(unittest.TestCase):
     @mock.patch.object(services.ServiceManager, 'reconfigure_services')
     @mock.patch.object(services.ServiceManager, 'stop_services')
     @mock.patch.object(hookenv, 'hook_name')
-    def test_manage_stop(self, hook_name, stop_services, reconfigure_services):
+    @mock.patch.object(hookenv, 'config')
+    def test_manage_stop(self, config, hook_name, stop_services, reconfigure_services):
         manager = services.ServiceManager()
         hook_name.return_value = 'stop'
         manager.manage()
@@ -41,13 +42,30 @@ class TestServiceManager(unittest.TestCase):
     @mock.patch.object(services.ServiceManager, 'reconfigure_services')
     @mock.patch.object(services.ServiceManager, 'stop_services')
     @mock.patch.object(hookenv, 'hook_name')
-    def test_manage_other(self, hook_name, stop_services, reconfigure_services, provide_data):
+    @mock.patch.object(hookenv, 'config')
+    def test_manage_other(self, config, hook_name, stop_services, reconfigure_services, provide_data):
         manager = services.ServiceManager()
         hook_name.return_value = 'config-changed'
         manager.manage()
         assert not stop_services.called
         reconfigure_services.assert_called_once_with()
         provide_data.assert_called_once_with()
+
+    @mock.patch.object(hookenv, 'config')
+    def test_manage_config_saved(self, config):
+        config = config.return_value
+        config.implicit_save = True
+        manager = services.ServiceManager()
+        manager.manage()
+        self.assertTrue(config.save.called)
+
+    @mock.patch.object(hookenv, 'config')
+    def test_manage_config_not_saved(self, config):
+        config = config.return_value
+        config.implicit_save = False
+        manager = services.ServiceManager()
+        manager.manage()
+        self.assertFalse(config.save.called)
 
     @mock.patch.object(services.ServiceManager, 'save_ready')
     @mock.patch.object(services.ServiceManager, 'fire_event')

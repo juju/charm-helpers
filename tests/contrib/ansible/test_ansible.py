@@ -11,6 +11,7 @@ import yaml
 
 
 import charmhelpers.contrib.ansible
+from charmhelpers.core import hookenv
 
 
 class InstallAnsibleSupportTestCase(unittest.TestCase):
@@ -185,7 +186,8 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', 'install,somethingelse'])
 
-    def test_hooks_executes_playbook_with_tag(self):
+    @mock.patch.object(hookenv, 'config')
+    def test_hooks_executes_playbook_with_tag(self, config):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
         foo = mock.MagicMock()
         hooks.register('foo', foo)
@@ -197,7 +199,8 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
             '--tags', 'foo'])
 
-    def test_specifying_ansible_handled_hooks(self):
+    @mock.patch.object(hookenv, 'config')
+    def test_specifying_ansible_handled_hooks(self, config):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks(
             'my/playbook.yaml', default_hooks=['start', 'stop'])
 

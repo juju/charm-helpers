@@ -38,8 +38,6 @@ Getting charm config values
 
       assert config['app-name'] == 'My App'
 
-      config.save()
-
 Checking if a config value has changed
 --------------------------------------
 
@@ -64,8 +62,6 @@ which triggers a ``config-changed`` hook::
       assert config['app-name'] == 'My New App'
       assert config.previous('app-name') == 'My App'
 
-      config.save()
-
 Saving arbitrary key/value data
 -------------------------------
 
@@ -85,12 +81,8 @@ invocations::
 
       config['mykey'] = 'myval'
 
-      config.save()
-
   @hooks.hook('config-changed')
   def config_changed():
       config = hookenv.config()
 
       assert config['mykey'] == 'myval'
-
-      config.save()
