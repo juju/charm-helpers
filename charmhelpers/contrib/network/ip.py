@@ -172,3 +172,23 @@ def get_ipv6_addr(iface="eth0"):
 
     except ValueError:
         raise ValueError("Invalid interface '%s'" % iface)
+
+
+def get_ipv4_addr(iface="eth0"):
+    """
+    Return the assigned IP address for a given interface, if any, or None.
+    """
+    if "/" in iface:
+        iface = iface.split("/")[-1]
+    try:
+        network_info = netifaces.ifaddresses(iface)
+    except ValueError:
+        # Interface does not exist
+        return None
+    try:
+        address = network_info[netifaces.AF_INET][0]["addr"]
+    except KeyError:
+        # Interface has no IP address assigned.
+        return None
+
+    return address

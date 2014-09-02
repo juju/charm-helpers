@@ -193,6 +193,36 @@ class IPTest(unittest.TestCase):
 
     @patch.object(netifaces, 'ifaddresses')
     def test_get_ipv6_addr_invalid_nic(self, _ifaddresses):
+        _ifaddresses.side_effect = ValueError()
+        self.assertRaises(ValueError, net_ip.get_ipv6_addr, 'eth1')
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv4_addr(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                2: [{'addr': '192.168.0.1',
+                      'netmask': '255.255.255.0'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_ipv4_addr("eth0")
+        self.assertEqual("192.168.0.1", result)
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv4_addr_interface_does_not_exist(self, _ifaddresses):
+        _ifaddresses.side_effect = ValueError()
+        result = net_ip.get_ipv4_addr("eth0")
+        self.assertIs(None, result)
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv4_addr_interface_has_no_ipv4(self, _ifaddresses):
+
+        # This will raise a KeyError since we are looking for "2"
+        # (actally, netiface.AF_INET).
         DUMMY_ADDRESSES = {
             'eth0': {
                 10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
@@ -203,5 +233,7 @@ class IPTest(unittest.TestCase):
         def mock_ifaddresses(iface):
             return DUMMY_ADDRESSES[iface]
 
-        _ifaddresses.side_effect = ValueError()
-        self.assertRaises(ValueError, net_ip.get_ipv6_addr, 'eth1')
+        _ifaddresses.side_effect = mock_ifaddresses
+
+        result = net_ip.get_ipv4_addr("eth0")
+        self.assertIs(None, result)
