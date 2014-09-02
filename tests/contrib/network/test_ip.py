@@ -213,6 +213,23 @@ class IPTest(unittest.TestCase):
         self.assertEqual("192.168.0.1", result)
 
     @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv4_addr_full_interface_path(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                2: [{'addr': '192.168.0.1',
+                      'netmask': '255.255.255.0'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_ipv4_addr("/dev/eth0")
+        self.assertEqual("192.168.0.1", result)
+
+
+    @patch.object(netifaces, 'ifaddresses')
     def test_get_ipv4_addr_interface_does_not_exist(self, _ifaddresses):
         _ifaddresses.side_effect = ValueError()
         result = net_ip.get_ipv4_addr("eth0")
