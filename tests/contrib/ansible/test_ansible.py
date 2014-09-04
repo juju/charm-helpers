@@ -191,6 +191,16 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', 'install,somethingelse'], env={'PYTHONUNBUFFERED': '1'})
 
+    def test_calls_with_extra_vars(self):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/complete-state.yaml', tags=['install', 'somethingelse'],
+            extra_vars={'a': 'b'})
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            '--tags', 'install,somethingelse', '--extra-vars', 'a=b'],
+            env={'PYTHONUNBUFFERED': '1'})
+
     def test_hooks_executes_playbook_with_tag(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
         foo = mock.MagicMock()
@@ -212,3 +222,69 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
             '--tags', 'start'], env={'PYTHONUNBUFFERED': '1'})
+
+
+class TestActionDecorator(unittest.TestCase):
+
+    def setUp(self):
+        p = mock.patch('charmhelpers.contrib.ansible.apply_playbook')
+        self.apply_playbook = p.start()
+        self.addCleanup(p.stop)
+
+    def test_action_no_args(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test():
+            return {}
+
+        hooks.execute(['test'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={})
+
+    def test_action_required_arg_keyword(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x):
+            return locals()
+
+        hooks.execute(['test', 'x=a'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={'x': 'a'})
+
+    def test_action_required_arg_missing(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x):
+            """Requires x"""
+            return locals()
+
+        try:
+            hooks.execute(['test'])
+            self.fail("should have thrown TypeError")
+        except TypeError as e:
+            self.assertEqual(e.args[1], "Requires x")
+
+    def test_action_default_arg(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x='b'):
+            return locals()
+
+        hooks.execute(['test'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={'x': 'b'})
+
+    def test_action_mutliple(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x, y='b'):
+            return locals()
+
+        hooks.execute(['test', 'x=a', 'y=b'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={'x': 'a', 'y': 'b'})
