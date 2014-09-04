@@ -267,6 +267,21 @@ class TestActionDecorator(unittest.TestCase):
         except TypeError as e:
             self.assertEqual(e.args[1], "Requires x")
 
+    def test_action_required_unknown_arg(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x='a'):
+            """Requires x"""
+            return locals()
+
+        try:
+            hooks.execute(['test', 'z=c'])
+            self.fail("should have thrown TypeError")
+        except TypeError as e:
+            import pdb; pdb.set_trace()
+            self.assertEqual(e.args[1], "Requires x")
+
     def test_action_default_arg(self):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
 
