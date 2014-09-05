@@ -212,10 +212,7 @@ class Config(dict):
         try:
             return dict.__getitem__(self, key)
         except KeyError:
-            val = self.previous(key)
-            if not val:
-                raise KeyError
-            return val
+            return (self._prev_dict or {})[key]
 
     def load_previous(self, path=None):
         """Load previous copy of config from disk.
