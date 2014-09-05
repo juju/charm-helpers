@@ -408,8 +408,8 @@ class CephUtilsTests(TestCase):
         _blk_dev = '/dev/rbd1'
         ceph_utils.ensure_ceph_storage(_service, _pool,
                                        _rbd_img, 1024, _mount,
-                                       _blk_dev, 'ext4', _services)
-        self.create_pool.assert_called_with(_service, _pool)
+                                       _blk_dev, 'ext4', _services, 3)
+        self.create_pool.assert_called_with(_service, _pool, replicas=3)
         self.create_rbd_image.assert_called_with(_service, _pool,
                                                  _rbd_img, 1024)
         self.map_block_storage.assert_called_with(_service, _pool, _rbd_img)
