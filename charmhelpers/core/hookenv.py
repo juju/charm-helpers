@@ -205,7 +205,7 @@ class Config(dict):
 
     def __getitem__(self, key):
         """For regular dict lookups, check the current juju config first,
-        the the previous (saved) copy. This ensures that user-saved values
+        then the previous (saved) copy. This ensures that user-saved values
         will be returned by a dict lookup.
 
         """
