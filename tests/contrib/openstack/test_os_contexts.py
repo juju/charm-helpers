@@ -305,6 +305,7 @@ TO_PATCH = [
     'relation_get',
     'relation_ids',
     'related_units',
+    'is_relation_made',
     'relation_set',
     'unit_get',
     'https',
@@ -1402,3 +1403,16 @@ class ContextTests(unittest.TestCase):
             'verbose': False,
         }
         self.assertEquals(result, expected)
+
+    def test_zeromq_context_unrelated(self):
+        self.is_relation_made.return_value = False
+        self.assertEquals(context.ZeroMQContext()(), {})
+
+    def test_zeromq_context_related(self):
+        self.is_relation_made.return_value = True
+        self.relation_ids.return_value = ['zeromq-configuration:1']
+        self.related_units.return_value = ['openstack-zeromq/0']
+        self.relation_get.side_effect = ['nonce-data', 'hostname']
+        self.assertEquals(context.ZeroMQContext()(),
+                          {'zmq_host': 'hostname',
+                           'zmq_nonce': 'nonce-data'})
