@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    is_relation_made,
     relation_set,
     unit_get,
     unit_private_ip,
@@ -786,4 +787,17 @@ class SyslogContext(OSContextGenerator):
         ctxt = {
             'use_syslog': config('use-syslog')
         }
+        return ctxt
+
+
+class ZeroMQContext(OSContextGenerator):
+    interfaces = ['zeromq-configuration']
+
+    def __call__(self):
+        ctxt = {}
+        if is_relation_made('zeromq-configuration', 'host'):
+            for rid in relation_ids('zeromq-configuration'):
+                    for unit in related_units(rid):
+                        ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
+                        ctxt['zmq_host'] = relation_get('host', unit, rid)
         return ctxt
