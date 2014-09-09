@@ -472,6 +472,16 @@ class TestRelationContext(unittest.TestCase):
         self.assertEqual(self.context.provide_data(), {})
 
 
+class TestRequiredConfig(unittest.TestCase):
+    def test_required_config(self):
+        pass
+
+
+class TestStoredContext(unittest.TestCase):
+    def test_store_and_load(self):
+        pass
+
+
 class TestTemplateCallback(unittest.TestCase):
     @mock.patch.object(services.helpers, 'templating')
     def test_template_defaults(self, mtemplating):
