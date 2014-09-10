@@ -704,24 +704,5 @@ class OpenStackHelpersTestCase(TestCase):
             {}
         )
 
-    @patch.object(openstack, 'get_matchmaker_map')
-    @patch.object(openstack, 'is_relation_made')
-    def test_get_enable_notification_nometeragent(self, _relmade, _gmmap):
-        _relmade.return_value = True
-        _gmmap.return_value = {'cinder-scheduler': ['juju-t-machine-4']}
-        self.assertEqual(openstack.get_enable_notification(), False)
-
-    @patch.object(openstack, 'is_relation_made')
-    def test_get_enable_notification_norel(self, _relmade):
-        _relmade.return_value = False
-        self.assertEqual(openstack.get_enable_notification(), True)
-
-    @patch.object(openstack, 'get_matchmaker_map')
-    @patch.object(openstack, 'is_relation_made')
-    def test_get_enable_notification(self, _relmade, _gmmap):
-        _relmade.return_value = True
-        _gmmap.return_value = {'metering-agent': ['juju-t-machine-4']}
-        self.assertEqual(openstack.get_enable_notification(), True)
-
 if __name__ == '__main__':
     unittest.main()

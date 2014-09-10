@@ -317,7 +317,8 @@ TO_PATCH = [
     'https',
     'get_address_in_network',
     'local_unit',
-    'get_ipv6_addr'
+    'get_ipv6_addr',
+    'get_matchmaker_map',
 ]
 
 
@@ -1416,3 +1417,23 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.ZeroMQContext()(),
                           {'zmq_host': 'hostname',
                            'zmq_nonce': 'nonce-data'})
+
+    def test_notificationdriver_context_nozmq(self):
+        self.is_relation_made.return_value = False
+        self.assertEquals(context.NotificationDriverContext()(), {'notifications': True})
+
+    def test_notificationdriver_context_zmq_nometer(self):
+        self.is_relation_made.return_value = True
+        self.get_matchmaker_map.return_value = {
+            'cinder-scheduler': ['juju-t-machine-4'],
+        }
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': False})
+
+    def test_notificationdriver_context_zmq_meter(self):
+        self.is_relation_made.return_value = True
+        self.get_matchmaker_map.return_value = {
+            'metering-agent': ['juju-t-machine-4'],
+        }
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': True})
