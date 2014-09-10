@@ -577,6 +577,28 @@ class HelpersTest(TestCase):
             result = host.file_hash(filename)
             self.assertEqual(result, None)
 
+    @patch('hashlib.sha1')
+    @patch('os.path.exists')
+    def test_file_hash_sha1(self, exists, sha1):
+        filename = '/etc/exists.conf'
+        exists.side_effect = [True]
+        m = sha1()
+        m.hexdigest.return_value = self._hash_files[filename]
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.return_value = self._hash_files[filename]
+            result = host.file_hash(filename, hash_type='sha1')
+            self.assertEqual(result, self._hash_files[filename])
+
+    @patch.object(host, 'file_hash')
+    def test_check_hash(self, file_hash):
+        file_hash.return_value = 'good-hash'
+        self.assertRaises(host.ChecksumError, host.check_hash, 'file', 'bad-hash')
+        host.check_hash('file', 'good-hash', 'sha256')
+        self.assertEqual(file_hash.call_args_list, [
+            call('file', 'md5'),
+            call('file', 'sha256'),
+        ])
+
     @patch.object(host, 'service')
     @patch('os.path.exists')
     def test_restart_no_changes(self, exists, service):
