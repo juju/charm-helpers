@@ -807,18 +807,21 @@ class ZeroMQContext(OSContextGenerator):
 
 class NotificationDriverContext(OSContextGenerator):
 
-    def __init__(self, zmq_relation='zeromq-configuration'):
+    def __init__(self, zmq_relation='zeromq-configuration', amqp_relation='amqp'):
         """
         :param zmq_relation   : Name of Zeromq relation to check
         """
         self.zmq_relation = zmq_relation
+        self.amqp_relation = amqp_relation
 
     def __call__(self):
         ctxt = {
-            'notifications': True,
+            'notifications': False,
         }
         if is_relation_made(self.zmq_relation):
             matchmaker_data = get_matchmaker_map()
-            if 'metering-agent' not in matchmaker_data:
-                ctxt['notifications'] = False
+            if 'metering-agent' in matchmaker_data:
+                ctxt['notifications'] = True
+        elif is_relation_made(self.amqp_relation):
+            ctxt['notifications'] = True
         return ctxt
