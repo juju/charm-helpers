@@ -319,7 +319,17 @@ def install_remote(source):
         scheme://[host]/path[#[option=value][&...]]
 
     Schemes supported are based on this modules submodules
-    Options supported are submodule-specific"""
+    Options supported are submodule-specific
+
+    For example::
+
+        dest = install_remote('http://example.com/archive.tgz#sha1=deadbeef')
+
+    This will download `archive.tgz`, validate it using SHA1 and, if
+    the file is ok, extract it and return the directory in which it
+    was extracted.  If the checksum fails, it will raise
+    :class:`charmhelpers.core.host.ChecksumError`.
+    """
     # We ONLY check for True here because can_handle may return a string
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
