@@ -50,6 +50,9 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
 )
 
+from charmhelpers.contrib.openstack.utils import (
+    get_matchmaker_map,
+)
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
@@ -800,4 +803,22 @@ class ZeroMQContext(OSContextGenerator):
                     for unit in related_units(rid):
                         ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
                         ctxt['zmq_host'] = relation_get('host', unit, rid)
+        return ctxt
+
+class NotificationDriverContext(OSContextGenerator):
+
+    def __init__(self, zmq_relation='zeromq-configuration'):
+        """
+        :param zmq_relation   : Name of Zeromq relation to check
+        """
+        self.zmq_relation = zmq_relation
+
+    def __call__(self):
+        ctxt = {
+            'notifications': True,
+        }
+        if is_relation_made(self.zmq_relation):
+            matchmaker_data = get_matchmaker_map()
+            if 'metering-agent' not in matchmaker_data:
+                ctxt['notifications'] = False
         return ctxt
