@@ -13,6 +13,7 @@ from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
     charm_dir,
+    is_relation_made,
     ERROR,
     INFO
 )
@@ -465,4 +466,13 @@ def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
     if os.path.isfile(mm_file):
         with open(mm_file, 'r') as f:
             mm_map = json.load(f)
-    return mm_map 
+    return mm_map
+
+
+def get_enable_notification(zmq_relation='zeromq-configuration'):
+    enable_notification = True
+    if is_relation_made(zmq_relation):
+        matchmaker_data = get_matchmaker_map()
+        if 'metering-agent' not in matchmaker_data:
+            enable_notification = False
+    return enable_notification
