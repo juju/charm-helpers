@@ -337,7 +337,6 @@ class fake_is_relation_made():
         self.relations = relations
 
     def rel_made(self, relation):
-        print "Returning: " + str(self.relations[relation]) + " for lookup " + relation
         return self.relations[relation]
 
 class ContextTests(unittest.TestCase):
@@ -1457,7 +1456,7 @@ class ContextTests(unittest.TestCase):
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
         self.get_matchmaker_map.return_value = {
-            'metering-agent': ['juju-t-machine-4'],
+            'notifications-info': ['juju-t-machine-4'],
         }
         self.assertEquals(context.NotificationDriverContext()(),
                           {'notifications': True})
