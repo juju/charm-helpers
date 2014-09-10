@@ -1431,7 +1431,8 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.assertEquals(context.NotificationDriverContext()(), {'notifications': False})
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': "False"})
 
 
 
@@ -1446,7 +1447,7 @@ class ContextTests(unittest.TestCase):
             'cinder-scheduler': ['juju-t-machine-4'],
         }
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': False})
+                          {'notifications': "False"})
 
     def test_notificationdriver_context_zmq_meter(self):
         relations = {
@@ -1459,7 +1460,7 @@ class ContextTests(unittest.TestCase):
             'notifications-info': ['juju-t-machine-4'],
         }
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': True})
+                          {'notifications': "True"})
 
     def test_notificationdriver_context_amq(self):
         relations = {
@@ -1469,4 +1470,4 @@ class ContextTests(unittest.TestCase):
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': True})
+                          {'notifications': "True"})

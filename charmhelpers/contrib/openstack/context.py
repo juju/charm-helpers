@@ -816,12 +816,12 @@ class NotificationDriverContext(OSContextGenerator):
 
     def __call__(self):
         ctxt = {
-            'notifications': False,
+            'notifications': "False",
         }
         if is_relation_made(self.zmq_relation):
             matchmaker_data = get_matchmaker_map()
             if 'notifications-info' in matchmaker_data:
-                ctxt['notifications'] = True
+                ctxt['notifications'] = "True"
         elif is_relation_made(self.amqp_relation):
-            ctxt['notifications'] = True
+            ctxt['notifications'] = "True"
         return ctxt
