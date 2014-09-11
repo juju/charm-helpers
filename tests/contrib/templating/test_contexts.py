@@ -13,6 +13,7 @@ import charmhelpers.contrib.templating.contexts
 
 
 class JujuState2YamlTestCase(unittest.TestCase):
+    maxDiff = None
 
     unit_data = {
         'private-address': '10.0.3.2',
@@ -69,6 +70,27 @@ class JujuState2YamlTestCase(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+    def default_context(self):
+        return {
+            "charm_dir": "/tmp/charm_dir",
+            "group_code_owner": "webops_deploy",
+            "user_code_runner": "ubunet",
+            "current_relation": {},
+            "relations_full": {
+                'wsgi-file': {},
+                'website': {},
+                'nrpe-external-master': {},
+            },
+            "relations": {
+                'wsgi-file': [],
+                'website': [],
+                'nrpe-external-master': [],
+            },
+            "local_unit": "click-index/3",
+            "unit_private_address": "10.0.3.2",
+            "unit_public_address": "123.123.123.123",
+        }
+
     def test_output_with_empty_relation(self):
         self.mock_config.return_value = {
             'group_code_owner': 'webops_deploy',
@@ -81,25 +103,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertEqual({
-                "charm_dir": "/tmp/charm_dir",
-                "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
-                "current_relation": {},
-                "relations_full": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "relations": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "local_unit": "click-index/3",
-                "unit_private_address": "10.0.3.2",
-                "unit_public_address": "123.123.123.123",
-            }, result)
+            expected = self.default_context()
+            self.assertEqual(expected, result)
 
     def test_output_with_no_relation(self):
         self.mock_config.return_value = {
@@ -114,25 +119,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertEqual({
-                "charm_dir": "/tmp/charm_dir",
-                "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
-                "local_unit": "click-index/3",
-                "current_relation": {},
-                "relations_full": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "relations": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "unit_private_address": "10.0.3.2",
-                "unit_public_address": "123.123.123.123",
-            }, result)
+            expected = self.default_context()
+            self.assertEqual(expected, result)
 
     def test_output_with_relation(self):
         self.mock_config.return_value = {
@@ -165,45 +153,27 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertEqual({
-                "charm_dir": "/tmp/charm_dir",
-                "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
-                "wsgi_file:relation_key1": "relation_value1",
-                "wsgi_file:relation_key2": "relation_value2",
-                "local_unit": "click-index/3",
-                "current_relation": {
-                    "relation_key1": "relation_value1",
-                    "relation_key2": "relation_value2",
+            expected = self.default_context()
+            expected['current_relation'] = {
+                "relation_key1": "relation_value1",
+                "relation_key2": "relation_value2",
+            }
+            expected["wsgi_file:relation_key1"] = "relation_value1"
+            expected["wsgi_file:relation_key2"] = "relation_value2"
+            expected["relations_full"]['wsgi-file'] = {
+                'wsgi-file:0': {
+                    'gunicorn/1': {u'private-address': u'10.0.3.99'},
+                    'click-index/3': {u'wsgi_group': u'ubunet'},
                 },
-                "relations_full": {
-                    'wsgi-file': {
-                        u'wsgi-file:0': {
-                            u'gunicorn/1': {
-                                u'private-address': u'10.0.3.99',
-                            },
-                            'click-index/3': {
-                                u'wsgi_group': u'ubunet',
-                            },
-                        },
-                    },
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "relations": {
-                    'wsgi-file': {
-                        u'wsgi-file:0': {
-                            u'gunicorn/1': {
-                                u'private-address': u'10.0.3.99',
-                            },
-                        },
-                    },
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "unit_private_address": "10.0.3.2",
-                "unit_public_address": "123.123.123.123",
-            }, result)
+            }
+            expected["relations"]["wsgi-file"] = [
+                {
+                    '__relid__': 'wsgi-file:0',
+                    '__unit__': 'gunicorn/1',
+                    'private-address': '10.0.3.99',
+                }
+            ]
+            self.assertEqual(expected, result)
 
     def test_relation_with_separator(self):
         self.mock_config.return_value = {
@@ -222,30 +192,14 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertEqual({
-                "charm_dir": "/tmp/charm_dir",
-                "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
-                "wsgi_file__relation_key1": "relation_value1",
-                "wsgi_file__relation_key2": "relation_value2",
-                "local_unit": "click-index/3",
-                "current_relation": {
-                    "relation_key1": "relation_value1",
-                    "relation_key2": "relation_value2",
-                },
-                "relations_full": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "relations": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "unit_private_address": "10.0.3.2",
-                "unit_public_address": "123.123.123.123",
-            }, result)
+            expected = self.default_context()
+            expected['current_relation'] = {
+                "relation_key1": "relation_value1",
+                "relation_key2": "relation_value2",
+            }
+            expected["wsgi_file__relation_key1"] = "relation_value1"
+            expected["wsgi_file__relation_key2"] = "relation_value2"
+            self.assertEqual(expected, result)
 
     def test_keys_with_hyphens(self):
         self.mock_config.return_value = {
@@ -261,26 +215,9 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertEqual({
-                "charm_dir": "/tmp/charm_dir",
-                "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
-                'current_relation': {},
-                "relations_full": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "relations": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "local_unit": "click-index/3",
-                "private-address": "10.1.1.10",
-                "unit_private_address": "10.0.3.2",
-                "unit_public_address": "123.123.123.123",
-            }, result)
+            expected = self.default_context()
+            expected["private-address"] = "10.1.1.10"
+            self.assertEqual(expected, result)
 
     def test_keys_with_hypens_not_allowed_in_keys(self):
         self.mock_config.return_value = {
@@ -301,28 +238,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
 
         with open(self.context_path, 'r') as context_file:
             result = yaml.load(context_file.read())
-            self.assertEqual({
-                "charm_dir": "/tmp/charm_dir",
-                "group_code_owner": "webops_deploy",
-                "user_code_runner": "ubunet",
-                "local_unit": "click-index/3",
-                'current_relation': {
-                    'relation-key1': 'relation_value1',
-                    'relation-key2': 'relation_value2',
-                },
-                "relations": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "relations_full": {
-                    'wsgi-file': {},
-                    'website': {},
-                    'nrpe-external-master': {},
-                },
-                "private_address": "10.1.1.10",
-                "wsgi_file__relation_key1": "relation_value1",
-                "wsgi_file__relation_key2": "relation_value2",
-                "unit_private_address": "10.0.3.2",
-                "unit_public_address": "123.123.123.123",
-            }, result)
+            expected = self.default_context()
+            expected["private_address"] = "10.1.1.10"
+            expected["wsgi_file__relation_key1"] = "relation_value1"
+            expected["wsgi_file__relation_key2"] = "relation_value2"
+            expected['current_relation'] = {
+                "relation-key1": "relation_value1",
+                "relation-key2": "relation_value2",
+            }
+            self.assertEqual(expected, result)
