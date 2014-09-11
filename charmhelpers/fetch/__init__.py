@@ -325,7 +325,7 @@ def install_remote(source, *args, **kwargs):
     For example::
 
         dest = install_remote('http://example.com/archive.tgz',
-                              checksum=deadbeef',
+                              checksum='deadbeef',
                               hash_type='sha1')
 
     This will download `archive.tgz`, validate it using SHA1 and, if
