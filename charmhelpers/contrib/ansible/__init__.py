@@ -102,6 +102,9 @@ def apply_playbook(playbook, tags=None):
     charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
         ansible_vars_path, namespace_separator='__',
         allow_hyphens_in_keys=False)
+    # we want ansible's log output to be unbuffered
+    env = os.environ.copy()
+    env['PYTHONUNBUFFERED'] = "1"
     call = [
         'ansible-playbook',
         '-c',
@@ -110,7 +113,7 @@ def apply_playbook(playbook, tags=None):
     ]
     if tags:
         call.extend(['--tags', '{}'.format(tags)])
-    subprocess.check_call(call)
+    subprocess.check_call(call, env=env)
 
 
 class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
