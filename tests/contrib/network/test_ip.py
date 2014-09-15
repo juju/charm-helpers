@@ -205,3 +205,15 @@ class IPTest(unittest.TestCase):
 
         _ifaddresses.side_effect = ValueError()
         self.assertRaises(ValueError, net_ip.get_ipv6_addr, 'eth1')
+
+    def test_format_ipv6_addr(self):
+        DUMMY_ADDRESS = '2001:db8:1:0:f131:fc84:ea37:7d4'
+        self.assertEquals(net_ip.format_ipv6_addr(DUMMY_ADDRESS),
+                          '[2001:db8:1:0:f131:fc84:ea37:7d4]')
+
+    @patch('charmhelpers.contrib.network.ip.log')
+    def test_format_invalid_ipv6_addr(self, mock_log):
+        INVALID_IPV6_ADDR = 'myhost'
+        net_ip.format_ipv6_addr(INVALID_IPV6_ADDR)
+        mock_log.assert_called_with(
+            'Not an valid ipv6 address: myhost', level='ERROR')
