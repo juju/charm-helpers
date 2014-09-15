@@ -176,8 +176,9 @@ def get_ipv6_addr(iface="eth0"):
 
 def format_ipv6_addr(address):
     if is_ipv6(address):
-        address = "[{}]".format(address)
+        address = "[%s]" % address
     else:
         log("Not an valid ipv6 address: %s" % address,
             level=ERROR)
+        address = None
     return address

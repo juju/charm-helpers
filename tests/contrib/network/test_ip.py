@@ -214,6 +214,7 @@ class IPTest(unittest.TestCase):
     @patch('charmhelpers.contrib.network.ip.log')
     def test_format_invalid_ipv6_addr(self, mock_log):
         INVALID_IPV6_ADDR = 'myhost'
-        net_ip.format_ipv6_addr(INVALID_IPV6_ADDR)
+        self.assertEquals(net_ip.format_ipv6_addr(INVALID_IPV6_ADDR),
+                          None)
         mock_log.assert_called_with(
             'Not an valid ipv6 address: myhost', level='ERROR')
