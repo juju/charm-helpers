@@ -6,6 +6,7 @@ import netifaces
 
 import charmhelpers.contrib.network.ip as net_ip
 from mock import patch
+import nose.tools
 
 DUMMY_ADDRESSES = {
     'lo': {
@@ -191,17 +192,64 @@ class IPTest(unittest.TestCase):
         _ifaddresses.side_effect = mock_ifaddresses
         self.assertRaises(Exception, net_ip.get_ipv6_addr)
 
+    @patch.object(netifaces, 'interfaces')
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv6_addr_exc_list(self, _ifaddresses, _interfaces):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
+                      'netmask': 'ffff:ffff:ffff:ffff::'},
+                     {'addr': 'fd31:d8a7:86e5:5721:f816:3eff:fe34:ee1d',
+                      'netmask': 'ffff:ffff:ffff:ffff::'}],
+            },
+            'eth0:1': {
+                10: [{'addr': 'fe80::3e97:eff:fe9b:1cf7%eth0',
+                      'netmask': 'ffff:ffff:ffff:ffff::'},
+                     {'addr': 'fd41:d8a7:86e5:5721:f816:3eff:fe34:ee1d',
+                      'netmask': 'ffff:ffff:ffff:ffff::'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_ipv6_addr(
+            exc_list='fd31:d8a7:86e5:5721:f816:3eff:fe34:ee1d',
+            inc_aliases=True
+        )
+        self.assertEqual(['fd41:d8a7:86e5:5721:f816:3eff:fe34:ee1d'], result)
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_ipv6_addr(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
+                      'netmask': 'ffff:ffff:ffff:ffff::'},
+                     {'addr': 'fd31:d8a7:86e5:5721:f816:3eff:fe34:ee1d',
+                      'netmask': 'ffff:ffff:ffff:ffff::'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_ipv6_addr()
+        self.assertEqual(['fd31:d8a7:86e5:5721:f816:3eff:fe34:ee1d'], result)
+
     @patch.object(netifaces, 'ifaddresses')
     def test_get_ipv6_addr_invalid_nic(self, _ifaddresses):
         _ifaddresses.side_effect = ValueError()
         self.assertRaises(ValueError, net_ip.get_ipv6_addr, 'eth1')
 
     @patch.object(netifaces, 'ifaddresses')
-    def test_get_ipv4_addr(self, _ifaddresses):
+    def test_get_iface_addr(self, _ifaddresses):
         DUMMY_ADDRESSES = {
             'eth0': {
                 2: [{'addr': '192.168.0.1',
-                      'netmask': '255.255.255.0'}],
+                     'netmask': '255.255.255.0'}],
             }
         }
 
@@ -209,15 +257,104 @@ class IPTest(unittest.TestCase):
             return DUMMY_ADDRESSES[iface]
 
         _ifaddresses.side_effect = mock_ifaddresses
-        result = net_ip.get_ipv4_addr("eth0")
-        self.assertEqual("192.168.0.1", result)
+        result = net_ip.get_iface_addr("eth0")
+        self.assertEqual(["192.168.0.1"], result)
 
+    @patch.object(netifaces, 'interfaces')
     @patch.object(netifaces, 'ifaddresses')
-    def test_get_ipv4_addr_full_interface_path(self, _ifaddresses):
+    def test_get_iface_addr_excaliases(self, _ifaddresses, _interfaces):
         DUMMY_ADDRESSES = {
             'eth0': {
                 2: [{'addr': '192.168.0.1',
-                      'netmask': '255.255.255.0'}],
+                     'netmask': '255.255.255.0'}],
+            },
+            'eth0:1': {
+                2: [{'addr': '192.168.0.2',
+                     'netmask': '255.255.255.0'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_iface_addr("eth0")
+        self.assertEqual(["192.168.0.1"], result)
+
+    @patch.object(netifaces, 'interfaces')
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_iface_addr_incaliases(self, _ifaddresses, _interfaces):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                2: [{'addr': '192.168.0.1',
+                     'netmask': '255.255.255.0'}],
+            },
+            'eth0:1': {
+                2: [{'addr': '192.168.0.2',
+                     'netmask': '255.255.255.0'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_iface_addr("eth0", inc_aliases=True)
+        self.assertEqual(["192.168.0.1", "192.168.0.2"], result)
+
+    @patch.object(netifaces, 'interfaces')
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_iface_addr_exclist(self, _ifaddresses, _interfaces):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                2: [{'addr': '192.168.0.1',
+                     'netmask': '255.255.255.0'}],
+            },
+            'eth0:1': {
+                2: [{'addr': '192.168.0.2',
+                     'netmask': '255.255.255.0'}],
+            }
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_iface_addr("eth0", inc_aliases=True,
+                                       exc_list=['192.168.0.1'])
+        self.assertEqual(["192.168.0.2"], result)
+
+    @patch.object(netifaces, 'interfaces')
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_iface_addr_mixedaddr(self, _ifaddresses, _interfaces):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
+                      'netmask': 'ffff:ffff:ffff:ffff::'}],
+            },
+            'eth0:1': {
+                2: [{'addr': '192.168.0.1',
+                     'netmask': '255.255.255.0'}],
+            },
+        }
+
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = mock_ifaddresses
+        result = net_ip.get_iface_addr("eth0", inc_aliases=True)
+        self.assertEqual(["192.168.0.1"], result)
+
+    @patch.object(netifaces, 'ifaddresses')
+    def test_get_iface_addr_full_interface_path(self, _ifaddresses):
+        DUMMY_ADDRESSES = {
+            'eth0': {
+                2: [{'addr': '192.168.0.1',
+                     'netmask': '255.255.255.0'}],
             }
         }
 
@@ -225,18 +362,34 @@ class IPTest(unittest.TestCase):
             return DUMMY_ADDRESSES[iface]
 
         _ifaddresses.side_effect = mock_ifaddresses
-        result = net_ip.get_ipv4_addr("/dev/eth0")
-        self.assertEqual("192.168.0.1", result)
+        result = net_ip.get_iface_addr("/dev/eth0")
+        self.assertEqual(["192.168.0.1"], result)
 
+    def test_get_iface_addr_invalid_type(self):
+        with nose.tools.assert_raises(Exception):
+            net_ip.get_iface_addr(iface='eth0', inet_type='AF_BOB')
+
+    @patch.object(netifaces, 'interfaces')
+    def test_get_iface_addr_invalid_interface(self, _interfaces):
+        _interfaces.return_value = ['lo', 'eth0', 'eth1']
+        result = net_ip.get_ipv4_addr("eth3", fatal=False)
+        self.assertEqual([], result)
+
+    @patch.object(netifaces, 'interfaces')
+    def test_get_iface_addr_invalid_interface_fatal(self, _interfaces):
+        _interfaces.return_value = ['lo', 'eth0', 'eth1']
+        with nose.tools.assert_raises(Exception):
+            net_ip.get_ipv4_addr("eth3", fatal=True)
+
+    @patch.object(netifaces, 'interfaces')
+    def test_get_iface_addr_invalid_interface_fatal_incaliases(self,
+                                                               _interfaces):
+        _interfaces.return_value = ['lo', 'eth0', 'eth1']
+        with nose.tools.assert_raises(Exception):
+            net_ip.get_ipv4_addr("eth3", fatal=True, inc_aliases=True)
 
     @patch.object(netifaces, 'ifaddresses')
-    def test_get_ipv4_addr_interface_does_not_exist(self, _ifaddresses):
-        _ifaddresses.side_effect = ValueError()
-        result = net_ip.get_ipv4_addr("eth0")
-        self.assertIs(None, result)
-
-    @patch.object(netifaces, 'ifaddresses')
-    def test_get_ipv4_addr_interface_has_no_ipv4(self, _ifaddresses):
+    def test_get_get_iface_addr_interface_has_no_ipv4(self, _ifaddresses):
 
         # This will raise a KeyError since we are looking for "2"
         # (actally, netiface.AF_INET).
@@ -252,5 +405,5 @@ class IPTest(unittest.TestCase):
 
         _ifaddresses.side_effect = mock_ifaddresses
 
-        result = net_ip.get_ipv4_addr("eth0")
-        self.assertIs(None, result)
+        result = net_ip.get_ipv4_addr("eth0", fatal=False)
+        self.assertEqual([], result)
