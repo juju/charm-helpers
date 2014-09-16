@@ -175,6 +175,9 @@ def get_ipv6_addr(iface="eth0"):
 
 
 def format_ipv6_addr(address):
+    """
+    IPv6 needs to be wrapped with [] in url link to parse correctly.
+    """
     if is_ipv6(address):
         address = "[%s]" % address
     else:
