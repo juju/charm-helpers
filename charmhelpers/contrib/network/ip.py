@@ -180,7 +180,6 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=T
         if fatal and not ifaces:
             raise Exception("Invalid interface '%s'" % iface)
         ifaces.sort()
-        print ifaces
     else:
         if fatal and iface not in interfaces:
             raise Exception("Nic %s not found" + iface)
@@ -205,7 +204,6 @@ def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None):
     addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
                                inc_aliases=inc_aliases, fatal=fatal,
                                exc_list=exc_list)
-    print addresses
     remotly_addressable = []
     for address in addresses:
         if not address.startswith('fe80'):
