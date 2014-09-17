@@ -350,3 +350,16 @@ class IPTest(unittest.TestCase):
         _get_bridge_nics.return_value = ['eth4', 'eth5']
         self.assertTrue(net_ip.is_bridge_member('eth4'))
         self.assertFalse(net_ip.is_bridge_member('eth6'))
+
+    def test_format_ipv6_addr(self):
+        DUMMY_ADDRESS = '2001:db8:1:0:f131:fc84:ea37:7d4'
+        self.assertEquals(net_ip.format_ipv6_addr(DUMMY_ADDRESS),
+                          '[2001:db8:1:0:f131:fc84:ea37:7d4]')
+
+    @patch('charmhelpers.contrib.network.ip.log')
+    def test_format_invalid_ipv6_addr(self, mock_log):
+        INVALID_IPV6_ADDR = 'myhost'
+        self.assertEquals(net_ip.format_ipv6_addr(INVALID_IPV6_ADDR),
+                          None)
+        mock_log.assert_called_with(
+            'Not an valid ipv6 address: myhost', level='ERROR')
