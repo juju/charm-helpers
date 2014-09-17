@@ -1,3 +1,4 @@
+import glob
 import sys
 
 from functools import partial
@@ -158,7 +159,7 @@ get_netmask_for_address = partial(_get_for_address, key='netmask')
 
 def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=True, exc_list=None):
     """
-    Return the assigned IP address for a given interface, if any, or None.
+    Return the assigned IP address for a given interface, if any, or [].
     """
     # Extract nic if passed /dev/ethX
     if '/' in iface:
@@ -171,7 +172,6 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=T
         raise Exception('Unknown inet type ' + str(inet_type))
 
     interfaces = netifaces.interfaces()
-    # Check for IP aliases
     if inc_aliases:
         ifaces = []
         for _iface in interfaces:
@@ -181,8 +181,11 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=T
             raise Exception("Invalid interface '%s'" % iface)
         ifaces.sort()
     else:
-        if fatal and iface not in interfaces:
-            raise Exception("Nic %s not found" + iface)
+        if iface not in interfaces:
+            if fatal:
+                raise Exception("%s not found " % (iface))
+            else:
+                return []
         else:
             ifaces = [iface]
 
@@ -201,6 +204,9 @@ get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')
 
 
 def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None):
+    """
+    Return the assigned IPv6 address for a given interface, if any, or [].
+    """
     addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
                                inc_aliases=inc_aliases, fatal=fatal,
                                exc_list=exc_list)
@@ -211,3 +217,29 @@ def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None):
     if fatal and not remotly_addressable:
         raise Exception("Interface '%s' doesn't have global ipv6 address." % iface)
     return remotly_addressable
+
+
+def get_bridges(vnic_dir='/sys/devices/virtual/net'):
+    """
+    Return a list of bridges on the system or []
+    """
+    b_rgex = vnic_dir + '/*/bridge'
+    return [x.replace(vnic_dir, '').split('/')[1] for x in glob.glob(b_rgex)]
+
+
+def get_bridge_nics(bridge, vnic_dir='/sys/devices/virtual/net'):
+    """
+    Return a list of nics comprising a given bridge on the system or []
+    """
+    brif_rgex = "%s/%s/brif/*" % (vnic_dir, bridge)
+    return [x.split('/')[-1] for x in glob.glob(brif_rgex)]
+
+
+def is_bridge_member(nic):
+    """
+    Check if a given nic is a member of a bridge
+    """
+    for bridge in get_bridges():
+        if nic in get_bridge_nics(bridge):
+            return True
+    return False
