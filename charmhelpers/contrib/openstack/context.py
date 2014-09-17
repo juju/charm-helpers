@@ -608,7 +608,7 @@ class NeutronContext(OSContextGenerator):
             'vsm_username': config('n1kv-vsm-username'),
             'vsm_password': config('n1kv-vsm-password'),
             'restrict_policy_profiles': config(
-                'n1kv_restrict_policy_profiles'),
+                'n1kv-restrict-policy-profiles'),
         }
         if n1kv_user_config_flags:
             flags = config_flags_parser(n1kv_user_config_flags)
