@@ -379,6 +379,7 @@ class CephContext(OSContextGenerator):
                 ceph_addr = \
                     relation_get('ceph-public-address', rid=rid, unit=unit) or \
                     relation_get('private-address', rid=rid, unit=unit)
+                ceph_addr = format_ipv6_addr(ceph_addr) or ceph_addr
                 mon_hosts.append(ceph_addr)
 
         ctxt = {
