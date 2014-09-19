@@ -12,7 +12,6 @@ from charmhelpers.fetch import (
     UnhandledSource,
 )
 import urllib2
-import sys
 
 
 class ArchiveUrlFetchHandlerTest(TestCase):
@@ -29,6 +28,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             "ftp://example.com/foo.tar.gz",
             "https://example.com/foo.tgz",
             "file://example.com/foo.tar.bz2",
+            "file://example.com/foo.tar.bz2#sha512=beefdead",
         )
         self.invalid_urls = (
             "git://example.com/foo.tar.gz",
@@ -65,9 +65,10 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             _open.assert_called_once_with("foo", 'w')
             _open().write.assert_called_with("bar")
 
+    @patch('charmhelpers.fetch.archiveurl.check_hash')
     @patch('charmhelpers.fetch.archiveurl.mkdir')
     @patch('charmhelpers.fetch.archiveurl.extract')
-    def test_installs(self, _extract, _mkdir):
+    def test_installs(self, _extract, _mkdir, _check_hash):
         self.fh.download = MagicMock()
 
         for url in self.valid_urls:
@@ -75,10 +76,14 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             dest = os.path.join('foo', 'fetched', os.path.basename(filename))
             _extract.return_value = dest
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
-                where = self.fh.install(url)
+                where = self.fh.install(url, checksum='deadbeef')
             self.fh.download.assert_called_with(url, dest)
-            _extract.assert_called_with(dest)
+            _extract.assert_called_with(dest, None)
+            _check_hash.assert_called_with(dest, 'deadbeef', 'sha1')
+            if 'sha512' in url:
+                _check_hash.assert_has_call(dest, 'beefdead', 'sha512')
             self.assertEqual(where, dest)
+            _check_hash.reset_mock()
 
         url = "http://www.example.com/archive.tar.gz"
 
@@ -91,29 +96,10 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             self.assertRaises(UnhandledSource, self.fh.install, url)
 
     @patch('charmhelpers.fetch.archiveurl.urlretrieve')
-    @patch('charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler.validate_file')
+    @patch('charmhelpers.fetch.archiveurl.check_hash')
     def test_download_and_validate(self, vfmock, urlmock):
         urlmock.return_value = ('/tmp/tmpebM9Hv', Mock())
         dlurl = 'http://example.com/foo.tgz'
         dlhash = '988881adc9fc3655077dc2d4d757d480b5ea0e11'
         self.fh.download_and_validate(dlurl, dlhash)
         vfmock.assert_called_with('/tmp/tmpebM9Hv', dlhash, 'sha1')
-
-        self.assertRaises(ValueError, self.fh.download_and_validate, 'http://x.com/', 'garbage')
-        self.assertRaises(ValueError, self.fh.download_and_validate, 'http://x.com', 'garbage', 'md5')
-
-    @patch('builtins.open' if sys.version_info > (3,) else '__builtin__.open')
-    def test_validate_file(self, mo):
-        mo.return_value.__enter__ = lambda s: s
-        mo.return_value.__exit__ = Mock()
-        mo.return_value.read.return_value = "foobar"
-
-        # hard coded validations of the phrase 'foobar'
-        shav = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        mdfv = "d41d8cd98f00b204e9800998ecf8427e"
-
-        self.fh.validate_file('/tmp/foo', shav)
-        self.fh.validate_file('/tmp/foo', mdfv, vmethod='md5')
-
-        self.assertRaises(ValueError, self.fh.validate_file, 'a', 'b', 'bloop')
-        self.assertRaises(ValueError, self.fh.validate_file, '/tmp/foo', 'b')
