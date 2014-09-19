@@ -156,7 +156,7 @@ get_iface_for_address = partial(_get_for_address, key='iface')
 
 get_netmask_for_address = partial(_get_for_address, key='netmask')
 
- 
+
 def format_ipv6_addr(address):
     """
     IPv6 needs to be wrapped with [] in url link to parse correctly.
@@ -168,6 +168,7 @@ def format_ipv6_addr(address):
             level=ERROR)
         address = None
     return address
+
 
 def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=True, exc_list=None):
     """
