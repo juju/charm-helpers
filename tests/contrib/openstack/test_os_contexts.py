@@ -941,8 +941,8 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
-        self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
-        self.config.side_effect = [True, None, True]
+        self.get_ipv6_addr.return_value = ['cluster-peer0.localnet']
+        #self.config.side_effect = [True, 'dummy-vip', None, True]
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
