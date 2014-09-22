@@ -1043,12 +1043,14 @@ class ContextTests(unittest.TestCase):
                                    8766, 8756),
                                   ('10.5.3.100', '10.5.3.1',
                                    8766, 8756)],
+                    'ext_ports': [8766]
                 }
             else:
                 ex = {
                     'namespace': 'cinder',
                     'endpoints': [('cinderhost1', 'cinderhost1vip',
                                    8766, 8756)],
+                    'ext_ports': [8766]
                 }
         else:
             if multinet:
@@ -1060,11 +1062,13 @@ class ContextTests(unittest.TestCase):
                                    8776, 8766),
                                   ('10.5.1.100', '10.5.1.100',
                                    8776, 8766)],
+                    'ext_ports': [8776]
                 }
             else:
                 ex = {
                     'namespace': 'cinder',
                     'endpoints': [('cinderhost1', 'cinderhost1', 8776, 8766)],
+                    'ext_ports': [8776]
                 }
 
         self.assertEquals(ex, apache())

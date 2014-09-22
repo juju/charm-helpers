@@ -530,7 +530,8 @@ class ApacheSSLContext(OSContextGenerator):
 
         ctxt = {
             'namespace': self.service_namespace,
-            'endpoints': []
+            'endpoints': [],
+            'ext_ports': []
         }
 
         for cn in self.canonical_names():
@@ -563,6 +564,8 @@ class ApacheSSLContext(OSContextGenerator):
                 int_port = determine_api_port(api_port)
                 portmap = (address, endpoint, int(ext_port), int(int_port))
                 ctxt['endpoints'].append(portmap)
+                ctxt['ext_ports'].append(int(ext_port))
+        ctxt['ext_ports'] = list(set(ctxt['ext_ports']))
         return ctxt
 
 
