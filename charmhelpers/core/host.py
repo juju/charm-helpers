@@ -68,8 +68,8 @@ def service_available(service_name):
     """Determine whether a system service is available"""
     try:
         subprocess.check_output(['service', service_name, 'status'], stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        return False
+    except subprocess.CalledProcessError as e:
+        return 'unrecognized service' not in e.output
     else:
         return True
 
