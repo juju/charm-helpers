@@ -601,7 +601,7 @@ class ContextTests(unittest.TestCase):
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_user': 'adam',
-            'auth_host': 'keystone-host.local',
+            'auth_host': '[2001:db8:1::1]',
             'auth_port': '35357',
             'auth_protocol': 'http',
             'service_host': '[2001:db8:1::1]',
