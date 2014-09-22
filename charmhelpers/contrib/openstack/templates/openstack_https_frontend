@@ -1,16 +1,16 @@
 {% if endpoints -%}
-{% for ext, int in endpoints -%}
+{% for address, endpoint, ext, int in endpoints -%}
 Listen {{ ext }}
-NameVirtualHost *:{{ ext }}
-<VirtualHost *:{{ ext }}>
-    ServerName {{ private_address }}
+<VirtualHost {{ address }}:{{ ext }}>
+    ServerName {{ endpoint }}
     SSLEngine on
-    SSLCertificateFile /etc/apache2/ssl/{{ namespace }}/cert
-    SSLCertificateKeyFile /etc/apache2/ssl/{{ namespace }}/key
+    SSLCertificateFile /etc/apache2/ssl/{{ namespace }}/cert_{{ endpoint }}
+    SSLCertificateKeyFile /etc/apache2/ssl/{{ namespace }}/key_{{ endpoint }}
     ProxyPass / http://localhost:{{ int }}/
     ProxyPassReverse / http://localhost:{{ int }}/
     ProxyPreserveHost on
 </VirtualHost>
+{% endfor -%}
 <Proxy *>
     Order deny,allow
     Allow from all
@@ -19,5 +19,4 @@ NameVirtualHost *:{{ ext }}
     Order allow,deny
     Allow from all
 </Location>
-{% endfor -%}
 {% endif -%}

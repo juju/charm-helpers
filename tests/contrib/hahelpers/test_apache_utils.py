@@ -54,7 +54,7 @@ class ApacheUtilsTests(TestCase):
             'some_ca_cert',  # config_get('ssl_cert')
             'some_ca_key',  # config_Get('ssl_key')
         ]
-        result = apache_utils.get_cert()
+        result = apache_utils.get_cert('test-cn')
         self.assertEquals(('some_ca_cert', 'some_ca_key'), result)
 
     def test_get_ca_cert_from_config(self):
@@ -69,7 +69,7 @@ class ApacheUtilsTests(TestCase):
             'keystone_provided_cert',
             'keystone_provided_key',
         ]
-        result = apache_utils.get_cert()
+        result = apache_utils.get_cert('test-cn')
         self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
                           result)
 
