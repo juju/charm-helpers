@@ -506,7 +506,9 @@ class ApacheSSLContext(OSContextGenerator):
                    content=b64decode(key))
 
     def configure_ca(self):
-        install_ca_cert(get_ca_cert())
+        ca_cert = get_ca_cert()
+        if ca_cert:
+            install_ca_cert(b64decode(ca_cert))
 
     def canonical_names(self):
         '''Figure out which canonical names clients will access this service'''
