@@ -18,6 +18,7 @@ SETUP = {
         "charmhelpers",
         "charmhelpers.cli",
         "charmhelpers.core",
+        "charmhelpers.core.services",
         "charmhelpers.fetch",
         "charmhelpers.payload",
         "charmhelpers.contrib",
