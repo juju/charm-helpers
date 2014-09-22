@@ -1,6 +1,8 @@
 {% if endpoints -%}
+{% for ext_port in ext_ports -%}
+Listen {{ ext_port }}
+{% endfor -%}
 {% for address, endpoint, ext, int in endpoints -%}
-Listen {{ ext }}
 <VirtualHost {{ address }}:{{ ext }}>
     ServerName {{ endpoint }}
     SSLEngine on
