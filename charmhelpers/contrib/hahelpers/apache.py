@@ -36,6 +36,19 @@ def get_cert(cn):
                 if not key:
                     key = relation_get('ssl_key_{}'.format(cn),
                                        rid=r_id, unit=unit)
+    if not (cert and key):
+        log("Inspecting identity-service relations for deprecated"
+            " SSL certificate format.",
+            level=INFO)
+        cert = key = None
+        for r_id in relation_ids('identity-service'):
+            for unit in relation_list(r_id):
+                if not cert:
+                    cert = relation_get('ssl_cert'.format(cn),
+                                        rid=r_id, unit=unit)
+                if not key:
+                    key = relation_get('ssl_key'.format(cn),
+                                       rid=r_id, unit=unit)
     return (cert, key)
 
 
