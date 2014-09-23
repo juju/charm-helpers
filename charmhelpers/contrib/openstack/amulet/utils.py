@@ -188,7 +188,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         f = opener.open("http://download.cirros-cloud.net/version/released")
         version = f.read().strip()
         cirros_img = "cirros-{}-x86_64-disk.img".format(version)
-        local_path = "tests/{}".format(cirros_img)
+        local_path = os.path.join('tests', cirros_img)
 
         if not os.path.exists(local_path):
             cirros_url = "http://{}/{}/{}".format("download.cirros-cloud.net",
