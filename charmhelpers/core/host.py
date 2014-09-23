@@ -229,12 +229,12 @@ def check_hash(path, checksum, hash_type='md5'):
     """
     Validate a file using a cryptographic checksum.
 
-
     :param str checksum: Value of the checksum used to validate the file.
-    :param str hash_type: Hash algorithm used to generate :param:`checksum`.
-                          Can be any hash alrgorithm supported by :mod:`hashlib`,
-                          such as md5, sha1, sha256, sha512, etc.
+    :param str hash_type: Hash algorithm used to generate `checksum`.
+        Can be any hash alrgorithm supported by :mod:`hashlib`,
+        such as md5, sha1, sha256, sha512, etc.
     :raises ChecksumError: If the file fails the checksum
+
     """
     actual_checksum = file_hash(path, hash_type)
     if checksum != actual_checksum:
