@@ -1137,6 +1137,25 @@ class ContextTests(unittest.TestCase):
         decode = [call('SSL_CERT'), call('SSL_KEY')]
         self.assertEquals(decode, self.b64decode.call_args_list)
 
+    def test_https_configure_cert_deprecated(self):
+        '''Test apache2 properly installs certs and keys to disk'''
+        self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
+        self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
+        apache = context.ApacheSSLContext()
+        apache.service_namespace = 'cinder'
+        apache.configure_cert()
+        # appropriate directories are created.
+        self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
+        # appropriate files are written.
+        files = [call(path='/etc/apache2/ssl/cinder/cert',
+                      content='SSL_CERT'),
+                 call(path='/etc/apache2/ssl/cinder/key',
+                      content='SSL_KEY')]
+        self.write_file.assert_has_calls(files)
+        # appropriate bits are b64decoded.
+        decode = [call('SSL_CERT'), call('SSL_KEY')]
+        self.assertEquals(decode, self.b64decode.call_args_list)
+
     def test_https_canonical_names(self):
         rel = FakeRelation(IDENTITY_RELATION_SINGLE_CERT)
         self.relation_ids.side_effect = rel.relation_ids
