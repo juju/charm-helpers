@@ -500,9 +500,15 @@ class ApacheSSLContext(OSContextGenerator):
         ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
         mkdir(path=ssl_dir)
         cert, key = get_cert(cn)
-        write_file(path=os.path.join(ssl_dir, 'cert_{}'.format(cn)),
+        if cn:
+            cert_filename = 'cert_{}'.format(cn)
+            key_filename = 'key_{}'.format(cn)
+        else:
+            cert_filename = 'cert'
+            key_filename = 'key'
+        write_file(path=os.path.join(ssl_dir, cert_filename),
                    content=b64decode(cert))
-        write_file(path=os.path.join(ssl_dir, 'key_{}'.format(cn)),
+        write_file(path=os.path.join(ssl_dir, key_filename),
                    content=b64decode(key))
 
     def configure_ca(self):
