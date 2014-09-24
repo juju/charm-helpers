@@ -30,7 +30,7 @@ qw==
 '''
 
 IDENTITY_NEW_STYLE_CERTS = {
-   'identity:0': {
+    'identity:0': {
         'keystone/0': {
             'ssl_cert_test-cn': 'keystone_provided_cert',
             'ssl_key_test-cn': 'keystone_provided_key',
@@ -39,7 +39,7 @@ IDENTITY_NEW_STYLE_CERTS = {
 }
 
 IDENTITY_OLD_STYLE_CERTS = {
-   'identity:0': {
+    'identity:0': {
         'keystone/0': {
             'ssl_cert': 'keystone_provided_cert',
             'ssl_key': 'keystone_provided_key',
@@ -95,10 +95,9 @@ class ApacheUtilsTests(TestCase):
         self.relation_ids.side_effect = rel.relation_ids
         self.relation_list.side_effect = rel.relation_units
         self.relation_get.side_effect = rel.get
-        result = apache_utils.get_cert('test-cn')
+        result = apache_utils.get_cert()
         self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
                           result)
-
 
     def test_get_ca_cert_from_relation(self):
         self.config_get.return_value = None
