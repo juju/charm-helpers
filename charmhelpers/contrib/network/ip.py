@@ -218,13 +218,53 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=T
 get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')
 
 
-def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None):
+def select_ipv6_global_dynamic_address(ipv6_addr_list):
+    """
+    Return global dynamic ipv6 address, which follows EUI-64 standards,
+    it's generated from MAC address, so won't change after node reboot,
+    by compring link scope ipv6 address, it could be identified, e.g:
+      inet6 2001:db8:1:0:f816:3eff:feba:b633/64 scope global dynamic
+      inet6 fe80::f816:3eff:feba:b633/64 scope link
+    """
+
+    if not ipv6_addr_list:
+        raise Exception("No IPv6 addresses are found.")
+
+    scope_link_suffix = []
+    for ipv6_addr in ipv6_addr_list:
+        if ipv6_addr.startswith('fe80'):
+            scope_link_addr = ipv6_addr.split('%')[0]
+            scope_link_suffix.append(scope_link_addr.split('::')[1])
+
+    find_global_dynamic_addr = False
+    for global_addr in ipv6_addr_list:
+        for suffix in scope_link_suffix:
+            if not global_addr.startswith('fe80') and \
+                    global_addr.endswith(suffix):
+                find_global_dynamic_addr = True
+                return global_addr
+
+    if not find_global_dynamic_addr:
+        raise Exception("No global dynamic ipv6 address found.")
+
+
+def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None, global_dynamic=True):
     """
     Return the assigned IPv6 address for a given interface, if any, or [].
+    Default return global dynamic IPv6 address, if no global dynamic IPv6
+    address is found, return the first one get from ipv6 address list.
     """
     addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
                                inc_aliases=inc_aliases, fatal=fatal,
                                exc_list=exc_list)
+    if global_dynamic:
+        try:
+            g_dynamic_addr = select_ipv6_global_dynamic_address(addresses)
+            if g_dynamic_addr:
+                return [g_dynamic_addr]
+        except Exception:
+            log("No global dynamic IPv6 address found.", level=ERROR)
+
     remotly_addressable = []
     for address in addresses:
         if not address.startswith('fe80'):
