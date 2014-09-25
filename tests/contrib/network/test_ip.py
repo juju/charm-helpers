@@ -213,6 +213,7 @@ class IPTest(unittest.TestCase):
             exc_list='2a01:348:2f4:0:685e:5748:ae62:209f',
             inc_aliases=True,
             fatal=False,
+            global_dynamic=False
         )
         self.assertEqual([], result)
 
@@ -221,7 +222,19 @@ class IPTest(unittest.TestCase):
     def test_get_ipv6_addr(self, _interfaces, _ifaddresses):
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
-        result = net_ip.get_ipv6_addr()
+        result = net_ip.get_ipv6_addr(global_dynamic=False)
+        self.assertEqual(['2a01:348:2f4:0:685e:5748:ae62:209f'], result)
+
+    @patch.object(net_ip, 'select_ipv6_global_dynamic_address')
+    @patch.object(netifaces, 'ifaddresses')
+    @patch.object(netifaces, 'interfaces')
+    def test_get_ipv6_addr_global_dynamic(self, _interfaces, _ifaddresses,
+                                          _select_global_dynamic_addr):
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
+        FAKE_ADDRESS = '2a01:348:2f4:0:685e:5748:ae62:209f'
+        _select_global_dynamic_addr.return_value = FAKE_ADDRESS
+        result = net_ip.get_ipv6_addr(global_dynamic=True)
         self.assertEqual(['2a01:348:2f4:0:685e:5748:ae62:209f'], result)
 
     @patch.object(netifaces, 'interfaces')
@@ -363,3 +376,20 @@ class IPTest(unittest.TestCase):
                           None)
         mock_log.assert_called_with(
             'Not a valid ipv6 address: myhost', level='WARNING')
+
+    def test_select_ipv6_global_dynamic_address(self):
+        dummy_addresses = ['2001:db8:1:0:f816:3eff:feba:b633',
+                           'fe80::f816:3eff:feba:b633']
+        self.assertEqual(
+            '2001:db8:1:0:f816:3eff:feba:b633',
+            net_ip.select_ipv6_global_dynamic_address(dummy_addresses))
+
+    def test_select_ipv6_global_dynamic_address_invalid_address(self):
+        INVALID_ADDRESSESS = []
+        with nose.tools.assert_raises(Exception):
+            net_ip.select_ipv6_global_dynamic_address(INVALID_ADDRESSESS)
+
+        DUMMY_ADDRESS = ['2001:db8:1:0:f816:3eff:feba:0000',
+                         'fe80::f816:3eff:feba:b633']
+        with nose.tools.assert_raises(Exception):
+            net_ip.select_ipv6_global_dynamic_address(DUMMY_ADDRESS)
