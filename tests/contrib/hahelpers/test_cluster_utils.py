@@ -117,7 +117,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'peer_units')
     @patch.object(cluster_utils, 'is_clustered')
     def test_is_is_elected_leader_unclustered(self, is_clustered,
-                                            peer_units, oldest_peer):
+                                              peer_units, oldest_peer):
         '''It detects it is the eligible leader in non-clustered peer group'''
         is_clustered.return_value = False
         oldest_peer.return_value = True
@@ -127,7 +127,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'peer_units')
     @patch.object(cluster_utils, 'is_clustered')
     def test_not_is_elected_leader_unclustered(self, is_clustered,
-                                             peer_units, oldest_peer):
+                                               peer_units, oldest_peer):
         '''It detects it is not the eligible leader in non-clustered group'''
         is_clustered.return_value = False
         oldest_peer.return_value = False
