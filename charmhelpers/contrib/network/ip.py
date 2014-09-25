@@ -1,4 +1,6 @@
 import glob
+import re
+import subprocess
 import sys
 
 from functools import partial
@@ -172,7 +174,8 @@ def format_ipv6_addr(address):
     return address
 
 
-def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=True, exc_list=None):
+def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False,
+                   fatal=True, exc_list=None):
     """
     Return the assigned IP address for a given interface, if any, or [].
     """
@@ -212,67 +215,54 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=T
                 if 'addr' in entry and entry['addr'] not in exc_list:
                     addresses.append(entry['addr'])
     if fatal and not addresses:
-        raise Exception("Interface '%s' doesn't have any %s addresses." % (iface, inet_type))
+        raise Exception("Interface '%s' doesn't have any %s addresses." %
+                        (iface, inet_type))
     return addresses
 
 get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')
 
 
-def select_ipv6_global_dynamic_address(ipv6_addr_list):
-    """
-    Return global dynamic ipv6 address, which follows EUI-64 standards,
-    it's generated from MAC address, so won't change after node reboot,
-    by compring link scope ipv6 address, it could be identified, e.g:
-      inet6 2001:db8:1:0:f816:3eff:feba:b633/64 scope global dynamic
-      inet6 fe80::f816:3eff:feba:b633/64 scope link
-    """
+def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None):
+    """Get assigned IPv6 address for a given interface.
 
-    if not ipv6_addr_list:
-        raise Exception("No IPv6 addresses are found.")
+    Returns list of addresses found. If no address found, returns empty list.
 
-    scope_link_suffix = []
-    for ipv6_addr in ipv6_addr_list:
-        if ipv6_addr.startswith('fe80'):
-            scope_link_addr = ipv6_addr.split('%')[0]
-            scope_link_suffix.append(scope_link_addr.split('::')[1])
-
-    find_global_dynamic_addr = False
-    for global_addr in ipv6_addr_list:
-        for suffix in scope_link_suffix:
-            if not global_addr.startswith('fe80') and \
-                    global_addr.endswith(suffix):
-                find_global_dynamic_addr = True
-                return global_addr
-
-    if not find_global_dynamic_addr:
-        raise Exception("No global dynamic ipv6 address found.")
-
-
-def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None, global_dynamic=True):
-    """
-    Return the assigned IPv6 address for a given interface, if any, or [].
-    Default return global dynamic IPv6 address, if no global dynamic IPv6
-    address is found, return the first one get from ipv6 address list.
+    We currently only support global dynamic IPv6 addresses i.e. non-temporary
+    addresses. If no global dynamic IPv6 address is found, return the first
+    one get from ipv6 address list.
     """
     addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
                                inc_aliases=inc_aliases, fatal=fatal,
                                exc_list=exc_list)
-    if global_dynamic:
-        try:
-            g_dynamic_addr = select_ipv6_global_dynamic_address(addresses)
-            if g_dynamic_addr:
-                return [g_dynamic_addr]
-        except Exception:
-            log("No global dynamic IPv6 address found.", level=ERROR)
 
-    remotly_addressable = []
-    for address in addresses:
-        if not address.startswith('fe80'):
-            remotly_addressable.append(address)
-    if fatal and not remotly_addressable:
-        raise Exception("Interface '%s' doesn't have global ipv6 address." % iface)
-    return remotly_addressable
+    if addresses:
+        global_addrs = []
+        for addr in addresses:
+            key_scope_link_local = re.compile("^fe80::(.+)%(.+)")
+            m = re.match(key_scope_link_local, addr)
+            if m:
+                iface = m.group(2)
+            else:
+                global_addrs.append(addr)
 
+        if global_addrs:
+            # Make sure any found global addresses are not temporary
+            cmd = ['ip', 'addr', 'show', iface]
+            out = subprocess.check_output(cmd)
+            key = re.compile("inet6 (.+)/[0-9]+ scope global dynamic")
+            for line in out.split('\n'):
+                m = re.match(key, line.strip())
+                if m:
+                    # Return the first valid address we find
+                    for addr in global_addrs:
+                        if m.group(1) == addr:
+                            return [addr]
+
+    if fatal:
+        raise Exception("Interface '%s' doesn't have a scope global "
+                        "non-temporary ipv6 address." % iface)
+
+    return []
 
 def get_bridges(vnic_dir='/sys/devices/virtual/net'):
     """
