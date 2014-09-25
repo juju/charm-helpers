@@ -15,8 +15,7 @@ from charmhelpers.core.hookenv import (
     ERROR,
     INFO,
     relation_ids,
-    relation_set,
-    related_units
+    relation_set
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
@@ -467,10 +466,10 @@ def get_hostname(address, fqdn=True):
 
 
 def sync_db_with_multi_ipv6_addresses():
-    hosts = get_ipv6_addr(global_dynamic=False)
-
-    for rid in relation_ids('identity-service'):
-        for unit in related_units(rid):
-            relation_set(database=config('database'),
+    for rid in relation_ids('shared-db'):
+        hosts = get_ipv6_addr(global_dynamic=False)
+        for host in hosts:
+            relation_set(relation_id=rid,
+                         database=config('database'),
                          username=config('database-user'),
                          hostnames=hosts)
