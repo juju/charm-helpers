@@ -466,10 +466,9 @@ def get_hostname(address, fqdn=True):
 
 
 def sync_db_with_multi_ipv6_addresses():
+    hosts = get_ipv6_addr(dynamic_only=False)
     for rid in relation_ids('shared-db'):
-        hosts = get_ipv6_addr(global_dynamic=False)
-        for host in hosts:
-            relation_set(relation_id=rid,
-                         database=config('database'),
-                         username=config('database-user'),
-                         hostnames=hosts)
+        relation_set(relation_id=rid,
+                     database=config('database'),
+                     username=config('database-user'),
+                     hostname=hosts)
