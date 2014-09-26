@@ -59,6 +59,8 @@ class FakeRelation(object):
                 relation = self.relation_data[rid][unit]
             except KeyError:
                 return None
+            if attribute is None:
+                return relation
             if attribute in relation:
                 return relation[attribute]
             return None
@@ -194,6 +196,11 @@ AMQP_NOVA_CONFIG = {
     'nova-rabbit-vhost': 'foo',
 }
 
+HAPROXY_CONFIG = {
+    'haproxy-server-timeout': 50000,
+    'haproxy-client-timeout': 50000,
+}
+
 CEPH_RELATION = {
     'ceph:0': {
         'ceph/0': {
@@ -227,6 +234,39 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
         },
     }
 }
+
+IDENTITY_RELATION_NO_CERT = {
+    'identity-service:0': {
+        'keystone/0': {
+            'private-address': 'keystone1',
+        },
+    }
+}
+
+IDENTITY_RELATION_SINGLE_CERT = {
+    'identity-service:0': {
+        'keystone/0': {
+            'private-address': 'keystone1',
+            'ssl_cert_cinderhost1': 'certa',
+            'ssl_key_cinderhost1': 'keya',
+        },
+    }
+}
+
+IDENTITY_RELATION_MULTIPLE_CERT = {
+    'identity-service:0': {
+        'keystone/0': {
+            'private-address': 'keystone1',
+            'ssl_cert_cinderhost1-int-network': 'certa',
+            'ssl_key_cinderhost1-int-network': 'keya',
+            'ssl_cert_cinderhost1-pub-network': 'certa',
+            'ssl_key_cinderhost1-pub-network': 'keya',
+            'ssl_cert_cinderhost1-adm-network': 'certa',
+            'ssl_key_cinderhost1-adm-network': 'keya',
+        },
+    }
+}
+
 
 SUB_CONFIG = """
 nova:
@@ -294,12 +334,27 @@ SUB_CONFIG_RELATION = {
     },
 }
 
+NONET_CONFIG = {
+    'vip': 'cinderhost1vip',
+    'os-internal-network': None,
+    'os-admin-network': None,
+    'os-public-network': None
+}
+
+FULLNET_CONFIG = {
+    'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
+    'os-internal-network': "10.5.1.0/24",
+    'os-admin-network': "10.5.2.0/24",
+    'os-public-network': "10.5.3.0/24"
+}
+
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
     'b64decode',
     'check_call',
     'get_cert',
     'get_ca_cert',
+    'install_ca_cert',
     'log',
     'config',
     'relation_get',
@@ -315,9 +370,12 @@ TO_PATCH = [
     'time',
     'https',
     'get_address_in_network',
+    'is_address_in_network',
     'local_unit',
     'get_ipv6_addr',
-    'format_ipv6_addr'
+    'format_ipv6_addr',
+    'mkdir',
+    'write_file'
 ]
 
 
@@ -920,6 +978,52 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
+        '''Test haproxy context with all relation data and timeout'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'cluster-peer0.localnet'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['prefer-ipv6'] = False
+        self.config.side_effect = c
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'units': {
+                'peer-0': 'cluster-peer0.localnet',
+                'peer-1': 'cluster-peer1.localnet',
+                'peer-2': 'cluster-peer2.localnet',
+            },
+
+            'local_host': '127.0.0.1',
+            'haproxy-server-timeout': 50000,
+            'haproxy-client-timeout': 50000,
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
     def test_haproxy_context_with_data_ipv6(
             self, local_unit, unit_get, get_ipv6_addr):
@@ -941,19 +1045,24 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
-        self.get_ipv6_addr.return_value = ['cluster-peer0.localnet']
-        #self.config.side_effect = [True, 'dummy-vip', None, True]
+        self.get_ipv6_addr.return_value = 'ip6-localhost'
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['prefer-ipv6'] = True
+        self.config.side_effect = c
         haproxy = context.HAProxyContext()
+
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
             'units': {
                 'peer-0': 'cluster-peer0.localnet',
                 'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet'
+                'peer-2': 'cluster-peer2.localnet',
             },
 
             'local_host': 'ip6-localhost',
+            'haproxy-server-timeout': 50000,
+            'haproxy-client-timeout': 50000,
             'haproxy_host': '::',
             'stat_port': ':::8888',
         }
@@ -998,47 +1107,116 @@ class ContextTests(unittest.TestCase):
         self.https.return_value = False
         self.assertEquals({}, apache())
 
-    def _test_https_context(self, apache, is_clustered, peer_units):
+    def _test_https_context(self, apache, is_clustered, peer_units,
+                            network_config=NONET_CONFIG, multinet=False):
         self.https.return_value = True
+        vips = network_config['vip'].split()
+        if multinet:
+            self.get_address_in_network.side_effect = ['10.5.1.100',
+                                                       '10.5.2.100',
+                                                       '10.5.3.100']
+        else:
+            self.get_address_in_network.return_value = 'cinderhost1'
+
+        config = {}
+        config.update(network_config)
+        self.config.side_effect = lambda key: config[key]
+
+        self.unit_get.return_value = 'cinderhost1'
+        self.is_clustered.return_value = is_clustered
+
+        apache = context.ApacheSSLContext()
+        apache.configure_cert = MagicMock()
+        apache.enable_modules = MagicMock()
+        apache.configure_ca = MagicMock()
+        apache.canonical_names = MagicMock()
 
         if is_clustered:
+            apache.canonical_names.return_value = \
+                network_config['vip'].split()
             self.determine_api_port.return_value = 8756
             self.determine_apache_port.return_value = 8766
+            if len(vips) > 1:
+                self.is_address_in_network.side_effect = [
+                    True, False, True, False, False, True
+                ]
+            else:
+                self.is_address_in_network.return_value = True
         else:
+            apache.canonical_names.return_value = ['cinderhost1']
             self.determine_api_port.return_value = 8766
             self.determine_apache_port.return_value = 8776
 
-        config = {'vip': 'cinderhost1vip'}
-        self.config.side_effect = lambda key: config[key]
-        self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = is_clustered
-        apache = context.ApacheSSLContext()
-        apache.configure_cert = MagicMock
-        apache.enable_modules = MagicMock
         apache.external_ports = '8776'
         apache.service_namespace = 'cinder'
 
         if is_clustered:
-            ex = {
-                'private_address': 'cinderhost1vip',
-                'namespace': 'cinder',
-                'endpoints': [(8766, 8756)],
-            }
+            if len(vips) > 1:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('10.5.1.100', '10.5.1.1',
+                                   8766, 8756),
+                                  ('10.5.2.100', '10.5.2.1',
+                                   8766, 8756),
+                                  ('10.5.3.100', '10.5.3.1',
+                                   8766, 8756)],
+                    'ext_ports': [8766]
+                }
+            else:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('cinderhost1', 'cinderhost1vip',
+                                   8766, 8756)],
+                    'ext_ports': [8766]
+                }
         else:
-            ex = {
-                'private_address': 'cinderhost1',
-                'namespace': 'cinder',
-                'endpoints': [(8776, 8766)],
-            }
+            if multinet:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('10.5.3.100', '10.5.3.100',
+                                   8776, 8766),
+                                  ('10.5.2.100', '10.5.2.100',
+                                   8776, 8766),
+                                  ('10.5.1.100', '10.5.1.100',
+                                   8776, 8766)],
+                    'ext_ports': [8776]
+                }
+            else:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('cinderhost1', 'cinderhost1', 8776, 8766)],
+                    'ext_ports': [8776]
+                }
 
         self.assertEquals(ex, apache())
-        self.assertTrue(apache.configure_cert.called)
+        if is_clustered:
+            if len(vips) > 1:
+                apache.configure_cert.assert_has_calls([
+                    call('10.5.1.1'),
+                    call('10.5.2.1'),
+                    call('10.5.3.1')
+                ])
+            else:
+                apache.configure_cert.assert_called_with('cinderhost1vip')
+        else:
+            apache.configure_cert.assert_called_with('cinderhost1')
+        self.assertTrue(apache.configure_ca.called)
         self.assertTrue(apache.enable_modules.called)
 
     def test_https_context_no_peers_no_cluster(self):
         '''Test apache2 https on a single, unclustered unit'''
         apache = context.ApacheSSLContext()
         self._test_https_context(apache, is_clustered=False, peer_units=None)
+
+    def test_https_context_multinetwork(self):
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=False, peer_units=None,
+                                 network_config=FULLNET_CONFIG, multinet=True)
+
+    def test_https_context_multinetwork_cluster(self):
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=True, peer_units=None,
+                                 network_config=FULLNET_CONFIG, multinet=True)
 
     def test_https_context_wth_peers_no_cluster(self):
         '''Test apache2 https on a unclustered unit with peers'''
@@ -1057,30 +1235,57 @@ class ContextTests(unittest.TestCase):
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
         self.check_call.assert_called_with(ex_cmd)
 
-    @patch('__builtin__.open')
-    @patch('os.mkdir')
-    @patch('os.path.isdir')
-    def test_https_configure_cert(self, isdir, mkdir, _open):
+    def test_https_configure_cert(self):
         '''Test apache2 properly installs certs and keys to disk'''
-        isdir.return_value = False
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
-        self.get_ca_cert.return_value = 'CA_CERT'
+        self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
+        apache = context.ApacheSSLContext()
+        apache.service_namespace = 'cinder'
+        apache.configure_cert('test-cn')
+        # appropriate directories are created.
+        self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
+        # appropriate files are written.
+        files = [call(path='/etc/apache2/ssl/cinder/cert_test-cn',
+                      content='SSL_CERT'),
+                 call(path='/etc/apache2/ssl/cinder/key_test-cn',
+                      content='SSL_KEY')]
+        self.write_file.assert_has_calls(files)
+        # appropriate bits are b64decoded.
+        decode = [call('SSL_CERT'), call('SSL_KEY')]
+        self.assertEquals(decode, self.b64decode.call_args_list)
+
+    def test_https_configure_cert_deprecated(self):
+        '''Test apache2 properly installs certs and keys to disk'''
+        self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
+        self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
         apache = context.ApacheSSLContext()
         apache.service_namespace = 'cinder'
         apache.configure_cert()
         # appropriate directories are created.
-        dirs = [call('/etc/apache2/ssl'), call('/etc/apache2/ssl/cinder')]
-        self.assertEquals(dirs, mkdir.call_args_list)
-        # appropriate files are opened for writing.
-        _ca = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
-        files = [call('/etc/apache2/ssl/cinder/cert', 'w'),
-                 call('/etc/apache2/ssl/cinder/key', 'w'),
-                 call(_ca, 'w')]
-        for f in files:
-            self.assertIn(f, _open.call_args_list)
+        self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
+        # appropriate files are written.
+        files = [call(path='/etc/apache2/ssl/cinder/cert',
+                      content='SSL_CERT'),
+                 call(path='/etc/apache2/ssl/cinder/key',
+                      content='SSL_KEY')]
+        self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
-        decode = [call('SSL_CERT'), call('SSL_KEY'), call('CA_CERT')]
+        decode = [call('SSL_CERT'), call('SSL_KEY')]
         self.assertEquals(decode, self.b64decode.call_args_list)
+
+    def test_https_canonical_names(self):
+        rel = FakeRelation(IDENTITY_RELATION_SINGLE_CERT)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        self.relation_get.side_effect = rel.get
+        apache = context.ApacheSSLContext()
+        self.assertEquals(apache.canonical_names(), ['cinderhost1'])
+        rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
+        self.assertEquals(apache.canonical_names(), ['cinderhost1-adm-network',
+                                                     'cinderhost1-int-network',
+                                                     'cinderhost1-pub-network'])
+        rel.relation_data = IDENTITY_RELATION_NO_CERT
+        self.assertEquals(apache.canonical_names(), [])
 
     def test_image_service_context_missing_data(self):
         '''Test image-service with missing relation and missing data'''

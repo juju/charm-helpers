@@ -1,7 +1,7 @@
 from mock import patch
 
 from testtools import TestCase
-from tests.helpers import patch_open
+from tests.helpers import patch_open, FakeRelation
 
 import charmhelpers.contrib.hahelpers.apache as apache_utils
 
@@ -29,6 +29,24 @@ qw==
 -----END CERTIFICATE-----
 '''
 
+IDENTITY_NEW_STYLE_CERTS = {
+    'identity:0': {
+        'keystone/0': {
+            'ssl_cert_test-cn': 'keystone_provided_cert',
+            'ssl_key_test-cn': 'keystone_provided_key',
+        }
+    }
+}
+
+IDENTITY_OLD_STYLE_CERTS = {
+    'identity:0': {
+        'keystone/0': {
+            'ssl_cert': 'keystone_provided_cert',
+            'ssl_key': 'keystone_provided_key',
+        }
+    }
+}
+
 
 class ApacheUtilsTests(TestCase):
     def setUp(self):
@@ -54,7 +72,7 @@ class ApacheUtilsTests(TestCase):
             'some_ca_cert',  # config_get('ssl_cert')
             'some_ca_key',  # config_Get('ssl_key')
         ]
-        result = apache_utils.get_cert()
+        result = apache_utils.get_cert('test-cn')
         self.assertEquals(('some_ca_cert', 'some_ca_key'), result)
 
     def test_get_ca_cert_from_config(self):
@@ -63,12 +81,20 @@ class ApacheUtilsTests(TestCase):
 
     def test_get_cert_from_relation(self):
         self.config_get.return_value = None
-        self.relation_ids.return_value = 'identity-service:0'
-        self.relation_list.return_value = 'keystone/0'
-        self.relation_get.side_effect = [
-            'keystone_provided_cert',
-            'keystone_provided_key',
-        ]
+        rel = FakeRelation(IDENTITY_NEW_STYLE_CERTS)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.relation_list.side_effect = rel.relation_units
+        self.relation_get.side_effect = rel.get
+        result = apache_utils.get_cert('test-cn')
+        self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
+                          result)
+
+    def test_get_cert_from_relation_deprecated(self):
+        self.config_get.return_value = None
+        rel = FakeRelation(IDENTITY_OLD_STYLE_CERTS)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.relation_list.side_effect = rel.relation_units
+        self.relation_get.side_effect = rel.get
         result = apache_utils.get_cert()
         self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
                           result)
