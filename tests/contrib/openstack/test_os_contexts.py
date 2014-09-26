@@ -1061,8 +1061,8 @@ class ContextTests(unittest.TestCase):
             },
 
             'local_host': 'ip6-localhost',
-            'haproxy-server-timeout': 50000,
-            'haproxy-client-timeout': 50000,
+            'haproxy_server_timeout': 50000,
+            'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
             'stat_port': ':::8888',
         }
