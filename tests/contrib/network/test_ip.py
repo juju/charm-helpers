@@ -406,11 +406,12 @@ class IPTest(unittest.TestCase):
     def test_get_ipv6_global_address(self, mock_get_iface_addr, mock_check_out):
         mock_check_out.return_value = IP_OUTPUT
         scope_global_addr = '2001:db8:1:0:d0cf:528c:23eb:6000'
-        dummy_addresses = [scope_global_addr, '2001:db8:1:0:2918:3444:852:5b8a'
-                           '2001:db8:1:0:f816:3eff:fe2a:ccce',
-                           'fe80::f816:3eff:fe2a:ccce%eth0']
-        mock_get_iface_addr.return_value = dummy_addresses
-        self.assertEqual([scope_global_addr],
+        scope_global_dyn_addr = '2001:db8:1:0:f816:3eff:fe2a:ccce'
+        mock_get_iface_addr.return_value = [scope_global_addr,
+                                            scope_global_dyn_addr,
+                                            '2001:db8:1:0:2918:3444:852:5b8a',
+                                            'fe80::f816:3eff:fe2a:ccce%eth0']
+        self.assertEqual([scope_global_addr, scope_global_dyn_addr],
                          net_ip.get_ipv6_addr(dynamic_only=False))
 
     @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
@@ -418,12 +419,12 @@ class IPTest(unittest.TestCase):
     def test_get_ipv6_global_dynamic_address(self, mock_get_iface_addr,
                                              mock_check_out):
         mock_check_out.return_value = IP_OUTPUT
+        scope_global_addr = '2001:db8:1:0:d0cf:528c:23eb:6000'
         scope_global_dyn_addr = '2001:db8:1:0:f816:3eff:fe2a:ccce'
-        dummy_addresses = ['2001:db8:1:0:d0cf:528c:23eb:6000',
-                           '2001:db8:1:0:2918:3444:852:5b8a',
-                           scope_global_dyn_addr,
-                           'fe80::f816:3eff:fe2a:ccce%eth0']
-        mock_get_iface_addr.return_value = dummy_addresses
+        mock_get_iface_addr.return_value = [scope_global_addr,
+                                            scope_global_dyn_addr,
+                                            '2001:db8:1:0:2918:3444:852:5b8a',
+                                            'fe80::f816:3eff:fe2a:ccce%eth0']
         self.assertEqual([scope_global_dyn_addr], net_ip.get_ipv6_addr())
 
     @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
