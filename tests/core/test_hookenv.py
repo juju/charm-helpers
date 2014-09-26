@@ -972,6 +972,17 @@ class HooksTest(TestCase):
 
         self.assertFalse(config.save.called)
 
+    def test_config_save_disabled(self):
+        config = hookenv.config()
+        config.implicit_save = True
+
+        foo = MagicMock()
+        hooks = hookenv.Hooks(config_save=False)
+        hooks.register('foo', foo)
+        hooks.execute(['foo', 'some', 'other', 'args'])
+
+        self.assertFalse(config.save.called)
+
     def test_runs_a_registered_function(self):
         foo = MagicMock()
         hooks = hookenv.Hooks()
