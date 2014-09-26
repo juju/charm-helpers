@@ -57,6 +57,28 @@ DUMMY_ADDRESSES = {
     },
 }
 
+IP_OUTPUT = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
+    inet 10.5.16.93/16 brd 10.5.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:1:0:d0cf:528c:23eb:6000/64 scope global
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:1:0:2918:3444:852:5b8a/64 scope global temporary dynamic
+       valid_lft 86400sec preferred_lft 14400sec
+    inet6 2001:db8:1:0:f816:3eff:fe2a:ccce/64 scope global dynamic
+       valid_lft 86400sec preferred_lft 14400sec
+    inet6 fe80::f816:3eff:fe2a:ccce/64 scope link
+       valid_lft forever preferred_lft forever
+"""
+
+IP_OUTPUT_NO_VALID = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
+    inet 10.5.16.93/16 brd 10.5.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:1:0:2918:3444:852:5b8a/64 scope global temporary dynamic
+       valid_lft 86400sec preferred_lft 14400sec
+    inet6 fe80::f816:3eff:fe2a:ccce/64 scope link
+       valid_lft forever preferred_lft forever
+"""
+
 
 class IPTest(unittest.TestCase):
 
@@ -224,7 +246,7 @@ class IPTest(unittest.TestCase):
             "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
-        result = net_ip.get_ipv6_addr()
+        result = net_ip.get_ipv6_addr(dynamic_only=False)
         self.assertEqual(['2a01:348:2f4:0:685e:5748:ae62:209f'], result)
 
     @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
@@ -236,7 +258,7 @@ class IPTest(unittest.TestCase):
             "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
-        result = net_ip.get_ipv6_addr()
+        result = net_ip.get_ipv6_addr(dynamic_only=False)
         self.assertEqual(['2a01:348:2f4:0:685e:5748:ae62:209f'], result)
 
     @patch.object(netifaces, 'interfaces')
@@ -381,22 +403,39 @@ class IPTest(unittest.TestCase):
 
     @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch('charmhelpers.contrib.network.ip.get_iface_addr')
-    def test_get_ipv6_global_dynamic_address(self, mock_get_iface_addr,
-                                             mock_check_out):
-        mock_check_out.return_value = \
-            "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
-        scope_global_addr = '2a01:348:2f4:0:685e:5748:ae62:209f'
-        dummy_addresses = [scope_global_addr, 'fe80::f816:3eff:feba:b633']
+    def test_get_ipv6_global_address(self, mock_get_iface_addr, mock_check_out):
+        mock_check_out.return_value = IP_OUTPUT
+        scope_global_addr = '2001:db8:1:0:d0cf:528c:23eb:6000'
+        dummy_addresses = [scope_global_addr, '2001:db8:1:0:2918:3444:852:5b8a'
+                           '2001:db8:1:0:f816:3eff:fe2a:ccce',
+                           'fe80::f816:3eff:fe2a:ccce%eth0']
         mock_get_iface_addr.return_value = dummy_addresses
         self.assertEqual([scope_global_addr],
-                         net_ip.get_ipv6_addr(dummy_addresses))
+                         net_ip.get_ipv6_addr(dynamic_only=False))
 
-    def test_get_ipv6_global_dynamic_address_invalid_address(self):
-        INVALID_ADDRESSESS = []
-        with nose.tools.assert_raises(Exception):
-            net_ip.get_ipv6_addr(INVALID_ADDRESSESS)
+    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.get_iface_addr')
+    def test_get_ipv6_global_dynamic_address(self, mock_get_iface_addr,
+                                             mock_check_out):
+        mock_check_out.return_value = IP_OUTPUT
+        scope_global_dyn_addr = '2001:db8:1:0:f816:3eff:fe2a:ccce'
+        dummy_addresses = ['2001:db8:1:0:d0cf:528c:23eb:6000',
+                           '2001:db8:1:0:2918:3444:852:5b8a',
+                           scope_global_dyn_addr,
+                           'fe80::f816:3eff:fe2a:ccce%eth0']
+        mock_get_iface_addr.return_value = dummy_addresses
+        self.assertEqual([scope_global_dyn_addr], net_ip.get_ipv6_addr())
 
-        DUMMY_ADDRESS = ['2001:db8:1:0:f816:3eff:feba:0000',
-                         'fe80::f816:3eff:feba:b633']
+    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.get_iface_addr')
+    def test_get_ipv6_global_dynamic_address_invalid_address(self,
+                                                             mock_get_iface_addr,
+                                                             mock_check_out):
+        mock_get_iface_addr.return_value = []
         with nose.tools.assert_raises(Exception):
-            net_ip.get_ipv6_addr(DUMMY_ADDRESS)
+            net_ip.get_ipv6_addr()
+
+        mock_get_iface_addr.return_value = ['2001:db8:1:0:2918:3444:852:5b8a']
+        mock_check_out.return_value = IP_OUTPUT_NO_VALID
+        with nose.tools.assert_raises(Exception):
+            net_ip.get_ipv6_addr()
