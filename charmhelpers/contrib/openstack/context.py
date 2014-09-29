@@ -446,7 +446,7 @@ class HAProxyContext(OSContextGenerator):
         if len(cluster_hosts) < 1:
             cluster_hosts[addr] = {}
             cluster_hosts[addr]['network'] = "{}/{}".format(
-                laddr,
+                addr,
                 get_netmask_for_address(addr)
             )
             cluster_hosts[addr]['backends'] = {}
@@ -455,7 +455,7 @@ class HAProxyContext(OSContextGenerator):
                 for unit in related_units(rid):
                     _unit = unit.replace('/', '-')
                     _laddr = relation_get('private-address',
-                                       rid=rid, unit=unit)
+                                          rid=rid, unit=unit)
                     if _laddr:
                         cluster_hosts[addr]['backends'][_unit] = _laddr
 
