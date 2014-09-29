@@ -366,6 +366,7 @@ TO_PATCH = [
     'https',
     'get_address_in_network',
     'is_address_in_network',
+    'get_netmask_for_address',
     'local_unit',
     'get_ipv6_addr',
     'mkdir',
@@ -893,16 +894,21 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
             'frontends': {
                 'cluster-peer0.localnet': {
-                    'peer-0': 'cluster-peer0.localnet',
-                    'peer-1': 'cluster-peer1.localnet',
-                    'peer-2': 'cluster-peer2.localnet',
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
                 }
             },
             'local_host': '127.0.0.1',
@@ -946,26 +952,37 @@ class ContextTests(unittest.TestCase):
             'cluster-peer0.internal',
             'cluster-peer0.public'
         ]
+        self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
             'frontends': {
                 'cluster-peer0.admin': {
-                    'peer-0': 'cluster-peer0.admin',
-                    'peer-1': 'cluster-peer1.admin',
-                    'peer-2': 'cluster-peer2.admin',
+                    'network': 'cluster-peer0.admin/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.admin',
+                        'peer-1': 'cluster-peer1.admin',
+                        'peer-2': 'cluster-peer2.admin',
+                    }
                 },
                 'cluster-peer0.internal': {
-                    'peer-0': 'cluster-peer0.internal',
-                    'peer-1': 'cluster-peer1.internal',
-                    'peer-2': 'cluster-peer2.internal',
+                    'network': 'cluster-peer0.internal/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.internal',
+                        'peer-1': 'cluster-peer1.internal',
+                        'peer-2': 'cluster-peer2.internal',
+                    }
                 },
                 'cluster-peer0.public': {
-                    'peer-0': 'cluster-peer0.public',
-                    'peer-1': 'cluster-peer1.public',
-                    'peer-2': 'cluster-peer2.public',
+                    'network': 'cluster-peer0.public/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.public',
+                        'peer-1': 'cluster-peer1.public',
+                        'peer-2': 'cluster-peer2.public',
+                    }
                 }
             },
             'local_host': '127.0.0.1',
@@ -1003,17 +1020,24 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = \
+            'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000'
         self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
         self.config.side_effect = fake_config(local_config)
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
             'frontends': {
                 'cluster-peer0.localnet': {
-                    'peer-0': 'cluster-peer0.localnet',
-                    'peer-1': 'cluster-peer1.localnet',
-                    'peer-2': 'cluster-peer2.localnet',
+                    'network': 'cluster-peer0.localnet/'
+                    'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
                 }
             },
             'local_host': 'ip6-localhost',
