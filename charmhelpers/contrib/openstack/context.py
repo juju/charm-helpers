@@ -396,6 +396,9 @@ class CephContext(OSContextGenerator):
         return ctxt
 
 
+ADDRESS_TYPES = ['admin', 'internal', 'public']
+
+
 class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
@@ -408,23 +411,45 @@ class HAProxyContext(OSContextGenerator):
         if not relation_ids('cluster'):
             return {}
 
-        cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
         if config('prefer-ipv6'):
             addr = get_ipv6_addr()
         else:
             addr = unit_get('private-address')
-        cluster_hosts[l_unit] = get_address_in_network(config('os-internal-network'),
-                                                       addr)
 
-        for rid in relation_ids('cluster'):
-            for unit in related_units(rid):
-                _unit = unit.replace('/', '-')
-                addr = relation_get('private-address', rid=rid, unit=unit)
-                cluster_hosts[_unit] = addr
+        cluster_hosts = {}
+
+        # NOTE(jamespage): build out map of configured network endpoints
+        # and associated backends
+        for addr_type in ADDRESS_TYPES:
+            laddr = get_address_in_network(
+                config('os-{}-network'.format(addr_type)))
+            if laddr:
+                cluster_hosts[laddr] = {}
+                cluster_hosts[laddr][l_unit] = laddr
+                for rid in relation_ids('cluster'):
+                    for unit in related_units(rid):
+                        _unit = unit.replace('/', '-')
+                        _laddr = relation_get('{}-address'.format(addr_type),
+                                              rid=rid, unit=unit)
+                        if _laddr:
+                            cluster_hosts[laddr][_unit] = _laddr
+
+        # NOTE(jamespage) no split configurations found, just use
+        # private addresses
+        if len(cluster_hosts) < 1:
+            cluster_hosts[addr] = {}
+            cluster_hosts[addr][l_unit] = addr
+            for rid in relation_ids('cluster'):
+                for unit in related_units(rid):
+                    _unit = unit.replace('/', '-')
+                    laddr = relation_get('private-address',
+                                         rid=rid, unit=unit)
+                    if laddr:
+                        cluster_hosts[addr][_unit] = laddr
 
         ctxt = {
-            'units': cluster_hosts,
+            'frontends': cluster_hosts,
         }
 
         if config('prefer-ipv6'):
@@ -436,12 +461,13 @@ class HAProxyContext(OSContextGenerator):
             ctxt['haproxy_host'] = '0.0.0.0'
             ctxt['stat_port'] = ':8888'
 
-        if len(cluster_hosts.keys()) > 1:
-            # Enable haproxy when we have enough peers.
-            log('Ensuring haproxy enabled in /etc/default/haproxy.')
-            with open('/etc/default/haproxy', 'w') as out:
-                out.write('ENABLED=1\n')
-            return ctxt
+        for frontend in cluster_hosts:
+            if len(cluster_hosts[frontend]) > 1:
+                # Enable haproxy when we have enough peers.
+                log('Ensuring haproxy enabled in /etc/default/haproxy.')
+                with open('/etc/default/haproxy', 'w') as out:
+                    out.write('ENABLED=1\n')
+                return ctxt
         log('HAProxy context is incomplete, this unit has no peers.')
         return {}
 
@@ -703,22 +729,22 @@ class NeutronContext(OSContextGenerator):
 
 class OSConfigFlagContext(OSContextGenerator):
 
-        """
-        Responsible for adding user-defined config-flags in charm config to a
-        template context.
+    """
+    Responsible for adding user-defined config-flags in charm config to a
+    template context.
 
-        NOTE: the value of config-flags may be a comma-separated list of
-              key=value pairs and some Openstack config files support
-              comma-separated lists as values.
-        """
+    NOTE: the value of config-flags may be a comma-separated list of
+          key=value pairs and some Openstack config files support
+          comma-separated lists as values.
+    """
 
-        def __call__(self):
-            config_flags = config('config-flags')
-            if not config_flags:
-                return {}
+    def __call__(self):
+        config_flags = config('config-flags')
+        if not config_flags:
+            return {}
 
-            flags = config_flags_parser(config_flags)
-            return {'user_config_flags': flags}
+        flags = config_flags_parser(config_flags)
+        return {'user_config_flags': flags}
 
 
 class SubordinateConfigContext(OSContextGenerator):
