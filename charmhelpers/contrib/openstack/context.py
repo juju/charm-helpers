@@ -52,7 +52,8 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr,
-    is_address_in_network
+    is_address_in_network,
+    get_netmask_for_address
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -425,28 +426,32 @@ class HAProxyContext(OSContextGenerator):
             laddr = get_address_in_network(
                 config('os-{}-network'.format(addr_type)))
             if laddr:
-                cluster_hosts[laddr] = {}
-                cluster_hosts[laddr][l_unit] = laddr
+                laddr_key = "{}/{}".format(laddr,
+                                           get_netmask_for_address(laddr))
+                cluster_hosts[laddr_key] = {}
+                cluster_hosts[laddr_key][l_unit] = laddr
                 for rid in relation_ids('cluster'):
                     for unit in related_units(rid):
                         _unit = unit.replace('/', '-')
                         _laddr = relation_get('{}-address'.format(addr_type),
                                               rid=rid, unit=unit)
                         if _laddr:
-                            cluster_hosts[laddr][_unit] = _laddr
+                            cluster_hosts[laddr_key][_unit] = _laddr
 
         # NOTE(jamespage) no split configurations found, just use
         # private addresses
         if len(cluster_hosts) < 1:
-            cluster_hosts[addr] = {}
-            cluster_hosts[addr][l_unit] = addr
+            addr_key = "{}/{}".format(addr,
+                                      get_netmask_for_address(addr))
+            cluster_hosts[addr_key] = {}
+            cluster_hosts[addr_key][l_unit] = addr
             for rid in relation_ids('cluster'):
                 for unit in related_units(rid):
                     _unit = unit.replace('/', '-')
                     laddr = relation_get('private-address',
                                          rid=rid, unit=unit)
                     if laddr:
-                        cluster_hosts[addr][_unit] = laddr
+                        cluster_hosts[addr_key][_unit] = laddr
 
         ctxt = {
             'frontends': cluster_hosts,
