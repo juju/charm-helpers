@@ -226,9 +226,12 @@ class IPTest(unittest.TestCase):
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
         self.assertRaises(Exception, net_ip.get_ipv6_addr)
 
+    @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
     @patch.object(netifaces, 'ifaddresses')
     @patch.object(netifaces, 'interfaces')
-    def test_get_ipv6_addr_exc_list(self, _interfaces, _ifaddresses):
+    def test_get_ipv6_addr_exc_list(self, _interfaces, _ifaddresses,
+                                    mock_get_iface_from_addr):
+        mock_get_iface_from_addr.return_value = 'eth0'
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
         result = net_ip.get_ipv6_addr(
@@ -238,10 +241,13 @@ class IPTest(unittest.TestCase):
         )
         self.assertEqual([], result)
 
-    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
+    @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch.object(netifaces, 'ifaddresses')
     @patch.object(netifaces, 'interfaces')
-    def test_get_ipv6_addr(self, _interfaces, _ifaddresses, mock_check_out):
+    def test_get_ipv6_addr(self, _interfaces, _ifaddresses, mock_check_out,
+                           mock_get_iface_from_addr):
+        mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = \
             "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
@@ -249,11 +255,14 @@ class IPTest(unittest.TestCase):
         result = net_ip.get_ipv6_addr(dynamic_only=False)
         self.assertEqual(['2a01:348:2f4:0:685e:5748:ae62:209f'], result)
 
-    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
+    @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch.object(netifaces, 'ifaddresses')
     @patch.object(netifaces, 'interfaces')
     def test_get_ipv6_addr_global_dynamic(self, _interfaces, _ifaddresses,
-                                          mock_check_out):
+                                          mock_check_out,
+                                          mock_get_iface_from_addr):
+        mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = \
             "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
@@ -401,9 +410,12 @@ class IPTest(unittest.TestCase):
         mock_log.assert_called_with(
             'Not a valid ipv6 address: myhost', level='WARNING')
 
-    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
+    @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch('charmhelpers.contrib.network.ip.get_iface_addr')
-    def test_get_ipv6_global_address(self, mock_get_iface_addr, mock_check_out):
+    def test_get_ipv6_global_address(self, mock_get_iface_addr, mock_check_out,
+                                     mock_get_iface_from_addr):
+        mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = IP_OUTPUT
         scope_global_addr = '2001:db8:1:0:d0cf:528c:23eb:6000'
         scope_global_dyn_addr = '2001:db8:1:0:f816:3eff:fe2a:ccce'
@@ -414,10 +426,13 @@ class IPTest(unittest.TestCase):
         self.assertEqual([scope_global_addr, scope_global_dyn_addr],
                          net_ip.get_ipv6_addr(dynamic_only=False))
 
-    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
+    @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch('charmhelpers.contrib.network.ip.get_iface_addr')
     def test_get_ipv6_global_dynamic_address(self, mock_get_iface_addr,
-                                             mock_check_out):
+                                             mock_check_out,
+                                             mock_get_iface_from_addr):
+        mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = IP_OUTPUT
         scope_global_addr = '2001:db8:1:0:d0cf:528c:23eb:6000'
         scope_global_dyn_addr = '2001:db8:1:0:f816:3eff:fe2a:ccce'
@@ -427,7 +442,7 @@ class IPTest(unittest.TestCase):
                                             'fe80::f816:3eff:fe2a:ccce%eth0']
         self.assertEqual([scope_global_dyn_addr], net_ip.get_ipv6_addr())
 
-    @mock.patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch('charmhelpers.contrib.network.ip.get_iface_addr')
     def test_get_ipv6_global_dynamic_address_invalid_address(self,
                                                              mock_get_iface_addr,
@@ -440,3 +455,40 @@ class IPTest(unittest.TestCase):
         mock_check_out.return_value = IP_OUTPUT_NO_VALID
         with nose.tools.assert_raises(Exception):
             net_ip.get_ipv6_addr()
+
+    @patch('charmhelpers.contrib.network.ip.get_iface_addr')
+    def test_get_ipv6_addr_w_iface(self, mock_get_iface_addr):
+        mock_get_iface_addr.return_value = []
+        net_ip.get_ipv6_addr(iface='testif', fatal=False)
+        mock_get_iface_addr.assert_called_once_with(iface='testif',
+                                                    inet_type='AF_INET6',
+                                                    inc_aliases=False,
+                                                    fatal=False, exc_list=None)
+
+    @patch('charmhelpers.contrib.network.ip.unit_get')
+    @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
+    @patch('charmhelpers.contrib.network.ip.get_iface_addr')
+    def test_get_ipv6_addr_no_iface(self, mock_get_iface_addr,
+                                    mock_get_iface_from_addr, mock_unit_get):
+        mock_unit_get.return_value = '1.2.3.4'
+        mock_get_iface_addr.return_value = []
+        mock_get_iface_from_addr.return_value = "testif"
+        net_ip.get_ipv6_addr(fatal=False)
+        mock_get_iface_from_addr.assert_called_once_with('1.2.3.4')
+        mock_get_iface_addr.assert_called_once_with(iface='testif',
+                                                    inet_type='AF_INET6',
+                                                    inc_aliases=False,
+                                                    fatal=False, exc_list=None)
+
+    @patch('netifaces.interfaces')
+    @patch('netifaces.ifaddresses')
+    @patch('charmhelpers.contrib.network.ip.log')
+    def test_get_iface_from_addr(self, mock_log, mock_ifaddresses,
+                                 mock_interfaces):
+        mock_ifaddresses.side_effect = lambda iface: DUMMY_ADDRESSES[iface]
+        mock_interfaces.return_value = DUMMY_ADDRESSES.keys()
+        addr = 'fe80::3e97:eff:fe8b:1cf7'
+        self.assertEqual(net_ip.get_iface_from_addr(addr), 'eth1')
+
+        with nose.tools.assert_raises(Exception):
+            net_ip.get_iface_from_addr('1.2.3.4')
