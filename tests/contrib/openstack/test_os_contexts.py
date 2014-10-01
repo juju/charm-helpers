@@ -371,6 +371,7 @@ TO_PATCH = [
     'https',
     'get_address_in_network',
     'is_address_in_network',
+    'get_netmask_for_address',
     'local_unit',
     'get_ipv6_addr',
     'format_ipv6_addr',
@@ -430,18 +431,22 @@ class ContextTests(unittest.TestCase):
 
     def test_shared_db_context_with_data_and_access_net_mismatch(self):
         '''Mismatch between hostname and hostname for access net - defers execution'''
-        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
+        relation = FakeRelation(
+            relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
         self.get_address_in_network.return_value = '10.5.5.1'
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
         self.assertEquals(result, {})
-        self.relation_set.assert_called_with(relation_settings={'hostname': '10.5.5.1'})
+        self.relation_set.assert_called_with(
+            relation_settings={
+                'hostname': '10.5.5.1'})
 
     def test_shared_db_context_with_data_and_access_net_match(self):
         '''Correctly set hostname for access net returns complete context'''
-        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
+        relation = FakeRelation(
+            relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
         self.get_address_in_network.return_value = 'bar'
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
@@ -954,18 +959,24 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
-            'units': {
-                'peer-0': 'cluster-peer0.localnet',
-                'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet',
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
+                }
             },
-
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'stat_port': ':8888',
@@ -996,7 +1007,10 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = False
+        self.maxDiff = None
         c = fake_config(HAPROXY_CONFIG)
         c.data['prefer-ipv6'] = False
         self.config.side_effect = c
@@ -1004,15 +1018,93 @@ class ContextTests(unittest.TestCase):
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
-            'units': {
-                'peer-0': 'cluster-peer0.localnet',
-                'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet',
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
+                }
             },
-
             'local_host': '127.0.0.1',
-            'haproxy_server_timeout': 50000,
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
             'haproxy_client_timeout': 50000,
+            'haproxy_server_timeout': 50000,
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_multinet(self, local_unit, unit_get):
+        '''Test haproxy context with all relation data for network splits'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                    'admin-address': 'cluster-peer1.admin',
+                    'internal-address': 'cluster-peer1.internal',
+                    'public-address': 'cluster-peer1.public',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                    'admin-address': 'cluster-peer2.admin',
+                    'internal-address': 'cluster-peer2.internal',
+                    'public-address': 'cluster-peer2.public',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'cluster-peer0.localnet'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.side_effect = [
+            'cluster-peer0.admin',
+            'cluster-peer0.internal',
+            'cluster-peer0.public'
+        ]
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = False
+        self.maxDiff = None
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.admin': {
+                    'network': 'cluster-peer0.admin/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.admin',
+                        'peer-1': 'cluster-peer1.admin',
+                        'peer-2': 'cluster-peer2.admin',
+                    }
+                },
+                'cluster-peer0.internal': {
+                    'network': 'cluster-peer0.internal/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.internal',
+                        'peer-1': 'cluster-peer1.internal',
+                        'peer-2': 'cluster-peer2.internal',
+                    }
+                },
+                'cluster-peer0.public': {
+                    'network': 'cluster-peer0.public/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.public',
+                        'peer-1': 'cluster-peer1.public',
+                        'peer-2': 'cluster-peer2.public',
+                    }
+                }
+            },
+            'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'stat_port': ':8888',
         }
@@ -1024,10 +1116,9 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
     def test_haproxy_context_with_data_ipv6(
-            self, local_unit, unit_get, get_ipv6_addr):
-        '''Test haproxy context with all relation data'''
+            self, local_unit, unit_get):
+        '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
                 'peer/1': {
@@ -1039,27 +1130,34 @@ class ContextTests(unittest.TestCase):
             },
         }
 
-        unit_get.return_value = 'peer/0'
+        local_unit.return_value = 'peer/0'
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
-        self.get_ipv6_addr.return_value = 'ip6-localhost'
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = \
+            'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000'
+        self.get_ipv6_addr.return_value = ['cluster-peer0.localnet']
         c = fake_config(HAPROXY_CONFIG)
         c.data['prefer-ipv6'] = True
         self.config.side_effect = c
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
-
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
-            'units': {
-                'peer-0': 'cluster-peer0.localnet',
-                'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet',
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/'
+                    'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
+                }
             },
-
             'local_host': 'ip6-localhost',
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
