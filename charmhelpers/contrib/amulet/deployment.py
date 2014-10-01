@@ -24,25 +24,31 @@ class AmuletDeployment(object):
         """Add services.
 
            Add services to the deployment where this_service is the local charm
-           that we're focused on testing and other_services are the other
-           charms that come from the charm store.
+           that we're testing and other_services are the other services that
+           are being used in the local amulet tests.
            """
-        name, units = range(2)
-
-        if this_service[name] != os.path.basename(os.getcwd()):
-            s = this_service[name]
+        if this_service['name'] != os.path.basename(os.getcwd()):
+            s = this_service['name']
             msg = "The charm's root directory name needs to be {}".format(s)
             amulet.raise_status(amulet.FAIL, msg=msg)
 
-        self.d.add(this_service[name], units=this_service[units])
+        if 'units' not in this_service:
+            this_service['units'] = 1
+
+        self.d.add(this_service['name'], units=this_service['units'])
 
         for svc in other_services:
-            if self.series:
-                self.d.add(svc[name],
-                           charm='cs:{}/{}'.format(self.series, svc[name]),
-                           units=svc[units])
+            if 'location' in svc:
+                branch_location = svc['location']
+            elif self.series:
+                branch_location = 'cs:{}/{}'.format(self.series, svc['name']),
             else:
-                self.d.add(svc[name], units=svc[units])
+                branch_location = None
+
+            if 'units' not in svc:
+                svc['units'] = 1
+
+            self.d.add(svc['name'], charm=branch_location, units=svc['units'])
 
     def _add_relations(self, relations):
         """Add all of the relations for the services."""
@@ -57,7 +63,7 @@ class AmuletDeployment(object):
     def _deploy(self):
         """Deploy environment and wait for all hooks to finish executing."""
         try:
-            self.d.setup()
+            self.d.setup(timeout=900)
             self.d.sentry.wait(timeout=900)
         except amulet.helpers.TimeoutError:
             amulet.raise_status(amulet.FAIL, msg="Deployment timed out")
