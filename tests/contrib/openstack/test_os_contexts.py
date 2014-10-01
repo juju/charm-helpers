@@ -926,7 +926,6 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
 
-
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
     def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
