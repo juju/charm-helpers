@@ -373,6 +373,7 @@ TO_PATCH = [
     'is_address_in_network',
     'local_unit',
     'get_ipv6_addr',
+    'format_ipv6_addr',
     'mkdir',
     'write_file'
 ]
@@ -398,6 +399,7 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = ['foo:0']
         self.related_units.return_value = ['foo/0']
         self.local_unit.return_value = 'localunit'
+        self.format_ipv6_addr.return_value = None
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -523,6 +525,24 @@ class ContextTests(unittest.TestCase):
                      'database_host': 'bar',
                      'database_type': 'mysql'})
 
+    def test_shared_db_context_with_ipv6(self):
+        '''Test shared-db context with ipv6'''
+        shared_db = context.SharedDBContext(
+            database='quantum', user='quantum', relation_prefix='quantum')
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
+        self.relation_get.side_effect = relation.get
+        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        result = shared_db()
+        self.assertIn(
+            call(rid='foo:0', unit='foo/0'),
+            self.relation_get.call_args_list)
+        self.assertEquals(
+            result, {'database': 'quantum',
+                     'database_user': 'quantum',
+                     'database_password': 'bar2',
+                     'database_host': '[2001:db8:1::1]',
+                     'database_type': 'mysql'})
+
     def test_postgresql_db_context_with_data(self):
         '''Test postgresql-db context with all required data'''
         relation = FakeRelation(relation_data=POSTGRESQL_DB_RELATION)
@@ -624,6 +644,27 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https'
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_ipv6(self):
+        '''Test identity-service context with ipv6'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
+        self.relation_get.side_effect = relation.get
+        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': '123456',
+            'admin_user': 'adam',
+            'auth_host': '[2001:db8:1::1]',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': '[2001:db8:1::1]',
+            'service_port': '5000',
+            'service_protocol': 'http'
         }
         self.assertEquals(result, expected)
 
@@ -767,6 +808,26 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = incomplete_config
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
+
+    def test_amqp_context_with_ipv6(self):
+        '''Test amqp context with ipv6'''
+        relation_data = copy(AMQP_AA_RELATION)
+        relation = FakeRelation(relation_data=relation_data)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        self.config.return_value = AMQP_CONFIG
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': '[2001:db8:1::1]',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
+        }
+        self.assertEquals(result, expected)
 
     def test_ceph_no_relids(self):
         '''Test empty ceph realtion'''
@@ -936,7 +997,9 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
-        self.config.side_effect = fake_config(HAPROXY_CONFIG)
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['prefer-ipv6'] = False
+        self.config.side_effect = c
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -982,8 +1045,10 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_address_in_network.return_value = 'cluster-peer0.localnet'
-        self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
-        self.config.side_effect = [True, None, None, None, True]
+        self.get_ipv6_addr.return_value = 'ip6-localhost'
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['prefer-ipv6'] = True
+        self.config.side_effect = c
         haproxy = context.HAProxyContext()
 
         with patch_open() as (_open, _file):
@@ -992,10 +1057,12 @@ class ContextTests(unittest.TestCase):
             'units': {
                 'peer-0': 'cluster-peer0.localnet',
                 'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet'
+                'peer-2': 'cluster-peer2.localnet',
             },
 
             'local_host': 'ip6-localhost',
+            'haproxy_server_timeout': 50000,
+            'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
             'stat_port': ':::8888',
         }
