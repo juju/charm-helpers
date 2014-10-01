@@ -9,4 +9,5 @@ python-jinja2
 python-coverage
 python-netifaces
 python-netaddr
+python-pip
 zip
