@@ -443,7 +443,7 @@ class HAProxyContext(OSContextGenerator):
 
         # NOTE(jamespage) no split configurations found, just use
         # private addresses
-        if len(cluster_hosts) < 1:
+        if not cluster_hosts:
             cluster_hosts[addr] = {}
             cluster_hosts[addr]['network'] = "{}/{}".format(
                 addr,
