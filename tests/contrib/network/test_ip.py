@@ -113,6 +113,8 @@ class IPTest(unittest.TestCase):
         fallback = '10.10.10.10'
         self.assertEqual(fallback,
                          net_ip.get_address_in_network(None, fallback))
+        self.assertEqual(None,
+                         net_ip.get_address_in_network(None))
 
         self.assertRaises(SystemExit, self._test_get_address_in_network,
                           None, None, fatal=True)
