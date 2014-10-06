@@ -13,7 +13,7 @@ from charmhelpers.core.hookenv import (
 )
 
 
-def update(sysctl_dict, sysctl_file="/etc/sysctl.d/50-ceph-charm.conf"):
+def create(sysctl_dict, sysctl_file):
     """Creates a sysctl.conf file from a YAML associative array
 
     :param sysctl_dict: a dict of sysctl options eg { 'kernel.max_pid': 1337 }

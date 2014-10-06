@@ -3,7 +3,7 @@
 
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
-from charmhelpers.core.sysctl import update
+from charmhelpers.core.sysctl import create
 from mock import patch, MagicMock
 
 import unittest
@@ -28,19 +28,20 @@ class SysctlTests(unittest.TestCase):
         return mock
 
     @patch('__builtin__.open')
-    def test_update(self, mock_open):
-        """Test update sysctl method"""
+    def test_create(self, mock_open):
+        """Test create sysctl method"""
         _file = MagicMock(spec=file)
         mock_open.return_value = _file
-        update('{"kernel.max_pid": 1337}')
+
+        create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-sysctl.conf")
 
         _file.__enter__().write.assert_called_with("kernel.max_pid=1337\n")
 
         self.log.assert_called_with(
-            "Updating sysctl_file: /etc/sysctl.d/50-ceph-charm.conf"
+            "Updating sysctl_file: /etc/sysctl.d/test-sysctl.conf"
             " values: {'kernel.max_pid': 1337}",
             level='DEBUG')
 
         self.check_call.assert_called_with([
             "sysctl", "-p",
-            "/etc/sysctl.d/50-ceph-charm.conf"])
+            "/etc/sysctl.d/test-sysctl.conf"])
