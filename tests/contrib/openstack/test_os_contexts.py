@@ -376,7 +376,8 @@ TO_PATCH = [
     'get_ipv6_addr',
     'format_ipv6_addr',
     'mkdir',
-    'write_file'
+    'write_file',
+    'get_host_ip',
 ]
 
 
@@ -401,6 +402,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.return_value = ['foo/0']
         self.local_unit.return_value = 'localunit'
         self.format_ipv6_addr.return_value = None
+        self.get_host_ip.side_effect = lambda hostname: hostname
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
