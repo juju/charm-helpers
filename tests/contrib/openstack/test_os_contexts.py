@@ -1768,3 +1768,19 @@ class ContextTests(unittest.TestCase):
             'verbose': False,
         }
         self.assertEquals(result, expected)
+
+    def test_workerconfig_context_noconfig(self):
+        self.config.return_value = None
+        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
+            cpus.__get__ = Mock(return_value=2)
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 2}, worker())
+
+    def test_workerconfig_context_withconfig(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 4,
+        })
+        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
+            cpus.__get__ = Mock(return_value=2)
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 8}, worker())
