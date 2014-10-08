@@ -17,7 +17,8 @@ class GitUrlFetchHandler(BaseFetchHandler):
     """Handler for git branches via generic and github URLs"""
     def can_handle(self, source):
         url_parts = self.parse_url(source)
-        if url_parts.scheme not in ('git'):
+        #TODO (mattyw) no support for ssh git@ yet
+        if url_parts.scheme not in ('https'):
             return False
         else:
             return True
@@ -28,10 +29,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
         try:
-            repo = Repo(source)
-            if repo.bare:
-                raise UnhandledSource("Source is bare {}".format(source))
-            repo.open(dest)
+            Repo.clone_from(source, dest)
         except Exception as e:
             raise e
 
