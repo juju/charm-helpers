@@ -25,7 +25,6 @@ class GitUrlFetchHandler(BaseFetchHandler):
 
     def branch(self, source, dest):
         url_parts = self.parse_url(source)
-        # If we use lp:branchname scheme we need to load plugins
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
         try:
