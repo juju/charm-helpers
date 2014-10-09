@@ -24,7 +24,9 @@ DUMMY_ADDRESSES = {
         10: [{'addr': '2a01:348:2f4:0:685e:5748:ae62:209f',
               'netmask': 'ffff:ffff:ffff:ffff::'},
              {'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
-              'netmask': 'ffff:ffff:ffff:ffff::'}],
+              'netmask': 'ffff:ffff:ffff:ffff::'},
+             {'addr': '2001:db8:1::',
+              'netmask': 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'}],
         17: [{'addr': '3c:97:0e:8b:1c:f7',
               'broadcast': 'ff:ff:ff:ff:ff:ff'}]
     },
@@ -198,7 +200,11 @@ class IPTest(unittest.TestCase):
         self.assertEquals(net_ip.get_netmask_for_address('172.4.5.5'), None)
         self.assertEquals(
             net_ip.get_netmask_for_address('2a01:348:2f4:0:685e:5748:ae62:210f'),
-            'ffff:ffff:ffff:ffff::'
+            '64'
+        )
+        self.assertEquals(
+            net_ip.get_netmask_for_address('2001:db8:1::'),
+            '128'
         )
 
     def test_is_ipv6(self):
