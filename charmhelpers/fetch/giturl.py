@@ -18,21 +18,22 @@ class GitUrlFetchHandler(BaseFetchHandler):
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         #TODO (mattyw) no support for ssh git@ yet
-        if url_parts.scheme not in ('https'):
+        if url_parts.scheme not in ('https', "git"):
             return False
         else:
             return True
 
-    def branch(self, source, dest):
+    def clone(self, source, dest, branch):
         url_parts = self.parse_url(source)
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
         try:
-            Repo.clone_from(source, dest)
+            repo = Repo.clone_from(source, dest)
+            repo.git.checkout(branch)
         except Exception as e:
             raise e
 
-    def install(self, source):
+    def install(self, source, branch="master"):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
         dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
@@ -40,7 +41,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         if not os.path.exists(dest_dir):
             mkdir(dest_dir, perms=0755)
         try:
-            self.branch(source, dest_dir)
+            self.clone(source, dest_dir, branch)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir
