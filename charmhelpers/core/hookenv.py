@@ -214,6 +214,9 @@ class Config(dict):
         except KeyError:
             return (self._prev_dict or {})[key]
 
+    def keys(self):
+        return list(set(self._prev_dict.keys() + dict.keys(self)))
+
     def load_previous(self, path=None):
         """Load previous copy of config from disk.
 
