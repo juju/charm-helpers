@@ -122,6 +122,11 @@ class ConfigTest(TestCase):
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c['baz'], 'bam')
 
+    def test_keys(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c["baz"] = "bar"
+        self.assertEqual([u"foo", "baz"], c.keys())
+
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
