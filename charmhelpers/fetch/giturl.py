@@ -18,13 +18,12 @@ class GitUrlFetchHandler(BaseFetchHandler):
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         #TODO (mattyw) no support for ssh git@ yet
-        if url_parts.scheme not in ('https', "git"):
+        if url_parts.scheme not in ('http', 'https', 'git'):
             return False
         else:
             return True
 
     def clone(self, source, dest, branch):
-        url_parts = self.parse_url(source)
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
         try:
