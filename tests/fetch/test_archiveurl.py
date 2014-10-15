@@ -5,6 +5,7 @@ from mock import (
     MagicMock,
     patch,
     mock_open,
+    Mock,
 )
 from charmhelpers.fetch import (
     archiveurl,
@@ -27,6 +28,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             "ftp://example.com/foo.tar.gz",
             "https://example.com/foo.tgz",
             "file://example.com/foo.tar.bz2",
+            "file://example.com/foo.tar.bz2#sha512=beefdead",
         )
         self.invalid_urls = (
             "git://example.com/foo.tar.gz",
@@ -63,9 +65,10 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             _open.assert_called_once_with("foo", 'w')
             _open().write.assert_called_with("bar")
 
+    @patch('charmhelpers.fetch.archiveurl.check_hash')
     @patch('charmhelpers.fetch.archiveurl.mkdir')
     @patch('charmhelpers.fetch.archiveurl.extract')
-    def test_installs(self, _extract, _mkdir):
+    def test_installs(self, _extract, _mkdir, _check_hash):
         self.fh.download = MagicMock()
 
         for url in self.valid_urls:
@@ -73,10 +76,14 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             dest = os.path.join('foo', 'fetched', os.path.basename(filename))
             _extract.return_value = dest
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
-                where = self.fh.install(url)
+                where = self.fh.install(url, checksum='deadbeef')
             self.fh.download.assert_called_with(url, dest)
-            _extract.assert_called_with(dest)
+            _extract.assert_called_with(dest, None)
+            _check_hash.assert_called_with(dest, 'deadbeef', 'sha1')
+            if 'sha512' in url:
+                _check_hash.assert_has_call(dest, 'beefdead', 'sha512')
             self.assertEqual(where, dest)
+            _check_hash.reset_mock()
 
         url = "http://www.example.com/archive.tar.gz"
 
@@ -87,3 +94,12 @@ class ArchiveUrlFetchHandlerTest(TestCase):
         self.fh.download.side_effect = OSError('fail')
         with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
             self.assertRaises(UnhandledSource, self.fh.install, url)
+
+    @patch('charmhelpers.fetch.archiveurl.urlretrieve')
+    @patch('charmhelpers.fetch.archiveurl.check_hash')
+    def test_download_and_validate(self, vfmock, urlmock):
+        urlmock.return_value = ('/tmp/tmpebM9Hv', Mock())
+        dlurl = 'http://example.com/foo.tgz'
+        dlhash = '988881adc9fc3655077dc2d4d757d480b5ea0e11'
+        self.fh.download_and_validate(dlurl, dlhash)
+        vfmock.assert_called_with('/tmp/tmpebM9Hv', dlhash, 'sha1')

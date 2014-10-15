@@ -472,6 +472,159 @@ class TestRelationContext(unittest.TestCase):
         self.assertEqual(self.context.provide_data(), {})
 
 
+class TestRequiredConfig(unittest.TestCase):
+    def setUp(self):
+        self.options = {
+            'options': {
+                'option1': {
+                    'type': 'string',
+                    'description': 'First option',
+                },
+                'option2': {
+                    'type': 'int',
+                    'default': 0,
+                    'description': 'Second option',
+                },
+            },
+        }
+        self.config = {
+            'option1': None,
+            'option2': 0,
+        }
+        self._pyaml = mock.patch.object(services.helpers, 'yaml')
+        self.myaml = self._pyaml.start()
+        self.myaml.load.side_effect = lambda fp: self.options
+        self._pconfig = mock.patch.object(hookenv, 'config')
+        self.mconfig = self._pconfig.start()
+        self.mconfig.side_effect = lambda: self.config
+        self._pcharm_dir = mock.patch.object(hookenv, 'charm_dir')
+        self.mcharm_dir = self._pcharm_dir.start()
+        self.mcharm_dir.return_value = 'charm_dir'
+
+    def tearDown(self):
+        self._pyaml.stop()
+        self._pconfig.stop()
+        self._pcharm_dir.stop()
+
+    def test_none_changed(self):
+        with mock.patch.object(services.helpers, 'open', mock.mock_open(), create=True):
+            context = services.helpers.RequiredConfig('option1', 'option2')
+        self.assertFalse(bool(context))
+        self.assertEqual(context['config']['option1'], None)
+        self.assertEqual(context['config']['option2'], 0)
+
+    def test_partial(self):
+        self.config['option1'] = 'value'
+        with mock.patch.object(services.helpers, 'open', mock.mock_open(), create=True):
+            context = services.helpers.RequiredConfig('option1', 'option2')
+        self.assertFalse(bool(context))
+        self.assertEqual(context['config']['option1'], 'value')
+        self.assertEqual(context['config']['option2'], 0)
+
+    def test_ready(self):
+        self.config['option1'] = 'value'
+        self.config['option2'] = 1
+        with mock.patch.object(services.helpers, 'open', mock.mock_open(), create=True):
+            context = services.helpers.RequiredConfig('option1', 'option2')
+        self.assertTrue(bool(context))
+        self.assertEqual(context['config']['option1'], 'value')
+        self.assertEqual(context['config']['option2'], 1)
+
+    def test_none_empty(self):
+        self.config['option1'] = ''
+        self.config['option2'] = 1
+        with mock.patch.object(services.helpers, 'open', mock.mock_open(), create=True):
+            context = services.helpers.RequiredConfig('option1', 'option2')
+        self.assertFalse(bool(context))
+        self.assertEqual(context['config']['option1'], '')
+        self.assertEqual(context['config']['option2'], 1)
+
+
+class TestStoredContext(unittest.TestCase):
+    @mock.patch.object(services.helpers.StoredContext, 'read_context')
+    @mock.patch.object(services.helpers.StoredContext, 'store_context')
+    @mock.patch('os.path.exists')
+    def test_new(self, exists, store_context, read_context):
+        exists.return_value = False
+        context = services.helpers.StoredContext('foo.yaml', {'key': 'val'})
+        assert not read_context.called
+        store_context.assert_called_once_with('foo.yaml', {'key': 'val'})
+        self.assertEqual(context, {'key': 'val'})
+
+    @mock.patch.object(services.helpers.StoredContext, 'read_context')
+    @mock.patch.object(services.helpers.StoredContext, 'store_context')
+    @mock.patch('os.path.exists')
+    def test_existing(self, exists, store_context, read_context):
+        exists.return_value = True
+        read_context.return_value = {'key': 'other'}
+        context = services.helpers.StoredContext('foo.yaml', {'key': 'val'})
+        read_context.assert_called_once_with('foo.yaml')
+        assert not store_context.called
+        self.assertEqual(context, {'key': 'other'})
+
+    @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
+    @mock.patch.object(services.helpers.StoredContext, 'read_context')
+    @mock.patch.object(services.helpers, 'yaml')
+    @mock.patch('os.fchmod')
+    @mock.patch('os.path.exists')
+    def test_store_context(self, exists, fchmod, yaml, read_context):
+        exists.return_value = False
+        mopen = mock.mock_open()
+        with mock.patch.object(services.helpers, 'open', mopen, create=True):
+            services.helpers.StoredContext('foo.yaml', {'key': 'val'})
+        mopen.assert_called_once_with('charm_dir/foo.yaml', 'w')
+        fchmod.assert_called_once_with(mopen.return_value.fileno(), 0600)
+        yaml.dump.assert_called_once_with({'key': 'val'}, mopen.return_value)
+
+    @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
+    @mock.patch.object(services.helpers.StoredContext, 'read_context')
+    @mock.patch.object(services.helpers, 'yaml')
+    @mock.patch('os.fchmod')
+    @mock.patch('os.path.exists')
+    def test_store_context_abs(self, exists, fchmod, yaml, read_context):
+        exists.return_value = False
+        mopen = mock.mock_open()
+        with mock.patch.object(services.helpers, 'open', mopen, create=True):
+            services.helpers.StoredContext('/foo.yaml', {'key': 'val'})
+        mopen.assert_called_once_with('/foo.yaml', 'w')
+
+    @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
+    @mock.patch.object(services.helpers, 'yaml')
+    @mock.patch('os.path.exists')
+    def test_read_context(self, exists, yaml):
+        exists.return_value = True
+        yaml.load.return_value = {'key': 'other'}
+        mopen = mock.mock_open()
+        with mock.patch.object(services.helpers, 'open', mopen, create=True):
+            context = services.helpers.StoredContext('foo.yaml', {'key': 'val'})
+        mopen.assert_called_once_with('charm_dir/foo.yaml', 'r')
+        yaml.load.assert_called_once_with(mopen.return_value)
+        self.assertEqual(context, {'key': 'other'})
+
+    @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
+    @mock.patch.object(services.helpers, 'yaml')
+    @mock.patch('os.path.exists')
+    def test_read_context_abs(self, exists, yaml):
+        exists.return_value = True
+        yaml.load.return_value = {'key': 'other'}
+        mopen = mock.mock_open()
+        with mock.patch.object(services.helpers, 'open', mopen, create=True):
+            context = services.helpers.StoredContext('/foo.yaml', {'key': 'val'})
+        mopen.assert_called_once_with('/foo.yaml', 'r')
+        yaml.load.assert_called_once_with(mopen.return_value)
+        self.assertEqual(context, {'key': 'other'})
+
+    @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
+    @mock.patch.object(services.helpers, 'yaml')
+    @mock.patch('os.path.exists')
+    def test_read_context_empty(self, exists, yaml):
+        exists.return_value = True
+        yaml.load.return_value = None
+        mopen = mock.mock_open()
+        with mock.patch.object(services.helpers, 'open', mopen, create=True):
+            self.assertRaises(OSError, services.helpers.StoredContext, '/foo.yaml', {})
+
+
 class TestTemplateCallback(unittest.TestCase):
     @mock.patch.object(services.helpers, 'templating')
     def test_template_defaults(self, mtemplating):

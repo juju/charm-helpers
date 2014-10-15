@@ -113,6 +113,15 @@ class ConfigTest(TestCase):
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
 
+    def test_getitem(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(baz='bam'))
+
+        self.assertRaises(KeyError, lambda: c['missing'])
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c['baz'], 'bam')
+
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
@@ -958,6 +967,17 @@ class HooksTest(TestCase):
 
         foo = MagicMock()
         hooks = hookenv.Hooks()
+        hooks.register('foo', foo)
+        hooks.execute(['foo', 'some', 'other', 'args'])
+
+        self.assertFalse(config.save.called)
+
+    def test_config_save_disabled(self):
+        config = hookenv.config()
+        config.implicit_save = True
+
+        foo = MagicMock()
+        hooks = hookenv.Hooks(config_save=False)
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
 

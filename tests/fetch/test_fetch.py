@@ -348,6 +348,9 @@ class InstallTest(TestCase):
 
             self.assertEqual(result, "foo")
 
+        fetch.install_remote('url', extra_arg=True)
+        h2.install.assert_called_with('url', extra_arg=True)
+
     @patch('charmhelpers.fetch.install_remote')
     @patch('charmhelpers.fetch.config')
     def test_installs_from_config(self, _config, _instrem):
