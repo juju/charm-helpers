@@ -45,16 +45,19 @@ def update_relations(context, namespace_separator=':'):
     # the hookenv.relations() data structure is effectively unusable in
     # templates and other contexts when trying to access relation data other
     # than the current relation. So provide a more useful structure that works
-    # with any hook
+    # with any hook.
     local_unit = charmhelpers.core.hookenv.local_unit()
     relations = {}
     for rname, rids in context['relations_full'].items():
-        relations[rname] = {}
+        relations[rname] = []
         for rid, rdata in rids.items():
             data = rdata.copy()
             if local_unit in rdata:
                 data.pop(local_unit)
-            relations[rname][rid] = data
+            for unit_name, rel_data in data.items():
+                new_data = {'__relid__': rid, '__unit__': unit_name}
+                new_data.update(rel_data)
+                relations[rname].append(new_data)
     context['relations'] = relations
 
 

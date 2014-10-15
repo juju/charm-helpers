@@ -3,25 +3,30 @@
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
 
+import subprocess
 import json
 import os
 import socket
-import subprocess
 import sys
 
 from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
     charm_dir,
-    is_relation_made,
     ERROR,
-    INFO
+    INFO,
+    relation_ids,
+    relation_set
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
     is_lvm_physical_volume,
     remove_lvm_physical_volume,
+)
+
+from charmhelpers.contrib.network.ip import (
+    get_ipv6_addr
 )
 
 from charmhelpers.core.host import lsb_release, mounts, umount
@@ -73,6 +78,8 @@ SWIFT_CODENAMES = OrderedDict([
     ('1.12.0', 'icehouse'),
     ('1.11.0', 'icehouse'),
     ('2.0.0', 'juno'),
+    ('2.1.0', 'juno'),
+    ('2.2.0', 'juno'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -467,3 +474,21 @@ def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
         with open(mm_file, 'r') as f:
             mm_map = json.load(f)
     return mm_map
+
+
+def sync_db_with_multi_ipv6_addresses(database, database_user,
+                                      relation_prefix=None):
+    hosts = get_ipv6_addr(dynamic_only=False)
+
+    kwargs = {'database': database,
+              'username': database_user,
+              'hostname': json.dumps(hosts)}
+
+    if relation_prefix:
+        keys = kwargs.keys()
+        for key in keys:
+            kwargs["%s_%s" % (relation_prefix, key)] = kwargs[key]
+            del kwargs[key]
+
+    for rid in relation_ids('shared-db'):
+        relation_set(relation_id=rid, **kwargs)
