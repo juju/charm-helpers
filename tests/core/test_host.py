@@ -39,6 +39,11 @@ IP_LINE_HWADDR = ("""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc p
 
 IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
 
+IP_LINE_BONDS = ("""
+6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
+""")
+
 
 class HelpersTest(TestCase):
     @patch('subprocess.call')
@@ -728,6 +733,12 @@ class HelpersTest(TestCase):
         self.assertEqual(nics, ['eth0', 'eth1'])
         nics = host.list_nics(['eth'])
         self.assertEqual(nics, ['eth0', 'eth1'])
+
+    @patch('subprocess.check_output')
+    def test_list_nics_with_bonds(self, check_output):
+        check_output.return_value = IP_LINE_BONDS
+        nics = host.list_nics('bond')
+        self.assertEqual(nics, ['bond0.10', ])
 
     @patch('subprocess.check_call')
     def test_set_nic_mtu(self, mock_call):
