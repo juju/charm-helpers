@@ -6,6 +6,7 @@
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
 import os
+import re
 import pwd
 import grp
 import random
@@ -317,7 +318,11 @@ def list_nics(nic_type):
         ip_output = (line for line in ip_output if line)
         for line in ip_output:
             if line.split()[1].startswith(int_type):
-                interfaces.append(line.split()[1].replace(":", ""))
+                if re.search('@', line):
+                    interfaces.append(
+                        line.split()[1].replace(":", "").split("@")[0])
+                else:
+                    interfaces.append(line.split()[1].replace(":", ""))
     return interfaces
 
 
