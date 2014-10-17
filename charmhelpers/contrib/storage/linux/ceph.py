@@ -301,7 +301,7 @@ def copy_files(src, dst, symlinks=False, ignore=None):
 
 def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
                         blk_device, fstype, system_services=[],
-                        rbd_pool_replicas=2):
+                        replicas=2):
     """
     NOTE: This function must only be called from a single service unit for
     the same rbd_img otherwise data loss will occur.
@@ -318,7 +318,7 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
     # Ensure pool, RBD image, RBD mappings are in place.
     if not pool_exists(service, pool):
         log('ceph: Creating new pool {}.'.format(pool))
-        create_pool(service, pool, replicas=rbd_pool_replicas)
+        create_pool(service, pool, replicas=replicas)
 
     if not rbd_exists(service, pool, rbd_img):
         log('ceph: Creating RBD image ({}).'.format(rbd_img))
