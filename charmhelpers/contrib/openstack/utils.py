@@ -492,3 +492,16 @@ def sync_db_with_multi_ipv6_addresses(database, database_user,
 
     for rid in relation_ids('shared-db'):
         relation_set(relation_id=rid, **kwargs)
+
+
+def os_requires_version(ostack_release, pkg):
+    """
+    Decorator for hook to specify minimum supported release
+    """
+    def wrap(f):
+        def wrapped_f(*args):
+            if os_release(pkg) < ostack_release:
+                raise Exception("This hook is not supported on releases before %s" % ostack_release)
+            f(*args)
+        return wrapped_f
+    return wrap
