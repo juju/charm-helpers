@@ -227,6 +227,11 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         source = "propsed"  # Minor typo
         self.assertRaises(fetch.SourceConfigError, fetch.add_source, source)
 
+    def test_add_distro_source(self):
+        source = "distro"
+        # distro is a noop but test validate no exception is thrown
+        fetch.add_source(source=source)
+
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
     def test_configure_sources_single_source(self, add_source, config):
