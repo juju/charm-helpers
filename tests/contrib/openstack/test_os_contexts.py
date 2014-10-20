@@ -360,6 +360,7 @@ TO_PATCH = [
     'relation_get',
     'relation_ids',
     'related_units',
+    'is_relation_made',
     'relation_set',
     'unit_get',
     'https',
@@ -374,6 +375,7 @@ TO_PATCH = [
     'get_netmask_for_address',
     'local_unit',
     'get_ipv6_addr',
+    'get_matchmaker_map',
     'format_ipv6_addr',
     'mkdir',
     'write_file',
@@ -390,6 +392,14 @@ class fake_config(object):
         if attr in self.data:
             return self.data[attr]
         return None
+
+
+class fake_is_relation_made():
+    def __init__(self, relations):
+        self.relations = relations
+
+    def rel_made(self, relation):
+        return self.relations[relation]
 
 
 class ContextTests(unittest.TestCase):
@@ -1768,6 +1778,65 @@ class ContextTests(unittest.TestCase):
             'verbose': False,
         }
         self.assertEquals(result, expected)
+
+    def test_zeromq_context_unrelated(self):
+        self.is_relation_made.return_value = False
+        self.assertEquals(context.ZeroMQContext()(), {})
+
+    def test_zeromq_context_related(self):
+        self.is_relation_made.return_value = True
+        self.relation_ids.return_value = ['zeromq-configuration:1']
+        self.related_units.return_value = ['openstack-zeromq/0']
+        self.relation_get.side_effect = ['nonce-data', 'hostname']
+        self.assertEquals(context.ZeroMQContext()(),
+                          {'zmq_host': 'hostname',
+                           'zmq_nonce': 'nonce-data'})
+
+    def test_notificationdriver_context_nomsg(self):
+        relations = {
+            'zeromq-configuration': False,
+            'amqp': False,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': "False"})
+
+    def test_notificationdriver_context_zmq_nometer(self):
+        relations = {
+            'zeromq-configuration': True,
+            'amqp': False,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.get_matchmaker_map.return_value = {
+            'cinder-scheduler': ['juju-t-machine-4'],
+        }
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': "False"})
+
+    def test_notificationdriver_context_zmq_meter(self):
+        relations = {
+            'zeromq-configuration': True,
+            'amqp': False,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.get_matchmaker_map.return_value = {
+            'notifications-info': ['juju-t-machine-4'],
+        }
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': "True"})
+
+    def test_notificationdriver_context_amq(self):
+        relations = {
+            'zeromq-configuration': False,
+            'amqp': True,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': "True"})
 
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
