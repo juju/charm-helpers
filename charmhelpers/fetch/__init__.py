@@ -218,6 +218,7 @@ def add_source(source, key=None):
         pocket for the release.
         'cloud:' may be used to activate official cloud archive pockets,
         such as 'cloud:icehouse'
+        'distro' may be used as a noop
 
     @param key: A key to be added to the system's APT keyring and used
     to verify the signatures on packages. Ideally, this should be an
@@ -251,6 +252,8 @@ def add_source(source, key=None):
         release = lsb_release()['DISTRIB_CODENAME']
         with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
             apt.write(PROPOSED_POCKET.format(release))
+    elif source == 'distro':
+        pass
     else:
         raise SourceConfigError("Unknown source: {!r}".format(source))
 
