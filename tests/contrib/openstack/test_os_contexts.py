@@ -375,7 +375,6 @@ TO_PATCH = [
     'get_netmask_for_address',
     'local_unit',
     'get_ipv6_addr',
-    'get_matchmaker_map',
     'format_ipv6_addr',
     'mkdir',
     'write_file',
@@ -1800,7 +1799,7 @@ class ContextTests(unittest.TestCase):
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': "False"})
+                          {'notifications': 'False'})
 
     def test_notificationdriver_context_zmq_nometer(self):
         relations = {
@@ -1809,11 +1808,8 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.get_matchmaker_map.return_value = {
-            'cinder-scheduler': ['juju-t-machine-4'],
-        }
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': "False"})
+                          {'notifications': 'False'})
 
     def test_notificationdriver_context_zmq_meter(self):
         relations = {
@@ -1822,11 +1818,8 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.get_matchmaker_map.return_value = {
-            'notifications-info': ['juju-t-machine-4'],
-        }
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': "True"})
+                          {'notifications': 'False'})
 
     def test_notificationdriver_context_amq(self):
         relations = {
@@ -1836,7 +1829,7 @@ class ContextTests(unittest.TestCase):
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
         self.assertEquals(context.NotificationDriverContext()(),
-                          {'notifications': "True"})
+                          {'notifications': 'True'})
 
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
