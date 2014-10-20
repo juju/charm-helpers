@@ -13,7 +13,6 @@ import random
 import string
 import subprocess
 import hashlib
-import shutil
 from contextlib import contextmanager
 
 from collections import OrderedDict

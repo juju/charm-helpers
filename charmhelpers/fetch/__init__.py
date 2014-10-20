@@ -72,6 +72,7 @@ CLOUD_ARCHIVE_POCKETS = {
 FETCH_HANDLERS = (
     'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
     'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
+    'charmhelpers.fetch.giturl.GitUrlFetchHandler',
 )
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.

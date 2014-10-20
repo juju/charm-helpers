@@ -210,6 +210,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
 
         received_args = []
         received_key = StringIO()
+
         def _check_call(arg, stdin=None):
             '''side_effect to store the stdin passed to check_call process.'''
             if stdin is not None:
