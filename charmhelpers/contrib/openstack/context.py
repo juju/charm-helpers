@@ -60,7 +60,6 @@ from charmhelpers.contrib.network.ip import (
 
 from charmhelpers.contrib.openstack.utils import (
     get_host_ip,
-    get_matchmaker_map,
 )
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
