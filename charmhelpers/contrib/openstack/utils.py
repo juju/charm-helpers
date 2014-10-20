@@ -2,6 +2,7 @@
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
+from functools import wraps
 
 import subprocess
 import json
@@ -499,10 +500,11 @@ def os_requires_version(ostack_release, pkg):
     Decorator for hook to specify minimum supported release
     """
     def wrap(f):
+        @wraps(f)
         def wrapped_f(*args):
             if os_release(pkg) < ostack_release:
                 raise Exception("This hook is not supported on releases"
-                                "before %s" % ostack_release)
+                                " before %s" % ostack_release)
             f(*args)
         return wrapped_f
     return wrap
