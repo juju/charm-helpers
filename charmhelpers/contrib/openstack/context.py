@@ -949,7 +949,9 @@ class NotificationDriverContext(OSContextGenerator):
         self.amqp_relation = amqp_relation
 
     def __call__(self):
-        ctxt = {}
+        ctxt = {
+            'notifications': 'False',
+        }
         if is_relation_made(self.amqp_relation):
             ctxt['notifications'] = "True"
         return ctxt
