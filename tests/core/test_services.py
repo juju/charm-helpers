@@ -440,7 +440,7 @@ class TestRelationContext(unittest.TestCase):
 
     def test_incomplete(self):
         self.mhookenv.relation_ids.return_value = ['nginx', 'apache']
-        self.mhookenv.related_units.side_effect = lambda i: [i+'/0']
+        self.mhookenv.related_units.side_effect = lambda i: [i + '/0']
         self.mhookenv.relation_get.side_effect = [{}, {'foo': '1'}]
         self.context.get_data()
         self.assertFalse(bool(self.context))
@@ -451,7 +451,7 @@ class TestRelationContext(unittest.TestCase):
 
     def test_complete(self):
         self.mhookenv.relation_ids.return_value = ['nginx', 'apache', 'tomcat']
-        self.mhookenv.related_units.side_effect = lambda i: [i+'/0']
+        self.mhookenv.related_units.side_effect = lambda i: [i + '/0']
         self.mhookenv.relation_get.side_effect = [{'foo': '1'}, {'foo': '2', 'bar': '3'}, {}]
         self.context.get_data()
         self.assertTrue(self.context.is_ready())
