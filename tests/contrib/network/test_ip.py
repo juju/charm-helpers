@@ -410,13 +410,10 @@ class IPTest(unittest.TestCase):
         self.assertEquals(net_ip.format_ipv6_addr(DUMMY_ADDRESS),
                           '[2001:db8:1:0:f131:fc84:ea37:7d4]')
 
-    @patch('charmhelpers.contrib.network.ip.log')
-    def test_format_invalid_ipv6_addr(self, mock_log):
+    def test_format_invalid_ipv6_addr(self):
         INVALID_IPV6_ADDR = 'myhost'
         self.assertEquals(net_ip.format_ipv6_addr(INVALID_IPV6_ADDR),
                           None)
-        mock_log.assert_called_with(
-            'Not a valid ipv6 address: myhost', level='WARNING')
 
     @patch('charmhelpers.contrib.network.ip.get_iface_from_addr')
     @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
