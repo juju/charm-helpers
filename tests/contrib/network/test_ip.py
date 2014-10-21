@@ -239,9 +239,12 @@ class IPTest(unittest.TestCase):
     @patch.object(netifaces, 'interfaces')
     def test_get_ipv6_addr_exc_list(self, _interfaces, _ifaddresses,
                                     mock_get_iface_from_addr):
-        mock_get_iface_from_addr.return_value = 'eth0'
-        _interfaces.return_value = DUMMY_ADDRESSES.keys()
-        _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
+        def mock_ifaddresses(iface):
+            return DUMMY_ADDRESSES[iface]
+
+        _interfaces.return_value = ['eth0', 'eth1']
+        _ifaddresses.side_effect = mock_ifaddresses
+
         result = net_ip.get_ipv6_addr(
             exc_list='2a01:348:2f4:0:685e:5748:ae62:209f',
             inc_aliases=True,
