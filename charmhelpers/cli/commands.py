@@ -1,2 +1,2 @@
-from . import CommandLine
-import host
+from . import CommandLine  # NOQA
+import host  # NOQA
