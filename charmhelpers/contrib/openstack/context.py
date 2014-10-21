@@ -25,7 +25,7 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
-    INFO
+    DEBUG
 )
 
 from charmhelpers.core.host import (
@@ -869,7 +869,7 @@ class SubordinateConfigContext(OSContextGenerator):
                         else:
                             ctxt[k] = v
 
-        log("%d section(s) found" % (len(ctxt['sections'])), level=INFO)
+        log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
 
         return ctxt
 
