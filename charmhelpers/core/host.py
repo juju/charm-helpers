@@ -6,13 +6,13 @@
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
 import os
+import re
 import pwd
 import grp
 import random
 import string
 import subprocess
 import hashlib
-import shutil
 from contextlib import contextmanager
 
 from collections import OrderedDict
@@ -68,8 +68,8 @@ def service_available(service_name):
     """Determine whether a system service is available"""
     try:
         subprocess.check_output(['service', service_name, 'status'], stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        return False
+    except subprocess.CalledProcessError as e:
+        return 'unrecognized service' not in e.output
     else:
         return True
 
@@ -209,15 +209,40 @@ def mounts():
     return system_mounts
 
 
-def file_hash(path):
-    """Generate a md5 hash of the contents of 'path' or None if not found """
+def file_hash(path, hash_type='md5'):
+    """
+    Generate a hash checksum of the contents of 'path' or None if not found.
+
+    :param str hash_type: Any hash alrgorithm supported by :mod:`hashlib`,
+                          such as md5, sha1, sha256, sha512, etc.
+    """
     if os.path.exists(path):
-        h = hashlib.md5()
+        h = getattr(hashlib, hash_type)()
         with open(path, 'r') as source:
             h.update(source.read())  # IGNORE:E1101 - it does have update
         return h.hexdigest()
     else:
         return None
+
+
+def check_hash(path, checksum, hash_type='md5'):
+    """
+    Validate a file using a cryptographic checksum.
+
+    :param str checksum: Value of the checksum used to validate the file.
+    :param str hash_type: Hash algorithm used to generate `checksum`.
+        Can be any hash alrgorithm supported by :mod:`hashlib`,
+        such as md5, sha1, sha256, sha512, etc.
+    :raises ChecksumError: If the file fails the checksum
+
+    """
+    actual_checksum = file_hash(path, hash_type)
+    if checksum != actual_checksum:
+        raise ChecksumError("'%s' != '%s'" % (checksum, actual_checksum))
+
+
+class ChecksumError(ValueError):
+    pass
 
 
 def restart_on_change(restart_map, stopstart=False):
@@ -292,7 +317,13 @@ def list_nics(nic_type):
         ip_output = (line for line in ip_output if line)
         for line in ip_output:
             if line.split()[1].startswith(int_type):
-                interfaces.append(line.split()[1].replace(":", ""))
+                matched = re.search('.*: (bond[0-9]+\.[0-9]+)@.*', line)
+                if matched:
+                    interface = matched.groups()[0]
+                else:
+                    interface = line.split()[1].replace(":", "")
+                interfaces.append(interface)
+
     return interfaces
 
 

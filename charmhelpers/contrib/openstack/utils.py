@@ -2,8 +2,10 @@
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
+from functools import wraps
 
 import subprocess
+import json
 import os
 import socket
 import sys
@@ -13,13 +15,19 @@ from charmhelpers.core.hookenv import (
     log as juju_log,
     charm_dir,
     ERROR,
-    INFO
+    INFO,
+    relation_ids,
+    relation_set
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
     is_lvm_physical_volume,
     remove_lvm_physical_volume,
+)
+
+from charmhelpers.contrib.network.ip import (
+    get_ipv6_addr
 )
 
 from charmhelpers.core.host import lsb_release, mounts, umount
@@ -71,6 +79,8 @@ SWIFT_CODENAMES = OrderedDict([
     ('1.12.0', 'icehouse'),
     ('1.11.0', 'icehouse'),
     ('2.0.0', 'juno'),
+    ('2.1.0', 'juno'),
+    ('2.2.0', 'juno'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -457,3 +467,44 @@ def get_hostname(address, fqdn=True):
             return result
     else:
         return result.split('.')[0]
+
+
+def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
+    mm_map = {}
+    if os.path.isfile(mm_file):
+        with open(mm_file, 'r') as f:
+            mm_map = json.load(f)
+    return mm_map
+
+
+def sync_db_with_multi_ipv6_addresses(database, database_user,
+                                      relation_prefix=None):
+    hosts = get_ipv6_addr(dynamic_only=False)
+
+    kwargs = {'database': database,
+              'username': database_user,
+              'hostname': json.dumps(hosts)}
+
+    if relation_prefix:
+        keys = kwargs.keys()
+        for key in keys:
+            kwargs["%s_%s" % (relation_prefix, key)] = kwargs[key]
+            del kwargs[key]
+
+    for rid in relation_ids('shared-db'):
+        relation_set(relation_id=rid, **kwargs)
+
+
+def os_requires_version(ostack_release, pkg):
+    """
+    Decorator for hook to specify minimum supported release
+    """
+    def wrap(f):
+        @wraps(f)
+        def wrapped_f(*args):
+            if os_release(pkg) < ostack_release:
+                raise Exception("This hook is not supported on releases"
+                                " before %s" % ostack_release)
+            f(*args)
+        return wrapped_f
+    return wrap
