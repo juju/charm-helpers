@@ -225,7 +225,7 @@ class UnisonHelperTests(TestCase):
         fake_user.pw_dir = '/home/foo'
         fake_group_id = 2000
         pwnam.return_value = fake_user
-        inner = unison._run_as_user('foo', group=fake_group_id)
+        inner = unison._run_as_user('foo', gid=fake_group_id)
         self.assertEquals(fake_env['HOME'], '/home/foo')
         inner()
         setgid.assert_called_with(2000)
@@ -284,10 +284,10 @@ class UnisonHelperTests(TestCase):
             self.assertEquals(hosts, [])
 
     @patch.object(unison, 'run_as_user')
-    def test_sync_path_to_host(self, run_as_user, verbose=True, group=None):
+    def test_sync_path_to_host(self, run_as_user, verbose=True, gid=None):
         for path in ['/tmp/foo', '/tmp/foo/']:
             unison.sync_path_to_host(path=path, host='clusterhost1',
-                                     user='foo', verbose=verbose, group=group)
+                                     user='foo', verbose=verbose, gid=gid)
             ex_cmd = ['unison', '-auto', '-batch=true',
                       '-confirmbigdel=false', '-fastcheck=true',
                       '-group=false', '-owner=false',
@@ -295,30 +295,30 @@ class UnisonHelperTests(TestCase):
             if not verbose:
                 ex_cmd.append('-silent')
             ex_cmd += ['/tmp/foo', 'ssh://foo@clusterhost1//tmp/foo']
-            run_as_user.assert_called_with('foo', ex_cmd, group)
+            run_as_user.assert_called_with('foo', ex_cmd, gid)
 
     def test_sync_path_to_host_non_verbose(self):
         return self.test_sync_path_to_host(verbose=False)
 
-    def test_sync_path_to_host_with_group(self):
-        return self.test_sync_path_to_host(group=111)
+    def test_sync_path_to_host_with_gid(self):
+        return self.test_sync_path_to_host(gid=111)
 
     @patch.object(unison, 'sync_path_to_host')
     def test_sync_to_peer(self, sync_path_to_host):
         paths = ['/tmp/foo1', '/tmp/foo2']
         host = 'host1'
         unison.sync_to_peer(host, 'foouser', paths, True)
-        calls = [call('/tmp/foo1', host, 'foouser', True, [], None),
-                 call('/tmp/foo2', host, 'foouser', True, [], None)]
+        calls = [call('/tmp/foo1', host, 'foouser', True, None, None),
+                 call('/tmp/foo2', host, 'foouser', True, None, None)]
         sync_path_to_host.assert_has_calls(calls)
 
     @patch.object(unison, 'sync_path_to_host')
-    def test_sync_to_peer_with_group(self, sync_path_to_host):
+    def test_sync_to_peer_with_gid(self, sync_path_to_host):
         paths = ['/tmp/foo1', '/tmp/foo2']
         host = 'host1'
-        unison.sync_to_peer(host, 'foouser', paths, True, group=111)
-        calls = [call('/tmp/foo1', host, 'foouser', True, [], 111),
-                 call('/tmp/foo2', host, 'foouser', True, [], 111)]
+        unison.sync_to_peer(host, 'foouser', paths, True, gid=111)
+        calls = [call('/tmp/foo1', host, 'foouser', True, None, 111),
+                 call('/tmp/foo2', host, 'foouser', True, None, 111)]
         sync_path_to_host.assert_has_calls(calls)
 
     @patch.object(unison, 'collect_authed_hosts')
@@ -328,19 +328,19 @@ class UnisonHelperTests(TestCase):
         paths = ['/tmp/foo']
         unison.sync_to_peers(peer_interface='cluster', user='foouser',
                              paths=paths, verbose=True)
-        calls = [call('host1', 'foouser', ['/tmp/foo'], True, [], None),
-                 call('host2', 'foouser', ['/tmp/foo'], True, [], None),
-                 call('host3', 'foouser', ['/tmp/foo'], True, [], None)]
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True, None, None),
+                 call('host2', 'foouser', ['/tmp/foo'], True, None, None),
+                 call('host3', 'foouser', ['/tmp/foo'], True, None, None)]
         sync_to_peer.assert_has_calls(calls)
 
     @patch.object(unison, 'collect_authed_hosts')
     @patch.object(unison, 'sync_to_peer')
-    def test_sync_to_peers_with_group(self, sync_to_peer, collect_hosts):
+    def test_sync_to_peers_with_gid(self, sync_to_peer, collect_hosts):
         collect_hosts.return_value = ['host1', 'host2', 'host3']
         paths = ['/tmp/foo']
         unison.sync_to_peers(peer_interface='cluster', user='foouser',
-                             paths=paths, verbose=True, group=111)
-        calls = [call('host1', 'foouser', ['/tmp/foo'], True, [], 111),
-                 call('host2', 'foouser', ['/tmp/foo'], True, [], 111),
-                 call('host3', 'foouser', ['/tmp/foo'], True, [], 111)]
+                             paths=paths, verbose=True, gid=111)
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True, None, 111),
+                 call('host2', 'foouser', ['/tmp/foo'], True, None, 111),
+                 call('host3', 'foouser', ['/tmp/foo'], True, None, 111)]
         sync_to_peer.assert_has_calls(calls)

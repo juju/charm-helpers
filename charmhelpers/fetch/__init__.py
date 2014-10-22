@@ -72,6 +72,7 @@ CLOUD_ARCHIVE_POCKETS = {
 FETCH_HANDLERS = (
     'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
     'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
+    'charmhelpers.fetch.giturl.GitUrlFetchHandler',
 )
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
@@ -208,7 +209,8 @@ def add_source(source, key=None):
     """Add a package source to this system.
 
     @param source: a URL or sources.list entry, as supported by
-    add-apt-repository(1). Examples:
+    add-apt-repository(1). Examples::
+
         ppa:charmers/example
         deb https://stub:key@private.example.com/ubuntu trusty main
 
@@ -217,6 +219,7 @@ def add_source(source, key=None):
         pocket for the release.
         'cloud:' may be used to activate official cloud archive pockets,
         such as 'cloud:icehouse'
+        'distro' may be used as a noop
 
     @param key: A key to be added to the system's APT keyring and used
     to verify the signatures on packages. Ideally, this should be an
@@ -250,6 +253,8 @@ def add_source(source, key=None):
         release = lsb_release()['DISTRIB_CODENAME']
         with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
             apt.write(PROPOSED_POCKET.format(release))
+    elif source == 'distro':
+        pass
     else:
         raise SourceConfigError("Unknown source: {!r}".format(source))
 
@@ -311,22 +316,35 @@ def configure_sources(update=False,
         apt_update(fatal=True)
 
 
-def install_remote(source):
+def install_remote(source, *args, **kwargs):
     """
     Install a file tree from a remote source
 
     The specified source should be a url of the form:
         scheme://[host]/path[#[option=value][&...]]
 
-    Schemes supported are based on this modules submodules
-    Options supported are submodule-specific"""
+    Schemes supported are based on this modules submodules.
+    Options supported are submodule-specific.
+    Additional arguments are passed through to the submodule.
+
+    For example::
+
+        dest = install_remote('http://example.com/archive.tgz',
+                              checksum='deadbeef',
+                              hash_type='sha1')
+
+    This will download `archive.tgz`, validate it using SHA1 and, if
+    the file is ok, extract it and return the directory in which it
+    was extracted.  If the checksum fails, it will raise
+    :class:`charmhelpers.core.host.ChecksumError`.
+    """
     # We ONLY check for True here because can_handle may return a string
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
     installed_to = None
     for handler in handlers:
         try:
-            installed_to = handler.install(source)
+            installed_to = handler.install(source, *args, **kwargs)
         except UnhandledSource:
             pass
     if not installed_to:

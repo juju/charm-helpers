@@ -185,14 +185,14 @@ def ssh_authorized_peers(peer_interface, user, group=None,
         relation_set(ssh_authorized_hosts=authed_hosts)
 
 
-def _run_as_user(user, group=None):
+def _run_as_user(user, gid=None):
     try:
         user = pwd.getpwnam(user)
     except KeyError:
         log('Invalid user: %s' % user)
         raise Exception
     uid = user.pw_uid
-    gid = group or user.pw_gid
+    gid = gid or user.pw_gid
     os.environ['HOME'] = user.pw_dir
 
     def _inner():
@@ -201,8 +201,8 @@ def _run_as_user(user, group=None):
     return _inner
 
 
-def run_as_user(user, cmd, group=None):
-    return check_output(cmd, preexec_fn=_run_as_user(user, group), cwd='/')
+def run_as_user(user, cmd, gid=None):
+    return check_output(cmd, preexec_fn=_run_as_user(user, gid), cwd='/')
 
 
 def collect_authed_hosts(peer_interface):
@@ -228,7 +228,7 @@ def collect_authed_hosts(peer_interface):
     return hosts
 
 
-def sync_path_to_host(path, host, user, verbose=False, cmd=[], group=None):
+def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None):
     cmd = cmd or copy(BASE_CMD)
     if not verbose:
         cmd.append('-silent')
@@ -242,20 +242,20 @@ def sync_path_to_host(path, host, user, verbose=False, cmd=[], group=None):
 
     try:
         log('Syncing local path %s to %s@%s:%s' % (path, user, host, path))
-        run_as_user(user, cmd, group)
+        run_as_user(user, cmd, gid)
     except:
         log('Error syncing remote files')
 
 
-def sync_to_peer(host, user, paths=[], verbose=False, cmd=[], group=None,):
+def sync_to_peer(host, user, paths=[], verbose=False, cmd=None, gid=None,):
     '''Sync paths to an specific host'''
-    [sync_path_to_host(p, host, user, verbose, cmd, group) for p in paths]
+    [sync_path_to_host(p, host, user, verbose, cmd, gid) for p in paths]
 
 
 def sync_to_peers(peer_interface, user, paths=[],
-                  verbose=False, cmd=[], group=None):
+                  verbose=False, cmd=None, gid=None):
     '''Sync all hosts to an specific path'''
     '''The type of group is integer, it allows user has permissions to '''
     '''operate a directory have a different group id with the user id.'''
     for host in collect_authed_hosts(peer_interface):
-        sync_to_peer(host, user, paths, verbose, cmd, group)
+        sync_to_peer(host, user, paths, verbose, cmd, gid)

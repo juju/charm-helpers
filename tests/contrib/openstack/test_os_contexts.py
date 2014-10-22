@@ -59,6 +59,8 @@ class FakeRelation(object):
                 relation = self.relation_data[rid][unit]
             except KeyError:
                 return None
+            if attribute is None:
+                return relation
             if attribute in relation:
                 return relation[attribute]
             return None
@@ -194,6 +196,11 @@ AMQP_NOVA_CONFIG = {
     'nova-rabbit-vhost': 'foo',
 }
 
+HAPROXY_CONFIG = {
+    'haproxy-server-timeout': 50000,
+    'haproxy-client-timeout': 50000,
+}
+
 CEPH_RELATION = {
     'ceph:0': {
         'ceph/0': {
@@ -227,6 +234,39 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
         },
     }
 }
+
+IDENTITY_RELATION_NO_CERT = {
+    'identity-service:0': {
+        'keystone/0': {
+            'private-address': 'keystone1',
+        },
+    }
+}
+
+IDENTITY_RELATION_SINGLE_CERT = {
+    'identity-service:0': {
+        'keystone/0': {
+            'private-address': 'keystone1',
+            'ssl_cert_cinderhost1': 'certa',
+            'ssl_key_cinderhost1': 'keya',
+        },
+    }
+}
+
+IDENTITY_RELATION_MULTIPLE_CERT = {
+    'identity-service:0': {
+        'keystone/0': {
+            'private-address': 'keystone1',
+            'ssl_cert_cinderhost1-int-network': 'certa',
+            'ssl_key_cinderhost1-int-network': 'keya',
+            'ssl_cert_cinderhost1-pub-network': 'certa',
+            'ssl_key_cinderhost1-pub-network': 'keya',
+            'ssl_cert_cinderhost1-adm-network': 'certa',
+            'ssl_key_cinderhost1-adm-network': 'keya',
+        },
+    }
+}
+
 
 SUB_CONFIG = """
 nova:
@@ -294,17 +334,33 @@ SUB_CONFIG_RELATION = {
     },
 }
 
+NONET_CONFIG = {
+    'vip': 'cinderhost1vip',
+    'os-internal-network': None,
+    'os-admin-network': None,
+    'os-public-network': None
+}
+
+FULLNET_CONFIG = {
+    'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
+    'os-internal-network': "10.5.1.0/24",
+    'os-admin-network': "10.5.2.0/24",
+    'os-public-network': "10.5.3.0/24"
+}
+
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
     'b64decode',
     'check_call',
     'get_cert',
     'get_ca_cert',
+    'install_ca_cert',
     'log',
     'config',
     'relation_get',
     'relation_ids',
     'related_units',
+    'is_relation_made',
     'relation_set',
     'unit_get',
     'https',
@@ -315,8 +371,14 @@ TO_PATCH = [
     'time',
     'https',
     'get_address_in_network',
+    'is_address_in_network',
+    'get_netmask_for_address',
     'local_unit',
-    'get_ipv6_addr'
+    'get_ipv6_addr',
+    'format_ipv6_addr',
+    'mkdir',
+    'write_file',
+    'get_host_ip',
 ]
 
 
@@ -331,6 +393,14 @@ class fake_config(object):
         return None
 
 
+class fake_is_relation_made():
+    def __init__(self, relations):
+        self.relations = relations
+
+    def rel_made(self, relation):
+        return self.relations[relation]
+
+
 class ContextTests(unittest.TestCase):
 
     def setUp(self):
@@ -340,6 +410,8 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = ['foo:0']
         self.related_units.return_value = ['foo/0']
         self.local_unit.return_value = 'localunit'
+        self.format_ipv6_addr.return_value = None
+        self.get_host_ip.side_effect = lambda hostname: hostname
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -370,18 +442,22 @@ class ContextTests(unittest.TestCase):
 
     def test_shared_db_context_with_data_and_access_net_mismatch(self):
         '''Mismatch between hostname and hostname for access net - defers execution'''
-        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
+        relation = FakeRelation(
+            relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
         self.get_address_in_network.return_value = '10.5.5.1'
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
         self.assertEquals(result, {})
-        self.relation_set.assert_called_with(relation_settings={'hostname': '10.5.5.1'})
+        self.relation_set.assert_called_with(
+            relation_settings={
+                'hostname': '10.5.5.1'})
 
     def test_shared_db_context_with_data_and_access_net_match(self):
         '''Correctly set hostname for access net returns complete context'''
-        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
+        relation = FakeRelation(
+            relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
         self.get_address_in_network.return_value = 'bar'
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
@@ -463,6 +539,24 @@ class ContextTests(unittest.TestCase):
                      'database_user': 'quantum',
                      'database_password': 'bar2',
                      'database_host': 'bar',
+                     'database_type': 'mysql'})
+
+    def test_shared_db_context_with_ipv6(self):
+        '''Test shared-db context with ipv6'''
+        shared_db = context.SharedDBContext(
+            database='quantum', user='quantum', relation_prefix='quantum')
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
+        self.relation_get.side_effect = relation.get
+        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        result = shared_db()
+        self.assertIn(
+            call(rid='foo:0', unit='foo/0'),
+            self.relation_get.call_args_list)
+        self.assertEquals(
+            result, {'database': 'quantum',
+                     'database_user': 'quantum',
+                     'database_password': 'bar2',
+                     'database_host': '[2001:db8:1::1]',
                      'database_type': 'mysql'})
 
     def test_postgresql_db_context_with_data(self):
@@ -566,6 +660,27 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https'
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_ipv6(self):
+        '''Test identity-service context with ipv6'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
+        self.relation_get.side_effect = relation.get
+        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': '123456',
+            'admin_user': 'adam',
+            'auth_host': '[2001:db8:1::1]',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': '[2001:db8:1::1]',
+            'service_port': '5000',
+            'service_protocol': 'http'
         }
         self.assertEquals(result, expected)
 
@@ -710,6 +825,26 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
+    def test_amqp_context_with_ipv6(self):
+        '''Test amqp context with ipv6'''
+        relation_data = copy(AMQP_AA_RELATION)
+        relation = FakeRelation(relation_data=relation_data)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        self.config.return_value = AMQP_CONFIG
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': '[2001:db8:1::1]',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
+        }
+        self.assertEquals(result, expected)
+
     def test_ceph_no_relids(self):
         '''Test empty ceph realtion'''
         relation = FakeRelation(relation_data={})
@@ -835,18 +970,24 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
-            'units': {
-                'peer-0': 'cluster-peer0.localnet',
-                'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet',
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
+                }
             },
-
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'stat_port': ':8888',
@@ -859,10 +1000,136 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
+    def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
+        '''Test haproxy context with all relation data and timeout'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'cluster-peer0.localnet'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = False
+        self.maxDiff = None
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['prefer-ipv6'] = False
+        self.config.side_effect = c
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
+                }
+            },
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
+            'haproxy_client_timeout': 50000,
+            'haproxy_server_timeout': 50000,
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_multinet(self, local_unit, unit_get):
+        '''Test haproxy context with all relation data for network splits'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                    'admin-address': 'cluster-peer1.admin',
+                    'internal-address': 'cluster-peer1.internal',
+                    'public-address': 'cluster-peer1.public',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                    'admin-address': 'cluster-peer2.admin',
+                    'internal-address': 'cluster-peer2.internal',
+                    'public-address': 'cluster-peer2.public',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'cluster-peer0.localnet'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_address_in_network.side_effect = [
+            'cluster-peer0.admin',
+            'cluster-peer0.internal',
+            'cluster-peer0.public'
+        ]
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = False
+        self.maxDiff = None
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.admin': {
+                    'network': 'cluster-peer0.admin/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.admin',
+                        'peer-1': 'cluster-peer1.admin',
+                        'peer-2': 'cluster-peer2.admin',
+                    }
+                },
+                'cluster-peer0.internal': {
+                    'network': 'cluster-peer0.internal/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.internal',
+                        'peer-1': 'cluster-peer1.internal',
+                        'peer-2': 'cluster-peer2.internal',
+                    }
+                },
+                'cluster-peer0.public': {
+                    'network': 'cluster-peer0.public/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.public',
+                        'peer-1': 'cluster-peer1.public',
+                        'peer-2': 'cluster-peer2.public',
+                    }
+                }
+            },
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
     def test_haproxy_context_with_data_ipv6(
-            self, local_unit, unit_get, get_ipv6_addr):
-        '''Test haproxy context with all relation data'''
+            self, local_unit, unit_get):
+        '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
                 'peer/1': {
@@ -874,25 +1141,37 @@ class ContextTests(unittest.TestCase):
             },
         }
 
-        unit_get.return_value = 'peer/0'
+        local_unit.return_value = 'peer/0'
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = 'cluster-peer0.localnet'
-        self.get_ipv6_addr.return_value = 'cluster-peer0.localnet'
-        self.config.side_effect = [True, None, True]
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = \
+            'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000'
+        self.get_ipv6_addr.return_value = ['cluster-peer0.localnet']
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['prefer-ipv6'] = True
+        self.config.side_effect = c
+        self.maxDiff = None
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {
-            'units': {
-                'peer-0': 'cluster-peer0.localnet',
-                'peer-1': 'cluster-peer1.localnet',
-                'peer-2': 'cluster-peer2.localnet'
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/'
+                    'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
+                }
             },
-
             'local_host': 'ip6-localhost',
+            'haproxy_server_timeout': 50000,
+            'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
             'stat_port': ':::8888',
         }
@@ -937,47 +1216,116 @@ class ContextTests(unittest.TestCase):
         self.https.return_value = False
         self.assertEquals({}, apache())
 
-    def _test_https_context(self, apache, is_clustered, peer_units):
+    def _test_https_context(self, apache, is_clustered, peer_units,
+                            network_config=NONET_CONFIG, multinet=False):
         self.https.return_value = True
+        vips = network_config['vip'].split()
+        if multinet:
+            self.get_address_in_network.side_effect = ['10.5.1.100',
+                                                       '10.5.2.100',
+                                                       '10.5.3.100']
+        else:
+            self.get_address_in_network.return_value = 'cinderhost1'
+
+        config = {}
+        config.update(network_config)
+        self.config.side_effect = lambda key: config[key]
+
+        self.unit_get.return_value = 'cinderhost1'
+        self.is_clustered.return_value = is_clustered
+
+        apache = context.ApacheSSLContext()
+        apache.configure_cert = MagicMock()
+        apache.enable_modules = MagicMock()
+        apache.configure_ca = MagicMock()
+        apache.canonical_names = MagicMock()
 
         if is_clustered:
+            apache.canonical_names.return_value = \
+                network_config['vip'].split()
             self.determine_api_port.return_value = 8756
             self.determine_apache_port.return_value = 8766
+            if len(vips) > 1:
+                self.is_address_in_network.side_effect = [
+                    True, False, True, False, False, True
+                ]
+            else:
+                self.is_address_in_network.return_value = True
         else:
+            apache.canonical_names.return_value = ['cinderhost1']
             self.determine_api_port.return_value = 8766
             self.determine_apache_port.return_value = 8776
 
-        config = {'vip': 'cinderhost1vip'}
-        self.config.side_effect = lambda key: config[key]
-        self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = is_clustered
-        apache = context.ApacheSSLContext()
-        apache.configure_cert = MagicMock
-        apache.enable_modules = MagicMock
         apache.external_ports = '8776'
         apache.service_namespace = 'cinder'
 
         if is_clustered:
-            ex = {
-                'private_address': 'cinderhost1vip',
-                'namespace': 'cinder',
-                'endpoints': [(8766, 8756)],
-            }
+            if len(vips) > 1:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('10.5.1.100', '10.5.1.1',
+                                   8766, 8756),
+                                  ('10.5.2.100', '10.5.2.1',
+                                   8766, 8756),
+                                  ('10.5.3.100', '10.5.3.1',
+                                   8766, 8756)],
+                    'ext_ports': [8766]
+                }
+            else:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('cinderhost1', 'cinderhost1vip',
+                                   8766, 8756)],
+                    'ext_ports': [8766]
+                }
         else:
-            ex = {
-                'private_address': 'cinderhost1',
-                'namespace': 'cinder',
-                'endpoints': [(8776, 8766)],
-            }
+            if multinet:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('10.5.3.100', '10.5.3.100',
+                                   8776, 8766),
+                                  ('10.5.2.100', '10.5.2.100',
+                                   8776, 8766),
+                                  ('10.5.1.100', '10.5.1.100',
+                                   8776, 8766)],
+                    'ext_ports': [8776]
+                }
+            else:
+                ex = {
+                    'namespace': 'cinder',
+                    'endpoints': [('cinderhost1', 'cinderhost1', 8776, 8766)],
+                    'ext_ports': [8776]
+                }
 
         self.assertEquals(ex, apache())
-        self.assertTrue(apache.configure_cert.called)
+        if is_clustered:
+            if len(vips) > 1:
+                apache.configure_cert.assert_has_calls([
+                    call('10.5.1.1'),
+                    call('10.5.2.1'),
+                    call('10.5.3.1')
+                ])
+            else:
+                apache.configure_cert.assert_called_with('cinderhost1vip')
+        else:
+            apache.configure_cert.assert_called_with('cinderhost1')
+        self.assertTrue(apache.configure_ca.called)
         self.assertTrue(apache.enable_modules.called)
 
     def test_https_context_no_peers_no_cluster(self):
         '''Test apache2 https on a single, unclustered unit'''
         apache = context.ApacheSSLContext()
         self._test_https_context(apache, is_clustered=False, peer_units=None)
+
+    def test_https_context_multinetwork(self):
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=False, peer_units=None,
+                                 network_config=FULLNET_CONFIG, multinet=True)
+
+    def test_https_context_multinetwork_cluster(self):
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=True, peer_units=None,
+                                 network_config=FULLNET_CONFIG, multinet=True)
 
     def test_https_context_wth_peers_no_cluster(self):
         '''Test apache2 https on a unclustered unit with peers'''
@@ -996,30 +1344,57 @@ class ContextTests(unittest.TestCase):
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
         self.check_call.assert_called_with(ex_cmd)
 
-    @patch('__builtin__.open')
-    @patch('os.mkdir')
-    @patch('os.path.isdir')
-    def test_https_configure_cert(self, isdir, mkdir, _open):
+    def test_https_configure_cert(self):
         '''Test apache2 properly installs certs and keys to disk'''
-        isdir.return_value = False
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
-        self.get_ca_cert.return_value = 'CA_CERT'
+        self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
+        apache = context.ApacheSSLContext()
+        apache.service_namespace = 'cinder'
+        apache.configure_cert('test-cn')
+        # appropriate directories are created.
+        self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
+        # appropriate files are written.
+        files = [call(path='/etc/apache2/ssl/cinder/cert_test-cn',
+                      content='SSL_CERT'),
+                 call(path='/etc/apache2/ssl/cinder/key_test-cn',
+                      content='SSL_KEY')]
+        self.write_file.assert_has_calls(files)
+        # appropriate bits are b64decoded.
+        decode = [call('SSL_CERT'), call('SSL_KEY')]
+        self.assertEquals(decode, self.b64decode.call_args_list)
+
+    def test_https_configure_cert_deprecated(self):
+        '''Test apache2 properly installs certs and keys to disk'''
+        self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
+        self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
         apache = context.ApacheSSLContext()
         apache.service_namespace = 'cinder'
         apache.configure_cert()
         # appropriate directories are created.
-        dirs = [call('/etc/apache2/ssl'), call('/etc/apache2/ssl/cinder')]
-        self.assertEquals(dirs, mkdir.call_args_list)
-        # appropriate files are opened for writing.
-        _ca = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
-        files = [call('/etc/apache2/ssl/cinder/cert', 'w'),
-                 call('/etc/apache2/ssl/cinder/key', 'w'),
-                 call(_ca, 'w')]
-        for f in files:
-            self.assertIn(f, _open.call_args_list)
+        self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
+        # appropriate files are written.
+        files = [call(path='/etc/apache2/ssl/cinder/cert',
+                      content='SSL_CERT'),
+                 call(path='/etc/apache2/ssl/cinder/key',
+                      content='SSL_KEY')]
+        self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
-        decode = [call('SSL_CERT'), call('SSL_KEY'), call('CA_CERT')]
+        decode = [call('SSL_CERT'), call('SSL_KEY')]
         self.assertEquals(decode, self.b64decode.call_args_list)
+
+    def test_https_canonical_names(self):
+        rel = FakeRelation(IDENTITY_RELATION_SINGLE_CERT)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        self.relation_get.side_effect = rel.get
+        apache = context.ApacheSSLContext()
+        self.assertEquals(apache.canonical_names(), ['cinderhost1'])
+        rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
+        self.assertEquals(apache.canonical_names(), ['cinderhost1-adm-network',
+                                                     'cinderhost1-int-network',
+                                                     'cinderhost1-pub-network'])
+        rel.relation_data = IDENTITY_RELATION_NO_CERT
+        self.assertEquals(apache.canonical_names(), [])
 
     def test_image_service_context_missing_data(self):
         '''Test image-service with missing relation and missing data'''
@@ -1402,3 +1777,72 @@ class ContextTests(unittest.TestCase):
             'verbose': False,
         }
         self.assertEquals(result, expected)
+
+    def test_zeromq_context_unrelated(self):
+        self.is_relation_made.return_value = False
+        self.assertEquals(context.ZeroMQContext()(), {})
+
+    def test_zeromq_context_related(self):
+        self.is_relation_made.return_value = True
+        self.relation_ids.return_value = ['zeromq-configuration:1']
+        self.related_units.return_value = ['openstack-zeromq/0']
+        self.relation_get.side_effect = ['nonce-data', 'hostname']
+        self.assertEquals(context.ZeroMQContext()(),
+                          {'zmq_host': 'hostname',
+                           'zmq_nonce': 'nonce-data'})
+
+    def test_notificationdriver_context_nomsg(self):
+        relations = {
+            'zeromq-configuration': False,
+            'amqp': False,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': 'False'})
+
+    def test_notificationdriver_context_zmq_nometer(self):
+        relations = {
+            'zeromq-configuration': True,
+            'amqp': False,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': 'False'})
+
+    def test_notificationdriver_context_zmq_meter(self):
+        relations = {
+            'zeromq-configuration': True,
+            'amqp': False,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': 'False'})
+
+    def test_notificationdriver_context_amq(self):
+        relations = {
+            'zeromq-configuration': False,
+            'amqp': True,
+        }
+        rels = fake_is_relation_made(relations=relations)
+        self.is_relation_made.side_effect = rels.rel_made
+        self.assertEquals(context.NotificationDriverContext()(),
+                          {'notifications': 'True'})
+
+    def test_workerconfig_context_noconfig(self):
+        self.config.return_value = None
+        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
+            cpus.__get__ = Mock(return_value=2)
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 2}, worker())
+
+    def test_workerconfig_context_withconfig(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 4,
+        })
+        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
+            cpus.__get__ = Mock(return_value=2)
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 8}, worker())
