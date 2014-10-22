@@ -344,3 +344,16 @@ class UnisonHelperTests(TestCase):
                  call('host2', 'foouser', ['/tmp/foo'], True, None, 111),
                  call('host3', 'foouser', ['/tmp/foo'], True, None, 111)]
         sync_to_peer.assert_has_calls(calls)
+
+    @patch.object(unison, 'collect_authed_hosts')
+    @patch.object(unison, 'sync_to_peer')
+    def test_sync_to_peers_with_cmd(self, sync_to_peer, collect_hosts):
+        collect_hosts.return_value = ['host1', 'host2', 'host3']
+        paths = ['/tmp/foo']
+        cmd = ['dummy_cmd']
+        unison.sync_to_peers(peer_interface='cluster', user='foouser',
+                             paths=paths, verbose=True, cmd=cmd, gid=111)
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True, cmd, 111),
+                 call('host2', 'foouser', ['/tmp/foo'], True, cmd, 111),
+                 call('host3', 'foouser', ['/tmp/foo'], True, cmd, 111)]
+        sync_to_peer.assert_has_calls(calls)
