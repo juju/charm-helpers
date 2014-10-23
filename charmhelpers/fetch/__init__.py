@@ -256,7 +256,7 @@ def add_source(source, key=None):
     elif source == 'distro':
         pass
     else:
-        raise SourceConfigError("Unknown source: {!r}".format(source))
+        log("Unknown source: {!r}".format(source))
 
     if key:
         if '-----BEGIN PGP PUBLIC KEY BLOCK-----' in key:
