@@ -224,9 +224,11 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
             self.assertEqual(['apt-key', 'add', '-'], received_args)
             self.assertEqual(key, received_key.getvalue())
 
-    def test_add_unparsable_source(self):
+    @patch('charmhelpers.fetch.log')
+    def test_add_unparsable_source(self, log_):
         source = "propsed"  # Minor typo
-        self.assertRaises(fetch.SourceConfigError, fetch.add_source, source)
+        fetch.add_source(source=source)
+        self.assertEqual(1, log_.call_count)
 
     def test_add_distro_source(self):
         source = "distro"
