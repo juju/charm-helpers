@@ -243,6 +243,21 @@ class ClusterUtilsTests(TestCase):
         self.assertRaises(cluster_utils.HAIncompleteConfig,
                           cluster_utils.get_hacluster_config)
 
+    def test_get_hacluster_config_with_excludes(self):
+        '''It fetches all hacluster charm config'''
+        conf = {
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '3333',
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        excludes_key = ['vip']
+        self.assertEquals(conf,
+                          cluster_utils.get_hacluster_config(excludes_key))
+
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_bare(self, is_clustered):
         '''It constructs a URL to host with no https or cluster present'''
