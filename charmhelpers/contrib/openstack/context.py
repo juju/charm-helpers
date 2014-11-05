@@ -702,6 +702,7 @@ class NeutronContext(OSContextGenerator):
                                           self.network_manager)
         n1kv_config = neutron_plugin_attribute(self.plugin, 'config',
                                                self.network_manager)
+        n1kv_user_config_flags = config('n1kv-config-flags')
         n1kv_ctxt = {
             'core_plugin': driver,
             'neutron_plugin': 'n1kv',
@@ -712,8 +713,11 @@ class NeutronContext(OSContextGenerator):
             'vsm_username': config('n1kv-vsm-username'),
             'vsm_password': config('n1kv-vsm-password'),
             'restrict_policy_profiles': config(
-                'n1kv_restrict_policy_profiles'),
+                'n1kv-restrict-policy-profiles'),
         }
+        if n1kv_user_config_flags:
+            flags = config_flags_parser(n1kv_user_config_flags)
+            n1kv_ctxt['user_config_flags'] = flags
 
         return n1kv_ctxt
 

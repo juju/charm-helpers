@@ -1502,6 +1502,7 @@ class ContextTests(unittest.TestCase):
             'vsm_ip': 'n1kv',
             'vsm_username': 'n1kv',
             'vsm_password': 'n1kv',
+            'user_config_flags': {},
             'restrict_policy_profiles': 'n1kv',
         }, neutron.n1kv_ctxt())
 
