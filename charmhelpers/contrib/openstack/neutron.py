@@ -138,7 +138,8 @@ def neutron_plugins():
                                         relation_prefix='neutron',
                                         ssl_dir=NEUTRON_CONF_DIR)],
             'services': [],
-            'packages': [['neutron-plugin-cisco']],
+            'packages': [[headers_package()] + determine_dkms_package(),
+                         ['neutron-plugin-cisco']],
             'server_packages': ['neutron-server',
                                 'neutron-plugin-cisco'],
             'server_services': ['neutron-server']
