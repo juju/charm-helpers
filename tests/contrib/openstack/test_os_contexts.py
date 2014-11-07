@@ -1506,6 +1506,21 @@ class ContextTests(unittest.TestCase):
             'restrict_policy_profiles': 'n1kv',
         }, neutron.n1kv_ctxt())
 
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_calico_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'config': 'some.quantum.driver.class',
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'Calico',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.calico_ctxt())
+
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
@@ -1638,6 +1653,45 @@ class ContextTests(unittest.TestCase):
             {'network_manager': 'neutron',
              'nvp': 'nvp_context',
              'neutron_alchemy_flags': {'pool_size': '20'},
+             'neutron_url': 'https://foo:9696'},
+            neutron()
+        )
+
+    @patch.object(context.NeutronContext, 'neutron_ctxt')
+    @patch.object(context.NeutronContext, '_save_flag_file')
+    @patch.object(context.NeutronContext, 'calico_ctxt')
+    @patch.object(context.NeutronContext, 'plugin')
+    @patch.object(context.NeutronContext, '_ensure_packages')
+    @patch.object(context.NeutronContext, 'network_manager')
+    def test_neutron_main_context_gen_calico(self, mock_network_manager,
+                                             mock_ensure_packages,
+                                             mock_plugin, mock_ovs_ctxt,
+                                             mock_save_flag_file,
+                                             mock_neutron_ctxt):
+
+        mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
+                                          'neutron_url': 'https://foo:9696'}
+        config = {'neutron-alchemy-flags': None}
+        self.config.side_effect = lambda key: config[key]
+        neutron = context.NeutronContext()
+
+        mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
+        mock_plugin.__get__ = Mock()
+
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_network_manager.__get__.called)
+        self.assertFalse(mock_plugin.__get__.called)
+
+        mock_network_manager.__get__.return_value = 'neutron'
+        mock_plugin.__get__ = Mock(return_value=None)
+        self.assertEquals({}, neutron())
+        self.assertTrue(mock_plugin.__get__.called)
+
+        mock_ovs_ctxt.return_value = {'Calico': 'calico_context'}
+        mock_plugin.__get__.return_value = 'Calico'
+        self.assertEquals(
+            {'network_manager': 'neutron',
+             'Calico': 'calico_context',
              'neutron_url': 'https://foo:9696'},
             neutron()
         )
