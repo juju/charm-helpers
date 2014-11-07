@@ -721,6 +721,21 @@ class NeutronContext(OSContextGenerator):
 
         return n1kv_ctxt
 
+    def calico_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
+        calico_ctxt = {
+            'core_plugin': driver,
+            'neutron_plugin': 'Calico',
+            'neutron_security_groups': self.neutron_security_groups,
+            'local_ip': unit_private_ip(),
+            'config': config
+        }
+
+        return calico_ctxt
+
     def neutron_ctxt(self):
         if https():
             proto = 'https'
@@ -754,6 +769,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.nvp_ctxt())
         elif self.plugin == 'n1kv':
             ctxt.update(self.n1kv_ctxt())
+        elif self.plugin == 'Calico':
+            ctxt.update(self.calico_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
