@@ -28,16 +28,16 @@ clean:
 	find . -name '*.pyc' -delete
 	rm -rf dist/*
 	rm -rf .venv
-	dh_clean || true
+	(which dh_clean && dh_clean) || true
 
 userinstall:
 	scripts/update-revno
 	python setup.py install --user
 
 .venv:
-	sudo apt-get install -y python-virtualenv
-	virtualenv .venv
-	.venv/bin/pip install -r test_requirements.txt
+	sudo apt-get install -y python-virtualenv python-apt
+	virtualenv .venv --system-site-packages
+	.venv/bin/pip install -I -r test_requirements.txt
 
 test: .venv
 	@echo Starting tests...
