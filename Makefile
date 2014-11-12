@@ -35,7 +35,7 @@ userinstall:
 	python setup.py install --user
 
 .venv:
-	sudo apt-get install -y make gcc python-dev python-virtualenv python-apt
+	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt
