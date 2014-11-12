@@ -1,22 +1,21 @@
-# If you don't have the required packages on your system and prefer
-# to keep your system clean, you can do the following to run the
-# charm-helper test suite:
-# $ virtualenv .env
-# $ . .env/bin/activate
-# $ pip install -r test_requirements.txt
-# NOTE: python-apt is compiled and will require libapt-pkg-dev for headers.
-# Then `make test` should find all its dependencies.
 coverage==3.6
 launchpadlib==1.10.2
+--allow-external launchpadlib
+--allow-unverified launchpadlib
 mock==1.0.1
+netaddr
 nose==1.3.1
 PyYAML==3.10
 python-apt
+--allow-external python-apt
+--allow-unverified python-apt
 simplejson==3.3.0
 testtools
 Tempita==0.5.1
 bzr+http://bazaar.launchpad.net/~yellow/python-shelltoolbox/trunk@17#egg=shelltoolbox
 http://alastairs-place.net/projects/netifaces/netifaces-0.6.tar.gz
 bzr==2.6.0
-GitPython
+GitPython>=0.3.2.RC1
 Jinja2==2.7.2
+--allow-external lazr.authentication
+--allow-unverified lazr.authentication

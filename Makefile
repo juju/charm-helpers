@@ -27,19 +27,25 @@ clean:
 	rm -rf build/ MANIFEST
 	find . -name '*.pyc' -delete
 	rm -rf dist/*
-	dh_clean
+	rm -rf .venv
+	dh_clean || true
 
 userinstall:
 	scripts/update-revno
 	python setup.py install --user
 
-test:
-	@echo Starting tests...
-	@$(PYTHON) /usr/bin/nosetests -s --nologcapture tests/
+.venv:
+	sudo apt-get install -y python-virtualenv
+	virtualenv .venv
+	.venv/bin/pip install -r test_requirements.txt
 
-ftest:
+test: .venv
+	@echo Starting tests...
+	.venv/bin/nosetests -s --nologcapture tests/
+
+ftest: .venv
 	@echo Starting fast tests...
-	@$(PYTHON) /usr/bin/nosetests --attr '!slow' --nologcapture tests/
+	.venv/bin/nosetests --attr '!slow' --nologcapture tests/
 
 lint:
 	@echo Checking for Python syntax...
