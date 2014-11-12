@@ -1739,6 +1739,20 @@ class ContextTests(unittest.TestCase):
         config.return_value = 'good_flag=woot=='
         self.assertRaises(context.OSContextError, flags)
 
+    @patch.object(context, 'config')
+    def test_os_configflag_context_custom(self, config):
+        flags = context.OSConfigFlagContext(
+            charm_flag='api-config-flags',
+            template_flag='api_config_flags')
+
+        # single
+        config.return_value = 'deadbeef=True'
+        self.assertEquals({
+            'api_config_flags': {
+                'deadbeef': 'True',
+            }
+        }, flags())
+
     def test_os_subordinate_config_context(self):
         relation = FakeRelation(relation_data=SUB_CONFIG_RELATION)
         self.relation_get.side_effect = relation.get
