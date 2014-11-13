@@ -1943,7 +1943,7 @@ class ContextTests(unittest.TestCase):
                  call(None, '10.5.1.50')]
         self.get_address_in_network.assert_has_calls(calls)
 
-    def test_apache_get_addresses_no_vips(self):
+    def test_apache_get_addresses_no_vips_no_networks(self):
         self.https.return_value = True
         self.config.side_effect = fake_config({
             'vip': '',
@@ -1968,6 +1968,33 @@ class ContextTests(unittest.TestCase):
         calls = [call(None, '10.5.1.50'),
                  call(None, '10.5.1.50'),
                  call(None, '10.5.1.50')]
+        self.get_address_in_network.assert_has_calls(calls)
+
+    def test_apache_get_addresses_no_vips_w_networks(self):
+        self.https.return_value = True
+        self.config.side_effect = fake_config({
+            'vip': '',
+            'os-internal-network': '10.5.1.0/24',
+            'os-admin-network': '10.5.2.0/24',
+            'os-public-network': '10.5.3.0/24',
+        })
+        self.is_clustered.side_effect = [True, True, True]
+        self.get_address_in_network.side_effect = ['10.5.1.100',
+                                                   '10.5.2.100',
+                                                   '10.5.3.100']
+
+        self.unit_get.return_value = '10.5.1.50'
+        apache = context.ApacheSSLContext()
+
+        addresses = apache.get_network_addresses()
+        expected = [('10.5.1.100', '10.5.1.100'),
+                    ('10.5.2.100', '10.5.2.100'),
+                    ('10.5.3.100', '10.5.3.100')]
+        self.assertEqual(addresses, expected)
+
+        calls = [call('10.5.1.0/24', '10.5.1.50'),
+                 call('10.5.2.0/24', '10.5.1.50'),
+                 call('10.5.3.0/24', '10.5.1.50')]
         self.get_address_in_network.assert_has_calls(calls)
 
     def test_apache_get_addresses_with_network_splits(self):
@@ -1997,4 +2024,60 @@ class ContextTests(unittest.TestCase):
         calls = [call('10.5.1.0/24', '10.5.1.50'),
                  call('10.5.2.0/24', '10.5.1.50'),
                  call('10.5.3.0/24', '10.5.1.50')]
+        self.get_address_in_network.assert_has_calls(calls)
+
+    def test_apache_get_addresses_with_missing_network(self):
+        self.https.return_value = True
+        self.config.side_effect = fake_config({
+            'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
+            'os-internal-network': '10.5.1.0/24',
+            'os-admin-network': '10.5.2.0/24',
+            'os-public-network': '',
+        })
+        self.is_clustered.side_effect = [True, True, True]
+        self.get_address_in_network.side_effect = ['10.5.1.100',
+                                                   '10.5.2.100',
+                                                   '10.5.1.50']
+
+        self.unit_get.return_value = '10.5.1.50'
+        apache = context.ApacheSSLContext()
+        apache.external_ports = '8776'
+
+        addresses = apache.get_network_addresses()
+        expected = [('10.5.1.100', '10.5.1.1'),
+                    ('10.5.2.100', '10.5.2.1')]
+
+        self.assertEqual(addresses, expected)
+
+        calls = [call('10.5.1.0/24', '10.5.1.50'),
+                 call('10.5.2.0/24', '10.5.1.50')]
+        self.get_address_in_network.assert_has_calls(calls)
+
+    def test_apache_get_addresses_with_network_splits_ipv6(self):
+        self.https.return_value = True
+        self.config.side_effect = fake_config({
+            'vip': ('2001:db8::5001 2001:db9::5001 2001:dba::5001'),
+            'os-internal-network': '2001:db8::/113',
+            'os-admin-network': '2001:db9::/113',
+            'os-public-network': '2001:dba::/113',
+        })
+        self.is_clustered.side_effect = [True, True, True]
+        self.get_address_in_network.side_effect = ['2001:db8::5100',
+                                                   '2001:db9::5100',
+                                                   '2001:dba::5100']
+
+        self.unit_get.return_value = '2001:db8::5050'
+        apache = context.ApacheSSLContext()
+        apache.external_ports = '8776'
+
+        addresses = apache.get_network_addresses()
+        expected = [('2001:db8::5100', '2001:db8::5001'),
+                    ('2001:db9::5100', '2001:db9::5001'),
+                    ('2001:dba::5100', '2001:dba::5001')]
+
+        self.assertEqual(addresses, expected)
+
+        calls = [call('2001:db8::/113', '2001:db8::5050'),
+                 call('2001:db9::/113', '2001:db8::5050'),
+                 call('2001:dba::/113', '2001:db8::5050')]
         self.get_address_in_network.assert_has_calls(calls)
