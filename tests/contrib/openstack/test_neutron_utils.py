@@ -69,6 +69,8 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/vmware/nsx.ini')
         self.assertEquals(plugins['n1kv']['config'],
                           '/etc/neutron/plugins/cisco/cisco_plugins.ini')
+        self.assertEquals(plugins['Calico']['config'],
+                          '/etc/neutron/plugins/ml2/ml2_conf.ini')
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 
