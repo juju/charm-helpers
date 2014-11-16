@@ -118,7 +118,7 @@ class IPTest(unittest.TestCase):
         self.assertEqual(None,
                          net_ip.get_address_in_network(None))
 
-        self.assertRaises(SystemExit, self._test_get_address_in_network,
+        self.assertRaises(Exception, self._test_get_address_in_network,
                           None, None, fatal=True)
 
     def test_get_address_in_network_ipv4(self):
@@ -137,7 +137,7 @@ class IPTest(unittest.TestCase):
 
     @mock.patch.object(subprocess, 'call')
     def test_get_address_in_network_not_found_fatal(self, popen):
-        self.assertRaises(SystemExit, self._test_get_address_in_network,
+        self.assertRaises(Exception, self._test_get_address_in_network,
                           None, '172.16.0.0/16', fatal=True)
 
     def test_get_address_in_network_not_found_not_fatal(self):
