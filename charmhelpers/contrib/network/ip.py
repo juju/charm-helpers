@@ -33,7 +33,7 @@ def _validate_cidr(network):
 
 def no_ip_found_error_out(network):
     errmsg = ("No IP address found in network: %s" % network)
-    raise Exception(errmsg)
+    raise ValueError(errmsg)
 
 
 def get_address_in_network(network, fallback=None, fatal=False):
