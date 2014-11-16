@@ -247,15 +247,18 @@ def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None):
         log('Error syncing remote files')
 
 
-def sync_to_peer(host, user, paths=[], verbose=False, cmd=None, gid=None,):
+def sync_to_peer(host, user, paths=None, verbose=False, cmd=None, gid=None):
     '''Sync paths to an specific host'''
-    [sync_path_to_host(p, host, user, verbose, cmd, gid) for p in paths]
+    if paths:
+        for p in paths:
+            sync_path_to_host(p, host, user, verbose, cmd, gid)
 
 
-def sync_to_peers(peer_interface, user, paths=[],
+def sync_to_peers(peer_interface, user, paths=None,
                   verbose=False, cmd=None, gid=None):
     '''Sync all hosts to an specific path'''
     '''The type of group is integer, it allows user has permissions to '''
     '''operate a directory have a different group id with the user id.'''
-    for host in collect_authed_hosts(peer_interface):
-        sync_to_peer(host, user, paths, verbose, cmd, gid)
+    if paths:
+        for host in collect_authed_hosts(peer_interface):
+            sync_to_peer(host, user, paths, verbose, cmd, gid)
