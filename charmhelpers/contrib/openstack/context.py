@@ -3,13 +3,11 @@ import os
 import time
 
 from base64 import b64decode
-from subprocess import (
-    check_call
-)
+from subprocess import check_call
 
 from charmhelpers.fetch import (
     apt_install,
-    filter_installed_packages
+    filter_installed_packages,
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -25,17 +23,17 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     INFO,
     WARNING,
-    ERROR
+    ERROR,
 )
 from charmhelpers.core.host import (
     mkdir,
-    write_file
+    write_file,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
     https,
-    is_clustered
+    is_clustered,
 )
 from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
@@ -50,11 +48,9 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
     get_netmask_for_address,
     format_ipv6_addr,
-    is_address_in_network
+    is_address_in_network,
 )
-from charmhelpers.contrib.openstack.utils import (
-    get_host_ip
-)
+from charmhelpers.contrib.openstack.utils import get_host_ip
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
