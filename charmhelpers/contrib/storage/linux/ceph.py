@@ -407,8 +407,8 @@ class CephBrokerRsp(object):
 
     @property
     def exit_code(self):
-        return self.rsp['exit-code']
+        return self.rsp.get('exit-code')
 
     @property
     def exit_msg(self):
-        return self.rsp['stderr']
+        return self.rsp.get('stderr')
