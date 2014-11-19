@@ -16,7 +16,7 @@ import time
 from subprocess import (
     check_call,
     check_output,
-    CalledProcessError
+    CalledProcessError,
 )
 from charmhelpers.core.hookenv import (
     relation_get,
@@ -26,7 +26,7 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     INFO,
     WARNING,
-    ERROR
+    ERROR,
 )
 from charmhelpers.core.host import (
     mount,
