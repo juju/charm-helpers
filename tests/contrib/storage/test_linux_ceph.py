@@ -65,6 +65,24 @@ class CephUtilsTests(TestCase):
         self.log.assert_called()
         self.check_call.assert_not_called()
 
+    @patch('os.remove')
+    @patch('os.path.exists')
+    def test_delete_keyring(self, _exists, _remove):
+        '''It deletes a ceph keyring.'''
+        _exists.return_value = True
+        ceph_utils.delete_keyring('cinder')
+        _remove.assert_called_with('/etc/ceph/ceph.client.cinder.keyring')
+        self.log.assert_called()
+
+    @patch('os.remove')
+    @patch('os.path.exists')
+    def test_delete_keyring_not_exists(self, _exists, _remove):
+        '''It creates a new ceph keyring.'''
+        _exists.return_value = False
+        ceph_utils.delete_keyring('cinder')
+        self.log.assert_called()
+        _remove.assert_not_called()
+
     @patch('os.path.exists')
     def test_create_keyfile(self, _exists):
         '''It creates a new ceph keyfile'''
