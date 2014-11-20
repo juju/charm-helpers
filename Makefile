@@ -59,8 +59,8 @@ ftest: lint
 
 lint: .venv .venv3
 	@echo Checking for Python syntax...
-	@.venv/bin/flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
-	@.venv3/bin/flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
+	@.venv/bin/flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo Py2 OK
+	@.venv3/bin/flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo Py3 OK
 
 docs:
 	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y
