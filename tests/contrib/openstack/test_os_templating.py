@@ -1,7 +1,13 @@
 
 import os
-
 import unittest
+
+import six
+if six.PY2:
+    builtin_open = '__builtin__.open'
+else:
+    builtin_open = 'builtins.open'
+
 from mock import patch, call, MagicMock
 
 import charmhelpers.contrib.openstack.templating as templating
@@ -160,7 +166,7 @@ class TemplatingTests(unittest.TestCase):
     def test_render_template_by_basename(self):
         '''It renders template if it finds it by config file basename'''
 
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch.object(templating, 'get_loader')
     def test_write_out_config(self, loader, _open):
         '''It writes a templated config when provided a complete context'''

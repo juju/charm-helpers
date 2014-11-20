@@ -14,8 +14,9 @@ import shutil
 import sys
 import tempfile
 import yaml
-
 from fnmatch import fnmatch
+
+import six
 
 CHARM_HELPERS_BRANCH = 'lp:charm-helpers'
 
@@ -139,7 +140,7 @@ def parse_sync_options(options):
 
 def extract_options(inc, global_options=None):
     global_options = global_options or []
-    if global_options and isinstance(global_options, basestring):
+    if global_options and isinstance(global_options, six.string_types):
         global_options = [global_options]
     if '|' not in inc:
         return (inc, global_options)
@@ -159,7 +160,7 @@ def sync_helpers(include, src, dest, options=None):
             sync(src, dest, inc, opts)
         elif isinstance(inc, dict):
             # could also do nested dicts here.
-            for k, v in inc.iteritems():
+            for k, v in six.iteritems(inc):
                 if isinstance(v, list):
                     for m in v:
                         inc, opts = extract_options(m, global_options)
@@ -217,7 +218,7 @@ if __name__ == '__main__':
         checkout = clone_helpers(tmpd, config['branch'])
         sync_helpers(config['include'], checkout, config['destination'],
                      options=sync_options)
-    except Exception, e:
+    except Exception as e:
         logging.error("Could not sync: %s" % e)
         raise e
     finally:

@@ -74,5 +74,5 @@ def generate_selfsigned(keyfile, certfile, keysize="1024", config=None, subject=
         subprocess.check_call(cmd)
         return True
     except Exception as e:
-        print "Execution of openssl command failed:\n{}".format(e)
+        print("Execution of openssl command failed:\n{}".format(e))
         return False

@@ -6,6 +6,8 @@
 import os
 import yaml
 
+import six
+
 import charmhelpers.core.hookenv
 
 
@@ -92,7 +94,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
-    yaml.add_representer(unicode,
+    yaml.add_representer(six.text_type,
                          lambda dumper, value: dumper.represent_scalar(
                              u'tag:yaml.org,2002:str', value))
 

@@ -3,10 +3,13 @@
 
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
+import io
 import os
 
+import six
 
-class Fstab(file):
+
+class Fstab(io.FileIO):
     """This class extends file in order to implement a file reader/writer
     for file `/etc/fstab`
     """
@@ -45,21 +48,21 @@ class Fstab(file):
             self._path = path
         else:
             self._path = self.DEFAULT_PATH
-        file.__init__(self, self._path, 'r+')
+        super(Fstab, self).__init__(self._path, 'r+')
 
     def _hydrate_entry(self, line):
         # NOTE: use split with no arguments to split on any
         #       whitespace including tabs
         return Fstab.Entry(*filter(
             lambda x: x not in ('', None),
-            line.strip("\n").split()))
+            line.strip(six.b("\n")).split()))
 
     @property
     def entries(self):
         self.seek(0)
         for line in self.readlines():
             try:
-                if not line.startswith("#"):
+                if not line.startswith(six.b("#")):
                     yield self._hydrate_entry(line)
             except ValueError:
                 pass
@@ -75,7 +78,7 @@ class Fstab(file):
         if self.get_entry_by_attr('device', entry.device):
             return False
 
-        self.write(str(entry) + '\n')
+        self.write(six.b(str(entry) + '\n'))
         self.truncate()
         return entry
 
@@ -86,7 +89,7 @@ class Fstab(file):
 
         found = False
         for index, line in enumerate(lines):
-            if not line.startswith("#"):
+            if not line.startswith(six.b("#")):
                 if self._hydrate_entry(line) == entry:
                     found = True
                     break
@@ -97,7 +100,7 @@ class Fstab(file):
         lines.remove(line)
 
         self.seek(0)
-        self.write(''.join(lines))
+        self.write(six.b('').join(lines))
         self.truncate()
         return True
 

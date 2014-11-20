@@ -63,4 +63,4 @@ class GitUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 where = self.fh.install(url)
             self.assertEqual(where, dest)
-            _mkdir.assert_called_with(where, perms=0755)
+            _mkdir.assert_called_with(where, perms=0o755)

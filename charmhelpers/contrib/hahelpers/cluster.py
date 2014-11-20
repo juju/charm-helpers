@@ -13,8 +13,9 @@ clustering-related helpers.
 
 import subprocess
 import os
-
 from socket import gethostname as get_unit_hostname
+
+import six
 
 from charmhelpers.core.hookenv import (
     log,
@@ -197,7 +198,7 @@ def get_hacluster_config():
     for setting in settings:
         conf[setting] = config_get(setting)
     missing = []
-    [missing.append(s) for s, v in conf.iteritems() if v is None]
+    [missing.append(s) for s, v in six.iteritems(conf) if v is None]
     if missing:
         log('Insufficient config data to configure hacluster.', level=ERROR)
         raise HAIncompleteConfig

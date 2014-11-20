@@ -1,12 +1,11 @@
 import json
 import os
 import time
-
 from base64 import b64decode
+from subprocess import check_call
 
-from subprocess import (
-    check_call
-)
+import six
+from six.moves import xrange
 
 from charmhelpers.fetch import (
     apt_install,
@@ -77,7 +76,7 @@ def ensure_packages(packages):
 
 def context_complete(ctxt):
     _missing = []
-    for k, v in ctxt.iteritems():
+    for k, v in six.iteritems(ctxt):
         if v is None or v == '':
             _missing.append(k)
     if _missing:
@@ -630,7 +629,7 @@ class ApacheSSLContext(OSContextGenerator):
         return addresses
 
     def __call__(self):
-        if isinstance(self.external_ports, basestring):
+        if isinstance(self.external_ports, six.string_types):
             self.external_ports = [self.external_ports]
         if (not self.external_ports or not https()):
             return {}
@@ -923,9 +922,9 @@ class SubordinateConfigContext(OSContextGenerator):
                         continue
 
                     sub_config = sub_config[self.config_file]
-                    for k, v in sub_config.iteritems():
+                    for k, v in six.iteritems(sub_config):
                         if k == 'sections':
-                            for section, config_dict in v.iteritems():
+                            for section, config_dict in six.iteritems(v):
                                 log("adding section '%s'" % (section))
                                 ctxt[k][section] = config_dict
                         else:
