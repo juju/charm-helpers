@@ -28,6 +28,7 @@ clean:
 	find . -name '*.pyc' -delete
 	rm -rf dist/*
 	rm -rf .venv
+	rm -rf .venv3
 	(which dh_clean && dh_clean) || true
 
 userinstall:
@@ -40,17 +41,27 @@ userinstall:
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt
 
-test: .venv
+.venv3:
+	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
+	virtualenv .venv3 --python=python3 --system-site-packages
+	.venv3/bin/pip install -U pip
+	.venv3/bin/pip install -I -r test_requirements.txt
+
+
+test: .venv .venv3
 	@echo Starting tests...
 	.venv/bin/nosetests -s --nologcapture tests/
+	.venv3/bin/nosetests -s --nologcapture tests/
 
-ftest: .venv
+ftest: .venv .venv3
 	@echo Starting fast tests...
 	.venv/bin/nosetests --attr '!slow' --nologcapture tests/
+	.venv3/bin/nosetests --attr '!slow' --nologcapture tests/
 
-lint:
+lint: .venv .venv3
 	@echo Checking for Python syntax...
-	@flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
+	@.venv/bin/flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
+	@.venv3/bin/flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
 
 docs:
 	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y
