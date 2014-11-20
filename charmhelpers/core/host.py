@@ -6,13 +6,14 @@
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
 import os
+import re
 import pwd
 import grp
 import random
 import string
 import subprocess
 import hashlib
-import apt_pkg
+from contextlib import contextmanager
 
 from collections import OrderedDict
 
@@ -53,7 +54,7 @@ def service(action, service_name):
 def service_running(service):
     """Determine whether a system service is running"""
     try:
-        output = subprocess.check_output(['service', service, 'status'])
+        output = subprocess.check_output(['service', service, 'status'], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError:
         return False
     else:
@@ -61,6 +62,16 @@ def service_running(service):
             return True
         else:
             return False
+
+
+def service_available(service_name):
+    """Determine whether a system service is available"""
+    try:
+        subprocess.check_output(['service', service_name, 'status'], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        return 'unrecognized service' not in e.output
+    else:
+        return True
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False):
@@ -198,10 +209,15 @@ def mounts():
     return system_mounts
 
 
-def file_hash(path):
-    """Generate a md5 hash of the contents of 'path' or None if not found """
+def file_hash(path, hash_type='md5'):
+    """
+    Generate a hash checksum of the contents of 'path' or None if not found.
+
+    :param str hash_type: Any hash alrgorithm supported by :mod:`hashlib`,
+                          such as md5, sha1, sha256, sha512, etc.
+    """
     if os.path.exists(path):
-        h = hashlib.md5()
+        h = getattr(hashlib, hash_type)()
         with open(path, 'r') as source:
             h.update(source.read())  # IGNORE:E1101 - it does have update
         return h.hexdigest()
@@ -209,16 +225,36 @@ def file_hash(path):
         return None
 
 
+def check_hash(path, checksum, hash_type='md5'):
+    """
+    Validate a file using a cryptographic checksum.
+
+    :param str checksum: Value of the checksum used to validate the file.
+    :param str hash_type: Hash algorithm used to generate `checksum`.
+        Can be any hash alrgorithm supported by :mod:`hashlib`,
+        such as md5, sha1, sha256, sha512, etc.
+    :raises ChecksumError: If the file fails the checksum
+
+    """
+    actual_checksum = file_hash(path, hash_type)
+    if checksum != actual_checksum:
+        raise ChecksumError("'%s' != '%s'" % (checksum, actual_checksum))
+
+
+class ChecksumError(ValueError):
+    pass
+
+
 def restart_on_change(restart_map, stopstart=False):
     """Restart services based on configuration files changing
 
-    This function is used a decorator, for example
+    This function is used a decorator, for example::
 
         @restart_on_change({
             '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
             })
         def ceph_client_changed():
-            ...
+            pass  # your code here
 
     In this example, the cinder-api and cinder-volume services
     would be restarted if /etc/ceph/ceph.conf is changed by the
@@ -281,7 +317,13 @@ def list_nics(nic_type):
         ip_output = (line for line in ip_output if line)
         for line in ip_output:
             if line.split()[1].startswith(int_type):
-                interfaces.append(line.split()[1].replace(":", ""))
+                matched = re.search('.*: (bond[0-9]+\.[0-9]+)@.*', line)
+                if matched:
+                    interface = matched.groups()[0]
+                else:
+                    interface = line.split()[1].replace(":", "")
+                interfaces.append(interface)
+
     return interfaces
 
 
@@ -314,12 +356,36 @@ def get_nic_hwaddr(nic):
 
 def cmp_pkgrevno(package, revno, pkgcache=None):
     '''Compare supplied revno with the revno of the installed package
-       1 => Installed revno is greater than supplied arg
-       0 => Installed revno is the same as supplied arg
-      -1 => Installed revno is less than supplied arg
+
+    *  1 => Installed revno is greater than supplied arg
+    *  0 => Installed revno is the same as supplied arg
+    * -1 => Installed revno is less than supplied arg
+
     '''
+    import apt_pkg
+    from charmhelpers.fetch import apt_cache
     if not pkgcache:
-        apt_pkg.init()
-        pkgcache = apt_pkg.Cache()
+        pkgcache = apt_cache()
     pkg = pkgcache[package]
     return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
+
+
+@contextmanager
+def chdir(d):
+    cur = os.getcwd()
+    try:
+        yield os.chdir(d)
+    finally:
+        os.chdir(cur)
+
+
+def chownr(path, owner, group):
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+
+    for root, dirs, files in os.walk(path):
+        for name in dirs + files:
+            full = os.path.join(root, name)
+            broken_symlink = os.path.lexists(full) and not os.path.exists(full)
+            if not broken_symlink:
+                os.chown(full, uid, gid)

@@ -169,6 +169,8 @@ class OpenStackHelpersTestCase(TestCase):
                'precise-havana main')
         self.assertEquals(openstack.get_os_codename_install_source(src),
                           'havana')
+        self.assertEquals(openstack.get_os_codename_install_source(None),
+                          '')
 
     @patch.object(openstack, 'get_os_version_codename')
     @patch.object(openstack, 'get_os_codename_install_source')
@@ -674,6 +676,33 @@ class OpenStackHelpersTestCase(TestCase):
         with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
         self.assertEquals(hn, None)
+
+    @patch('os.path.isfile')
+    @patch('__builtin__.open')
+    def test_get_matchmaker_map(self, _open, _isfile):
+        _isfile.return_value = True
+        mm_data = """
+        {
+           "cinder-scheduler": [
+             "juju-t-machine-4"
+            ]
+        }
+        """
+        fh = _open.return_value.__enter__.return_value
+        fh.read.return_value = mm_data
+        self.assertEqual(
+            openstack.get_matchmaker_map(),
+            {'cinder-scheduler': ['juju-t-machine-4']}
+        )
+
+    @patch('os.path.isfile')
+    @patch('__builtin__.open')
+    def test_get_matchmaker_map_nofile(self, _open, _isfile):
+        _isfile.return_value = False
+        self.assertEqual(
+            openstack.get_matchmaker_map(),
+            {}
+        )
 
 if __name__ == '__main__':
     unittest.main()

@@ -116,23 +116,23 @@ class CephUtilsTests(TestCase):
         ceph_utils.create_pool(service='cinder', name='foo')
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
-                  'create', 'foo', '150']),
+                  'create', 'foo', '100']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
-                  'foo', 'size', '2'])
+                  'foo', 'size', '3'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
-    def test_create_pool_3_replicas(self, _exists, _get_osds):
+    def test_create_pool_2_replicas(self, _exists, _get_osds):
         '''It creates rados pool correctly with 3 replicas'''
         _exists.return_value = False
         _get_osds.return_value = [1, 2, 3]
-        ceph_utils.create_pool(service='cinder', name='foo', replicas=3)
+        ceph_utils.create_pool(service='cinder', name='foo', replicas=2)
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
-                  'create', 'foo', '100']),
+                  'create', 'foo', '150']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
-                  'foo', 'size', '3'])
+                  'foo', 'size', '2'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -146,7 +146,7 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
                   'create', 'foo', '200']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
-                  'foo', 'size', '2'])
+                  'foo', 'size', '3'])
         ])
 
     def test_create_pool_already_exists(self):
@@ -408,8 +408,8 @@ class CephUtilsTests(TestCase):
         _blk_dev = '/dev/rbd1'
         ceph_utils.ensure_ceph_storage(_service, _pool,
                                        _rbd_img, 1024, _mount,
-                                       _blk_dev, 'ext4', _services)
-        self.create_pool.assert_called_with(_service, _pool)
+                                       _blk_dev, 'ext4', _services, 3)
+        self.create_pool.assert_called_with(_service, _pool, replicas=3)
         self.create_rbd_image.assert_called_with(_service, _pool,
                                                  _rbd_img, 1024)
         self.map_block_storage.assert_called_with(_service, _pool, _rbd_img)
@@ -433,7 +433,7 @@ class CephUtilsTests(TestCase):
         self.assertEquals(os.errno.ENOENT, e.errno)
         self.assertEquals(os.strerror(os.errno.ENOENT), e.strerror)
         self.log.assert_called_with(
-            'ceph: gave up waiting on block device %s' % device, level='ERROR')
+            'Gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_make_filesystem_timeout(self):
@@ -450,7 +450,7 @@ class CephUtilsTests(TestCase):
         duration = after - before
         self.assertTrue(timeout - duration < 0.1)
         self.log.assert_called_with(
-            'ceph: gave up waiting on block device %s' % device, level='ERROR')
+            'Gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_device_is_formatted_if_it_appears(self):
@@ -481,7 +481,7 @@ class CephUtilsTests(TestCase):
         ceph_utils.make_filesystem(device, fstype)
         self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
         self.log.assert_called_with(
-            'ceph: Formatting block device %s as '
+            'Formatting block device %s as '
             'filesystem %s.' % (device, fstype), level='INFO'
         )
 

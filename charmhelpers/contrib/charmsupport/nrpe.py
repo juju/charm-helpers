@@ -54,6 +54,12 @@ from charmhelpers.core.host import service
 #            juju-myservice-0
 #        If you're running multiple environments with the same services in them
 #        this allows you to differentiate between them.
+#    nagios_servicegroups:
+#      default: ""
+#      type: string
+#      description: |
+#        A comma-separated list of nagios servicegroups.
+#        If left empty, the nagios_context will be used as the servicegroup
 #
 # 3. Add custom checks (Nagios plugins) to files/nrpe-external-master
 #
@@ -138,7 +144,7 @@ define service {{
         log('Check command not found: {}'.format(parts[0]))
         return ''
 
-    def write(self, nagios_context, hostname):
+    def write(self, nagios_context, hostname, nagios_servicegroups=None):
         nrpe_check_file = '/etc/nagios/nrpe.d/{}.cfg'.format(
             self.command)
         with open(nrpe_check_file, 'w') as nrpe_check_config:
@@ -150,16 +156,21 @@ define service {{
             log('Not writing service config as {} is not accessible'.format(
                 NRPE.nagios_exportdir))
         else:
-            self.write_service_config(nagios_context, hostname)
+            self.write_service_config(nagios_context, hostname,
+                                      nagios_servicegroups)
 
-    def write_service_config(self, nagios_context, hostname):
+    def write_service_config(self, nagios_context, hostname,
+                             nagios_servicegroups=None):
         for f in os.listdir(NRPE.nagios_exportdir):
             if re.search('.*{}.cfg'.format(self.command), f):
                 os.remove(os.path.join(NRPE.nagios_exportdir, f))
 
+        if not nagios_servicegroups:
+            nagios_servicegroups = nagios_context
+
         templ_vars = {
             'nagios_hostname': hostname,
-            'nagios_servicegroup': nagios_context,
+            'nagios_servicegroup': nagios_servicegroups,
             'description': self.description,
             'shortname': self.shortname,
             'command': self.command,
@@ -179,12 +190,16 @@ class NRPE(object):
     nagios_exportdir = '/var/lib/nagios/export'
     nrpe_confdir = '/etc/nagios/nrpe.d'
 
-    def __init__(self):
+    def __init__(self, hostname=None):
         super(NRPE, self).__init__()
         self.config = config()
         self.nagios_context = self.config['nagios_context']
+        self.nagios_servicegroups = self.config['nagios_servicegroups']
         self.unit_name = local_unit().replace('/', '-')
-        self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
+        if hostname:
+            self.hostname = hostname
+        else:
+            self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
         self.checks = []
 
     def add_check(self, *args, **kwargs):
@@ -205,7 +220,8 @@ class NRPE(object):
         nrpe_monitors = {}
         monitors = {"monitors": {"remote": {"nrpe": nrpe_monitors}}}
         for nrpecheck in self.checks:
-            nrpecheck.write(self.nagios_context, self.hostname)
+            nrpecheck.write(self.nagios_context, self.hostname,
+                            self.nagios_servicegroups)
             nrpe_monitors[nrpecheck.shortname] = {
                 "command": nrpecheck.command,
             }

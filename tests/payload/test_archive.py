@@ -82,7 +82,13 @@ class ArchiveTestCase(TestCase):
     def test_extracts_zipfile(self):
         destdir = mkdtemp()
         self.addCleanup(rmtree, destdir)
-        zip_file, contents = self.create_archive("zip")
+        try:
+            zip_file, contents = self.create_archive("zip")
+        except subprocess.CalledProcessError, e:
+            if e.returncode == 127:
+                self.skip("Skipping - zip is not installed")
+            else:
+                raise
         archive.extract_zipfile(zip_file, destdir)
         for path in [os.path.join(destdir, item) for item in contents]:
             self.assertTrue(os.path.exists(path))

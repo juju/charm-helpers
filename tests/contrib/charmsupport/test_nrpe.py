@@ -50,17 +50,30 @@ class NRPEBaseTestCase(TestCase):
 class NRPETestCase(NRPEBaseTestCase):
 
     def test_init_gets_config(self):
-        self.patched['config'].return_value = {'nagios_context': 'testctx'}
+        self.patched['config'].return_value = {'nagios_context': 'testctx',
+                                               'nagios_servicegroups': 'testsgrps'}
 
         checker = nrpe.NRPE()
 
         self.assertEqual('testctx', checker.nagios_context)
+        self.assertEqual('testsgrps', checker.nagios_servicegroups)
         self.assertEqual('testunit', checker.unit_name)
         self.assertEqual('testctx-testunit', checker.hostname)
         self.check_call_counts(config=1)
 
+    def test_init_hostname(self):
+        """Test that the hostname parameter is correctly set"""
+        checker = nrpe.NRPE()
+        self.assertEqual(checker.hostname,
+                         "{}-{}".format(checker.nagios_context,
+                                        checker.unit_name))
+        hostname = "test.host"
+        checker = nrpe.NRPE(hostname=hostname)
+        self.assertEqual(checker.hostname, hostname)
+
     def test_no_nagios_installed_bails(self):
-        self.patched['config'].return_value = {'nagios_context': 'test'}
+        self.patched['config'].return_value = {'nagios_context': 'test',
+                                               'nagios_servicegroups': ''}
         self.patched['getgrnam'].side_effect = KeyError
         checker = nrpe.NRPE()
 
@@ -71,7 +84,8 @@ class NRPETestCase(NRPEBaseTestCase):
         self.check_call_counts(log=1, config=1, getpwnam=1, getgrnam=1)
 
     def test_write_no_checker(self):
-        self.patched['config'].return_value = {'nagios_context': 'test'}
+        self.patched['config'].return_value = {'nagios_context': 'test',
+                                               'nagios_servicegroups': ''}
         self.patched['exists'].return_value = True
         checker = nrpe.NRPE()
 
@@ -80,7 +94,8 @@ class NRPETestCase(NRPEBaseTestCase):
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1, exists=1)
 
     def test_write_restarts_service(self):
-        self.patched['config'].return_value = {'nagios_context': 'test'}
+        self.patched['config'].return_value = {'nagios_context': 'test',
+                                               'nagios_servicegroups': ''}
         self.patched['exists'].return_value = True
         checker = nrpe.NRPE()
 
@@ -92,7 +107,8 @@ class NRPETestCase(NRPEBaseTestCase):
                                exists=1, call=1)
 
     def test_update_nrpe(self):
-        self.patched['config'].return_value = {'nagios_context': 'a'}
+        self.patched['config'].return_value = {'nagios_context': 'a',
+                                               'nagios_servicegroups': ''}
         self.patched['exists'].return_value = True
         self.patched['relation_ids'].return_value = ['local-monitors:1']
 
@@ -170,7 +186,7 @@ class NRPECheckTestCase(NRPEBaseTestCase):
             'foo', 'bar.cfg', 'check_shortname.cfg']
         check = nrpe.Check('shortname', 'description', '/some/command')
 
-        self.assertEqual(None, check.write('testctx', 'hostname'))
+        self.assertEqual(None, check.write('testctx', 'hostname', 'testsgrp'))
 
         expected = '/var/lib/nagios/export/check_shortname.cfg'
         self.patched['remove'].assert_called_once_with(expected)
@@ -180,7 +196,7 @@ class NRPECheckTestCase(NRPEBaseTestCase):
         self.patched['exists'].return_value = False
         check = nrpe.Check('shortname', 'description', '/some/command')
 
-        self.assertEqual(None, check.write('testctx', 'hostname'))
+        self.assertEqual(None, check.write('testctx', 'hostname', 'testsgrps'))
         expected = ('Not writing service config as '
                     '/var/lib/nagios/export is not accessible')
         self.patched['log'].assert_has_calls(
