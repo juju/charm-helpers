@@ -544,3 +544,20 @@ class CephUtilsTests(TestCase):
         output.return_value = 'ceph version 0.67.4'\
             ' (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
         self.assertEquals(ceph_utils.ceph_version(), '0.67.4')
+
+    def test_ceph_broker_rq_class(self):
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('pool1', replica_count=1)
+        rq.add_op_create_pool('pool2')
+        expected = json.dumps({'api-version': 1,
+                               'ops': [{'op': 'create-pool', 'name': 'pool1',
+                                        'replicas': 1},
+                                       {'op': 'create-pool', 'name': 'pool2',
+                                        'replicas': 3}]})
+        self.assertEqual(rq.request, expected)
+
+    def test_ceph_broker_rsp_class(self):
+        rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
+                                                   'stderr': "Success"}))
+        self.assertEqual(rsp.exit_code, 0)
+        self.assertEqual(rsp.exit_msg, "Success")
