@@ -42,7 +42,7 @@ class BzrUrlFetchHandler(BaseFetchHandler):
         dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
                                 branch_name)
         if not os.path.exists(dest_dir):
-            mkdir(dest_dir, perms=0755)
+            mkdir(dest_dir, perms=0o755)
         try:
             self.branch(source, dest_dir)
         except OSError as e:

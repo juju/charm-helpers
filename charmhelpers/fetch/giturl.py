@@ -17,7 +17,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
     """Handler for git branches via generic and github URLs"""
     def can_handle(self, source):
         url_parts = self.parse_url(source)
-        #TODO (mattyw) no support for ssh git@ yet
+        # TODO (mattyw) no support for ssh git@ yet
         if url_parts.scheme not in ('http', 'https', 'git'):
             return False
         else:
@@ -36,7 +36,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
                                 branch_name)
         if not os.path.exists(dest_dir):
-            mkdir(dest_dir, perms=0755)
+            mkdir(dest_dir, perms=0o755)
         try:
             self.clone(source, dest_dir, branch)
         except OSError as e:
