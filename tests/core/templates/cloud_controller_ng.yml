@@ -1,0 +1,173 @@
+---
+# TODO cc_ip cc public ip 
+local_route: {{ domain }}
+port: {{ cc_port }}
+pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
+development_mode: false
+
+message_bus_servers:
+  - nats://{{ nats['user'] }}:{{ nats['password'] }}@{{ nats['address'] }}:{{ nats['port'] }}
+
+external_domain:
+  - api.{{ domain }}
+
+system_domain_organization: {{ default_organization }}
+system_domain: {{ domain }}
+app_domains: [ {{ domain }} ]
+srv_api_uri: http://api.{{ domain }}
+
+default_app_memory: 1024
+
+cc_partition: default
+
+bootstrap_admin_email: admin@{{ default_organization }}
+
+bulk_api:
+  auth_user: bulk_api
+  auth_password: "Password"
+
+nginx:
+  use_nginx: false
+  instance_socket: "/var/vcap/sys/run/cloud_controller_ng/cloud_controller.sock"
+
+index: 1
+name: cloud_controller_ng
+
+info:
+  name: vcap
+  build: "2222"
+  version: 2
+  support_address: http://support.cloudfoundry.com
+  description: Cloud Foundry sponsored by Pivotal
+  api_version: 2.0.0
+
+
+directories:
+ tmpdir: /var/vcap/data/cloud_controller_ng/tmp
+
+
+logging:
+  file: /var/vcap/sys/log/cloud_controller_ng/cloud_controller_ng.log
+
+  syslog: vcap.cloud_controller_ng
+
+  level: debug2
+  max_retries: 1
+
+
+
+
+
+db: &db
+  database: sqlite:///var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
+  max_connections: 25
+  pool_timeout: 10
+  log_level: debug2
+
+
+login:
+  url: http://uaa.{{ domain }}
+
+uaa:
+  url: http://uaa.{{ domain }}
+  resource_id: cloud_controller
+  #symmetric_secret: cc-secret
+  verification_key: |
+    -----BEGIN PUBLIC KEY-----
+    MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d
+    KVy7psa8xzElSyzqx7oJyfJ1JZyOzToj9T5SfTIq396agbHJWVfYphNahvZ/7uMX
+    qHxf+ZH9BL1gk9Y6kCnbM5R60gfwjyW1/dQPjOzn9N394zd2FJoFHwdq9Qs0wBug
+    spULZVNRxq7veq/fzwIDAQAB
+    -----END PUBLIC KEY-----
+
+# App staging parameters
+staging:
+  max_staging_runtime: 900
+  auth:
+    user:
+    password: "Password"
+
+maximum_health_check_timeout: 180
+
+runtimes_file: /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml
+stacks_file: /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml
+
+quota_definitions:
+  free:
+    non_basic_services_allowed: false
+    total_services: 2
+    total_routes: 1000
+    memory_limit: 1024
+  paid:
+    non_basic_services_allowed: true
+    total_services: 32
+    total_routes: 1000
+    memory_limit: 204800
+  runaway:
+    non_basic_services_allowed: true
+    total_services: 500
+    total_routes: 1000
+    memory_limit: 204800
+  trial:
+    non_basic_services_allowed: false
+    total_services: 10
+    memory_limit: 2048
+    total_routes: 1000
+    trial_db_allowed: true
+
+default_quota_definition: free
+
+resource_pool:
+  minimum_size: 65536
+  maximum_size: 536870912
+  resource_directory_key: cc-resources
+
+  cdn:
+    uri:
+    key_pair_id:
+    private_key: ""
+
+  fog_connection: {"provider":"Local","local_root":"/var/vcap/nfs/store"}
+
+packages:
+  app_package_directory_key: cc-packages
+
+  cdn:
+    uri:
+    key_pair_id:
+    private_key: ""
+
+  fog_connection: {"provider":"Local","local_root":"/var/vcap/nfs/store"}
+
+droplets:
+  droplet_directory_key: cc-droplets
+
+  cdn:
+    uri:
+    key_pair_id:
+    private_key: ""
+
+  fog_connection: {"provider":"Local","local_root":"/var/vcap/nfs/store"}
+
+buildpacks:
+  buildpack_directory_key: cc-buildpacks
+
+  cdn:
+    uri:
+    key_pair_id:
+    private_key: ""
+
+  fog_connection: {"provider":"Local","local_root":"/var/vcap/nfs/store"}
+
+db_encryption_key: Password
+
+trial_db:
+  guid: "78ad16cf-3c22-4427-a982-b9d35d746914"
+
+tasks_disabled: false
+hm9000_noop: true
+flapping_crash_count_threshold: 3
+
+disable_custom_buildpacks: false
+
+broker_client_timeout_seconds: 60

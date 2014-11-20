@@ -113,6 +113,20 @@ class ConfigTest(TestCase):
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
 
+    def test_getitem(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(baz='bam'))
+
+        self.assertRaises(KeyError, lambda: c['missing'])
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c['baz'], 'bam')
+
+    def test_keys(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c["baz"] = "bar"
+        self.assertEqual([u"foo", "baz"], c.keys())
+
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
@@ -932,6 +946,48 @@ class HelpersTest(TestCase):
 
 
 class HooksTest(TestCase):
+    def setUp(self):
+        super(HooksTest, self).setUp()
+        self.config = patch.object(hookenv, 'config')
+        self.config.start()
+
+    def tearDown(self):
+        super(HooksTest, self).tearDown()
+        self.config.stop()
+
+    def test_config_saved_after_execute(self):
+        config = hookenv.config()
+        config.implicit_save = True
+
+        foo = MagicMock()
+        hooks = hookenv.Hooks()
+        hooks.register('foo', foo)
+        hooks.execute(['foo', 'some', 'other', 'args'])
+
+        self.assertTrue(config.save.called)
+
+    def test_config_not_saved_after_execute(self):
+        config = hookenv.config()
+        config.implicit_save = False
+
+        foo = MagicMock()
+        hooks = hookenv.Hooks()
+        hooks.register('foo', foo)
+        hooks.execute(['foo', 'some', 'other', 'args'])
+
+        self.assertFalse(config.save.called)
+
+    def test_config_save_disabled(self):
+        config = hookenv.config()
+        config.implicit_save = True
+
+        foo = MagicMock()
+        hooks = hookenv.Hooks(config_save=False)
+        hooks.register('foo', foo)
+        hooks.execute(['foo', 'some', 'other', 'args'])
+
+        self.assertFalse(config.save.called)
+
     def test_runs_a_registered_function(self):
         foo = MagicMock()
         hooks = hookenv.Hooks()

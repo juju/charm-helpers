@@ -210,6 +210,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
 
         received_args = []
         received_key = StringIO()
+
         def _check_call(arg, stdin=None):
             '''side_effect to store the stdin passed to check_call process.'''
             if stdin is not None:
@@ -223,9 +224,16 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
             self.assertEqual(['apt-key', 'add', '-'], received_args)
             self.assertEqual(key, received_key.getvalue())
 
-    def test_add_unparsable_source(self):
+    @patch('charmhelpers.fetch.log')
+    def test_add_unparsable_source(self, log_):
         source = "propsed"  # Minor typo
-        self.assertRaises(fetch.SourceConfigError, fetch.add_source, source)
+        fetch.add_source(source=source)
+        self.assertEqual(1, log_.call_count)
+
+    def test_add_distro_source(self):
+        source = "distro"
+        # distro is a noop but test validate no exception is thrown
+        fetch.add_source(source=source)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
@@ -347,6 +355,9 @@ class InstallTest(TestCase):
             h3.install.assert_called_with(url)
 
             self.assertEqual(result, "foo")
+
+        fetch.install_remote('url', extra_arg=True)
+        h2.install.assert_called_with('url', extra_arg=True)
 
     @patch('charmhelpers.fetch.install_remote')
     @patch('charmhelpers.fetch.config')

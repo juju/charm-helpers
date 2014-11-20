@@ -9,6 +9,8 @@ all:
 	@echo "make deb - Create debian package"
 	@echo "make clean"
 	@echo "make userinstall - Install locally"
+	@echo "make docs - Build html documentation"
+	@echo "make release - Build and upload package and docs to PyPI"
 
 sdeb: source
 	scripts/build source
@@ -25,22 +27,39 @@ clean:
 	rm -rf build/ MANIFEST
 	find . -name '*.pyc' -delete
 	rm -rf dist/*
-	dh_clean
+	rm -rf .venv
+	(which dh_clean && dh_clean) || true
 
 userinstall:
 	scripts/update-revno
 	python setup.py install --user
 
-test:
-	@echo Starting tests...
-	@$(PYTHON) /usr/bin/nosetests --nologcapture tests/
+.venv:
+	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
+	virtualenv .venv --system-site-packages
+	.venv/bin/pip install -U pip
+	.venv/bin/pip install -I -r test_requirements.txt
 
-ftest:
+test: .venv
+	@echo Starting tests...
+	.venv/bin/nosetests -s --nologcapture tests/
+
+ftest: .venv
 	@echo Starting fast tests...
-	@$(PYTHON) /usr/bin/nosetests --attr '!slow' --nologcapture tests/
+	.venv/bin/nosetests --attr '!slow' --nologcapture tests/
 
 lint:
 	@echo Checking for Python syntax...
 	@flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
 
-build: test lint
+docs:
+	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y
+	- [ -z "`dpkg -l | grep python-pip`" ] && sudo apt-get install python-pip -y
+	- [ -z "`pip list | grep -i sphinx-pypi-upload`" ] && sudo pip install sphinx-pypi-upload
+	cd docs && make html && cd -
+.PHONY: docs
+
+release: docs
+	$(PYTHON) setup.py sdist upload upload_sphinx
+
+build: test lint docs
