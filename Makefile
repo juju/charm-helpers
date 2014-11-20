@@ -47,13 +47,12 @@ userinstall:
 	.venv3/bin/pip install -U pip
 	.venv3/bin/pip install -I -r test_requirements.txt
 
-
-test: .venv .venv3
+test: lint
 	@echo Starting tests...
 	.venv/bin/nosetests -s --nologcapture tests/
 	.venv3/bin/nosetests -s --nologcapture tests/
 
-ftest: .venv .venv3
+ftest: lint
 	@echo Starting fast tests...
 	.venv/bin/nosetests --attr '!slow' --nologcapture tests/
 	.venv3/bin/nosetests --attr '!slow' --nologcapture tests/
