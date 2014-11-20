@@ -3,13 +3,14 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
-
-import cPickle as pickle
 from mock import patch, call, mock_open
-from StringIO import StringIO
 from mock import MagicMock
 from testtools import TestCase
 import yaml
+
+import six
+import six.moves.cPickle as pickle
+from six.moves import StringIO
 
 from charmhelpers.core import hookenv
 
@@ -167,9 +168,6 @@ class SerializableTest(TestCase):
         for meth in ('keys', 'values', 'items'):
             self.assertEqual(getattr(wrapped, meth)(), getattr(foo, meth)())
 
-        for meth in ('iterkeys', 'itervalues', 'iteritems'):
-            self.assertEqual(list(getattr(wrapped, meth)()),
-                             list(getattr(foo, meth)()))
         self.assertEqual(wrapped.get('bar'), foo.get('bar'))
         self.assertEqual(wrapped.get('baz', 42), foo.get('baz', 42))
         self.assertIn('bar', wrapped)
@@ -257,7 +255,7 @@ class HelpersTest(TestCase):
         self.assertEqual(result[1], 'a')
 
         # ... because the result is actually a string
-        self.assert_(isinstance(result, basestring))
+        self.assert_(isinstance(result, six.string_types))
 
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):
@@ -925,8 +923,8 @@ class HelpersTest(TestCase):
         values = {
             'hello': 'world',
             'foo': 'bar',
-            'baz': None
-            }
+            'baz': None,
+        }
 
         @hookenv.cached
         def cache_function(attribute):

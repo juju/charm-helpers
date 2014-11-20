@@ -5,6 +5,10 @@ from charmhelpers.fetch import (
 )
 from charmhelpers.core.host import mkdir
 
+import six
+if six.PY3:
+    raise ImportError('bzrlib does not support Python3')
+
 try:
     from bzrlib.branch import Branch
 except ImportError:

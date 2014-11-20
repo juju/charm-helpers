@@ -11,6 +11,13 @@ from mock import (
 )
 from tests.helpers import patch_open
 
+import six
+
+if six.PY2:
+    open_builtin = '__builtin__.open'
+else:
+    open_builtin = 'builtins.open'
+
 
 class FakeRelation(object):
 
@@ -472,7 +479,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch('os.path.exists')
-    @patch('__builtin__.open')
+    @patch(open_builtin)
     def test_db_ssl(self, _open, osexists):
         osexists.return_value = False
         ssl_dir = '/etc/dbssl'
@@ -725,7 +732,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch('__builtin__.open')
+    @patch(open_builtin)
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
         relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
@@ -882,8 +889,8 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy(CEPH_RELATION)
-        for k, v in relation.iteritems():
-            for u in v.iterkeys():
+        for k, v in six.iteritems(relation):
+            for u in six.iterkeys(v):
                 del relation[k][u]['auth']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
