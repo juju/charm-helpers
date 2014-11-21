@@ -1393,9 +1393,10 @@ class ContextTests(unittest.TestCase):
         apache = context.ApacheSSLContext()
         self.assertEquals(apache.canonical_names(), ['cinderhost1'])
         rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
-        self.assertEquals(apache.canonical_names(), ['cinderhost1-adm-network',
-                                                     'cinderhost1-int-network',
-                                                     'cinderhost1-pub-network'])
+        self.assertEquals(apache.canonical_names(),
+                          sorted(['cinderhost1-adm-network',
+                                  'cinderhost1-int-network',
+                                  'cinderhost1-pub-network']))
         rel.relation_data = IDENTITY_RELATION_NO_CERT
         self.assertEquals(apache.canonical_names(), [])
 

@@ -638,7 +638,7 @@ class HelpersTest(TestCase):
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
-            mock_file.read.return_value = "newstuff"
+            mock_file.read.return_value = six.b("newstuff")
 
         with patch_open() as (mock_open, mock_file):
             make_some_changes(mock_file)
@@ -694,7 +694,9 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [six.b('exists'),
+                                          six.b('missing'),
+                                          six.b('exists2')]
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
