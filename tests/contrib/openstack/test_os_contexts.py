@@ -806,7 +806,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': 'rabbithost2,rabbithost1',
+            'rabbitmq_hosts': 'rabbithost1,rabbithost2',
         }
         self.assertEquals(result, expected)
 
@@ -875,7 +875,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         expected = {
-            'mon_hosts': 'ceph_node2 ceph_node1',
+            'mon_hosts': 'ceph_node1 ceph_node2',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true'
@@ -918,7 +918,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         expected = {
-            'mon_hosts': '192.168.1.11 192.168.1.10',
+            'mon_hosts': '192.168.1.10 192.168.1.11',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
@@ -1271,12 +1271,9 @@ class ContextTests(unittest.TestCase):
             if len(vips) > 1:
                 ex = {
                     'namespace': 'cinder',
-                    'endpoints': [('10.5.1.100', '10.5.1.1',
-                                   8766, 8756),
-                                  ('10.5.2.100', '10.5.2.1',
-                                   8766, 8756),
-                                  ('10.5.3.100', '10.5.3.1',
-                                   8766, 8756)],
+                    'endpoints': [('10.5.1.100', '10.5.1.1', 8766, 8756),
+                                  ('10.5.2.100', '10.5.2.1', 8766, 8756),
+                                  ('10.5.3.100', '10.5.3.1', 8766, 8756)],
                     'ext_ports': [8766]
                 }
             else:
@@ -1290,12 +1287,10 @@ class ContextTests(unittest.TestCase):
             if multinet:
                 ex = {
                     'namespace': 'cinder',
-                    'endpoints': [('10.5.3.100', '10.5.3.100',
-                                   8776, 8766),
-                                  ('10.5.2.100', '10.5.2.100',
-                                   8776, 8766),
-                                  ('10.5.1.100', '10.5.1.100',
-                                   8776, 8766)],
+                    'endpoints': sorted([
+                        ('10.5.3.100', '10.5.3.100', 8776, 8766),
+                        ('10.5.2.100', '10.5.2.100', 8776, 8766),
+                        ('10.5.1.100', '10.5.1.100', 8776, 8766)]),
                     'ext_ports': [8776]
                 }
             else:

@@ -363,7 +363,7 @@ class AMQPContext(OSContextGenerator):
                     host = relation_get('private-address', rid=rid, unit=unit)
                     host = format_ipv6_addr(host) or host
                     rabbitmq_hosts.append(host)
-                ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
+                ctxt['rabbitmq_hosts'] = ','.join(sorted(rabbitmq_hosts))
         if not context_complete(ctxt):
             return {}
         else:
@@ -395,7 +395,7 @@ class CephContext(OSContextGenerator):
                 mon_hosts.append(ceph_addr)
 
         ctxt = {
-            'mon_hosts': ' '.join(mon_hosts),
+            'mon_hosts': ' '.join(sorted(mon_hosts)),
             'auth': auth,
             'key': key,
             'use_syslog': use_syslog
@@ -626,7 +626,7 @@ class ApacheSSLContext(OSContextGenerator):
             else:
                 addresses.append((addr, addr))
 
-        return addresses
+        return sorted(addresses)
 
     def __call__(self):
         if isinstance(self.external_ports, six.string_types):
@@ -647,14 +647,14 @@ class ApacheSSLContext(OSContextGenerator):
             self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
-        for address, endpoint in set(addresses):
+        for address, endpoint in sorted(set(addresses)):
             for api_port in self.external_ports:
                 ext_port = determine_apache_port(api_port)
                 int_port = determine_api_port(api_port)
                 portmap = (address, endpoint, int(ext_port), int(int_port))
                 ctxt['endpoints'].append(portmap)
                 ctxt['ext_ports'].append(int(ext_port))
-        ctxt['ext_ports'] = list(set(ctxt['ext_ports']))
+        ctxt['ext_ports'] = sorted(list(set(ctxt['ext_ports'])))
         return ctxt
 
 

@@ -1,7 +1,6 @@
 import os
 
 from six.moves.urllib.parse import urlparse
-from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import URLError
 
 from unittest import TestCase

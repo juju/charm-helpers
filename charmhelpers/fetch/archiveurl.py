@@ -25,17 +25,18 @@ def splituser(host):
     '''urllib.splituser(), but six's support of this seems broken'''
     _userprog = re.compile('^(.*)@(.*)$')
     match = _userprog.match(host)
-    if match: return match.group(1, 2)
+    if match:
+        return match.group(1, 2)
     return None, host
 
 
 def splitpasswd(user):
     '''urllib.splitpasswd(), but six's support of this is missing'''
-    _passwdprog = re.compile('^([^:]*):(.*)$',re.S)
+    _passwdprog = re.compile('^([^:]*):(.*)$', re.S)
     match = _passwdprog.match(user)
-    if match: return match.group(1, 2)
+    if match:
+        return match.group(1, 2)
     return user, None
-
 
 
 class ArchiveUrlFetchHandler(BaseFetchHandler):
