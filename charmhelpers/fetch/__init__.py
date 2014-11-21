@@ -68,11 +68,16 @@ CLOUD_ARCHIVE_POCKETS = {
 
 # The order of this list is very important. Handlers should be listed in from
 # least- to most-specific URL matching.
-FETCH_HANDLERS = (
-    'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
-    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
-    'charmhelpers.fetch.giturl.GitUrlFetchHandler',
-)
+if six.PY2:
+    FETCH_HANDLERS = (
+        'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
+        'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
+        'charmhelpers.fetch.giturl.GitUrlFetchHandler',
+    )
+else:
+    FETCH_HANDLERS = (
+        'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
+    )
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 APT_NO_LOCK_RETRY_DELAY = 10  # Wait 10 seconds between apt lock checks.
@@ -259,7 +264,7 @@ def add_source(source, key=None):
 
     if key:
         if '-----BEGIN PGP PUBLIC KEY BLOCK-----' in key:
-            with NamedTemporaryFile() as key_file:
+            with NamedTemporaryFile('w+') as key_file:
                 key_file.write(key)
                 key_file.flush()
                 key_file.seek(0)

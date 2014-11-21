@@ -27,8 +27,8 @@ class Fstab(io.FileIO):
                 options = "defaults"
 
             self.options = options
-            self.d = d
-            self.p = p
+            self.d = int(d)
+            self.p = int(p)
 
         def __eq__(self, o):
             return str(self) == str(o)
@@ -48,21 +48,22 @@ class Fstab(io.FileIO):
             self._path = path
         else:
             self._path = self.DEFAULT_PATH
-        super(Fstab, self).__init__(self._path, 'r+')
+        super(Fstab, self).__init__(self._path, 'rb+')
 
     def _hydrate_entry(self, line):
         # NOTE: use split with no arguments to split on any
         #       whitespace including tabs
         return Fstab.Entry(*filter(
             lambda x: x not in ('', None),
-            line.strip(six.b("\n")).split()))
+            line.strip("\n").split()))
 
     @property
     def entries(self):
         self.seek(0)
         for line in self.readlines():
+            line = line.decode('us-ascii')
             try:
-                if not line.startswith(six.b("#")):
+                if not line.startswith("#"):
                     yield self._hydrate_entry(line)
             except ValueError:
                 pass
@@ -78,18 +79,18 @@ class Fstab(io.FileIO):
         if self.get_entry_by_attr('device', entry.device):
             return False
 
-        self.write(six.b(str(entry) + '\n'))
+        self.write((str(entry) + '\n').encode('us-ascii'))
         self.truncate()
         return entry
 
     def remove_entry(self, entry):
         self.seek(0)
 
-        lines = self.readlines()
+        lines = [l.decode('us-ascii') for l in self.readlines()]
 
         found = False
         for index, line in enumerate(lines):
-            if not line.startswith(six.b("#")):
+            if not line.startswith("#"):
                 if self._hydrate_entry(line) == entry:
                     found = True
                     break
@@ -100,7 +101,7 @@ class Fstab(io.FileIO):
         lines.remove(line)
 
         self.seek(0)
-        self.write(six.b('').join(lines))
+        self.write(''.join(lines).encode('us-ascii'))
         self.truncate()
         return True
 

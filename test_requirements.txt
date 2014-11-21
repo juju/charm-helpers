@@ -10,5 +10,4 @@ testtools
 flake8
 Tempita>=0.5.1
 netifaces
-GitPython>=0.3.2.RC1
 Jinja2>=2.7.2

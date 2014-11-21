@@ -583,7 +583,7 @@ class ApacheSSLContext(OSContextGenerator):
                 for k in rdata:
                     if k.startswith('ssl_key_'):
                         cns.append(k.lstrip('ssl_key_'))
-        return list(set(cns))
+        return sorted(list(set(cns)))
 
     def get_network_addresses(self):
         """For each network configured, return corresponding address and vip

@@ -100,13 +100,14 @@ class IPTest(unittest.TestCase):
             return DUMMY_ADDRESSES[iface]
 
         with mock.patch.object(netifaces, 'interfaces') as interfaces:
-            interfaces.return_value = DUMMY_ADDRESSES.keys()
+            interfaces.return_value = sorted(DUMMY_ADDRESSES.keys())
             with mock.patch.object(netifaces, 'ifaddresses') as ifaddresses:
                 ifaddresses.side_effect = side_effect
                 if not fatal:
                     self.assertEqual(expect_ip_addr,
-                                     net_ip.get_address_in_network(
-                                         network, fallback, fatal))
+                                     net_ip.get_address_in_network(network,
+                                                                   fallback,
+                                                                   fatal))
                 else:
                     net_ip.get_address_in_network(network, fallback, fatal)
 
@@ -122,7 +123,7 @@ class IPTest(unittest.TestCase):
                           None, None, fatal=True)
 
     def test_get_address_in_network_ipv4(self):
-        self._test_get_address_in_network('192.168.1.56', '192.168.1.0/24')
+        self._test_get_address_in_network('192.168.1.55', '192.168.1.0/24')
 
     def test_get_address_in_network_ipv6(self):
         self._test_get_address_in_network('2a01:348:2f4:0:685e:5748:ae62:209f',
@@ -494,9 +495,9 @@ class IPTest(unittest.TestCase):
     def test_get_iface_from_addr(self, mock_log, mock_ifaddresses,
                                  mock_interfaces):
         mock_ifaddresses.side_effect = lambda iface: DUMMY_ADDRESSES[iface]
-        mock_interfaces.return_value = DUMMY_ADDRESSES.keys()
+        mock_interfaces.return_value = sorted(DUMMY_ADDRESSES.keys())
         addr = 'fe80::3e97:eff:fe8b:1cf7'
-        self.assertEqual(net_ip.get_iface_from_addr(addr), 'eth1')
+        self.assertEqual(net_ip.get_iface_from_addr(addr), 'eth0')
 
         with nose.tools.assert_raises(Exception):
             net_ip.get_iface_from_addr('1.2.3.4')

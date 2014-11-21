@@ -41,6 +41,7 @@ userinstall:
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt
 	.venv/bin/pip install bzr
+	.venv/bin/pip install GitPython
 
 .venv3:
 	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
@@ -57,7 +58,7 @@ test2:
 	.venv/bin/nosetests -s --nologcapture tests/
 
 test3:
-	@echo Starting Py2 tests...
+	@echo Starting Py3 tests...
 	.venv3/bin/nosetests -s --nologcapture tests/
 
 ftest: lint
