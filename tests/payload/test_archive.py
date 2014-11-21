@@ -84,7 +84,7 @@ class ArchiveTestCase(TestCase):
         self.addCleanup(rmtree, destdir)
         try:
             zip_file, contents = self.create_archive("zip")
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError as e:
             if e.returncode == 127:
                 self.skip("Skipping - zip is not installed")
             else:

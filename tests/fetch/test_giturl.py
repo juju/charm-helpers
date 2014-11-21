@@ -1,16 +1,26 @@
 import os
 from testtools import TestCase
-from urlparse import urlparse
 from mock import (
     MagicMock,
     patch,
 )
-from charmhelpers.fetch import (
-    giturl,
-    UnhandledSource,
-)
+import unittest
+
+import six
+
+try:
+    from charmhelpers.fetch import (
+        giturl,
+        UnhandledSource,
+    )
+except ImportError:
+    giturl = None
+    UnhandledSource = None
+
+from six.moves.urllib.parse import urlparse
 
 
+@unittest.skipIf(six.PY3, 'git does not support Python 3')
 class GitUrlFetchHandlerTest(TestCase):
 
     def setUp(self):
@@ -27,6 +37,7 @@ class GitUrlFetchHandlerTest(TestCase):
         )
         self.fh = giturl.GitUrlFetchHandler()
 
+    @unittest.skipIf(six.PY3, 'git does not support Python 3')
     def test_handles_git_urls(self):
         for url in self.valid_urls:
             result = self.fh.can_handle(url)
@@ -35,6 +46,7 @@ class GitUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
+    @unittest.skipIf(six.PY3, 'git does not support Python 3')
     @patch('git.Repo.clone_from')
     def test_branch(self, _clone_from):
         dest_path = "/destination/path"
@@ -52,6 +64,7 @@ class GitUrlFetchHandlerTest(TestCase):
                                   dest_path,
                                   branch)
 
+    @unittest.skipIf(six.PY3, 'git does not support Python 3')
     @patch('charmhelpers.fetch.giturl.mkdir')
     def test_installs(self, _mkdir):
         self.fh.clone = MagicMock()
@@ -63,4 +76,4 @@ class GitUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 where = self.fh.install(url)
             self.assertEqual(where, dest)
-            _mkdir.assert_called_with(where, perms=0755)
+            _mkdir.assert_called_with(where, perms=0o755)
