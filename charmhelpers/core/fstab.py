@@ -6,8 +6,6 @@ __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 import io
 import os
 
-import six
-
 
 class Fstab(io.FileIO):
     """This class extends file in order to implement a file reader/writer

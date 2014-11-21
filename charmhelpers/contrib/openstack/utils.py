@@ -488,7 +488,6 @@ def sync_db_with_multi_ipv6_addresses(database, database_user,
               'hostname': json.dumps(hosts)}
 
     if relation_prefix:
-        keys = list(kwargs.keys())
         for key in list(kwargs.keys()):
             kwargs["%s_%s" % (relation_prefix, key)] = kwargs[key]
             del kwargs[key]
