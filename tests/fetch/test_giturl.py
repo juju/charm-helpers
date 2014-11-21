@@ -1,6 +1,5 @@
 import os
 from testtools import TestCase
-from urlparse import urlparse
 from mock import (
     MagicMock,
     patch,
@@ -9,6 +8,8 @@ from charmhelpers.fetch import (
     giturl,
     UnhandledSource,
 )
+
+from six.moves.urllib.parse import urlparse
 
 
 class GitUrlFetchHandlerTest(TestCase):
