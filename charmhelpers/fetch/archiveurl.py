@@ -2,6 +2,7 @@ import os
 import hashlib
 import re
 
+import six
 from six.moves.urllib.request import (
     build_opener, install_opener, urlopen, urlretrieve,
     HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler,
@@ -123,7 +124,11 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
             raise UnhandledSource(e.strerror)
         options = parse_qs(url_parts.fragment)
         for key, value in options.items():
-            if key in hashlib.algorithms:
+            if six.PY2:
+                algorithms = hashlib.algorithms
+            else:
+                algorithms = hashlib.algorithms_available
+            if key in algorithms:
                 check_hash(dld_file, value, key)
         if checksum:
             check_hash(dld_file, checksum, hash_type)
