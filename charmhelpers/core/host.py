@@ -220,7 +220,7 @@ def file_hash(path, hash_type='md5'):
     if os.path.exists(path):
         h = getattr(hashlib, hash_type)()
         with open(path, 'rb') as source:
-            h.update(source.read())  # IGNORE:E1101 - it does have update
+            h.update(source.read())
         return h.hexdigest()
     else:
         return None
