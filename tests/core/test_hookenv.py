@@ -166,7 +166,8 @@ class SerializableTest(TestCase):
         }
         wrapped = hookenv.Serializable(foo)
         for meth in ('keys', 'values', 'items'):
-            self.assertEqual(getattr(wrapped, meth)(), getattr(foo, meth)())
+            self.assertEqual(sorted(list(getattr(wrapped, meth)())),
+                             sorted(list(getattr(foo, meth)())))
 
         self.assertEqual(wrapped.get('bar'), foo.get('bar'))
         self.assertEqual(wrapped.get('baz', 42), foo.get('baz', 42))
