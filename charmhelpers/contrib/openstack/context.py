@@ -975,7 +975,7 @@ class WorkerConfigContext(OSContextGenerator):
         return NUM_CPUS
 
     def __call__(self):
-        multiplier = config('worker-multiplier') or 1
+        multiplier = config('worker-multiplier') or 0
         ctxt = {"workers": self.num_cpus * multiplier}
         return ctxt
 
