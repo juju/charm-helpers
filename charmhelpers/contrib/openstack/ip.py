@@ -16,7 +16,7 @@ PUBLIC = 'public'
 INTERNAL = 'int'
 ADMIN = 'admin'
 
-_address_map = {
+ADDRESS_MAP = {
     PUBLIC: {
         'config': 'os-public-network',
         'fallback': 'public-address'
@@ -33,8 +33,7 @@ _address_map = {
 
 
 def canonical_url(configs, endpoint_type=PUBLIC):
-    '''
-    Returns the correct HTTP URL to this host given the state of HTTPS
+    """Returns the correct HTTP URL to this host given the state of HTTPS
     configuration, hacluster and charm configuration.
 
     :configs OSTemplateRenderer: A config tempating object to inspect for
@@ -42,7 +41,7 @@ def canonical_url(configs, endpoint_type=PUBLIC):
     :endpoint_type str: The endpoint type to resolve.
 
     :returns str: Base URL for services on the current service unit.
-    '''
+    """
     scheme = 'http'
     if 'https' in configs.complete_contexts():
         scheme = 'https'
@@ -53,27 +52,44 @@ def canonical_url(configs, endpoint_type=PUBLIC):
 
 
 def resolve_address(endpoint_type=PUBLIC):
+    """Return unit address depending on net config.
+
+    If unit is clustered with vip(s) and has net splits defined, return vip on
+    correct network. If clustered with no nets defined, return primary vip.
+
+    If not clustered, return unit address ensuring address is on configured net
+    split if one is confgured.
+    """
     resolved_address = None
-    if is_clustered():
-        if config(_address_map[endpoint_type]['config']) is None:
-            # Assume vip is simple and pass back directly
-            resolved_address = config('vip')
+    vips = config('vip')
+    if vips:
+        vips = vips.split()
+
+    net_type = ADDRESS_MAP[endpoint_type]['config']
+    net_addr = config(net_type)
+    net_fallback = ADDRESS_MAP[endpoint_type]['fallback']
+    clustered = is_clustered()
+    if clustered:
+        if not net_addr:
+            # If no net-splits defined, we expect a single vip
+            resolved_address = vips[0]
         else:
-            for vip in config('vip').split():
-                if is_address_in_network(
-                        config(_address_map[endpoint_type]['config']),
-                        vip):
+            for vip in vips:
+                address = net_addr
+                if is_address_in_network(address, vip):
                     resolved_address = vip
+                    break
     else:
         if config('prefer-ipv6'):
-            fallback_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+            fallback_addr = get_ipv6_addr(exc_list=vips)[0]
         else:
-            fallback_addr = unit_get(_address_map[endpoint_type]['fallback'])
-        resolved_address = get_address_in_network(
-            config(_address_map[endpoint_type]['config']), fallback_addr)
+            fallback_addr = unit_get(net_fallback)
+
+        resolved_address = get_address_in_network(net_addr, fallback_addr)
 
     if resolved_address is None:
-        raise ValueError('Unable to resolve a suitable IP address'
-                         ' based on charm state and configuration')
-    else:
-        return resolved_address
+        raise ValueError("Unable to resolve a suitable IP address based on "
+                         "charm state and configuration. (net_type=%s, "
+                         "clustered=%s)" % (net_type, clustered))
+
+    return resolved_address
