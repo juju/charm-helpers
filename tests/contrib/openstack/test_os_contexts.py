@@ -1908,7 +1908,7 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = None
         with patch.object(context.WorkerConfigContext, 'num_cpus', 2) as cpus:
             worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 2}, worker())
+            self.assertEqual({'workers': 0}, worker())
 
     def test_workerconfig_context_withconfig(self):
         self.config.side_effect = fake_config({
