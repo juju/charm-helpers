@@ -1,4 +1,3 @@
-from cStringIO import StringIO
 import subprocess
 
 from tests.helpers import patch_open
@@ -12,6 +11,8 @@ from urlparse import urlparse
 from charmhelpers import fetch
 import os
 import yaml
+
+from six.moves import StringIO
 
 FAKE_APT_CACHE = {
     # an installed package
