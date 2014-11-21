@@ -189,7 +189,7 @@ class TemplatingTests(unittest.TestCase):
         ]
         with patch.object(self.renderer, 'write') as _write:
             self.renderer.write_all()
-            self.assertEquals(ex_calls, _write.call_args_list)
+            self.assertEquals(sorted(ex_calls), sorted(_write.call_args_list))
             pass
 
     @patch.object(templating, 'get_loader')
