@@ -61,7 +61,7 @@ class Fstab(io.FileIO):
         for line in self.readlines():
             line = line.decode('us-ascii')
             try:
-                if not line.startswith("#"):
+                if line.strip() and not line.startswith("#"):
                     yield self._hydrate_entry(line)
             except ValueError:
                 pass
