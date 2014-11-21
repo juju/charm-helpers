@@ -112,7 +112,7 @@ def create_pool(service, name, replicas=3):
     # on upstream recommended best practices.
     osds = get_osds(service)
     if osds:
-        pgnum = (len(osds) * 100 / replicas)
+        pgnum = (len(osds) * 100 // replicas)
     else:
         # NOTE(james-page): Default to 200 for older ceph versions
         # which don't support OSD query from cli
