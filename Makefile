@@ -44,7 +44,7 @@ userinstall:
 	.venv/bin/pip install GitPython
 
 .venv3:
-	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
+	sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt
 	virtualenv .venv3 --python=python3 --system-site-packages
 	.venv3/bin/pip install -U pip
 	.venv3/bin/pip install -I -r test_requirements.txt
