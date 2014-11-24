@@ -5,7 +5,7 @@ import re
 import sys
 import time
 
-import charmhelpers.six as six
+import six
 
 
 class AmuletUtils(object):

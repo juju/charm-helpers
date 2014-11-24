@@ -1,6 +1,6 @@
 import os
 
-import charmhelpers.six as six
+import six
 
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (

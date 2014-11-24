@@ -7,7 +7,7 @@ import glanceclient.v1.client as glance_client
 import keystoneclient.v2_0 as keystone_client
 import novaclient.v1_1.client as nova_client
 
-import charmhelpers.six as six
+import six
 
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils

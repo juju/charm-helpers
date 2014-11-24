@@ -5,7 +5,7 @@ from charmhelpers.fetch import (
 )
 from charmhelpers.core.host import mkdir
 
-import charmhelpers.six as six
+import six
 if six.PY3:
     raise ImportError('GitPython does not support Python 3')
 
