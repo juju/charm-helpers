@@ -11,6 +11,7 @@ from charmhelpers import fetch
 import os
 import yaml
 
+import six
 from six.moves import StringIO
 from six.moves.urllib.parse import urlparse
 
@@ -405,7 +406,11 @@ class PluginTest(TestCase):
     @patch('charmhelpers.fetch.log')
     def test_plugins_are_valid(self, log_):
         plugins = fetch.plugins()
-        self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
+        if six.PY2:
+            self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
+        else:
+            # No bzr or git libraries for Python3.
+            self.assertEqual(len(fetch.FETCH_HANDLERS) - 2, len(plugins))
 
 
 class BaseFetchHandlerTest(TestCase):
