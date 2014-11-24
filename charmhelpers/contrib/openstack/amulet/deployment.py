@@ -1,4 +1,4 @@
-import six
+import charmhelpers.six as six
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )

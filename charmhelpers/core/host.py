@@ -16,7 +16,7 @@ import hashlib
 from contextlib import contextmanager
 from collections import OrderedDict
 
-import six
+import charmhelpers.six as six
 
 from .hookenv import log
 from .fstab import Fstab

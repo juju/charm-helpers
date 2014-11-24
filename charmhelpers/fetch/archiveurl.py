@@ -2,13 +2,13 @@ import os
 import hashlib
 import re
 
-import six
-from six.moves.urllib.request import (
+import charmhelpers.six as six
+from charmhelpers.six.moves.urllib.request import (
     build_opener, install_opener, urlopen, urlretrieve,
     HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler,
 )
-from six.moves.urllib.parse import urlparse, urlunparse, parse_qs
-from six.moves.urllib.error import URLError
+from charmhelpers.six.moves.urllib.parse import urlparse, urlunparse, parse_qs
+from charmhelpers.six.moves.urllib.error import URLError
 
 from charmhelpers.fetch import (
     BaseFetchHandler,

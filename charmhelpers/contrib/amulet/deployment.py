@@ -1,6 +1,6 @@
 import amulet
 import os
-import six
+import charmhelpers.six as six
 
 
 class AmuletDeployment(object):
