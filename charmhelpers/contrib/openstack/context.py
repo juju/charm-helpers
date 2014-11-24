@@ -4,8 +4,8 @@ import time
 from base64 import b64decode
 from subprocess import check_call
 
-import six
-from six.moves import xrange
+import charmhelpers.six as six
+from charmhelpers.six.moves import xrange
 
 from charmhelpers.fetch import (
     apt_install,

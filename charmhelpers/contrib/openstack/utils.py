@@ -10,7 +10,7 @@ import os
 import socket
 import sys
 
-import six
+import charmhelpers.six as six
 
 from charmhelpers.core.hookenv import (
     config,

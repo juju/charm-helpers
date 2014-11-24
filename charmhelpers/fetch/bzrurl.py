@@ -5,7 +5,7 @@ from charmhelpers.fetch import (
 )
 from charmhelpers.core.host import mkdir
 
-import six
+import charmhelpers.six as six
 if six.PY3:
     raise ImportError('bzrlib does not support Python3')
 

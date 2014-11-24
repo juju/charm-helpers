@@ -6,7 +6,7 @@
 import os
 import yaml
 
-import six
+import charmhelpers.six as six
 
 import charmhelpers.core.hookenv
 

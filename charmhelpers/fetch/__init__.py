@@ -12,8 +12,8 @@ from charmhelpers.core.hookenv import (
 )
 import os
 
-import six
-from six.moves.urllib.parse import urlparse, urlunparse
+import charmhelpers.six as six
+from charmhelpers.six.moves.urllib.parse import urlparse, urlunparse
 
 
 CLOUD_ARCHIVE = """# Ubuntu Cloud Archive

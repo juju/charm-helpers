@@ -34,7 +34,7 @@ import time
 import yaml
 import subprocess
 
-from six.moves import urllib
+from charmhelpers.six.moves import urllib
 
 SLEEP_AMOUNT = 0.1
 # We create a juju_status Command here because it makes testing much,
