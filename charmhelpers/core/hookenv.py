@@ -11,7 +11,7 @@ import subprocess
 import sys
 from subprocess import CalledProcessError
 
-import charmhelpers.six as six
+import six
 if six.PY2:
     from UserDict import UserDict
 else:

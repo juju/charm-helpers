@@ -15,7 +15,7 @@ import subprocess
 import os
 from socket import gethostname as get_unit_hostname
 
-import charmhelpers.six as six
+import six
 
 from charmhelpers.core.hookenv import (
     log,

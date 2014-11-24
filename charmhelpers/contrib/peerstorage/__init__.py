@@ -1,4 +1,4 @@
-import charmhelpers.six as six
+import six
 from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
     is_relation_made,

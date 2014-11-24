@@ -2,7 +2,7 @@ import inspect
 import argparse
 import sys
 
-from charmhelpers.six.moves import zip
+from six.moves import zip
 
 
 class OutputFormatter(object):
