@@ -68,16 +68,11 @@ CLOUD_ARCHIVE_POCKETS = {
 
 # The order of this list is very important. Handlers should be listed in from
 # least- to most-specific URL matching.
-if six.PY2:
-    FETCH_HANDLERS = (
-        'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
-        'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
-        'charmhelpers.fetch.giturl.GitUrlFetchHandler',
-    )
-else:
-    FETCH_HANDLERS = (
-        'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
-    )
+FETCH_HANDLERS = (
+    'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
+    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
+    'charmhelpers.fetch.giturl.GitUrlFetchHandler',
+)
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 APT_NO_LOCK_RETRY_DELAY = 10  # Wait 10 seconds between apt lock checks.
