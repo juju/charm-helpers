@@ -12,7 +12,7 @@ import sys
 from subprocess import CalledProcessError
 
 import six
-if six.PY2:
+if not six.PY3:
     from UserDict import UserDict
 else:
     from collections import UserDict

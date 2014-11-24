@@ -1,7 +1,12 @@
 import os
 
-from six.moves.urllib.parse import urlparse
-from six.moves.urllib.error import URLError
+import six
+if six.PY3:
+    from urllib.parse import urlparse
+    from urllib.error import URLError
+else:
+    from urllib2 import URLError
+    from urlparse import urlparse
 
 from unittest import TestCase
 from mock import (
