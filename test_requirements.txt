@@ -1,13 +1,15 @@
-# Specify minimum versions. Specifying exact version numbers does not
-# seem helpful, as charms will usually install modern versions of packages.
+# Test-only dependencies
+# are unpinned.
 coverage>=3.6
 mock>=1.0.1
-netaddr
 nose>=1.3.1
-PyYAML>=3.10
-simplejson>=3.3.0
-testtools
 flake8
-Tempita>=0.5.1
-netifaces
-Jinja2>=2.7.2
+testtools
+# Specify trusty versions of runtime dependencies.
+netaddr==0.7.10
+PyYAML==3.10
+simplejson==3.3.1
+Tempita==0.5.2
+netifaces==0.10  # Trusty is 0.8!
+Jinja2==2.7.2
+six==1.5.2
