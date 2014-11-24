@@ -9,8 +9,11 @@ from testtools import TestCase
 import yaml
 
 import six
-import six.moves.cPickle as pickle
 from six.moves import StringIO
+if six.PY3:
+    import pickle
+else:
+    import cPickle as pickle
 
 from charmhelpers.core import hookenv
 

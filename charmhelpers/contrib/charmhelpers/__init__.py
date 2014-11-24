@@ -34,7 +34,13 @@ import time
 import yaml
 import subprocess
 
-from six.moves import urllib
+import six
+if six.PY3:
+    from urllib.request import urlopen
+    from urllib.error import (HTTPError, URLError)
+else:
+    from urllib2 import (urlopen, HTTPError, URLError)
+
 
 SLEEP_AMOUNT = 0.1
 # We create a juju_status Command here because it makes testing much,
@@ -171,8 +177,8 @@ def wait_for_page_contents(url, contents, timeout=120, validate=None):
     start_time = time.time()
     while True:
         try:
-            stream = urllib.request.urlopen(url)
-        except (urllib.error.HTTPError, urllib.error.URLError):
+            stream = urlopen(url)
+        except (HTTPError, URLError):
             pass
         else:
             page = stream.read()

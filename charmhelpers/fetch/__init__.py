@@ -13,7 +13,10 @@ from charmhelpers.core.hookenv import (
 import os
 
 import six
-from six.moves.urllib.parse import urlparse, urlunparse
+if six.PY3:
+    from urllib.parse import urlparse, urlunparse
+else:
+    from urlparse import urlparse, urlunparse
 
 
 CLOUD_ARCHIVE = """# Ubuntu Cloud Archive

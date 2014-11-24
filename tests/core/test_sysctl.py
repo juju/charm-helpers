@@ -10,7 +10,7 @@ import unittest
 import tempfile
 
 import six
-if six.PY2:
+if not six.PY3:
     builtin_open = '__builtin__.open'
 else:
     builtin_open = 'builtins.open'

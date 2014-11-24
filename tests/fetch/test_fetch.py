@@ -13,7 +13,11 @@ import yaml
 
 import six
 from six.moves import StringIO
-from six.moves.urllib.parse import urlparse
+if six.PY3:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
+
 
 FAKE_APT_CACHE = {
     # an installed package
@@ -406,7 +410,7 @@ class PluginTest(TestCase):
     @patch('charmhelpers.fetch.log')
     def test_plugins_are_valid(self, log_):
         plugins = fetch.plugins()
-        if six.PY2:
+        if not six.PY3:
             self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
         else:
             # No bzr or git libraries for Python3.
