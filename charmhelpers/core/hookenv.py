@@ -12,7 +12,10 @@ import sys
 from subprocess import CalledProcessError
 
 import six
-from six.moves import UserDict
+if six.PY2:
+    from UserDict import UserDict
+else:
+    from collections import UserDict
 
 CRITICAL = "CRITICAL"
 ERROR = "ERROR"
