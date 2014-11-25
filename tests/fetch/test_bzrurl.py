@@ -7,8 +7,10 @@ from mock import (
 import unittest
 
 import six
-from six.moves.urllib.parse import urlparse
-
+if six.PY3:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
 
 try:
     from charmhelpers.fetch import (

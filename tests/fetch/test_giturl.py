@@ -7,6 +7,10 @@ from mock import (
 import unittest
 
 import six
+if six.PY3:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
 
 try:
     from charmhelpers.fetch import (
@@ -17,12 +21,11 @@ except ImportError:
     giturl = None
     UnhandledSource = None
 
-from six.moves.urllib.parse import urlparse
-
 
 @unittest.skipIf(six.PY3, 'git does not support Python 3')
 class GitUrlFetchHandlerTest(TestCase):
 
+    @unittest.skipIf(six.PY3, 'git does not support Python 3')
     def setUp(self):
         super(GitUrlFetchHandlerTest, self).setUp()
         self.valid_urls = (

@@ -10,7 +10,7 @@ import charmhelpers.contrib.openstack.utils as openstack
 
 import six
 
-if six.PY2:
+if not six.PY3:
     builtin_open = '__builtin__.open'
     builtin_import = '__builtin__.__import__'
 else:
