@@ -401,7 +401,7 @@ class HelpersTest(TestCase):
         owner = 'some-user-{foo}'
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
-        contents = 'what is {juju}'
+        contents = b'what is {juju}'
         perms = 0o644
         fileno = 'some-fileno'
 
@@ -416,10 +416,10 @@ class HelpersTest(TestCase):
 
             getpwnam.assert_called_with('some-user-{foo}')
             getgrnam.assert_called_with('some-group-{bar}')
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with(b'what is {juju}')
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')
@@ -427,7 +427,7 @@ class HelpersTest(TestCase):
         uid = 0
         gid = 0
         path = '/some/path/{baz}'
-        fmtstr = 'what is {juju}'
+        fmtstr = b'what is {juju}'
         perms = 0o444
         fileno = 'some-fileno'
 
@@ -436,10 +436,10 @@ class HelpersTest(TestCase):
 
             host.write_file(path, fmtstr)
 
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with(b'what is {juju}')
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')

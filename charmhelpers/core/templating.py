@@ -5,7 +5,7 @@ from charmhelpers.core import hookenv
 
 
 def render(source, target, context, owner='root', group='root',
-           perms=0o444, templates_dir=None):
+           perms=0o444, templates_dir=None, encoding='UTF-8'):
     """
     Render a template.
 
@@ -49,4 +49,4 @@ def render(source, target, context, owner='root', group='root',
         raise e
     content = template.render(context)
     host.mkdir(os.path.dirname(target))
-    host.write_file(target, content, owner, group, perms)
+    host.write_file(target, content.encode(encoding), owner, group, perms)
