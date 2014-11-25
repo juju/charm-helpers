@@ -2,9 +2,9 @@
 
 import unittest
 import yaml
-from testtools import TestCase
 
-from six import StringIO
+from StringIO import StringIO
+from testtools import TestCase
 
 import sys
 # Path hack to ensure we test the local code, not a version installed in
@@ -265,11 +265,11 @@ class CharmHelpersTestCase(TestCase):
         # wait_for_page_contents() will wait until a given string is
         # contained within the results of a given url and will return
         # once it does.
-        # We need to patch the charmhelpers instance of urlopen so that
+        # We need to patch the charmhelpers instance of urllib2 so that
         # it doesn't try to connect out.
         test_content = "Hello, world."
         new_urlopen = lambda *args: StringIO(test_content)
-        self.patch(charmhelpers.urllib.request, 'urlopen', new_urlopen)
+        self.patch(charmhelpers.urllib2, 'urlopen', new_urlopen)
         charmhelpers.wait_for_page_contents(
             'http://example.com', test_content, timeout=0)
 
@@ -277,10 +277,10 @@ class CharmHelpersTestCase(TestCase):
         # If the desired contents do not appear within the page before
         # the specified timeout, wait_for_page_contents() will raise a
         # RuntimeError.
-        # We need to patch the charmhelpers instance of urlopen so that
+        # We need to patch the charmhelpers instance of urllib2 so that
         # it doesn't try to connect out.
         new_urlopen = lambda *args: StringIO("This won't work.")
-        self.patch(charmhelpers.urllib.request, 'urlopen', new_urlopen)
+        self.patch(charmhelpers.urllib2, 'urlopen', new_urlopen)
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_page_contents,
             'http://example.com', "This will error", timeout=0)

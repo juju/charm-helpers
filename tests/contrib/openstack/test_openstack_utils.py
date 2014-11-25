@@ -1,21 +1,12 @@
-import io
 import os
 import subprocess
 import unittest
+
 from copy import copy
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
 import charmhelpers.contrib.openstack.utils as openstack
-
-import six
-
-if six.PY2:
-    builtin_open = '__builtin__.open'
-    builtin_import = '__builtin__.__import__'
-else:
-    builtin_open = 'builtins.open'
-    builtin_import = 'builtins.__import__'
 
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
@@ -231,7 +222,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Test deriving OpenStack codename from an installed package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in six.iteritems(FAKE_REPO):
+            for pkg, vers in FAKE_REPO.iteritems():
                 # test fake repo for all "installed" packages
                 if pkg.startswith('bad-'):
                     continue
@@ -300,7 +291,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Test deriving OpenStack version from an installed package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in six.iteritems(FAKE_REPO):
+            for pkg, vers in FAKE_REPO.iteritems():
                 if pkg.startswith('bad-'):
                     continue
                 if 'pkg_vers' not in vers:
@@ -363,12 +354,12 @@ class OpenStackHelpersTestCase(TestCase):
             ex_cmd = ['add-apt-repository', '-y', 'ppa:gandelman-a/openstack']
             mock.assert_called_with(ex_cmd)
 
-    @patch(builtin_open)
+    @patch('__builtin__.open')
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     @patch('charmhelpers.contrib.openstack.utils.import_key')
     def test_configure_install_source_deb_url(self, _import, _log, _open):
         '''Test configuring installation source from deb repo url'''
-        _file = MagicMock(spec=io.FileIO)
+        _file = MagicMock(spec=file)
         _open.return_value = _file
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main|KEYID')
@@ -381,12 +372,12 @@ class OpenStackHelpersTestCase(TestCase):
         _file.__enter__().write.assert_called_with(src)
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
-    @patch(builtin_open)
+    @patch('__builtin__.open')
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     def test_configure_install_source_distro_proposed(self, _log, _open, _lsb):
         '''Test configuring installation source from deb repo url'''
         _lsb.return_value = FAKE_RELEASE
-        _file = MagicMock(spec=io.FileIO)
+        _file = MagicMock(spec=file)
         _open.return_value = _file
         openstack.configure_installation_source('distro-proposed')
         src = ('deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
@@ -411,13 +402,13 @@ class OpenStackHelpersTestCase(TestCase):
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd)
 
-    @patch(builtin_open)
+    @patch('__builtin__.open')
     @patch('charmhelpers.contrib.openstack.utils.apt_install')
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_configure_install_source_uca_repos(self, _lsb, _install, _open):
         '''Test configuring installation source from UCA sources'''
         _lsb.return_value = FAKE_RELEASE
-        _file = MagicMock(spec=io.FileIO)
+        _file = MagicMock(spec=file)
         _open.return_value = _file
         for src, url in UCA_SOURCES:
             openstack.configure_installation_source(src)
@@ -464,13 +455,13 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
-    @patch(builtin_open)
+    @patch('__builtin__.open')
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
                     'export setting2=bar\n']
-        _file = MagicMock(spec=io.FileIO)
+        _file = MagicMock(spec=file)
         _open.return_value = _file
         _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
         _exists.return_value = False
@@ -592,21 +583,21 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'apt_install')
     def test_get_host_ip_with_hostname(self, apt_install):
         fake_dns = FakeDNS('10.0.0.1')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
             ip = openstack.get_host_ip('www.ubuntu.com')
         self.assertEquals(ip, '10.0.0.1')
 
     @patch.object(openstack, 'apt_install')
     def test_get_host_ip_with_ip(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
             ip = openstack.get_host_ip('4.2.2.1')
         self.assertEquals(ip, '4.2.2.1')
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_trigger_apt_install(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
-        with patch(builtin_import, side_effect=[ImportError, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[ImportError, fake_dns]):
             nsq = openstack.ns_query('5.5.5.5')
             apt_install.assert_called_with('python-dnspython')
         self.assertEquals(nsq, '5.5.5.5')
@@ -614,7 +605,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'apt_install')
     def test_ns_query_ptr_record(self, apt_install):
         fake_dns = FakeDNS('127.0.0.1')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
             nsq = openstack.ns_query('127.0.0.1')
         self.assertEquals(nsq, '127.0.0.1')
 
@@ -622,35 +613,35 @@ class OpenStackHelpersTestCase(TestCase):
     def test_ns_query_a_record(self, apt_install):
         fake_dns = FakeDNS('127.0.0.1')
         fake_dns_name = FakeDNSName('www.somedomain.tld')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns]):
             nsq = openstack.ns_query(fake_dns_name)
         self.assertEquals(nsq, '127.0.0.1')
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_blank_record(self, apt_install):
         fake_dns = FakeDNS(None)
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             nsq = openstack.ns_query(None)
         self.assertEquals(nsq, None)
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_lookup_fail(self, apt_install):
         fake_dns = FakeDNS('')
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             nsq = openstack.ns_query('nonexistant')
         self.assertEquals(nsq, None)
 
     @patch.object(openstack, 'apt_install')
     def test_get_hostname_with_ip(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
         self.assertEquals(hn, 'www.ubuntu.com')
 
     @patch.object(openstack, 'apt_install')
     def test_get_hostname_with_ip_not_fqdn(self, apt_install):
         fake_dns = FakeDNS('packages.ubuntu.com')
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1', fqdn=False)
         self.assertEquals(hn, 'packages')
 
@@ -672,7 +663,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'apt_install')
     def test_get_hostname_trigger_apt_install(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
-        with patch(builtin_import, side_effect=[ImportError, fake_dns, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[ImportError, fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
             apt_install.assert_called_with('python-dnspython')
         self.assertEquals(hn, 'www.ubuntu.com')
@@ -682,12 +673,12 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_hostname_lookup_fail(self, apt_install, ns_query):
         fake_dns = FakeDNS('www.ubuntu.com')
         ns_query.return_value = []
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
         self.assertEquals(hn, None)
 
     @patch('os.path.isfile')
-    @patch(builtin_open)
+    @patch('__builtin__.open')
     def test_get_matchmaker_map(self, _open, _isfile):
         _isfile.return_value = True
         mm_data = """
@@ -705,7 +696,7 @@ class OpenStackHelpersTestCase(TestCase):
         )
 
     @patch('os.path.isfile')
-    @patch(builtin_open)
+    @patch('__builtin__.open')
     def test_get_matchmaker_map_nofile(self, _open, _isfile):
         _isfile.return_value = False
         self.assertEqual(

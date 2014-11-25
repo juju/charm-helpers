@@ -24,7 +24,7 @@ GENERATED_FSTAB_FILE = DEFAULT_FSTAB_FILE.replace('\t', ' ')
 class FstabTest(unittest.TestCase):
 
     def setUp(self):
-        self.tempfile = tempfile.NamedTemporaryFile('w+', delete=False)
+        self.tempfile = tempfile.NamedTemporaryFile(delete=False)
         self.tempfile.write(DEFAULT_FSTAB_FILE)
         self.tempfile.close()
         self.fstab = Fstab(path=self.tempfile.name)

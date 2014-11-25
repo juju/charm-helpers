@@ -573,7 +573,7 @@ class TestStoredContext(unittest.TestCase):
         with mock.patch.object(services.helpers, 'open', mopen, create=True):
             services.helpers.StoredContext('foo.yaml', {'key': 'val'})
         mopen.assert_called_once_with('charm_dir/foo.yaml', 'w')
-        fchmod.assert_called_once_with(mopen.return_value.fileno(), 0o600)
+        fchmod.assert_called_once_with(mopen.return_value.fileno(), 0600)
         yaml.dump.assert_called_once_with({'key': 'val'}, mopen.return_value)
 
     @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
@@ -637,7 +637,7 @@ class TestTemplateCallback(unittest.TestCase):
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
-            'root', 'root', 0o444)
+            'root', 'root', 0444)
 
     @mock.patch.object(services.helpers, 'templating')
     def test_template_explicit(self, mtemplating):
@@ -645,14 +645,14 @@ class TestTemplateCallback(unittest.TestCase):
             'required_data': [{'foo': 'bar'}]}})
         callback = services.template(
             source='foo.yml', target='bar.yml',
-            owner='user', group='group', perms=0o555
+            owner='user', group='group', perms=0555
         )
         assert isinstance(callback, services.ManagerCallback)
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
-            'user', 'group', 0o555)
+            'user', 'group', 0555)
 
 
 class TestPortsCallback(unittest.TestCase):

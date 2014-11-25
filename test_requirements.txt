@@ -1,13 +1,18 @@
-# Specify minimum versions. Specifying exact version numbers does not
-# seem helpful, as charms will usually install modern versions of packages.
-coverage>=3.6
-mock>=1.0.1
+coverage==3.6
+launchpadlib==1.10.2
+--allow-external launchpadlib
+--allow-unverified launchpadlib
+mock==1.0.1
 netaddr
-nose>=1.3.1
-PyYAML>=3.10
-simplejson>=3.3.0
+nose==1.3.1
+PyYAML==3.10
+simplejson==3.3.0
 testtools
-flake8
-Tempita>=0.5.1
-netifaces
-Jinja2>=2.7.2
+Tempita==0.5.1
+bzr+http://bazaar.launchpad.net/~yellow/python-shelltoolbox/trunk@17#egg=shelltoolbox
+http://alastairs-place.net/projects/netifaces/netifaces-0.6.tar.gz
+bzr==2.6.0
+GitPython>=0.3.2.RC1
+Jinja2==2.7.2
+--allow-external lazr.authentication
+--allow-unverified lazr.authentication

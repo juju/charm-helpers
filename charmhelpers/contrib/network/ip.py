@@ -228,7 +228,7 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False,
         raise Exception("Interface '%s' doesn't have any %s addresses." %
                         (iface, inet_type))
 
-    return sorted(addresses)
+    return addresses
 
 
 get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')

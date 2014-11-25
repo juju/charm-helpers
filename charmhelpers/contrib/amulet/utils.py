@@ -5,8 +5,6 @@ import re
 import sys
 import time
 
-import six
-
 
 class AmuletUtils(object):
     """Amulet utilities.
@@ -60,7 +58,7 @@ class AmuletUtils(object):
            Verify the specified services are running on the corresponding
            service units.
            """
-        for k, v in six.iteritems(commands):
+        for k, v in commands.iteritems():
             for cmd in v:
                 output, code = k.run(cmd)
                 if code != 0:
@@ -102,11 +100,11 @@ class AmuletUtils(object):
            longs, or can be a function that evaluate a variable and returns a
            bool.
            """
-        for k, v in six.iteritems(expected):
+        for k, v in expected.iteritems():
             if k in actual:
-                if (isinstance(v, six.string_types) or
+                if (isinstance(v, basestring) or
                         isinstance(v, bool) or
-                        isinstance(v, six.integer_types)):
+                        isinstance(v, (int, long))):
                     if v != actual[k]:
                         return "{}:{}".format(k, actual[k])
                 elif not v(actual[k]):

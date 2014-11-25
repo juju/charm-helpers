@@ -1,4 +1,3 @@
-import six
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )
@@ -70,7 +69,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
     def _configure_services(self, configs):
         """Configure all of the services."""
-        for service, config in six.iteritems(configs):
+        for service, config in configs.iteritems():
             self.d.configure(service, config)
 
     def _get_openstack_release(self):
