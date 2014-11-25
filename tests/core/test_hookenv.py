@@ -129,7 +129,7 @@ class ConfigTest(TestCase):
     def test_keys(self):
         c = hookenv.Config(dict(foo='bar'))
         c["baz"] = "bar"
-        self.assertEqual(sorted([u"foo", "baz"]), sorted(c.keys()))
+        self.assertEqual(sorted([six.u("foo"), "baz"]), sorted(c.keys()))
 
 
 class SerializableTest(TestCase):

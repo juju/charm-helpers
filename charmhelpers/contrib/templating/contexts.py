@@ -96,7 +96,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     # work when salt uses yaml.load_safe.
     yaml.add_representer(six.text_type,
                          lambda dumper, value: dumper.represent_scalar(
-                             u'tag:yaml.org,2002:str', value))
+                             six.u('tag:yaml.org,2002:str'), value))
 
     yaml_dir = os.path.dirname(yaml_path)
     if not os.path.exists(yaml_dir):
