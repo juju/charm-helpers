@@ -6,6 +6,7 @@ from mock import patch, call
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
+import six
 
 from charmhelpers.core import host
 
@@ -440,6 +441,21 @@ class HelpersTest(TestCase):
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
             mock_file.write.assert_called_with(b'what is {juju}')
+
+    @patch.object(host, 'log')
+    @patch.object(host, 'os')
+    def test_writes_binary_contents(self, os_, log):
+        path = '/some/path/{baz}'
+        fmtstr = six.u('what is {juju}\N{TRADE MARK SIGN}').encode('UTF-8')
+        fileno = 'some-fileno'
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.fileno.return_value = fileno
+
+            host.write_file(path, fmtstr)
+
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
+            mock_file.write.assert_called_with(fmtstr)
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
