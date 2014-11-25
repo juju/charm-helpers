@@ -1209,6 +1209,48 @@ class ContextTests(unittest.TestCase):
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
 
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
+        '''Test haproxy context with single unit'''
+        # peer relations always show at least one peer relation, even
+        # if unit is alone. should be an incomplete context.
+        cluster_relation = {
+            'cluster:0': {
+                'peer/0': {
+                    'private-address': 'lonely.clusterpeer.howsad',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'lonely.clusterpeer.howsad'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.config.return_value = False
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        with patch_open() as (_open, _file):
+            result = context.HAProxyContext(singlenode_mode=True)()
+        ex = {
+            'frontends': {
+                'lonely.clusterpeer.howsad': {
+                    'backends': {
+                        'peer-0': 'lonely.clusterpeer.howsad'
+                    },
+                    'network': 'lonely.clusterpeer.howsad/255.255.0.0'
+                },
+            },
+            'haproxy_host': '0.0.0.0',
+            'local_host': '127.0.0.1',
+            'stat_port': ':8888'
+        }
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''
         apache = context.ApacheSSLContext()
