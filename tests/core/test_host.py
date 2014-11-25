@@ -554,7 +554,7 @@ class HelpersTest(TestCase):
                 ['/dev', 'udev'],
                 ['/dev/pts', 'devpts']
             ])
-            mock_open.assert_called_with('/proc/mounts', 'r', encoding='UTF-8')
+            mock_open.assert_called_with('/proc/mounts')
 
     _hash_files = {
         '/etc/exists.conf': 'lots of nice ceph configuration',
