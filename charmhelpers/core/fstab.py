@@ -3,11 +3,10 @@
 
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
-import io
 import os
 
 
-class Fstab(io.FileIO):
+class Fstab(file):
     """This class extends file in order to implement a file reader/writer
     for file `/etc/fstab`
     """
@@ -25,8 +24,8 @@ class Fstab(io.FileIO):
                 options = "defaults"
 
             self.options = options
-            self.d = int(d)
-            self.p = int(p)
+            self.d = d
+            self.p = p
 
         def __eq__(self, o):
             return str(self) == str(o)
@@ -46,7 +45,7 @@ class Fstab(io.FileIO):
             self._path = path
         else:
             self._path = self.DEFAULT_PATH
-        super(Fstab, self).__init__(self._path, 'rb+')
+        file.__init__(self, self._path, 'r+')
 
     def _hydrate_entry(self, line):
         # NOTE: use split with no arguments to split on any
@@ -59,9 +58,8 @@ class Fstab(io.FileIO):
     def entries(self):
         self.seek(0)
         for line in self.readlines():
-            line = line.decode('us-ascii')
             try:
-                if line.strip() and not line.startswith("#"):
+                if not line.startswith("#"):
                     yield self._hydrate_entry(line)
             except ValueError:
                 pass
@@ -77,14 +75,14 @@ class Fstab(io.FileIO):
         if self.get_entry_by_attr('device', entry.device):
             return False
 
-        self.write((str(entry) + '\n').encode('us-ascii'))
+        self.write(str(entry) + '\n')
         self.truncate()
         return entry
 
     def remove_entry(self, entry):
         self.seek(0)
 
-        lines = [l.decode('us-ascii') for l in self.readlines()]
+        lines = self.readlines()
 
         found = False
         for index, line in enumerate(lines):
@@ -99,7 +97,7 @@ class Fstab(io.FileIO):
         lines.remove(line)
 
         self.seek(0)
-        self.write(''.join(lines).encode('us-ascii'))
+        self.write(''.join(lines))
         self.truncate()
         return True
 

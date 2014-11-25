@@ -1,32 +1,20 @@
 import os
 from testtools import TestCase
+from urlparse import urlparse
 from mock import (
     MagicMock,
     patch,
 )
-import unittest
-
-import six
-from six.moves.urllib.parse import urlparse
-
-
-try:
-    from charmhelpers.fetch import (
-        bzrurl,
-        UnhandledSource,
-    )
-except ImportError:
-    bzrurl = None
-    UnhandledSource = None
+from charmhelpers.fetch import (
+    bzrurl,
+    UnhandledSource,
+)
 
 
-@unittest.skipIf(six.PY3, 'bzr does not support Python 3')
 class BzrUrlFetchHandlerTest(TestCase):
 
     def setUp(self):
         super(BzrUrlFetchHandlerTest, self).setUp()
-        if six.PY3:
-            return
         self.valid_urls = (
             "bzr+ssh://example.com/branch-name",
             "bzr+ssh://example.com/branch-name/",
@@ -53,7 +41,6 @@ class BzrUrlFetchHandlerTest(TestCase):
         )
         self.fh = bzrurl.BzrUrlFetchHandler()
 
-    @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
     def test_handles_bzr_urls(self):
         for url in self.valid_urls:
             result = self.fh.can_handle(url)
@@ -62,7 +49,6 @@ class BzrUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
-    @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
     @patch('bzrlib.branch.Branch.open')
     def test_branch(self, _open):
         dest_path = "/destination/path"
@@ -77,7 +63,6 @@ class BzrUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
 
-    @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
     @patch('charmhelpers.fetch.bzrurl.mkdir')
     def test_installs(self, _mkdir):
         self.fh.branch = MagicMock()
@@ -88,4 +73,4 @@ class BzrUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 where = self.fh.install(url)
             self.assertEqual(where, dest)
-            _mkdir.assert_called_with(where, perms=0o755)
+            _mkdir.assert_called_with(where, perms=0755)

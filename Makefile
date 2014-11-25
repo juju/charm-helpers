@@ -28,7 +28,6 @@ clean:
 	find . -name '*.pyc' -delete
 	rm -rf dist/*
 	rm -rf .venv
-	rm -rf .venv3
 	(which dh_clean && dh_clean) || true
 
 userinstall:
@@ -40,38 +39,18 @@ userinstall:
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt
-	.venv/bin/pip install bzr
-	.venv/bin/pip install GitPython
 
-.venv3:
-	sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt
-	virtualenv .venv3 --python=python3 --system-site-packages
-	.venv3/bin/pip install -U pip
-	.venv3/bin/pip install -I -r test_requirements.txt
-
-# Note we don't even attempt to run tests if lint isn't passing.
-test: lint test2 test3
-	@echo OK
-
-test2:
-	@echo Starting Py2 tests...
+test: .venv
+	@echo Starting tests...
 	.venv/bin/nosetests -s --nologcapture tests/
 
-test3:
-	@echo Starting Py3 tests...
-	.venv3/bin/nosetests -s --nologcapture tests/
-
-ftest: lint
+ftest: .venv
 	@echo Starting fast tests...
 	.venv/bin/nosetests --attr '!slow' --nologcapture tests/
-	.venv3/bin/nosetests --attr '!slow' --nologcapture tests/
 
-lint: .venv .venv3
+lint:
 	@echo Checking for Python syntax...
-	@.venv/bin/flake8 --ignore=E501 $(PROJECT) $(TESTS) tools/ \
-	    && echo Py2 OK
-	@.venv3/bin/flake8 --ignore=E501 $(PROJECT) $(TESTS) tools/ \
-	    && echo Py3 OK
+	@flake8 --ignore=E123,E501 $(PROJECT) $(TESTS) && echo OK
 
 docs:
 	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y

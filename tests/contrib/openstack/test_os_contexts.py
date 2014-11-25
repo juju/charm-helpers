@@ -11,13 +11,6 @@ from mock import (
 )
 from tests.helpers import patch_open
 
-import six
-
-if six.PY2:
-    open_builtin = '__builtin__.open'
-else:
-    open_builtin = 'builtins.open'
-
 
 class FakeRelation(object):
 
@@ -479,7 +472,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch('os.path.exists')
-    @patch(open_builtin)
+    @patch('__builtin__.open')
     def test_db_ssl(self, _open, osexists):
         osexists.return_value = False
         ssl_dir = '/etc/dbssl'
@@ -732,7 +725,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch(open_builtin)
+    @patch('__builtin__.open')
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
         relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
@@ -806,7 +799,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': 'rabbithost1,rabbithost2',
+            'rabbitmq_hosts': 'rabbithost2,rabbithost1',
         }
         self.assertEquals(result, expected)
 
@@ -875,7 +868,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         expected = {
-            'mon_hosts': 'ceph_node1 ceph_node2',
+            'mon_hosts': 'ceph_node2 ceph_node1',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true'
@@ -889,8 +882,8 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            for u in six.iterkeys(v):
+        for k, v in relation.iteritems():
+            for u in v.iterkeys():
                 del relation[k][u]['auth']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
@@ -918,7 +911,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         expected = {
-            'mon_hosts': '192.168.1.10 192.168.1.11',
+            'mon_hosts': '192.168.1.11 192.168.1.10',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
@@ -1271,9 +1264,12 @@ class ContextTests(unittest.TestCase):
             if len(vips) > 1:
                 ex = {
                     'namespace': 'cinder',
-                    'endpoints': [('10.5.1.100', '10.5.1.1', 8766, 8756),
-                                  ('10.5.2.100', '10.5.2.1', 8766, 8756),
-                                  ('10.5.3.100', '10.5.3.1', 8766, 8756)],
+                    'endpoints': [('10.5.1.100', '10.5.1.1',
+                                   8766, 8756),
+                                  ('10.5.2.100', '10.5.2.1',
+                                   8766, 8756),
+                                  ('10.5.3.100', '10.5.3.1',
+                                   8766, 8756)],
                     'ext_ports': [8766]
                 }
             else:
@@ -1287,10 +1283,12 @@ class ContextTests(unittest.TestCase):
             if multinet:
                 ex = {
                     'namespace': 'cinder',
-                    'endpoints': sorted([
-                        ('10.5.3.100', '10.5.3.100', 8776, 8766),
-                        ('10.5.2.100', '10.5.2.100', 8776, 8766),
-                        ('10.5.1.100', '10.5.1.100', 8776, 8766)]),
+                    'endpoints': [('10.5.3.100', '10.5.3.100',
+                                   8776, 8766),
+                                  ('10.5.2.100', '10.5.2.100',
+                                   8776, 8766),
+                                  ('10.5.1.100', '10.5.1.100',
+                                   8776, 8766)],
                     'ext_ports': [8776]
                 }
             else:
@@ -1393,10 +1391,9 @@ class ContextTests(unittest.TestCase):
         apache = context.ApacheSSLContext()
         self.assertEquals(apache.canonical_names(), ['cinderhost1'])
         rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
-        self.assertEquals(apache.canonical_names(),
-                          sorted(['cinderhost1-adm-network',
-                                  'cinderhost1-int-network',
-                                  'cinderhost1-pub-network']))
+        self.assertEquals(apache.canonical_names(), ['cinderhost1-adm-network',
+                                                     'cinderhost1-int-network',
+                                                     'cinderhost1-pub-network'])
         rel.relation_data = IDENTITY_RELATION_NO_CERT
         self.assertEquals(apache.canonical_names(), [])
 
@@ -1906,15 +1903,17 @@ class ContextTests(unittest.TestCase):
 
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
+        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
+            cpus.__get__ = Mock(return_value=2)
             worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 0}, worker())
+            self.assertEqual({'workers': 2}, worker())
 
     def test_workerconfig_context_withconfig(self):
         self.config.side_effect = fake_config({
             'worker-multiplier': 4,
         })
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
+        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
+            cpus.__get__ = Mock(return_value=2)
             worker = context.WorkerConfigContext()
             self.assertEqual({'workers': 8}, worker())
 

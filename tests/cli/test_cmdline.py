@@ -6,12 +6,14 @@ from mock import (
     patch,
     MagicMock,
 )
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 import json
 from pprint import pformat
 import yaml
 import csv
-
-from six import StringIO
 
 from charmhelpers import cli
 
@@ -114,8 +116,7 @@ class OutputFormatterTest(TestCase):
         self.output_data = {"this": "is", "some": 1, "data": dict()}
 
     def test_supports_formats(self):
-        self.assertEqual(sorted(self.expected_formats),
-                         sorted(self.of.supported_formats))
+        self.assertItemsEqual(self.expected_formats, self.of.supported_formats)
 
     def test_adds_arguments(self):
         ap = MagicMock()
@@ -129,12 +130,11 @@ class OutputFormatterTest(TestCase):
 
         for call_args in add_arg.call_args_list:
             if "--format" in call_args[0]:
-                self.assertEqual(sorted(call_args[1]['choices']),
-                                 sorted(self.expected_formats))
+                self.assertItemsEqual(call_args[1]['choices'], self.expected_formats)
                 self.assertEqual(call_args[1]['default'], 'raw')
                 break
         else:
-            print(arg_group.call_args_list)
+            print arg_group.call_args_list
             self.fail("No --format argument was created")
 
         all_args = [c[0][0] for c in add_arg.call_args_list]

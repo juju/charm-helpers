@@ -8,19 +8,19 @@ warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
 
 __metaclass__ = type
 __all__ = [
-    # 'get_config',             # core.hookenv.config()
-    # 'log',                    # core.hookenv.log()
-    # 'log_entry',              # core.hookenv.log()
-    # 'log_exit',               # core.hookenv.log()
-    # 'relation_get',           # core.hookenv.relation_get()
-    # 'relation_set',           # core.hookenv.relation_set()
-    # 'relation_ids',           # core.hookenv.relation_ids()
-    # 'relation_list',          # core.hookenv.relation_units()
-    # 'config_get',             # core.hookenv.config()
-    # 'unit_get',               # core.hookenv.unit_get()
-    # 'open_port',              # core.hookenv.open_port()
-    # 'close_port',             # core.hookenv.close_port()
-    # 'service_control',        # core.host.service()
+    #'get_config',             # core.hookenv.config()
+    #'log',                    # core.hookenv.log()
+    #'log_entry',              # core.hookenv.log()
+    #'log_exit',               # core.hookenv.log()
+    #'relation_get',           # core.hookenv.relation_get()
+    #'relation_set',           # core.hookenv.relation_set()
+    #'relation_ids',           # core.hookenv.relation_ids()
+    #'relation_list',          # core.hookenv.relation_units()
+    #'config_get',             # core.hookenv.config()
+    #'unit_get',               # core.hookenv.unit_get()
+    #'open_port',              # core.hookenv.open_port()
+    #'close_port',             # core.hookenv.close_port()
+    #'service_control',        # core.host.service()
     'unit_info',              # client-side, NOT IMPLEMENTED
     'wait_for_machine',       # client-side, NOT IMPLEMENTED
     'wait_for_page_contents',  # client-side, NOT IMPLEMENTED
@@ -31,10 +31,9 @@ __all__ = [
 import operator
 import tempfile
 import time
+import urllib2
 import yaml
 import subprocess
-
-from six.moves import urllib
 
 SLEEP_AMOUNT = 0.1
 # We create a juju_status Command here because it makes testing much,
@@ -42,7 +41,7 @@ SLEEP_AMOUNT = 0.1
 juju_status = lambda: subprocess.check_call(['juju', 'status'])
 
 # re-implemented as charmhelpers.fetch.configure_sources()
-# def configure_source(update=False):
+#def configure_source(update=False):
 #    source = config_get('source')
 #    if ((source.startswith('ppa:') or
 #         source.startswith('cloud:') or
@@ -56,7 +55,7 @@ juju_status = lambda: subprocess.check_call(['juju', 'status'])
 
 # DEPRECATED: client-side only
 def make_charm_config_file(charm_config):
-    charm_config_file = tempfile.NamedTemporaryFile(mode='w+')
+    charm_config_file = tempfile.NamedTemporaryFile()
     charm_config_file.write(yaml.dump(charm_config))
     charm_config_file.flush()
     # The NamedTemporaryFile instance is returned instead of just the name
@@ -120,7 +119,7 @@ def wait_for_machine(num_machines=1, timeout=300):
         # we're in LXC.
         machine_data = get_machine_data()
         non_zookeeper_machines = [
-            machine_data[key] for key in list(machine_data.keys())[1:]]
+            machine_data[key] for key in machine_data.keys()[1:]]
         if len(non_zookeeper_machines) >= num_machines:
             all_machines_running = True
             for machine in non_zookeeper_machines:
@@ -171,8 +170,8 @@ def wait_for_page_contents(url, contents, timeout=120, validate=None):
     start_time = time.time()
     while True:
         try:
-            stream = urllib.request.urlopen(url)
-        except (urllib.error.HTTPError, urllib.error.URLError):
+            stream = urllib2.urlopen(url)
+        except (urllib2.HTTPError, urllib2.URLError):
             pass
         else:
             page = stream.read()

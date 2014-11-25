@@ -1,4 +1,3 @@
-import six
 from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
     is_relation_made,
@@ -94,7 +93,7 @@ def peer_echo(includes=None):
             if ex in echo_data:
                 echo_data.pop(ex)
     else:
-        for attribute, value in six.iteritems(rdata):
+        for attribute, value in rdata.iteritems():
             for include in includes:
                 if include in attribute:
                     echo_data[attribute] = value
@@ -120,8 +119,8 @@ def peer_store_and_set(relation_id=None, peer_relation_name='cluster',
                  relation_settings=relation_settings,
                  **kwargs)
     if is_relation_made(peer_relation_name):
-        for key, value in six.iteritems(dict(list(kwargs.items()) +
-                                             list(relation_settings.items()))):
+        for key, value in dict(kwargs.items() +
+                               relation_settings.items()).iteritems():
             key_prefix = relation_id or current_relation_id()
             peer_store(key_prefix + delimiter + key,
                        value,

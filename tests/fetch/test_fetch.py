@@ -1,3 +1,4 @@
+from cStringIO import StringIO
 import subprocess
 
 from tests.helpers import patch_open
@@ -7,12 +8,10 @@ from mock import (
     MagicMock,
     call,
 )
+from urlparse import urlparse
 from charmhelpers import fetch
 import os
 import yaml
-
-from six.moves import StringIO
-from six.moves.urllib.parse import urlparse
 
 FAKE_APT_CACHE = {
     # an installed package
