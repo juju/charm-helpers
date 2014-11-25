@@ -207,7 +207,7 @@ def umount(mountpoint, persist=False):
 
 def mounts():
     """Get a list of all mounted volumes as [[mountpoint,device],[...]]"""
-    with open('/proc/mounts', 'r', encoding='UTF-8') as f:
+    with open('/proc/mounts') as f:
         # [['/mount/point','/dev/path'],[...]]
         system_mounts = [m[1::-1] for m in [l.strip().split()
                                             for l in f.readlines()]]
