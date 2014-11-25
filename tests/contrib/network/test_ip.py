@@ -59,7 +59,7 @@ DUMMY_ADDRESSES = {
     },
 }
 
-IP_OUTPUT = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
+IP_OUTPUT = b"""link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
     inet 10.5.16.93/16 brd 10.5.255.255 scope global eth0
        valid_lft forever preferred_lft forever
     inet6 2001:db8:1:0:d0cf:528c:23eb:6000/64 scope global
@@ -72,7 +72,7 @@ IP_OUTPUT = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
        valid_lft forever preferred_lft forever
 """
 
-IP_OUTPUT_NO_VALID = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
+IP_OUTPUT_NO_VALID = b"""link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
     inet 10.5.16.93/16 brd 10.5.255.255 scope global eth0
        valid_lft forever preferred_lft forever
     inet6 2001:db8:1:0:2918:3444:852:5b8a/64 scope global temporary dynamic
@@ -261,7 +261,7 @@ class IPTest(unittest.TestCase):
                            mock_get_iface_from_addr):
         mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = \
-            "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
+            b"inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
         result = net_ip.get_ipv6_addr(dynamic_only=False)
@@ -276,7 +276,7 @@ class IPTest(unittest.TestCase):
                                           mock_get_iface_from_addr):
         mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = \
-            "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
+            b"inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
         result = net_ip.get_ipv6_addr(dynamic_only=False)
