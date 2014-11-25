@@ -269,7 +269,7 @@ class CharmHelpersTestCase(TestCase):
         # it doesn't try to connect out.
         test_content = "Hello, world."
         new_urlopen = lambda *args: StringIO(test_content)
-        self.patch(charmhelpers.urllib.request, 'urlopen', new_urlopen)
+        self.patch(charmhelpers, 'urlopen', new_urlopen)
         charmhelpers.wait_for_page_contents(
             'http://example.com', test_content, timeout=0)
 
@@ -280,7 +280,7 @@ class CharmHelpersTestCase(TestCase):
         # We need to patch the charmhelpers instance of urlopen so that
         # it doesn't try to connect out.
         new_urlopen = lambda *args: StringIO("This won't work.")
-        self.patch(charmhelpers.urllib.request, 'urlopen', new_urlopen)
+        self.patch(charmhelpers, 'urlopen', new_urlopen)
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_page_contents,
             'http://example.com', "This will error", timeout=0)

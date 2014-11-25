@@ -7,8 +7,6 @@ from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
 
-import six
-
 from charmhelpers.core import host
 
 
@@ -21,30 +19,30 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
-LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
+LSB_RELEASE = '''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
 
-IP_LINE_ETH0 = ("""
+IP_LINE_ETH0 = b"""
 2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
-IP_LINE_ETH1 = ("""
+IP_LINE_ETH1 = b"""
 3: eth1: <BROADCAST,MULTICAST> mtu 1546 qdisc noop state DOWN qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
-IP_LINE_HWADDR = ("""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff""")
+IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
 IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
 
-IP_LINE_BONDS = ("""
+IP_LINE_BONDS = b"""
 6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
 link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
 
 class HelpersTest(TestCase):
@@ -168,12 +166,12 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_service_running_on_stopped_service(self, check_output):
-        check_output.return_value = 'foo stop/waiting'
+        check_output.return_value = b'foo stop/waiting'
         self.assertFalse(host.service_running('foo'))
 
     @patch('subprocess.check_output')
     def test_service_running_on_running_service(self, check_output):
-        check_output.return_value = 'foo start/running, process 23871'
+        check_output.return_value = b'foo start/running, process 23871'
         self.assertTrue(host.service_running('foo'))
 
     @patch('subprocess.check_output')
@@ -286,7 +284,7 @@ class HelpersTest(TestCase):
     def test_rsyncs_a_path(self, log, check_output):
         from_path = '/from/this/path/foo'
         to_path = '/to/this/path/bar'
-        check_output.return_value = ' some output '
+        check_output.return_value = b' some output '  # Spaces will be stripped
 
         result = host.rsync(from_path, to_path)
 
@@ -638,7 +636,7 @@ class HelpersTest(TestCase):
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
-            mock_file.read.return_value = six.b("newstuff")
+            mock_file.read.return_value = b"newstuff"
 
         with patch_open() as (mock_open, mock_file):
             make_some_changes(mock_file)
@@ -666,8 +664,7 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = [six.b('exists'), six.b('missing'),
-                                          six.b('exists2')]
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
         # Restart should only happen once per service
@@ -694,9 +691,7 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = [six.b('exists'),
-                                          six.b('missing'),
-                                          six.b('exists2')]
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
@@ -718,7 +713,6 @@ class HelpersTest(TestCase):
         with mocked_open('/etc/lsb-release', LSB_RELEASE):
             lsb_release = host.lsb_release()
             for key in result:
-                # print(lsb_release)
                 self.assertEqual(result[key], lsb_release[key])
 
     def test_pwgen(self):

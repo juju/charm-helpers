@@ -13,7 +13,7 @@ from tests.helpers import patch_open
 
 import six
 
-if six.PY2:
+if not six.PY3:
     open_builtin = '__builtin__.open'
 else:
     open_builtin = 'builtins.open'
