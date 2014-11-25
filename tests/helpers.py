@@ -31,11 +31,14 @@ def patch_open():
 @contextmanager
 def mock_open(filename, contents=None):
     ''' Slightly simpler mock of open to return contents for filename '''
-    def mock_file(*args):
-        if args[0] == filename:
+    def mock_file(name, mode='r', buffering=-1):  # Python 2 signature.
+        if name == filename:
+            if six.PY2 or 'b' in mode:
+                return io.BytesIO(contents)
             return io.StringIO(contents)
         else:
-            return open(*args)
+            return open(name, mode, buffering)
+
     with patch(builtin_open, mock_file):
         yield
 
