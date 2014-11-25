@@ -4,10 +4,17 @@
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 from charmhelpers.core.sysctl import create
+import io
 from mock import patch, MagicMock
-
 import unittest
 import tempfile
+
+import six
+if six.PY2:
+    builtin_open = '__builtin__.open'
+else:
+    builtin_open = 'builtins.open'
+
 
 TO_PATCH = [
     'log',
@@ -27,10 +34,10 @@ class SysctlTests(unittest.TestCase):
         self.addCleanup(_m.stop)
         return mock
 
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     def test_create(self, mock_open):
         """Test create sysctl method"""
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         mock_open.return_value = _file
 
         create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-sysctl.conf")
