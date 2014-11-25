@@ -1,9 +1,11 @@
 import json
 import os
 import time
-
 from base64 import b64decode
 from subprocess import check_call
+
+import six
+from six.moves import xrange
 
 from charmhelpers.fetch import (
     apt_install,
@@ -69,7 +71,7 @@ def ensure_packages(packages):
 
 def context_complete(ctxt):
     _missing = []
-    for k, v in ctxt.iteritems():
+    for k, v in six.iteritems(ctxt):
         if v is None or v == '':
             _missing.append(k)
 
@@ -375,7 +377,7 @@ class AMQPContext(OSContextGenerator):
                     host = format_ipv6_addr(host) or host
                     rabbitmq_hosts.append(host)
 
-                ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
+                ctxt['rabbitmq_hosts'] = ','.join(sorted(rabbitmq_hosts))
 
         if not context_complete(ctxt):
             return {}
@@ -408,7 +410,7 @@ class CephContext(OSContextGenerator):
                 ceph_addr = format_ipv6_addr(ceph_addr) or ceph_addr
                 mon_hosts.append(ceph_addr)
 
-        ctxt = {'mon_hosts': ' '.join(mon_hosts),
+        ctxt = {'mon_hosts': ' '.join(sorted(mon_hosts)),
                 'auth': auth,
                 'key': key,
                 'use_syslog': use_syslog}
@@ -587,7 +589,7 @@ class ApacheSSLContext(OSContextGenerator):
                     if k.startswith('ssl_key_'):
                         cns.append(k.lstrip('ssl_key_'))
 
-        return list(set(cns))
+        return sorted(list(set(cns)))
 
     def get_network_addresses(self):
         """For each network configured, return corresponding address and vip
@@ -631,10 +633,10 @@ class ApacheSSLContext(OSContextGenerator):
             else:
                 addresses.append((addr, addr))
 
-        return addresses
+        return sorted(addresses)
 
     def __call__(self):
-        if isinstance(self.external_ports, basestring):
+        if isinstance(self.external_ports, six.string_types):
             self.external_ports = [self.external_ports]
 
         if not self.external_ports or not https():
@@ -651,7 +653,7 @@ class ApacheSSLContext(OSContextGenerator):
             self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
-        for address, endpoint in set(addresses):
+        for address, endpoint in sorted(set(addresses)):
             for api_port in self.external_ports:
                 ext_port = determine_apache_port(api_port)
                 int_port = determine_api_port(api_port)
@@ -659,7 +661,7 @@ class ApacheSSLContext(OSContextGenerator):
                 ctxt['endpoints'].append(portmap)
                 ctxt['ext_ports'].append(int(ext_port))
 
-        ctxt['ext_ports'] = list(set(ctxt['ext_ports']))
+        ctxt['ext_ports'] = sorted(list(set(ctxt['ext_ports'])))
         return ctxt
 
 
@@ -921,10 +923,10 @@ class SubordinateConfigContext(OSContextGenerator):
                         continue
 
                     sub_config = sub_config[self.config_file]
-                    for k, v in sub_config.iteritems():
+                    for k, v in six.iteritems(sub_config):
                         if k == 'sections':
-                            for section, config_dict in v.iteritems():
-                                log("Adding section '%s'" % (section),
+                            for section, config_dict in six.iteritems(v):
+                                log("adding section '%s'" % (section),
                                     level=DEBUG)
                                 ctxt[k][section] = config_dict
                         else:

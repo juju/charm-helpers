@@ -7,6 +7,8 @@ from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
 
+import six
+
 from charmhelpers.core import host
 
 
@@ -319,7 +321,7 @@ class HelpersTest(TestCase):
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
-        perms = 0644
+        perms = 0o644
 
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
@@ -343,7 +345,7 @@ class HelpersTest(TestCase):
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
-        perms = 0555
+        perms = 0o555
 
         os_.path.abspath.return_value = realpath
         os_.path.exists.return_value = path_exists
@@ -370,7 +372,7 @@ class HelpersTest(TestCase):
         path_exists = True
         force = True
         is_dir = False
-        perms = 0644
+        perms = 0o644
 
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
@@ -402,7 +404,7 @@ class HelpersTest(TestCase):
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
         contents = 'what is {juju}'
-        perms = 0644
+        perms = 0o644
         fileno = 'some-fileno'
 
         getpwnam.return_value.pw_uid = uid
@@ -428,7 +430,7 @@ class HelpersTest(TestCase):
         gid = 0
         path = '/some/path/{baz}'
         fmtstr = 'what is {juju}'
-        perms = 0444
+        perms = 0o444
         fileno = 'some-fileno'
 
         with patch_open() as (mock_open, mock_file):
@@ -636,7 +638,7 @@ class HelpersTest(TestCase):
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
-            mock_file.read.return_value = "newstuff"
+            mock_file.read.return_value = six.b("newstuff")
 
         with patch_open() as (mock_open, mock_file):
             make_some_changes(mock_file)
@@ -664,7 +666,8 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [six.b('exists'), six.b('missing'),
+                                          six.b('exists2')]
             make_some_changes()
 
         # Restart should only happen once per service
@@ -691,7 +694,9 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [six.b('exists'),
+                                          six.b('missing'),
+                                          six.b('exists2')]
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
@@ -713,7 +718,7 @@ class HelpersTest(TestCase):
         with mocked_open('/etc/lsb-release', LSB_RELEASE):
             lsb_release = host.lsb_release()
             for key in result:
-                print lsb_release
+                # print(lsb_release)
                 self.assertEqual(result[key], lsb_release[key])
 
     def test_pwgen(self):
