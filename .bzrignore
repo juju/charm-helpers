@@ -7,3 +7,5 @@ charmhelpers/version.py
 .env/
 coverage.xml
 docs/_build
+.venv
+.venv3

@@ -110,13 +110,13 @@ class UnisonHelperTests(TestCase):
 
         isfile.return_value = False
         with patch_open() as (_open, _file):
-            self.check_output.return_value = 'fookey'
+            self.check_output.return_value = b'fookey'
             unison.create_public_key(
                 user='foo', priv_key_path='/home/foo/.ssh/id_rsa',
                 pub_key_path='/home/foo/.ssh/id_rsa.pub')
             self.assertIn(call(create_cmd), self.check_output.call_args_list)
             _open.assert_called_with('/home/foo/.ssh/id_rsa.pub', 'wb')
-            _file.write.assert_called_with('fookey')
+            _file.write.assert_called_with(b'fookey')
 
     @patch('os.mkdir')
     @patch('os.path.isdir')

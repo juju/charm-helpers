@@ -44,7 +44,7 @@ class ClusterUtilsTests(TestCase):
     def test_is_crm_leader(self, check_output):
         '''It determines its unit is leader'''
         self.get_unit_hostname.return_value = 'node1'
-        crm = 'resource vip is running on: node1'
+        crm = b'resource vip is running on: node1'
         check_output.return_value = crm
         self.assertTrue(cluster_utils.is_crm_leader('vip'))
 
@@ -52,7 +52,7 @@ class ClusterUtilsTests(TestCase):
     def test_is_not_leader(self, check_output):
         '''It determines its unit is not leader'''
         self.get_unit_hostname.return_value = 'node1'
-        crm = 'resource vip is running on: node2'
+        crm = b'resource vip is running on: node2'
         check_output.return_value = crm
         self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
 
