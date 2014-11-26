@@ -194,7 +194,10 @@ class NRPE(object):
         super(NRPE, self).__init__()
         self.config = config()
         self.nagios_context = self.config['nagios_context']
-        self.nagios_servicegroups = self.config['nagios_servicegroups']
+        if 'nagios_servicegroups' in self.config:
+            self.nagios_servicegroups = self.config['nagios_servicegroups']
+        else:
+            self.nagios_servicegroups = 'juju'
         self.unit_name = local_unit().replace('/', '-')
         if hostname:
             self.hostname = hostname
