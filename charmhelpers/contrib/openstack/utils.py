@@ -509,3 +509,22 @@ def os_requires_version(ostack_release, pkg):
             f(*args)
         return wrapped_f
     return wrap
+
+
+def disable_services(services):
+    if services:
+        for svc in services:
+            with open('/etc/init/{}.override'.format(svc), 'wb') as out:
+                out.write('exec true\n')
+    else:
+        juju_log("Services %s are None." % services, level='ERROR')
+
+
+def enable_services(services):
+    if services:
+        for svc in services:
+            override_file = '/etc/init/{}.override'.format(svc)
+            if os.path.isfile(override_file):
+                os.remove(override_file)
+    else:
+        juju_log("Services %s are None." % services, level='ERROR')
