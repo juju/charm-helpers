@@ -14,19 +14,19 @@ import os
 import time
 
 
-LS_POOLS = """
+LS_POOLS = b"""
 images
 volumes
 rbd
 """
 
-LS_RBDS = """
+LS_RBDS = b"""
 rbd1
 rbd2
 rbd3
 """
 
-IMG_MAP = """
+IMG_MAP = b"""
 bar
 baz
 """
@@ -93,7 +93,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'ceph_version')
     def test_get_osds(self, version):
         version.return_value = '0.56.2'
-        self.check_output.return_value = json.dumps([1, 2, 3])
+        self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
         self.assertEquals(ceph_utils.get_osds('test'), [1, 2, 3])
 
     @patch.object(ceph_utils, 'ceph_version')
@@ -104,7 +104,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'ceph_version')
     def test_get_osds_none(self, version):
         version.return_value = '0.56.2'
-        self.check_output.return_value = json.dumps(None)
+        self.check_output.return_value = json.dumps(None).encode('UTF-8')
         self.assertEquals(ceph_utils.get_osds('test'), None)
 
     @patch.object(ceph_utils, 'get_osds')
@@ -433,7 +433,7 @@ class CephUtilsTests(TestCase):
         self.assertEquals(os.errno.ENOENT, e.errno)
         self.assertEquals(os.strerror(os.errno.ENOENT), e.strerror)
         self.log.assert_called_with(
-            'ceph: gave up waiting on block device %s' % device, level='ERROR')
+            'Gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_make_filesystem_timeout(self):
@@ -450,7 +450,7 @@ class CephUtilsTests(TestCase):
         duration = after - before
         self.assertTrue(timeout - duration < 0.1)
         self.log.assert_called_with(
-            'ceph: gave up waiting on block device %s' % device, level='ERROR')
+            'Gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_device_is_formatted_if_it_appears(self):
@@ -481,7 +481,7 @@ class CephUtilsTests(TestCase):
         ceph_utils.make_filesystem(device, fstype)
         self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
         self.log.assert_called_with(
-            'ceph: Formatting block device %s as '
+            'Formatting block device %s as '
             'filesystem %s.' % (device, fstype), level='INFO'
         )
 
@@ -534,13 +534,13 @@ class CephUtilsTests(TestCase):
     @patch('os.path.exists')
     def test_ceph_version_error(self, path, output):
         path.return_value = True
-        output.return_value = ''
+        output.return_value = b''
         self.assertEquals(ceph_utils.ceph_version(), None)
 
     @patch.object(ceph_utils, 'check_output')
     @patch('os.path.exists')
     def test_ceph_version_ok(self, path, output):
         path.return_value = True
-        output.return_value = 'ceph version 0.67.4'\
-            ' (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
+        output.return_value = \
+            b'ceph version 0.67.4 (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
         self.assertEquals(ceph_utils.ceph_version(), '0.67.4')

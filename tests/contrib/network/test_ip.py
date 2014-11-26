@@ -59,7 +59,7 @@ DUMMY_ADDRESSES = {
     },
 }
 
-IP_OUTPUT = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
+IP_OUTPUT = b"""link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
     inet 10.5.16.93/16 brd 10.5.255.255 scope global eth0
        valid_lft forever preferred_lft forever
     inet6 2001:db8:1:0:d0cf:528c:23eb:6000/64 scope global
@@ -72,7 +72,7 @@ IP_OUTPUT = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
        valid_lft forever preferred_lft forever
 """
 
-IP_OUTPUT_NO_VALID = """link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
+IP_OUTPUT_NO_VALID = b"""link/ether fa:16:3e:2a:cc:ce brd ff:ff:ff:ff:ff:ff
     inet 10.5.16.93/16 brd 10.5.255.255 scope global eth0
        valid_lft forever preferred_lft forever
     inet6 2001:db8:1:0:2918:3444:852:5b8a/64 scope global temporary dynamic
@@ -100,13 +100,14 @@ class IPTest(unittest.TestCase):
             return DUMMY_ADDRESSES[iface]
 
         with mock.patch.object(netifaces, 'interfaces') as interfaces:
-            interfaces.return_value = DUMMY_ADDRESSES.keys()
+            interfaces.return_value = sorted(DUMMY_ADDRESSES.keys())
             with mock.patch.object(netifaces, 'ifaddresses') as ifaddresses:
                 ifaddresses.side_effect = side_effect
                 if not fatal:
                     self.assertEqual(expect_ip_addr,
-                                     net_ip.get_address_in_network(
-                                         network, fallback, fatal))
+                                     net_ip.get_address_in_network(network,
+                                                                   fallback,
+                                                                   fatal))
                 else:
                     net_ip.get_address_in_network(network, fallback, fatal)
 
@@ -118,11 +119,11 @@ class IPTest(unittest.TestCase):
         self.assertEqual(None,
                          net_ip.get_address_in_network(None))
 
-        self.assertRaises(SystemExit, self._test_get_address_in_network,
+        self.assertRaises(ValueError, self._test_get_address_in_network,
                           None, None, fatal=True)
 
     def test_get_address_in_network_ipv4(self):
-        self._test_get_address_in_network('192.168.1.56', '192.168.1.0/24')
+        self._test_get_address_in_network('192.168.1.55', '192.168.1.0/24')
 
     def test_get_address_in_network_ipv6(self):
         self._test_get_address_in_network('2a01:348:2f4:0:685e:5748:ae62:209f',
@@ -137,7 +138,7 @@ class IPTest(unittest.TestCase):
 
     @mock.patch.object(subprocess, 'call')
     def test_get_address_in_network_not_found_fatal(self, popen):
-        self.assertRaises(SystemExit, self._test_get_address_in_network,
+        self.assertRaises(ValueError, self._test_get_address_in_network,
                           None, '172.16.0.0/16', fatal=True)
 
     def test_get_address_in_network_not_found_not_fatal(self):
@@ -260,7 +261,7 @@ class IPTest(unittest.TestCase):
                            mock_get_iface_from_addr):
         mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = \
-            "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
+            b"inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
         result = net_ip.get_ipv6_addr(dynamic_only=False)
@@ -275,7 +276,7 @@ class IPTest(unittest.TestCase):
                                           mock_get_iface_from_addr):
         mock_get_iface_from_addr.return_value = 'eth0'
         mock_check_out.return_value = \
-            "inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
+            b"inet6 2a01:348:2f4:0:685e:5748:ae62:209f/64 scope global dynamic"
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
         result = net_ip.get_ipv6_addr(dynamic_only=False)
@@ -494,9 +495,9 @@ class IPTest(unittest.TestCase):
     def test_get_iface_from_addr(self, mock_log, mock_ifaddresses,
                                  mock_interfaces):
         mock_ifaddresses.side_effect = lambda iface: DUMMY_ADDRESSES[iface]
-        mock_interfaces.return_value = DUMMY_ADDRESSES.keys()
+        mock_interfaces.return_value = sorted(DUMMY_ADDRESSES.keys())
         addr = 'fe80::3e97:eff:fe8b:1cf7'
-        self.assertEqual(net_ip.get_iface_from_addr(addr), 'eth1')
+        self.assertEqual(net_ip.get_iface_from_addr(addr), 'eth0')
 
         with nose.tools.assert_raises(Exception):
             net_ip.get_iface_from_addr('1.2.3.4')

@@ -5,7 +5,7 @@ from mock import patch
 
 import charmhelpers.contrib.storage.linux.lvm as lvm
 
-PVDISPLAY = """
+PVDISPLAY = b"""
   --- Physical volume ---
   PV Name               /dev/loop0
   VG Name               foo
@@ -19,7 +19,7 @@ PVDISPLAY = """
 
 """
 
-EMPTY_VG_IN_PVDISPLAY = """
+EMPTY_VG_IN_PVDISPLAY = b"""
   --- Physical volume ---
   PV Name               /dev/loop0
   VG Name

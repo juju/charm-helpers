@@ -15,7 +15,7 @@ except ImportError:
 
 def parse_options(given, available):
     """Given a set of options, check if available"""
-    for key, value in given.items():
+    for key, value in sorted(given.items()):
         if key in available:
             yield "--{0}={1}".format(key, value)
 
