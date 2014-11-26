@@ -72,7 +72,7 @@ class NRPETestCase(NRPEBaseTestCase):
         self.assertEqual(checker.hostname, hostname)
 
     def test_default_servicegroup(self):
-        """Test that the hostname parameter is correctly set"""
+        """Test that nagios_servicegroups gets set to the default if omitted"""
         self.patched['config'].return_value = {'nagios_context': 'testctx'}
         checker = nrpe.NRPE()
         self.assertEqual(checker.nagios_servicegroups, 'juju')
