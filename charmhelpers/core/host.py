@@ -101,6 +101,26 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
     return user_info
 
 
+def addgroup(groupname, system_group=False):
+    """Add a group to the system"""
+    try:
+        group_info = grp.getgrnam(groupname)
+        log('group {0} already exists!'.format(groupname))
+    except KeyError:
+        log('creating group {0}'.format(groupname))
+        cmd = ['addgroup']
+        if system_group:
+            cmd.append('--system')
+        else:
+            cmd.extend([
+                '--group',
+            ])
+        cmd.append(groupname)
+        subprocess.check_call(cmd)
+        group_info = grp.getgrnam(groupname)
+    return group_info
+
+
 def add_user_to_group(username, group):
     """Add a user to a group"""
     cmd = [
