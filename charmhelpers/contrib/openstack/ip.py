@@ -2,14 +2,12 @@ from charmhelpers.core.hookenv import (
     config,
     unit_get,
 )
-
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     is_address_in_network,
     is_ipv6,
     get_ipv6_addr,
 )
-
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
 
 PUBLIC = 'public'
@@ -36,11 +34,10 @@ def canonical_url(configs, endpoint_type=PUBLIC):
     """Returns the correct HTTP URL to this host given the state of HTTPS
     configuration, hacluster and charm configuration.
 
-    :configs OSTemplateRenderer: A config tempating object to inspect for
-        a complete https context.
-    :endpoint_type str: The endpoint type to resolve.
-
-    :returns str: Base URL for services on the current service unit.
+    :param configs: OSTemplateRenderer config templating object to inspect
+                    for a complete https context.
+    :param endpoint_type: str endpoint type to resolve.
+    :param returns: str base URL for services on the current service unit.
     """
     scheme = 'http'
     if 'https' in configs.complete_contexts():
@@ -58,7 +55,9 @@ def resolve_address(endpoint_type=PUBLIC):
     correct network. If clustered with no nets defined, return primary vip.
 
     If not clustered, return unit address ensuring address is on configured net
-    split if one is confgured.
+    split if one is configured.
+
+    :param endpoint_type: Network endpoing type
     """
     resolved_address = None
     vips = config('vip')
@@ -75,8 +74,7 @@ def resolve_address(endpoint_type=PUBLIC):
             resolved_address = vips[0]
         else:
             for vip in vips:
-                address = net_addr
-                if is_address_in_network(address, vip):
+                if is_address_in_network(net_addr, vip):
                     resolved_address = vip
                     break
     else:
