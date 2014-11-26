@@ -111,7 +111,7 @@ class ExecDTestCase(TestCase):
 
         expected = [os.path.join(self.test_charm_dir, 'exec.d', mod,
                                  'charm-pre-install') for mod in modules]
-        self.assertItemsEqual(submodules, expected)
+        self.assertEqual(sorted(submodules), sorted(expected))
 
     def test_execd_run(self):
         modules = ['basenode', 'mod2', 'c']

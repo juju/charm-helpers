@@ -3,13 +3,17 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
-
-import cPickle as pickle
 from mock import patch, call, mock_open
-from StringIO import StringIO
 from mock import MagicMock
 from testtools import TestCase
 import yaml
+
+import six
+from six.moves import StringIO
+if six.PY3:
+    import pickle
+else:
+    import cPickle as pickle
 
 from charmhelpers.core import hookenv
 
@@ -125,7 +129,7 @@ class ConfigTest(TestCase):
     def test_keys(self):
         c = hookenv.Config(dict(foo='bar'))
         c["baz"] = "bar"
-        self.assertEqual([u"foo", "baz"], c.keys())
+        self.assertEqual(sorted([six.u("foo"), "baz"]), sorted(c.keys()))
 
 
 class SerializableTest(TestCase):
@@ -165,11 +169,9 @@ class SerializableTest(TestCase):
         }
         wrapped = hookenv.Serializable(foo)
         for meth in ('keys', 'values', 'items'):
-            self.assertEqual(getattr(wrapped, meth)(), getattr(foo, meth)())
+            self.assertEqual(sorted(list(getattr(wrapped, meth)())),
+                             sorted(list(getattr(foo, meth)())))
 
-        for meth in ('iterkeys', 'itervalues', 'iteritems'):
-            self.assertEqual(list(getattr(wrapped, meth)()),
-                             list(getattr(foo, meth)()))
         self.assertEqual(wrapped.get('bar'), foo.get('bar'))
         self.assertEqual(wrapped.get('baz', 42), foo.get('baz', 42))
         self.assertIn('bar', wrapped)
@@ -246,7 +248,7 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_output')
     def test_gets_charm_config_with_scope(self, check_output):
         config_data = 'bar'
-        check_output.return_value = json.dumps(config_data)
+        check_output.return_value = json.dumps(config_data).encode('UTF-8')
 
         result = hookenv.config(scope='baz')
 
@@ -257,11 +259,11 @@ class HelpersTest(TestCase):
         self.assertEqual(result[1], 'a')
 
         # ... because the result is actually a string
-        self.assert_(isinstance(result, basestring))
+        self.assert_(isinstance(result, six.string_types))
 
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):
-        check_output.return_value = ''
+        check_output.return_value = b''
 
         result = hookenv.config(scope='baz')
 
@@ -271,7 +273,7 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
     def test_gets_config_without_scope(self, check_output, charm_dir):
-        check_output.return_value = json.dumps(dict(foo='bar'))
+        check_output.return_value = json.dumps(dict(foo='bar')).encode('UTF-8')
         charm_dir.side_effect = tempfile.mkdtemp
 
         result = hookenv.config()
@@ -327,7 +329,7 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.relation_type')
     def test_gets_relation_ids(self, relation_type, check_output):
         ids = [1, 2, 3]
-        check_output.return_value = json.dumps(ids)
+        check_output.return_value = json.dumps(ids).encode('UTF-8')
         reltype = 'foo'
         relation_type.return_value = reltype
 
@@ -341,7 +343,7 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.relation_type')
     def test_gets_relation_ids_empty_array(self, relation_type, check_output):
         ids = []
-        check_output.return_value = json.dumps(None)
+        check_output.return_value = json.dumps(None).encode('UTF-8')
         reltype = 'foo'
         relation_type.return_value = reltype
 
@@ -355,7 +357,7 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.relation_type')
     def test_relation_ids_no_relation_type(self, relation_type, check_output):
         ids = [1, 2, 3]
-        check_output.return_value = json.dumps(ids)
+        check_output.return_value = json.dumps(ids).encode('UTF-8')
         relation_type.return_value = None
 
         result = hookenv.relation_ids()
@@ -366,7 +368,7 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.hookenv.relation_type')
     def test_gets_relation_ids_for_type(self, relation_type, check_output):
         ids = [1, 2, 3]
-        check_output.return_value = json.dumps(ids)
+        check_output.return_value = json.dumps(ids).encode('UTF-8')
         reltype = 'foo'
 
         result = hookenv.relation_ids(reltype)
@@ -382,7 +384,7 @@ class HelpersTest(TestCase):
         relid = 123
         units = ['foo', 'bar']
         relation_id.return_value = relid
-        check_output.return_value = json.dumps(units)
+        check_output.return_value = json.dumps(units).encode('UTF-8')
 
         result = hookenv.related_units()
 
@@ -393,10 +395,10 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_output')
     @patch('charmhelpers.core.hookenv.relation_id')
     def test_gets_related_units_empty_array(self, relation_id, check_output):
-        relid = 123
+        relid = str(123)
         units = []
         relation_id.return_value = relid
-        check_output.return_value = json.dumps(None)
+        check_output.return_value = json.dumps(None).encode('UTF-8')
 
         result = hookenv.related_units()
 
@@ -409,7 +411,7 @@ class HelpersTest(TestCase):
     def test_related_units_no_relation(self, relation_id, check_output):
         units = ['foo', 'bar']
         relation_id.return_value = None
-        check_output.return_value = json.dumps(units)
+        check_output.return_value = json.dumps(units).encode('UTF-8')
 
         result = hookenv.related_units()
 
@@ -421,7 +423,7 @@ class HelpersTest(TestCase):
     def test_gets_related_units_for_id(self, relation_id, check_output):
         relid = 123
         units = ['foo', 'bar']
-        check_output.return_value = json.dumps(units)
+        check_output.return_value = json.dumps(units).encode('UTF-8')
 
         result = hookenv.related_units(relid)
 
@@ -765,7 +767,7 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_output')
     def test_gets_relation(self, check_output):
         data = {"foo": "BAR"}
-        check_output.return_value = json.dumps(data)
+        check_output.return_value = json.dumps(data).encode('UTF-8')
         result = hookenv.relation_get()
 
         self.assertEqual(result['foo'], 'BAR')
@@ -773,7 +775,7 @@ class HelpersTest(TestCase):
 
     @patch('charmhelpers.core.hookenv.subprocess')
     def test_relation_get_none(self, mock_subprocess):
-        mock_subprocess.check_output.return_value = 'null'
+        mock_subprocess.check_output.return_value = b'null'
 
         result = hookenv.relation_get()
 
@@ -801,7 +803,7 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_scope(self, check_output):
-        check_output.return_value = json.dumps('bar')
+        check_output.return_value = json.dumps('bar').encode('UTF-8')
 
         result = hookenv.relation_get(attribute='baz-scope')
 
@@ -811,7 +813,7 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_missing_relation_with_scope(self, check_output):
-        check_output.return_value = ""
+        check_output.return_value = b""
 
         result = hookenv.relation_get(attribute='baz-scope')
 
@@ -821,7 +823,7 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_unit_name(self, check_output):
-        check_output.return_value = json.dumps('BAR')
+        check_output.return_value = json.dumps('BAR').encode('UTF-8')
 
         result = hookenv.relation_get(attribute='baz-scope', unit='baz-unit')
 
@@ -834,7 +836,7 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_output')
     def test_relation_set_flushes_local_unit_cache(self, check_output,
                                                    check_call, local_unit):
-        check_output.return_value = json.dumps('BAR')
+        check_output.return_value = json.dumps('BAR').encode('UTF-8')
         local_unit.return_value = 'baz_unit'
         hookenv.relation_get(attribute='baz_scope', unit='baz_unit')
         hookenv.relation_get(attribute='bar_scope')
@@ -845,7 +847,7 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_relation_id(self, check_output):
-        check_output.return_value = json.dumps('BAR')
+        check_output.return_value = json.dumps('BAR').encode('UTF-8')
 
         result = hookenv.relation_get(attribute='baz-scope', unit='baz-unit',
                                       rid=123)
@@ -910,13 +912,13 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_gets_unit_attribute(self, check_output_):
-        check_output_.return_value = json.dumps('bar')
+        check_output_.return_value = json.dumps('bar').encode('UTF-8')
         self.assertEqual(hookenv.unit_get('foo'), 'bar')
         check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
 
     @patch('subprocess.check_output')
     def test_gets_missing_unit_attribute(self, check_output_):
-        check_output_.return_value = ""
+        check_output_.return_value = b""
         self.assertEqual(hookenv.unit_get('foo'), None)
         check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
 
@@ -925,8 +927,8 @@ class HelpersTest(TestCase):
         values = {
             'hello': 'world',
             'foo': 'bar',
-            'baz': None
-            }
+            'baz': None,
+        }
 
         @hookenv.cached
         def cache_function(attribute):

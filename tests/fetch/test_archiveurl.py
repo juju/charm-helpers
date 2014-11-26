@@ -1,6 +1,14 @@
 import os
-from testtools import TestCase
-from urlparse import urlparse
+
+import six
+if six.PY3:
+    from urllib.parse import urlparse
+    from urllib.error import URLError
+else:
+    from urllib2 import URLError
+    from urlparse import urlparse
+
+from unittest import TestCase
 from mock import (
     MagicMock,
     patch,
@@ -11,7 +19,6 @@ from charmhelpers.fetch import (
     archiveurl,
     UnhandledSource,
 )
-import urllib2
 
 
 class ArchiveUrlFetchHandlerTest(TestCase):
@@ -50,7 +57,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
-    @patch('urllib2.urlopen')
+    @patch('charmhelpers.fetch.archiveurl.urlopen')
     def test_downloads(self, _urlopen):
         for url in self.valid_urls:
             response = MagicMock()
@@ -87,7 +94,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
 
         url = "http://www.example.com/archive.tar.gz"
 
-        self.fh.download.side_effect = urllib2.URLError('fail')
+        self.fh.download.side_effect = URLError('fail')
         with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
             self.assertRaises(UnhandledSource, self.fh.install, url)
 

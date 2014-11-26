@@ -23,12 +23,12 @@ class NeutronTests(unittest.TestCase):
         return mock
 
     def test_headers_package(self):
-        self.check_output.return_value = '3.13.0-19-generic'
+        self.check_output.return_value = b'3.13.0-19-generic'
         kname = neutron.headers_package()
         self.assertEquals(kname, 'linux-headers-3.13.0-19-generic')
 
     def test_kernel_version(self):
-        self.check_output.return_value = '3.13.0-19-generic'
+        self.check_output.return_value = b'3.13.0-19-generic'
         kver_maj, kver_min = neutron.kernel_version()
         self.assertEquals((kver_maj, kver_min), (3, 13))
 
@@ -69,6 +69,8 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/vmware/nsx.ini')
         self.assertEquals(plugins['n1kv']['config'],
                           '/etc/neutron/plugins/cisco/cisco_plugins.ini')
+        self.assertEquals(plugins['Calico']['config'],
+                          '/etc/neutron/plugins/ml2/ml2_conf.ini')
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 
