@@ -14,7 +14,6 @@ from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
     charm_dir,
-    ERROR,
     INFO,
     relation_ids,
     relation_set
@@ -351,8 +350,8 @@ def ensure_block_device(block_device):
     '''
     _none = ['None', 'none', None]
     if (block_device in _none):
-        error_out('prepare_storage(): Missing required input: '
-                  'block_device=%s.' % block_device, level=ERROR)
+        error_out('prepare_storage(): Missing required input: block_device=%s.'
+                  % block_device)
 
     if block_device.startswith('/dev/'):
         bdev = block_device
@@ -368,8 +367,7 @@ def ensure_block_device(block_device):
         bdev = '/dev/%s' % block_device
 
     if not is_block_device(bdev):
-        error_out('Failed to locate valid block device at %s' % bdev,
-                  level=ERROR)
+        error_out('Failed to locate valid block device at %s' % bdev)
 
     return bdev
 
