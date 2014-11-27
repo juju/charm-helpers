@@ -367,7 +367,7 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
     * -1 => Installed revno is less than supplied arg
 
     '''
-    import apt_pkg
+    from apt import apt_pkg
     from charmhelpers.fetch import apt_cache
     if not pkgcache:
         pkgcache = apt_cache()
