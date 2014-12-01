@@ -101,7 +101,7 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
     return user_info
 
 
-def addgroup(groupname, system_group=False):
+def add_group(groupname, system_group=False):
     """Add a group to the system"""
     try:
         group_info = grp.getgrnam(groupname)
