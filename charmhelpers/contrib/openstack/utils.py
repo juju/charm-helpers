@@ -515,10 +515,7 @@ def os_requires_version(ostack_release, pkg):
 
 def git_install_requested():
     """Returns true if openstack-origin-git is specified."""
-    if config('openstack-origin-git') != "None":
-        return True
-    else:
-        return False
+    return config('openstack-origin-git') != "None"
 
 
 requirements_dir = None
