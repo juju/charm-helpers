@@ -556,17 +556,17 @@ def _git_clone_and_install_subset(yaml_file, whitelist=[], blacklist=[],
     installed = []
 
     with open(yaml_file, 'r') as fd:
-        for project in yaml.load_all(fd):
-            for proj, val in project.items():
-                if proj not in whitelist or proj in blacklist:
-                    continue
-                repo = val['repository']
-                branch = val['branch']
-                repo_dir = _git_clone_and_install_single(repo, branch,
-                                                         update_requirements)
-                if proj == 'requirements':
-                    requirements_dir = repo_dir
-                installed.append(proj)
+        projects = yaml.load_all(fd)
+        for proj, val in projects.items():
+            if proj not in whitelist or proj in blacklist:
+                continue
+            repo = val['repository']
+            branch = val['branch']
+            repo_dir = _git_clone_and_install_single(repo, branch,
+                                                     update_requirements)
+            if proj == 'requirements':
+                requirements_dir = repo_dir
+            installed.append(proj)
     return installed
 
 
