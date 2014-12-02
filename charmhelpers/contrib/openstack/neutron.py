@@ -152,7 +152,7 @@ def neutron_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron',
                                         ssl_dir=NEUTRON_CONF_DIR)],
-            'services': ['calico-compute',
+            'services': ['calico-felix',
                          'bird',
                          'neutron-dhcp-agent',
                          'nova-api-metadata'],
