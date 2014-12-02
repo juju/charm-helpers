@@ -558,7 +558,14 @@ def _git_clone_and_install_subset(yaml_file, whitelist=[], blacklist=[],
     with open(yaml_file, 'r') as fd:
         projects = yaml.load_all(fd)
         for proj, val in projects.items():
-            if proj not in whitelist or proj in blacklist:
+            # The project subset is chosen based on the following 3 rules:
+            # 1) If project is in blacklist, we don't clone/install it, period.
+            # 2) If whitelist is empty, we clone/install everything else.
+            # 3) If whitelist is not empty, we clone/install everything in the
+            #    whitelist.
+            if proj in blacklist:
+                continue
+            if whitelist and proj not in whitelist:
                 continue
             repo = val['repository']
             branch = val['branch']
