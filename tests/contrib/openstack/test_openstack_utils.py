@@ -775,14 +775,14 @@ class OpenStackHelpersTestCase(TestCase):
         assert not error_out.called
 
     @patch(builtin_open)
-    @patch('yaml.load_all')
+    @patch('yaml.load')
     @patch.object(openstack, '_git_clone_and_install_single')
     def test_git_clone_and_install_subset_whitelist(self, _git_install_single,
-                                                    yaml_load_all, _open):
+                                                    yaml_load, _open):
         file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
-        yaml_load_all.return_value = GIT_PROJECTS
+        yaml_load.return_value = GIT_PROJECTS
 
         openstack._git_clone_and_install_subset(file_name,
                                                 whitelist=['requirements'])
@@ -792,14 +792,14 @@ class OpenStackHelpersTestCase(TestCase):
                                                     'master', False)
 
     @patch(builtin_open)
-    @patch('yaml.load_all')
+    @patch('yaml.load')
     @patch.object(openstack, '_git_clone_and_install_single')
     def test_git_clone_and_install_subset_blacklist(self, _git_install_single,
-                                                    yaml_load_all, _open):
+                                                    yaml_load, _open):
         file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
-        yaml_load_all.return_value = GIT_PROJECTS
+        yaml_load.return_value = GIT_PROJECTS
 
         openstack._git_clone_and_install_subset(file_name,
                                                 blacklist=['core-proj'])
@@ -809,14 +809,14 @@ class OpenStackHelpersTestCase(TestCase):
                                                     'master', False)
 
     @patch(builtin_open)
-    @patch('yaml.load_all')
+    @patch('yaml.load')
     @patch.object(openstack, '_git_clone_and_install_single')
     def test_git_clone_and_install_subset_all(self, _git_install_single,
-                                              yaml_load_all, _open):
+                                              yaml_load, _open):
         file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
-        yaml_load_all.return_value = GIT_PROJECTS
+        yaml_load.return_value = GIT_PROJECTS
 
         openstack._git_clone_and_install_subset(file_name)
         _open.assert_called_with(file_name, 'r')
@@ -826,7 +826,7 @@ class OpenStackHelpersTestCase(TestCase):
             call('git://git.openstack.org/openstack/core-proj.git',
                  'master', False)
         ]
-        self.assertEquals(expected, _git_install_single.call_args_list)
+        _git_install_single.assert_has_calls(expected, any_order=True)
 
     @patch('os.mkdir')
     @patch('os.path.exists')
