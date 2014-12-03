@@ -44,7 +44,9 @@ class IPTestCase(TestCase):
         self.get_address_in_network.return_value = 'unit1'
         self.assertEquals(ip.resolve_address(), 'unit1')
         self.unit_get.assert_called_with('public-address')
-        self.config.assert_called_with('os-public-network')
+        calls = [call('os-public-network'),
+                 call('prefer-ipv6')]
+        self.config.assert_has_calls(calls)
         self.get_address_in_network.assert_called_with(None, 'unit1')
 
     def test_resolve_address_default_internal(self):
@@ -53,7 +55,9 @@ class IPTestCase(TestCase):
         self.get_address_in_network.return_value = 'unit1'
         self.assertEquals(ip.resolve_address(ip.INTERNAL), 'unit1')
         self.unit_get.assert_called_with('private-address')
-        self.config.assert_called_with('os-internal-network')
+        calls = [call('os-internal-network'),
+                 call('prefer-ipv6')]
+        self.config.assert_has_calls(calls)
         self.get_address_in_network.assert_called_with(None, 'unit1')
 
     def test_resolve_address_public_not_clustered(self):
@@ -63,7 +67,9 @@ class IPTestCase(TestCase):
         self.get_address_in_network.return_value = '192.168.20.1'
         self.assertEquals(ip.resolve_address(), '192.168.20.1')
         self.unit_get.assert_called_with('public-address')
-        self.config.assert_called_with('os-public-network')
+        calls = [call('os-public-network'),
+                 call('prefer-ipv6')]
+        self.config.assert_has_calls(calls)
         self.get_address_in_network.assert_called_with(
             '192.168.20.0/24',
             'unit1')
@@ -79,8 +85,8 @@ class IPTestCase(TestCase):
         self.test_config.set('vip', '10.5.3.1')
         self.assertEquals(ip.resolve_address(), '10.5.3.1')
         self.config.assert_has_calls(
-            [call('os-public-network'),
-             call('vip')])
+            [call('vip'),
+             call('os-public-network')])
 
     def test_resolve_address_public_clustered_inresolvable(self):
         self.is_clustered.return_value = True

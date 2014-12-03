@@ -151,34 +151,42 @@ def https():
     return False
 
 
-def determine_api_port(public_port):
+def determine_api_port(public_port, singlenode_mode=False):
     '''
     Determine correct API server listening port based on
     existence of HTTPS reverse proxy and/or haproxy.
 
     public_port: int: standard public port for given service
 
+    singlenode_mode: boolean: Shuffle ports when only a single unit is present
+
     returns: int: the correct listening port for the API service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if singlenode_mode:
+        i += 1
+    elif len(peer_units()) > 0 or is_clustered():
         i += 1
     if https():
         i += 1
     return public_port - (i * 10)
 
 
-def determine_apache_port(public_port):
+def determine_apache_port(public_port, singlenode_mode=False):
     '''
     Description: Determine correct apache listening port based on public IP +
     state of the cluster.
 
     public_port: int: standard public port for given service
 
+    singlenode_mode: boolean: Shuffle ports when only a single unit is present
+
     returns: int: the correct listening port for the HAProxy service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if singlenode_mode:
+        i += 1
+    elif len(peer_units()) > 0 or is_clustered():
         i += 1
     return public_port - (i * 10)
 
