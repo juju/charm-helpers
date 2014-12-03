@@ -735,9 +735,9 @@ class OpenStackHelpersTestCase(TestCase):
         result = openstack.git_install_requested()
         self.assertEquals(result, True)
 
-    @patch('charmhelpers.contrib.openstack.utils.charm_dir')
+    @patch.object(openstack, 'charm_dir')
     @patch.object(openstack, '_git_clone_and_install_subset')
-    @patch('charmhelpers.contrib.openstack.utils.error_out')
+    @patch.object(openstack, 'error_out')
     def test_git_clone_and_install_errors(self, error_out, _git_install_subset,
                                           charm_dir):
         file_name = 'config/git-tip.yaml'
@@ -752,9 +752,9 @@ class OpenStackHelpersTestCase(TestCase):
         ]
         self.assertEquals(expected, error_out.call_args_list)
 
-    @patch('charmhelpers.contrib.openstack.utils.charm_dir')
+    @patch.object(openstack, 'charm_dir')
     @patch.object(openstack, '_git_clone_and_install_subset')
-    @patch('charmhelpers.contrib.openstack.utils.error_out')
+    @patch.object(openstack, 'error_out')
     def test_git_clone_and_install_success(self, error_out, _git_install_subset,
                                            charm_dir):
         file_name = 'config/git-tip.yaml'
@@ -830,9 +830,9 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('os.mkdir')
     @patch('os.path.exists')
-    @patch('charmhelpers.contrib.openstack.utils.juju_log')
-    @patch('charmhelpers.contrib.openstack.utils.install_remote')
-    @patch('charmhelpers.contrib.openstack.utils.pip_install')
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'install_remote')
+    @patch.object(openstack, 'pip_install')
     @patch.object(openstack, '_git_update_requirements')
     def test_git_clone_and_install_single(self, _git_update_reqs, pip_install,
                                           install_remote, log, path_exists,
@@ -848,6 +848,31 @@ class OpenStackHelpersTestCase(TestCase):
         mkdir.assert_called_with(dest_parent_dir)
         install_remote.assert_called_with(repo, dest=dest_parent_dir, branch=branch)
         assert not _git_update_reqs.called
+        pip_install.assert_called_with(dest_dir)
+
+    @patch('os.mkdir')
+    @patch('os.path.exists')
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'install_remote')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, '_git_update_requirements')
+    def test_git_clone_and_install_single_with_update(self, _git_update_reqs,
+                                                      pip_install,
+                                                      install_remote, log,
+                                                      path_exists, mkdir):
+        repo = 'git://git.openstack.org/openstack/requirements.git'
+        branch = 'master'
+        dest_parent_dir = '/mnt/openstack-git/'
+        dest_dir = '/mnt/openstack-git/repo-dir'
+        reqs_dir = '/mnt/openstack-git/requirements-dir'
+        openstack.requirements_dir = reqs_dir
+        path_exists.return_value = False
+        install_remote.return_value = dest_dir
+
+        openstack._git_clone_and_install_single(repo, branch, True)
+        mkdir.assert_called_with(dest_parent_dir)
+        install_remote.assert_called_with(repo, dest=dest_parent_dir, branch=branch)
+        _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir)
 
     @patch('os.getcwd')
