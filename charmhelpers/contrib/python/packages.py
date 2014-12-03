@@ -3,12 +3,13 @@
 
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
-from charmhelpers.fetch import apt_install
+from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import log
 
 try:
     from pip import main as pip_execute
 except ImportError:
+    apt_update()
     apt_install('python-pip')
     from pip import main as pip_execute
 

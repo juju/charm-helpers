@@ -80,3 +80,16 @@ class GitUrlFetchHandlerTest(TestCase):
                 where = self.fh.install(url)
             self.assertEqual(where, dest)
             _mkdir.assert_called_with(where, perms=0o755)
+
+    @unittest.skipIf(six.PY3, 'git does not support Python 3')
+    @patch('charmhelpers.fetch.giturl.mkdir')
+    def test_installs_specified_dest(self, _mkdir):
+        self.fh.clone = MagicMock()
+
+        for url in self.valid_urls:
+            branch_name = urlparse(url).path.strip("/").split("/")[-1]
+            dest_repo = os.path.join('/tmp/git/',
+                                     os.path.basename(branch_name))
+            with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+                where = self.fh.install(url, dest="/tmp/git")
+            self.assertEqual(where, dest_repo)
