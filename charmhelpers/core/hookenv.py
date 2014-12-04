@@ -68,6 +68,8 @@ def log(message, level=None):
     command = ['juju-log']
     if level:
         command += ['-l', level]
+    if not isinstance(message, six.string_types):
+        message = repr(message)
     command += [message]
     subprocess.call(command)
 
