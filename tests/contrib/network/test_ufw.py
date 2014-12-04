@@ -31,9 +31,11 @@ class TestUFW(unittest.TestCase):
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call("ufw couldn't be enabled", level='WARN')
 
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.check_output')
-    def test_disable_ok(self, check_output, log):
+    def test_disable_ok(self, check_output, log, is_enabled):
+        is_enabled.return_value = True
         msg = 'Firewall stopped and disabled on system startup\n'
         check_output.return_value = msg
         self.assertTrue(ufw.disable())
@@ -42,9 +44,11 @@ class TestUFW(unittest.TestCase):
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call('ufw disabled', level='INFO')
 
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.check_output')
-    def test_disable_fail(self, check_output, log):
+    def test_disable_fail(self, check_output, log, is_enabled):
+        is_enabled.return_value = True
         msg = 'neneene\n'
         check_output.return_value = msg
         self.assertFalse(ufw.disable())

@@ -48,6 +48,9 @@ def enable():
 
     :returns: True if ufw is successfully enabled
     """
+    if is_enabled():
+        return True
+
     output = subprocess.check_output(['ufw', 'enable'], env={'LANG': 'en_US'})
 
     m = re.findall('^Firewall is active and enabled on system startup\n',
@@ -68,6 +71,9 @@ def disable():
 
     :returns: True if ufw is successfully disabled
     """
+    if not is_enabled():
+        return True
+
     output = subprocess.check_output(['ufw', 'disable'], env={'LANG': 'en_US'})
 
     m = re.findall(r'^Firewall stopped and disabled on system startup\n',
