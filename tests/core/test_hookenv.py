@@ -233,6 +233,11 @@ class HelpersTest(TestCase):
         mock_call.assert_called_with(['juju-log', 'foo'])
 
     @patch('subprocess.call')
+    def test_logs_messages_object(self, mock_call):
+        hookenv.log(object)
+        mock_call.assert_called_with(['juju-log', "<class 'object'>"])
+
+    @patch('subprocess.call')
     def test_logs_messages_with_alternative_levels(self, mock_call):
         alternative_levels = [
             hookenv.CRITICAL,
