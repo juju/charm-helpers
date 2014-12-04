@@ -388,8 +388,8 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
 
     '''
     import apt_pkg
-    from charmhelpers.fetch import apt_cache
     if not pkgcache:
+        from charmhelpers.fetch import apt_cache
         pkgcache = apt_cache()
     pkg = pkgcache[package]
     return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
