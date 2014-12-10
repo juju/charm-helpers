@@ -891,6 +891,22 @@ class HelpersTest(TestCase):
         open_.assert_called_once_with('/var/empty/metadata.yaml')
         self.assertEqual(set(('testreqs', 'testprov', 'testpeer')), reltypes)
 
+    def test_metadata(self):
+        open_ = mock_open()
+        open_.return_value = StringIO(CHARM_METADATA)
+        with patch('charmhelpers.core.hookenv.open', open_, create=True):
+            with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+                metadata = hookenv.metadata()
+        self.assertEqual(metadata, yaml.safe_load(CHARM_METADATA))
+
+    def test_charm_name(self):
+        open_ = mock_open()
+        open_.return_value = StringIO(CHARM_METADATA)
+        with patch('charmhelpers.core.hookenv.open', open_, create=True):
+            with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+                charm_name = hookenv.charm_name()
+        self.assertEqual("testmock", charm_name)
+
     @patch('subprocess.check_call')
     def test_opens_port(self, check_call_):
         hookenv.open_port(443, "TCP")
