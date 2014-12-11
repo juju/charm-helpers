@@ -280,6 +280,58 @@ class HelpersTest(TestCase):
             group
         ])
 
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_a_group_if_it_doesnt_exist(self, log, check_call, getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        result = host.add_group(group_name)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with(['addgroup', '--group', group_name])
+        getgrnam.assert_called_with(group_name)
+
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_doesnt_add_group_if_it_already_exists(self, log, check_call,
+                                                   getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = 'some group grnam'
+
+        getgrnam.return_value = existing_group_grnam
+
+        result = host.add_group(group_name)
+
+        self.assertEqual(result, existing_group_grnam)
+        self.assertFalse(check_call.called)
+        getgrnam.assert_called_with(group_name)
+
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_a_system_group(self, log, check_call, getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        result = host.add_group(group_name, system_group=True)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with([
+            'addgroup',
+            '--system',
+            group_name
+        ])
+        getgrnam.assert_called_with(group_name)
+
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_rsyncs_a_path(self, log, check_output):
