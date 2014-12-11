@@ -9,7 +9,8 @@ from testtools import TestCase
 import yaml
 
 import six
-from six.moves import StringIO
+import io
+
 if six.PY3:
     import pickle
 else:
@@ -17,7 +18,7 @@ else:
 
 from charmhelpers.core import hookenv
 
-CHARM_METADATA = """name: testmock
+CHARM_METADATA = b"""name: testmock
 summary: test mock summary
 description: test mock description
 requires:
@@ -884,7 +885,8 @@ class HelpersTest(TestCase):
 
     def test_lists_relation_types(self):
         open_ = mock_open()
-        open_.return_value = StringIO(CHARM_METADATA)
+        open_.return_value = io.BytesIO(CHARM_METADATA)
+
         with patch('charmhelpers.core.hookenv.open', open_, create=True):
             with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
                 reltypes = set(hookenv.relation_types())
@@ -893,7 +895,8 @@ class HelpersTest(TestCase):
 
     def test_metadata(self):
         open_ = mock_open()
-        open_.return_value = StringIO(CHARM_METADATA)
+        open_.return_value = io.BytesIO(CHARM_METADATA)
+
         with patch('charmhelpers.core.hookenv.open', open_, create=True):
             with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
                 metadata = hookenv.metadata()
@@ -901,7 +904,8 @@ class HelpersTest(TestCase):
 
     def test_charm_name(self):
         open_ = mock_open()
-        open_.return_value = StringIO(CHARM_METADATA)
+        open_.return_value = io.BytesIO(CHARM_METADATA)
+
         with patch('charmhelpers.core.hookenv.open', open_, create=True):
             with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
                 charm_name = hookenv.charm_name()
