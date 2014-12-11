@@ -398,8 +398,7 @@ def relations_of_type(reltype=None):
 @cached
 def metadata():
     """Get the current charm metadata.yaml contents as a python object"""
-    charmdir = os.environ.get('CHARM_DIR', '')
-    with open(os.path.join(charmdir, 'metadata.yaml')) as md:
+    with open(os.path.join(charm_dir(), 'metadata.yaml')) as md:
         return yaml.safe_load(md)
 
 
