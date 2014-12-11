@@ -9,7 +9,8 @@ from testtools import TestCase
 import yaml
 
 import six
-from six.moves import StringIO
+import io
+
 if six.PY3:
     import pickle
 else:
@@ -17,7 +18,7 @@ else:
 
 from charmhelpers.core import hookenv
 
-CHARM_METADATA = """name: testmock
+CHARM_METADATA = b"""name: testmock
 summary: test mock summary
 description: test mock description
 requires:
@@ -231,6 +232,11 @@ class HelpersTest(TestCase):
         hookenv.log('foo')
 
         mock_call.assert_called_with(['juju-log', 'foo'])
+
+    @patch('subprocess.call')
+    def test_logs_messages_object(self, mock_call):
+        hookenv.log(object)
+        mock_call.assert_called_with(['juju-log', repr(object)])
 
     @patch('subprocess.call')
     def test_logs_messages_with_alternative_levels(self, mock_call):
@@ -879,12 +885,31 @@ class HelpersTest(TestCase):
 
     def test_lists_relation_types(self):
         open_ = mock_open()
-        open_.return_value = StringIO(CHARM_METADATA)
+        open_.return_value = io.BytesIO(CHARM_METADATA)
+
         with patch('charmhelpers.core.hookenv.open', open_, create=True):
             with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
                 reltypes = set(hookenv.relation_types())
         open_.assert_called_once_with('/var/empty/metadata.yaml')
         self.assertEqual(set(('testreqs', 'testprov', 'testpeer')), reltypes)
+
+    def test_metadata(self):
+        open_ = mock_open()
+        open_.return_value = io.BytesIO(CHARM_METADATA)
+
+        with patch('charmhelpers.core.hookenv.open', open_, create=True):
+            with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+                metadata = hookenv.metadata()
+        self.assertEqual(metadata, yaml.safe_load(CHARM_METADATA))
+
+    def test_charm_name(self):
+        open_ = mock_open()
+        open_.return_value = io.BytesIO(CHARM_METADATA)
+
+        with patch('charmhelpers.core.hookenv.open', open_, create=True):
+            with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
+                charm_name = hookenv.charm_name()
+        self.assertEqual("testmock", charm_name)
 
     @patch('subprocess.check_call')
     def test_opens_port(self, check_call_):
