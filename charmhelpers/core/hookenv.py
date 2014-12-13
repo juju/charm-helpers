@@ -221,6 +221,12 @@ class Config(dict):
         except KeyError:
             return (self._prev_dict or {})[key]
 
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
     def keys(self):
         prev_keys = []
         if self._prev_dict is not None:

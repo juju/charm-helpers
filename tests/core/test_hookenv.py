@@ -3,7 +3,7 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
-from mock import patch, call, mock_open
+from mock import patch, call, mock_open, sentinel
 from mock import MagicMock
 from testtools import TestCase
 import yaml
@@ -126,6 +126,16 @@ class ConfigTest(TestCase):
         self.assertRaises(KeyError, lambda: c['missing'])
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c['baz'], 'bam')
+
+    def test_get(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(baz='bam'))
+
+        self.assertIsNone(c.get('missing'))
+        self.assertIs(c.get('missing', sentinel.missing), sentinel.missing)
+        self.assertEqual(c.get('foo'), 'bar')
+        self.assertEqual(c.get('baz'), 'bam')
 
     def test_keys(self):
         c = hookenv.Config(dict(foo='bar'))
