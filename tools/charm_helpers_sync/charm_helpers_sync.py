@@ -122,6 +122,20 @@ def sync_directory(src, dest, opts=None):
 
 
 def sync(src, dest, module, opts=None):
+
+    # Sync charmhelpers/__init__.py for bootstrap code.
+    sync_pyfile(_src_path(src, '__init__'), dest)
+
+    # Sync other __init__.py files in the path leading to module.
+    m = []
+    steps = module.split('.')[:-1]
+    while steps:
+        m.append(steps.pop(0))
+        init = '.'.join(m + ['__init__'])
+        sync_pyfile(_src_path(src, init),
+                    os.path.dirname(_dest_path(dest, init)))
+
+    # Sync the module, or maybe a .py file.
     if os.path.isdir(_src_path(src, module)):
         sync_directory(_src_path(src, module), _dest_path(dest, module), opts)
     elif _is_pyfile(_src_path(src, module)):

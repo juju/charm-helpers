@@ -385,6 +385,8 @@ TO_PATCH = [
     'mkdir',
     'write_file',
     'get_host_ip',
+    'charm_name',
+    'sysctl_create',
 ]
 
 
@@ -926,6 +928,29 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    def test_sysctl_context_with_config(self, config):
+        self.charm_name.return_value = 'test-charm'
+        config.return_value = '{ kernel.max_pid: "1337"}'
+        self.sysctl_create.return_value = True
+        ctxt = context.SysctlContext()
+        result = ctxt()
+        self.sysctl_create.assert_called_with(
+            config.return_value,
+            "/etc/sysctl.d/50-test-charm.conf")
+
+        self.assertTrue(result, {'sysctl': config.return_value})
+
+    @patch.object(context, 'config')
+    def test_sysctl_context_without_config(self, config):
+        self.charm_name.return_value = 'test-charm'
+        config.return_value = None
+        self.sysctl_create.return_value = True
+        ctxt = context.SysctlContext()
+        result = ctxt()
+        self.assertTrue(self.sysctl_create.called == 0)
+        self.assertTrue(result, {'sysctl': config.return_value})
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
