@@ -437,7 +437,7 @@ class HelpersTest(TestCase):
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.unlink.assert_called_with(realpath)
-        self.assertFalse(os_.makedirs.called)
+        self.assertTrue(os_.makedirs.called)
         os_.chown.assert_called_with(realpath, uid, gid)
 
     @patch('pwd.getpwnam')
