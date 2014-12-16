@@ -162,13 +162,15 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
     realpath = os.path.abspath(path)
-    if os.path.exists(realpath):
-        if force and not os.path.isdir(realpath):
+    if os.path.exists(realpath) and force:
+        if not os.path.isdir(realpath):
             log("Removing non-directory file {} prior to mkdir()".format(path))
             os.unlink(realpath)
+            os.makedirs(realpath, perms)
+        os.chown(realpath, uid, gid)
     else:
         os.makedirs(realpath, perms)
-    os.chown(realpath, uid, gid)
+        os.chown(realpath, uid, gid)
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
