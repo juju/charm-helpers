@@ -101,6 +101,26 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
     return user_info
 
 
+def add_group(group_name, system_group=False):
+    """Add a group to the system"""
+    try:
+        group_info = grp.getgrnam(group_name)
+        log('group {0} already exists!'.format(group_name))
+    except KeyError:
+        log('creating group {0}'.format(group_name))
+        cmd = ['addgroup']
+        if system_group:
+            cmd.append('--system')
+        else:
+            cmd.extend([
+                '--group',
+            ])
+        cmd.append(group_name)
+        subprocess.check_call(cmd)
+        group_info = grp.getgrnam(group_name)
+    return group_info
+
+
 def add_user_to_group(username, group):
     """Add a user to a group"""
     cmd = [
@@ -368,8 +388,8 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
 
     '''
     import apt_pkg
-    from charmhelpers.fetch import apt_cache
     if not pkgcache:
+        from charmhelpers.fetch import apt_cache
         pkgcache = apt_cache()
     pkg = pkgcache[package]
     return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)

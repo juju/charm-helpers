@@ -178,6 +178,15 @@ class ClusterUtilsTests(TestCase):
         https.return_value = False
         self.assertEquals(9686, cluster_utils.determine_api_port(9696))
 
+    @patch.object(cluster_utils, 'https')
+    @patch.object(cluster_utils, 'peer_units')
+    def test_determine_api_port_nopeers_singlemode(self, peer_units, https):
+        '''It determines API port with a single unit in singlemode'''
+        peer_units.return_value = []
+        https.return_value = False
+        port = cluster_utils.determine_api_port(9696, singlenode_mode=True)
+        self.assertEquals(9686, port)
+
     @patch.object(cluster_utils, 'is_clustered')
     @patch.object(cluster_utils, 'https')
     @patch.object(cluster_utils, 'peer_units')
@@ -213,6 +222,19 @@ class ClusterUtilsTests(TestCase):
         https.return_value = True
         is_clustered.return_value = True
         self.assertEquals(9686, cluster_utils.determine_apache_port(9696))
+
+    @patch.object(cluster_utils, 'peer_units')
+    @patch.object(cluster_utils, 'https')
+    @patch.object(cluster_utils, 'is_clustered')
+    def test_determine_apache_port_nopeers_singlemode(self, https,
+                                                      is_clustered,
+                                                      peer_units):
+        '''It determines haproxy port with a single unit in singlemode'''
+        peer_units.return_value = []
+        https.return_value = False
+        is_clustered.return_value = False
+        port = cluster_utils.determine_apache_port(9696, singlenode_mode=True)
+        self.assertEquals(9686, port)
 
     def test_get_hacluster_config_complete(self):
         '''It fetches all hacluster charm config'''
