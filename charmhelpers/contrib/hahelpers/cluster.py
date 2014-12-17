@@ -13,6 +13,8 @@ clustering-related helpers.
 
 import subprocess
 import os
+import time
+
 from socket import gethostname as get_unit_hostname
 
 import six
@@ -32,6 +34,33 @@ from charmhelpers.core.hookenv import (
 
 class HAIncompleteConfig(Exception):
     pass
+
+
+def retry_if_false(num_retries, base_delay=0):
+    """If the decorated function returns False, allow num_retries retry
+    attempts before returning.
+    """
+    def _retry_if_false_inner_1(f):
+        def _retry_if_false_inner_2(*args, **kwargs):
+            retries = num_retries
+            multiplier = 1
+            while True:
+                ret = f(*args, **kwargs)
+                if ret or not retries:
+                    return ret
+
+                delay = base_delay * multiplier
+                log("Retrying '%s' %d more times (delay=%s)" %
+                    (f.__name__, retries, delay), level=INFO)
+                retries -= 1
+                if delay:
+                    time.sleep(delay)
+
+                multiplier += 1
+
+        return _retry_if_false_inner_2
+
+    return _retry_if_false_inner_1
 
 
 def is_elected_leader(resource):
@@ -68,10 +97,14 @@ def is_clustered():
     return False
 
 
-def is_crm_leader(resource):
+@retry_if_false(5, base_delay=2)
+def is_crm_leader(resource, retry=False):
     """
     Returns True if the charm calling this is the elected corosync leader,
     as returned by calling the external "crm" command.
+
+    We allow this operation to be retried to avoid the possibility of getting a
+    false negative. See LP #1396246 for more info.
     """
     cmd = [
         "crm", "resource",
