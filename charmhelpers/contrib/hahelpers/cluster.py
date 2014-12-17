@@ -36,31 +36,36 @@ class HAIncompleteConfig(Exception):
     pass
 
 
-def retry_if_false(num_retries, base_delay=0):
+class CRMResourceNotFound(Exception):
+    pass
+
+
+def retry_on_exception(num_retries, base_delay=0, exc_type=Exception):
     """If the decorated function returns False, allow num_retries retry
     attempts before returning.
     """
-    def _retry_if_false_inner_1(f):
-        def _retry_if_false_inner_2(*args, **kwargs):
+    def _retry_on_exception_1(f):
+        def _retry_on_exception_2(*args, **kwargs):
             retries = num_retries
             multiplier = 1
             while True:
-                ret = f(*args, **kwargs)
-                if ret or not retries:
-                    return ret
+                try:
+                    return f(*args, **kwargs)
+                except exc_type:
+                    if not retries:
+                        raise
 
                 delay = base_delay * multiplier
+                multiplier += 1
                 log("Retrying '%s' %d more times (delay=%s)" %
                     (f.__name__, retries, delay), level=INFO)
                 retries -= 1
                 if delay:
                     time.sleep(delay)
 
-                multiplier += 1
+        return _retry_on_exception_2
 
-        return _retry_if_false_inner_2
-
-    return _retry_if_false_inner_1
+    return _retry_on_exception_1
 
 
 def is_elected_leader(resource):
@@ -97,7 +102,7 @@ def is_clustered():
     return False
 
 
-@retry_if_false(5, base_delay=2)
+@retry_on_exception(5, base_delay=2, exc_type=CRMResourceNotFound)
 def is_crm_leader(resource, retry=False):
     """
     Returns True if the charm calling this is the elected corosync leader,
@@ -106,19 +111,20 @@ def is_crm_leader(resource, retry=False):
     We allow this operation to be retried to avoid the possibility of getting a
     false negative. See LP #1396246 for more info.
     """
-    cmd = [
-        "crm", "resource",
-        "show", resource
-    ]
+    cmd = ['crm', 'resource', 'show', resource]
     try:
-        status = subprocess.check_output(cmd).decode('UTF-8')
+        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        status = status.decode('UTF-8')
     except subprocess.CalledProcessError:
-        return False
-    else:
-        if get_unit_hostname() in status:
-            return True
-        else:
-            return False
+        status = None
+
+    if status and get_unit_hostname() in status:
+        return True
+
+    if status and "resource %s is NOT running" % (resource) in status:
+        raise CRMResourceNotFound("CRM resource %s not found" % (resource))
+
+    return False
 
 
 def is_leader(resource):
