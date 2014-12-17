@@ -41,8 +41,8 @@ class CRMResourceNotFound(Exception):
 
 
 def retry_on_exception(num_retries, base_delay=0, exc_type=Exception):
-    """If the decorated function returns False, allow num_retries retry
-    attempts before returning.
+    """If the decorated function raises exception exc_type, allow num_retries
+    retry attempts before raise the exception.
     """
     def _retry_on_exception_1(f):
         def _retry_on_exception_2(*args, **kwargs):
