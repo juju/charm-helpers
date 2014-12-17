@@ -1,5 +1,5 @@
 
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 
 from subprocess import CalledProcessError
 from testtools import TestCase
@@ -48,19 +48,25 @@ class ClusterUtilsTests(TestCase):
         check_output.return_value = crm
         self.assertTrue(cluster_utils.is_crm_leader('vip'))
 
+    @patch.object(cluster_utils, 'time')
     @patch('subprocess.check_output')
-    def test_is_not_leader(self, check_output):
+    def test_is_not_leader(self, check_output, mock_time):
         '''It determines its unit is not leader'''
         self.get_unit_hostname.return_value = 'node1'
         crm = b'resource vip is running on: node2'
         check_output.return_value = crm
         self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
+        mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
+                                    call.sleep(6)])
 
+    @patch.object(cluster_utils, 'time')
     @patch('subprocess.check_output')
-    def test_is_crm_leader_no_cluster(self, check_output):
+    def test_is_crm_leader_no_cluster(self, check_output, mock_time):
         '''It is not leader if there is no cluster up'''
         check_output.side_effect = CalledProcessError(1, 'crm')
         self.assertFalse(cluster_utils.is_crm_leader('vip'))
+        mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
+                                    call.sleep(6)])
 
     def test_peer_units(self):
         '''It lists all peer units for cluster relation'''
