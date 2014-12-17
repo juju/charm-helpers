@@ -56,6 +56,16 @@ class ClusterUtilsTests(TestCase):
         crm = b'resource vip is running on: node2'
         check_output.return_value = crm
         self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
+        self.assertFalse(mock_time.called)
+
+    @patch.object(cluster_utils, 'time')
+    @patch('subprocess.check_output')
+    def test_is_not_leader_resource_not_exists(self, check_output, mock_time):
+        '''It determines its unit is not leader'''
+        self.get_unit_hostname.return_value = 'node1'
+        check_output.return_value = "resource vip is NOT running"
+        self.assertRaises(cluster_utils.CRMResourceNotFound,
+                          cluster_utils.is_crm_leader, 'vip')
         mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
                                     call.sleep(6)])
 
@@ -65,8 +75,7 @@ class ClusterUtilsTests(TestCase):
         '''It is not leader if there is no cluster up'''
         check_output.side_effect = CalledProcessError(1, 'crm')
         self.assertFalse(cluster_utils.is_crm_leader('vip'))
-        mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
-                                    call.sleep(6)])
+        self.assertFalse(mock_time.called)
 
     def test_peer_units(self):
         '''It lists all peer units for cluster relation'''
