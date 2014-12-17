@@ -617,22 +617,3 @@ def _git_update_requirements(package_dir, reqs_dir):
         package = os.path.basename(package_dir)
         error_out("Error updating {} from global-requirements.txt".format(package))
     os.chdir(orig_dir)
-
-
-def disable_services(services=None):
-    if services:
-        for svc in services:
-            with open('/etc/init/{}.override'.format(svc), 'wb') as out:
-                out.write('exec true\n')
-    else:
-        juju_log("Services %s are None." % services, level='ERROR')
-
-
-def enable_services(services=None):
-    if services:
-        for svc in services:
-            override_file = '/etc/init/{}.override'.format(svc)
-            if os.path.isfile(override_file):
-                os.remove(override_file)
-    else:
-        juju_log("Services %s are None." % services, level='ERROR')
