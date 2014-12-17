@@ -13,7 +13,6 @@ clustering-related helpers.
 
 import subprocess
 import os
-import time
 
 from socket import gethostname as get_unit_hostname
 
@@ -30,6 +29,9 @@ from charmhelpers.core.hookenv import (
     WARNING,
     unit_get,
 )
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
 
 
 class HAIncompleteConfig(Exception):
@@ -38,34 +40,6 @@ class HAIncompleteConfig(Exception):
 
 class CRMResourceNotFound(Exception):
     pass
-
-
-def retry_on_exception(num_retries, base_delay=0, exc_type=Exception):
-    """If the decorated function raises exception exc_type, allow num_retries
-    retry attempts before raise the exception.
-    """
-    def _retry_on_exception_1(f):
-        def _retry_on_exception_2(*args, **kwargs):
-            retries = num_retries
-            multiplier = 1
-            while True:
-                try:
-                    return f(*args, **kwargs)
-                except exc_type:
-                    if not retries:
-                        raise
-
-                delay = base_delay * multiplier
-                multiplier += 1
-                log("Retrying '%s' %d more times (delay=%s)" %
-                    (f.__name__, retries, delay), level=INFO)
-                retries -= 1
-                if delay:
-                    time.sleep(delay)
-
-        return _retry_on_exception_2
-
-    return _retry_on_exception_1
 
 
 def is_elected_leader(resource):
@@ -114,7 +88,9 @@ def is_crm_leader(resource, retry=False):
     cmd = ['crm', 'resource', 'show', resource]
     try:
         status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        status = status.decode('UTF-8')
+        if not six.PY3:
+            status = status.decode("utf-8")
+
     except subprocess.CalledProcessError:
         status = None
 
