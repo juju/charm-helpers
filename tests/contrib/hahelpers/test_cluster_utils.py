@@ -48,7 +48,7 @@ class ClusterUtilsTests(TestCase):
         check_output.return_value = crm
         self.assertTrue(cluster_utils.is_crm_leader('vip'))
 
-    @patch.object(cluster_utils, 'time')
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
     def test_is_not_leader(self, check_output, mock_time):
         '''It determines its unit is not leader'''
@@ -58,9 +58,11 @@ class ClusterUtilsTests(TestCase):
         self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
         self.assertFalse(mock_time.called)
 
-    @patch.object(cluster_utils, 'time')
+    @patch('charmhelpers.core.decorators.log')
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
-    def test_is_not_leader_resource_not_exists(self, check_output, mock_time):
+    def test_is_not_leader_resource_not_exists(self, check_output, mock_time,
+                                               mock_log):
         '''It determines its unit is not leader'''
         self.get_unit_hostname.return_value = 'node1'
         check_output.return_value = "resource vip is NOT running"
@@ -69,7 +71,7 @@ class ClusterUtilsTests(TestCase):
         mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
                                     call.sleep(6)])
 
-    @patch.object(cluster_utils, 'time')
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
     def test_is_crm_leader_no_cluster(self, check_output, mock_time):
         '''It is not leader if there is no cluster up'''
