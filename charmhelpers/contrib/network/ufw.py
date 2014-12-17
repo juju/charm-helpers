@@ -25,6 +25,7 @@ Examples:
 __author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
 
 import re
+import os
 import subprocess
 from charmhelpers.core import hookenv
 
@@ -35,7 +36,9 @@ def is_enabled():
 
     :returns: True if ufw is enabled
     """
-    output = subprocess.check_output(['ufw', 'status'], env={'LANG': 'en_US'})
+    output = subprocess.check_output(['ufw', 'status'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
 
     m = re.findall(r'^Status: active\n', output, re.M)
 
@@ -51,7 +54,9 @@ def enable():
     if is_enabled():
         return True
 
-    output = subprocess.check_output(['ufw', 'enable'], env={'LANG': 'en_US'})
+    output = subprocess.check_output(['ufw', 'enable'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
 
     m = re.findall('^Firewall is active and enabled on system startup\n',
                    output, re.M)
@@ -74,7 +79,9 @@ def disable():
     if not is_enabled():
         return True
 
-    output = subprocess.check_output(['ufw', 'disable'], env={'LANG': 'en_US'})
+    output = subprocess.check_output(['ufw', 'disable'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
 
     m = re.findall(r'^Firewall stopped and disabled on system startup\n',
                    output, re.M)

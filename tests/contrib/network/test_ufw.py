@@ -2,6 +2,7 @@ from __future__ import print_function
 __author__ = 'Felipe Reyes <felipe.reyes@canonical.com>'
 
 import mock
+import os
 import subprocess
 import unittest
 
@@ -16,7 +17,9 @@ class TestUFW(unittest.TestCase):
         check_output.return_value = msg
         self.assertTrue(ufw.enable())
 
-        check_output.assert_any_call(['ufw', 'enable'], env={'LANG': 'en_US'})
+        check_output.assert_any_call(['ufw', 'enable'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call('ufw enabled', level='INFO')
 
@@ -27,7 +30,9 @@ class TestUFW(unittest.TestCase):
         check_output.return_value = msg
         self.assertFalse(ufw.enable())
 
-        check_output.assert_any_call(['ufw', 'enable'], env={'LANG': 'en_US'})
+        check_output.assert_any_call(['ufw', 'enable'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call("ufw couldn't be enabled", level='WARN')
 
@@ -40,7 +45,9 @@ class TestUFW(unittest.TestCase):
         check_output.return_value = msg
         self.assertTrue(ufw.disable())
 
-        check_output.assert_any_call(['ufw', 'disable'], env={'LANG': 'en_US'})
+        check_output.assert_any_call(['ufw', 'disable'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call('ufw disabled', level='INFO')
 
@@ -53,7 +60,9 @@ class TestUFW(unittest.TestCase):
         check_output.return_value = msg
         self.assertFalse(ufw.disable())
 
-        check_output.assert_any_call(['ufw', 'disable'], env={'LANG': 'en_US'})
+        check_output.assert_any_call(['ufw', 'disable'],
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call("ufw couldn't be disabled", level='WARN')
 
