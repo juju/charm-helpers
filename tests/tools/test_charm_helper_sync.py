@@ -172,9 +172,10 @@ class HelperSyncTests(unittest.TestCase):
             '/tmp/charm-helpers/charmhelpers/core/host.py'
         )
 
+    @patch('tools.charm_helpers_sync.charm_helpers_sync.sync_pyfile')
     @patch('tools.charm_helpers_sync.charm_helpers_sync.sync_directory')
     @patch('os.path.isdir')
-    def test_syncs_directory(self, is_dir, sync_dir):
+    def test_syncs_directory(self, is_dir, sync_dir, sync_pyfile):
         '''It correctly syncs a module directory'''
         is_dir.return_value = True
         sync.sync(src='/tmp/charm-helpers',
@@ -184,6 +185,13 @@ class HelperSyncTests(unittest.TestCase):
         sync_dir.assert_called_with(
             '/tmp/charm-helpers/charmhelpers/contrib/openstack',
             'hooks/charmhelpers/contrib/openstack', None)
+
+        # __init__.py files leading to the directory were also synced.
+        sync_pyfile.assert_has_calls([
+            call('/tmp/charm-helpers/charmhelpers/__init__',
+                 'hooks/charmhelpers'),
+            call('/tmp/charm-helpers/charmhelpers/contrib/__init__',
+                 'hooks/charmhelpers/contrib')])
 
     @patch('tools.charm_helpers_sync.charm_helpers_sync.sync_pyfile')
     @patch('tools.charm_helpers_sync.charm_helpers_sync._is_pyfile')
@@ -195,10 +203,15 @@ class HelperSyncTests(unittest.TestCase):
         sync.sync(src='/tmp/charm-helpers',
                   dest='hooks/charmhelpers',
                   module='contrib.openstack.utils')
-
-        sync_pyfile.assert_called_with(
-            '/tmp/charm-helpers/charmhelpers/contrib/openstack/utils',
-            'hooks/charmhelpers/contrib/openstack')
+        sync_pyfile.assert_has_calls([
+            call('/tmp/charm-helpers/charmhelpers/__init__',
+                 'hooks/charmhelpers'),
+            call('/tmp/charm-helpers/charmhelpers/contrib/__init__',
+                 'hooks/charmhelpers/contrib'),
+            call('/tmp/charm-helpers/charmhelpers/contrib/openstack/__init__',
+                 'hooks/charmhelpers/contrib/openstack'),
+            call('/tmp/charm-helpers/charmhelpers/contrib/openstack/utils',
+                 'hooks/charmhelpers/contrib/openstack')])
 
     @patch('tools.charm_helpers_sync.charm_helpers_sync.sync')
     @patch('os.path.isdir')
