@@ -54,6 +54,17 @@ def enable():
     if is_enabled():
         return True
 
+    if not os.path.isdir('/proc/sys/net/ipv6'):
+        # disable IPv6 support in ufw
+        hookenv.log("This machine doesn't have IPv6 enabled", level="INFO")
+        exit_code = subprocess.call(['sed', '-i', 's/IPV6=yes/IPV6=no/g',
+                                     '/etc/default/ufw'])
+        if exit_code == 0:
+            hookenv.log('IPv6 support in ufw disabled', level='INFO')
+        else:
+            hookenv.log("Couldn't disable IPv6 support in ufw", level="ERROR")
+            raise Exception("Couldn't disable IPv6 support in ufw")
+
     output = subprocess.check_output(['ufw', 'enable'],
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
