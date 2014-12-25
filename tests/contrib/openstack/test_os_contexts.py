@@ -1205,6 +1205,7 @@ class ContextTests(unittest.TestCase):
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
             'stat_port': ':::8888',
+            'ipv6': True
         }
         # the context gets generated.
         self.assertEquals(ex, result)

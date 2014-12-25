@@ -212,3 +212,50 @@ class TestUFW(unittest.TestCase):
     @mock.patch('subprocess.check_output')
     def test_service_unsupport_action(self, check_output):
         self.assertRaises(Exception, ufw.service, 'ssh', 'nenene')
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('os.path.isdir')
+    @mock.patch('subprocess.call')
+    @mock.patch('subprocess.check_output')
+    def test_no_ipv6(self, check_output, call, isdir, log, is_enabled):
+        check_output.return_value = ('Firewall is active and enabled '
+                                     'on system startup\n')
+        isdir.return_value = False
+        call.return_value = 0
+        is_enabled.return_value = False
+        ufw.enable()
+
+        call.assert_called_with(['sed', '-i', 's/IPV6=yes/IPV6=no/g',
+                                 '/etc/default/ufw'])
+        log.assert_any_call('IPv6 support in ufw disabled', level='INFO')
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('os.path.isdir')
+    @mock.patch('subprocess.call')
+    @mock.patch('subprocess.check_output')
+    def test_no_ipv6_failed_disabling_ufw(self, check_output, call, isdir,
+                                          log, is_enabled):
+        check_output.return_value = ('Firewall is active and enabled '
+                                     'on system startup\n')
+        isdir.return_value = False
+        call.return_value = 1
+        is_enabled.return_value = False
+        self.assertRaises(Exception, ufw.enable)
+
+        call.assert_called_with(['sed', '-i', 's/IPV6=yes/IPV6=no/g',
+                                 '/etc/default/ufw'])
+        log.assert_any_call("Couldn't disable IPv6 support in ufw",
+                            level="ERROR")
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('os.path.isdir')
+    @mock.patch('subprocess.check_output')
+    def test_with_ipv6(self, check_output, isdir, is_enabled, log):
+        check_output.return_value = ('Firewall is active and enabled '
+                                     'on system startup\n')
+        is_enabled.return_value = False
+        isdir.return_value = True
+        ufw.enable()
