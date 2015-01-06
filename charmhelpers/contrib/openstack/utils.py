@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Copyright 2014-2015 Canonical Limited.
 # 
 # This file is part of charm-helpers.
@@ -13,8 +15,6 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-
-#!/usr/bin/python
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
