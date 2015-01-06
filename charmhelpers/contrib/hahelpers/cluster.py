@@ -205,22 +205,24 @@ def determine_apache_port(public_port, singlenode_mode=False):
     return public_port - (i * 10)
 
 
-def get_hacluster_config(excludes_key=None):
+def get_hacluster_config(exclude_keys=None):
     '''
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
         ha-bindiface, ha-mcastport, vip
-    param: excludes_key: list of setting key(s) to be excluded from
-                         return dict.
+
+    param: exclude_keys: list of setting key(s) to be excluded.
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing.
     '''
     settings = ['ha-bindiface', 'ha-mcastport', 'vip']
     conf = {}
     for setting in settings:
-        if (not excludes_key) or (setting not in excludes_key):
-            conf[setting] = config_get(setting)
+        if exclude_keys and setting in exclude_keys:
+            continue
+
+        conf[setting] = config_get(setting)
     missing = []
     [missing.append(s) for s, v in six.iteritems(conf) if v is None]
     if missing:

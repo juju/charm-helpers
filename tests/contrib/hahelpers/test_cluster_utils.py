@@ -293,9 +293,9 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        excludes_key = ['vip']
-        self.assertEquals(conf,
-                          cluster_utils.get_hacluster_config(excludes_key))
+        exclude_keys = ['vip']
+        result = cluster_utils.get_hacluster_config(exclude_keys)
+        self.assertEquals(conf, result)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_bare(self, is_clustered):
