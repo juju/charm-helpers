@@ -228,7 +228,12 @@ def collect_authed_hosts(peer_interface):
     return hosts
 
 
-def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None):
+def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None,
+                      fatal=False):
+    """Sync path to an specific peer host
+
+    Propagates exception if operation fails and fatal=True.
+    """
     cmd = cmd or copy(BASE_CMD)
     if not verbose:
         cmd.append('-silent')
@@ -245,20 +250,30 @@ def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None):
         run_as_user(user, cmd, gid)
     except:
         log('Error syncing remote files')
+        if fatal:
+            raise
 
 
-def sync_to_peer(host, user, paths=None, verbose=False, cmd=None, gid=None):
-    '''Sync paths to an specific host'''
+def sync_to_peer(host, user, paths=None, verbose=False, cmd=None, gid=None,
+                 fatal=False):
+    """Sync paths to an specific peer host
+
+    Propagates exception if any operation fails and fatal=True.
+    """
     if paths:
         for p in paths:
-            sync_path_to_host(p, host, user, verbose, cmd, gid)
+            sync_path_to_host(p, host, user, verbose, cmd, gid, fatal)
 
 
-def sync_to_peers(peer_interface, user, paths=None,
-                  verbose=False, cmd=None, gid=None):
-    '''Sync all hosts to an specific path'''
-    '''The type of group is integer, it allows user has permissions to '''
-    '''operate a directory have a different group id with the user id.'''
+def sync_to_peers(peer_interface, user, paths=None, verbose=False, cmd=None,
+                  gid=None, fatal=False):
+    """Sync all hosts to an specific path
+
+    The type of group is integer, it allows user has permissions to
+    operate a directory have a different group id with the user id.
+
+    Propagates exception if any operation fails and fatal=True.
+    """
     if paths:
         for host in collect_authed_hosts(peer_interface):
-            sync_to_peer(host, user, paths, verbose, cmd, gid)
+            sync_to_peer(host, user, paths, verbose, cmd, gid, fatal)
