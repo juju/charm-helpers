@@ -292,6 +292,9 @@ def configure_installation_source(rel):
             'juno': 'trusty-updates/juno',
             'juno/updates': 'trusty-updates/juno',
             'juno/proposed': 'trusty-proposed/juno',
+            'kilo': 'trusty-updates/kilo',
+            'kilo/updates': 'trusty-updates/kilo',
+            'kilo/proposed': 'trusty-proposed/kilo',
         }
 
         try:
