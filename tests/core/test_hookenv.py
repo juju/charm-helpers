@@ -3,8 +3,7 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
-from mock import patch, call, mock_open, sentinel
-from mock import MagicMock
+from mock import call, MagicMock, mock_open, patch, sentinel
 from testtools import TestCase
 import yaml
 
@@ -307,10 +306,16 @@ class HelpersTest(TestCase):
         self.assertEqual(hookenv.local_unit(), 'foo')
 
     @patch('charmhelpers.core.hookenv.unit_get')
+    def test_gets_unit_public_ip(self, _unitget):
+        _unitget.return_value = sentinel.public_ip
+        self.assertEqual(sentinel.public_ip, hookenv.unit_public_ip())
+        _unitget.assert_called_once_with('public-address')
+
+    @patch('charmhelpers.core.hookenv.unit_get')
     def test_gets_unit_private_ip(self, _unitget):
-        _unitget.return_value = 'foo'
-        self.assertEqual("foo", hookenv.unit_private_ip())
-        _unitget.assert_called_with('private-address')
+        _unitget.return_value = sentinel.private_ip
+        self.assertEqual(sentinel.private_ip, hookenv.unit_private_ip())
+        _unitget.assert_called_once_with('private-address')
 
     @patch('charmhelpers.core.hookenv.os')
     def test_checks_that_is_running_in_relation_hook(self, os_):

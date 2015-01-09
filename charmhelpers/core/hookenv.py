@@ -489,6 +489,11 @@ def unit_get(attribute):
         return None
 
 
+def unit_public_ip():
+    """Get this unit's public IP address"""
+    return unit_get('public-address')
+
+
 def unit_private_ip():
     """Get this unit's private IP address"""
     return unit_get('private-address')
