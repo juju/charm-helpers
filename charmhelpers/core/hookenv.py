@@ -4,6 +4,7 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
+from functools import wraps
 import os
 import json
 import yaml
@@ -40,15 +41,17 @@ def cached(func):
 
     will cache the result of unit_get + 'test' for future calls.
     """
+    @wraps(func)
     def wrapper(*args, **kwargs):
         global cache
         key = str((func, args, kwargs))
         try:
             return cache[key]
         except KeyError:
-            res = func(*args, **kwargs)
-            cache[key] = res
-            return res
+            pass  # Drop out of the exception handler scope.
+        res = func(*args, **kwargs)
+        cache[key] = res
+        return res
     return wrapper
 
 
