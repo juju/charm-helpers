@@ -237,12 +237,22 @@ class NRPE(object):
 
 
 def get_nagios_hostcontext(relation_name='nrpe-external-master'):
+    """
+    Query relation with nrpe subordinate, return the nagios_host_context
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
     for rel in relations_of_type(relation_name):
         if 'nagios_hostname' in rel:
             return rel['nagios_host_context']
 
 
 def get_nagios_unit_name(relation_name='nrpe-external-master'):
+    """
+    Return the nagios unit name prepended with host_context if needed
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
     host_context = get_nagios_hostcontext(relation_name)
     if host_context:
         unit = "%s:%s" % (host_context, local_unit())
@@ -252,6 +262,13 @@ def get_nagios_unit_name(relation_name='nrpe-external-master'):
 
 
 def add_init_service_checks(nrpe, services, unit_name):
+    """
+    Add checks for each service in list
+
+    :param NRPE nrpe: NRPE object to add check to
+    :param list services: List of services to check
+    :param str unit_name: Unit name to use in check description
+    """
     for svc in services:
         upstart_init = '/etc/init/%s.conf' % svc
         sysv_init = '/etc/init.d/%s' % svc
@@ -278,5 +295,3 @@ def add_init_service_checks(nrpe, services, unit_name):
                 check_cmd='check_status_file.py -f '
                           '/var/lib/nagios/service-check-%s.txt' % svc,
             )
-
-    nrpe.write()
