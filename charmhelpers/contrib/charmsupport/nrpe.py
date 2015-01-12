@@ -245,39 +245,38 @@ def get_nagios_hostcontext(relation_name='nrpe-external-master'):
 def get_nagios_unit_name(relation_name='nrpe-external-master'):
     host_context = get_nagios_hostcontext(relation_name)
     if host_context:
-        current_unit = "%s:%s" % (host_context, local_unit())
+        unit = "%s:%s" % (host_context, local_unit())
     else:
-        current_unit = local_unit()
-    return current_unit   
-  
+        unit = local_unit()
+    return unit
+
 
 def add_init_service_checks(nrpe, services, unit_name):
-    for service in services:
-        upstart_init = '/etc/init/%s.conf' % service
-        sysv_init = '/etc/init.d/%s' % service
+    for svc in services:
+        upstart_init = '/etc/init/%s.conf' % svc
+        sysv_init = '/etc/init.d/%s' % svc
         if os.path.exists(upstart_init):
             nrpe.add_check(
-                shortname=service,
+                shortname=svc,
                 description='process check {%s}' % unit_name,
-                check_cmd='check_upstart_job %s' % service
+                check_cmd='check_upstart_job %s' % svc
             )
         elif os.path.exists(sysv_init):
-            cronpath = '/etc/cron.d/nagios-service-check-%s' % service
+            cronpath = '/etc/cron.d/nagios-service-check-%s' % svc
             cron_file = ('*/5 * * * * root '
                          '/usr/local/lib/nagios/plugins/check_exit_status.pl '
                          '-s /etc/init.d/%s status > '
-                         '/var/lib/nagios/service-check-%s.txt\n' % (service,
-                                                                     service)
+                         '/var/lib/nagios/service-check-%s.txt\n' % (svc,
+                                                                     svc)
                          )
             f = open(cronpath, 'w')
             f.write(cron_file)
             f.close()
             nrpe.add_check(
-                shortname=service,
+                shortname=svc,
                 description='process check {%s}' % unit_name,
                 check_cmd='check_status_file.py -f '
-                          '/var/lib/nagios/service-check-%s.txt' % service,
+                          '/var/lib/nagios/service-check-%s.txt' % svc,
             )
 
     nrpe.write()
-
