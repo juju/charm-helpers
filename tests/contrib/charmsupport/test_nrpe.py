@@ -256,6 +256,17 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.patched['relations_of_type'].return_value = [rel_info]
         self.assertEqual(nrpe.get_nagios_hostcontext(), 'bob')
 
+    def test_get_nagios_hostname(self):
+        rel_info = {
+            'nagios_hostname': 'bob-openstack-dashboard-0',
+            'private-address': '10.5.3.103',
+            '__unit__': u'dashboard-nrpe/1',
+            '__relid__': u'nrpe-external-master:2',
+            'nagios_host_context': u'bob',
+        }
+        self.patched['relations_of_type'].return_value = [rel_info]
+        self.assertEqual(nrpe.get_nagios_hostname(), 'bob-openstack-dashboard-0')
+
     def test_get_nagios_unit_name(self):
         rel_info = {
             'nagios_hostname': 'bob-openstack-dashboard-0',
