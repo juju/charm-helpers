@@ -247,6 +247,17 @@ def get_nagios_hostcontext(relation_name='nrpe-external-master'):
             return rel['nagios_host_context']
 
 
+def get_nagios_hostname(relation_name='nrpe-external-master'):
+    """
+    Query relation with nrpe subordinate, return the nagios_hostname
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    for rel in relations_of_type(relation_name):
+        if 'nagios_hostname' in rel:
+            return rel['nagios_hostname']
+
+
 def get_nagios_unit_name(relation_name='nrpe-external-master'):
     """
     Return the nagios unit name prepended with host_context if needed
