@@ -1019,6 +1019,7 @@ class ContextTests(unittest.TestCase):
                     }
                 }
             },
+            'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'stat_port': ':8888',
@@ -1070,6 +1071,7 @@ class ContextTests(unittest.TestCase):
                     }
                 }
             },
+            'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'stat_port': ':8888',
@@ -1144,8 +1146,17 @@ class ContextTests(unittest.TestCase):
                         'peer-1': 'cluster-peer1.public',
                         'peer-2': 'cluster-peer2.public',
                     }
+                },
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': {
+                        'peer-0': 'cluster-peer0.localnet',
+                        'peer-1': 'cluster-peer1.localnet',
+                        'peer-2': 'cluster-peer2.localnet',
+                    }
                 }
             },
+            'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'stat_port': ':8888',
@@ -1200,6 +1211,7 @@ class ContextTests(unittest.TestCase):
                     }
                 }
             },
+            'default_backend': 'cluster-peer0.localnet',
             'local_host': 'ip6-localhost',
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
@@ -1275,6 +1287,7 @@ class ContextTests(unittest.TestCase):
                     'network': 'lonely.clusterpeer.howsad/255.255.0.0'
                 },
             },
+            'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
             'stat_port': ':8888'
