@@ -1287,6 +1287,7 @@ class ContextTests(unittest.TestCase):
                     'network': 'lonely.clusterpeer.howsad/255.255.0.0'
                 },
             },
+            'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
             'stat_port': ':8888'
