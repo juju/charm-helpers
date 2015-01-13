@@ -11,6 +11,13 @@ from mock import (
 )
 from tests.helpers import patch_open
 
+import six
+
+if not six.PY3:
+    open_builtin = '__builtin__.open'
+else:
+    open_builtin = 'builtins.open'
+
 
 class FakeRelation(object):
 
@@ -378,6 +385,8 @@ TO_PATCH = [
     'mkdir',
     'write_file',
     'get_host_ip',
+    'charm_name',
+    'sysctl_create',
 ]
 
 
@@ -472,7 +481,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch('os.path.exists')
-    @patch('__builtin__.open')
+    @patch(open_builtin)
     def test_db_ssl(self, _open, osexists):
         osexists.return_value = False
         ssl_dir = '/etc/dbssl'
@@ -725,7 +734,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch('__builtin__.open')
+    @patch(open_builtin)
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
         relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
@@ -799,7 +808,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'rabbitmq_hosts': 'rabbithost2,rabbithost1',
+            'rabbitmq_hosts': 'rabbithost1,rabbithost2',
         }
         self.assertEquals(result, expected)
 
@@ -868,7 +877,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         expected = {
-            'mon_hosts': 'ceph_node2 ceph_node1',
+            'mon_hosts': 'ceph_node1 ceph_node2',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true'
@@ -882,8 +891,8 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy(CEPH_RELATION)
-        for k, v in relation.iteritems():
-            for u in v.iterkeys():
+        for k, v in six.iteritems(relation):
+            for u in six.iterkeys(v):
                 del relation[k][u]['auth']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
@@ -911,7 +920,7 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         expected = {
-            'mon_hosts': '192.168.1.11 192.168.1.10',
+            'mon_hosts': '192.168.1.10 192.168.1.11',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
@@ -919,6 +928,29 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    def test_sysctl_context_with_config(self, config):
+        self.charm_name.return_value = 'test-charm'
+        config.return_value = '{ kernel.max_pid: "1337"}'
+        self.sysctl_create.return_value = True
+        ctxt = context.SysctlContext()
+        result = ctxt()
+        self.sysctl_create.assert_called_with(
+            config.return_value,
+            "/etc/sysctl.d/50-test-charm.conf")
+
+        self.assertTrue(result, {'sysctl': config.return_value})
+
+    @patch.object(context, 'config')
+    def test_sysctl_context_without_config(self, config):
+        self.charm_name.return_value = 'test-charm'
+        config.return_value = None
+        self.sysctl_create.return_value = True
+        ctxt = context.SysctlContext()
+        result = ctxt()
+        self.assertTrue(self.sysctl_create.called == 0)
+        self.assertTrue(result, {'sysctl': config.return_value})
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
@@ -1185,6 +1217,7 @@ class ContextTests(unittest.TestCase):
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
             'stat_port': ':::8888',
+            'ipv6': True
         }
         # the context gets generated.
         self.assertEquals(ex, result)
@@ -1220,6 +1253,48 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = False
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
+        '''Test haproxy context with single unit'''
+        # peer relations always show at least one peer relation, even
+        # if unit is alone. should be an incomplete context.
+        cluster_relation = {
+            'cluster:0': {
+                'peer/0': {
+                    'private-address': 'lonely.clusterpeer.howsad',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        unit_get.return_value = 'lonely.clusterpeer.howsad'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.config.return_value = False
+        self.get_address_in_network.return_value = None
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        with patch_open() as (_open, _file):
+            result = context.HAProxyContext(singlenode_mode=True)()
+        ex = {
+            'frontends': {
+                'lonely.clusterpeer.howsad': {
+                    'backends': {
+                        'peer-0': 'lonely.clusterpeer.howsad'
+                    },
+                    'network': 'lonely.clusterpeer.howsad/255.255.0.0'
+                },
+            },
+            'haproxy_host': '0.0.0.0',
+            'local_host': '127.0.0.1',
+            'stat_port': ':8888'
+        }
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
 
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''
@@ -1276,12 +1351,9 @@ class ContextTests(unittest.TestCase):
             if len(vips) > 1:
                 ex = {
                     'namespace': 'cinder',
-                    'endpoints': [('10.5.1.100', '10.5.1.1',
-                                   8766, 8756),
-                                  ('10.5.2.100', '10.5.2.1',
-                                   8766, 8756),
-                                  ('10.5.3.100', '10.5.3.1',
-                                   8766, 8756)],
+                    'endpoints': [('10.5.1.100', '10.5.1.1', 8766, 8756),
+                                  ('10.5.2.100', '10.5.2.1', 8766, 8756),
+                                  ('10.5.3.100', '10.5.3.1', 8766, 8756)],
                     'ext_ports': [8766]
                 }
             else:
@@ -1295,12 +1367,10 @@ class ContextTests(unittest.TestCase):
             if multinet:
                 ex = {
                     'namespace': 'cinder',
-                    'endpoints': [('10.5.3.100', '10.5.3.100',
-                                   8776, 8766),
-                                  ('10.5.2.100', '10.5.2.100',
-                                   8776, 8766),
-                                  ('10.5.1.100', '10.5.1.100',
-                                   8776, 8766)],
+                    'endpoints': sorted([
+                        ('10.5.3.100', '10.5.3.100', 8776, 8766),
+                        ('10.5.2.100', '10.5.2.100', 8776, 8766),
+                        ('10.5.1.100', '10.5.1.100', 8776, 8766)]),
                     'ext_ports': [8776]
                 }
             else:
@@ -1403,9 +1473,10 @@ class ContextTests(unittest.TestCase):
         apache = context.ApacheSSLContext()
         self.assertEquals(apache.canonical_names(), ['cinderhost1'])
         rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
-        self.assertEquals(apache.canonical_names(), ['cinderhost1-adm-network',
-                                                     'cinderhost1-int-network',
-                                                     'cinderhost1-pub-network'])
+        self.assertEquals(apache.canonical_names(),
+                          sorted(['cinderhost1-adm-network',
+                                  'cinderhost1-int-network',
+                                  'cinderhost1-pub-network']))
         rel.relation_data = IDENTITY_RELATION_NO_CERT
         self.assertEquals(apache.canonical_names(), [])
 
@@ -1915,17 +1986,15 @@ class ContextTests(unittest.TestCase):
 
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
-        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
-            cpus.__get__ = Mock(return_value=2)
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
             worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 2}, worker())
+            self.assertEqual({'workers': 0}, worker())
 
     def test_workerconfig_context_withconfig(self):
         self.config.side_effect = fake_config({
             'worker-multiplier': 4,
         })
-        with patch.object(context.WorkerConfigContext, 'num_cpus') as cpus:
-            cpus.__get__ = Mock(return_value=2)
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
             worker = context.WorkerConfigContext()
             self.assertEqual({'workers': 8}, worker())
 

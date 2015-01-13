@@ -1,5 +1,5 @@
 
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 
 from subprocess import CalledProcessError
 from testtools import TestCase
@@ -44,23 +44,40 @@ class ClusterUtilsTests(TestCase):
     def test_is_crm_leader(self, check_output):
         '''It determines its unit is leader'''
         self.get_unit_hostname.return_value = 'node1'
-        crm = 'resource vip is running on: node1'
+        crm = b'resource vip is running on: node1'
         check_output.return_value = crm
         self.assertTrue(cluster_utils.is_crm_leader('vip'))
 
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
-    def test_is_not_leader(self, check_output):
+    def test_is_not_leader(self, check_output, mock_time):
         '''It determines its unit is not leader'''
         self.get_unit_hostname.return_value = 'node1'
-        crm = 'resource vip is running on: node2'
+        crm = b'resource vip is running on: node2'
         check_output.return_value = crm
         self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
+        self.assertFalse(mock_time.called)
 
+    @patch('charmhelpers.core.decorators.log')
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
-    def test_is_crm_leader_no_cluster(self, check_output):
+    def test_is_not_leader_resource_not_exists(self, check_output, mock_time,
+                                               mock_log):
+        '''It determines its unit is not leader'''
+        self.get_unit_hostname.return_value = 'node1'
+        check_output.return_value = "resource vip is NOT running"
+        self.assertRaises(cluster_utils.CRMResourceNotFound,
+                          cluster_utils.is_crm_leader, 'vip')
+        mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
+                                    call.sleep(6)])
+
+    @patch('charmhelpers.core.decorators.time')
+    @patch('subprocess.check_output')
+    def test_is_crm_leader_no_cluster(self, check_output, mock_time):
         '''It is not leader if there is no cluster up'''
         check_output.side_effect = CalledProcessError(1, 'crm')
         self.assertFalse(cluster_utils.is_crm_leader('vip'))
+        self.assertFalse(mock_time.called)
 
     def test_peer_units(self):
         '''It lists all peer units for cluster relation'''
@@ -178,6 +195,15 @@ class ClusterUtilsTests(TestCase):
         https.return_value = False
         self.assertEquals(9686, cluster_utils.determine_api_port(9696))
 
+    @patch.object(cluster_utils, 'https')
+    @patch.object(cluster_utils, 'peer_units')
+    def test_determine_api_port_nopeers_singlemode(self, peer_units, https):
+        '''It determines API port with a single unit in singlemode'''
+        peer_units.return_value = []
+        https.return_value = False
+        port = cluster_utils.determine_api_port(9696, singlenode_mode=True)
+        self.assertEquals(9686, port)
+
     @patch.object(cluster_utils, 'is_clustered')
     @patch.object(cluster_utils, 'https')
     @patch.object(cluster_utils, 'peer_units')
@@ -213,6 +239,19 @@ class ClusterUtilsTests(TestCase):
         https.return_value = True
         is_clustered.return_value = True
         self.assertEquals(9686, cluster_utils.determine_apache_port(9696))
+
+    @patch.object(cluster_utils, 'peer_units')
+    @patch.object(cluster_utils, 'https')
+    @patch.object(cluster_utils, 'is_clustered')
+    def test_determine_apache_port_nopeers_singlemode(self, https,
+                                                      is_clustered,
+                                                      peer_units):
+        '''It determines haproxy port with a single unit in singlemode'''
+        peer_units.return_value = []
+        https.return_value = False
+        is_clustered.return_value = False
+        port = cluster_utils.determine_apache_port(9696, singlenode_mode=True)
+        self.assertEquals(9686, port)
 
     def test_get_hacluster_config_complete(self):
         '''It fetches all hacluster charm config'''

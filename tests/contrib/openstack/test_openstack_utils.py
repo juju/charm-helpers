@@ -1,12 +1,21 @@
+import io
 import os
 import subprocess
 import unittest
-
 from copy import copy
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
 import charmhelpers.contrib.openstack.utils as openstack
+
+import six
+
+if not six.PY3:
+    builtin_open = '__builtin__.open'
+    builtin_import = '__builtin__.__import__'
+else:
+    builtin_open = 'builtins.open'
+    builtin_import = 'builtins.__import__'
 
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
@@ -81,6 +90,16 @@ UCA_SOURCES = [
     ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
 ]
 
+GIT_PROJECTS = {
+    'core-proj': {
+        'repository': 'git://git.openstack.org/openstack/core-proj.git',
+        'branch': 'master'
+    },
+    'requirements': {
+        'repository': 'git://git.openstack.org/openstack/requirements.git',
+        'branch': 'master'
+    }
+}
 
 # Mock python-dnspython resolver used by get_host_ip()
 
@@ -222,7 +241,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Test deriving OpenStack codename from an installed package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in FAKE_REPO.iteritems():
+            for pkg, vers in six.iteritems(FAKE_REPO):
                 # test fake repo for all "installed" packages
                 if pkg.startswith('bad-'):
                     continue
@@ -291,7 +310,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Test deriving OpenStack version from an installed package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in FAKE_REPO.iteritems():
+            for pkg, vers in six.iteritems(FAKE_REPO):
                 if pkg.startswith('bad-'):
                     continue
                 if 'pkg_vers' not in vers:
@@ -354,12 +373,12 @@ class OpenStackHelpersTestCase(TestCase):
             ex_cmd = ['add-apt-repository', '-y', 'ppa:gandelman-a/openstack']
             mock.assert_called_with(ex_cmd)
 
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     @patch('charmhelpers.contrib.openstack.utils.import_key')
     def test_configure_install_source_deb_url(self, _import, _log, _open):
         '''Test configuring installation source from deb repo url'''
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main|KEYID')
@@ -372,12 +391,12 @@ class OpenStackHelpersTestCase(TestCase):
         _file.__enter__().write.assert_called_with(src)
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     def test_configure_install_source_distro_proposed(self, _log, _open, _lsb):
         '''Test configuring installation source from deb repo url'''
         _lsb.return_value = FAKE_RELEASE
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         openstack.configure_installation_source('distro-proposed')
         src = ('deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
@@ -402,13 +421,13 @@ class OpenStackHelpersTestCase(TestCase):
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd)
 
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.apt_install')
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_configure_install_source_uca_repos(self, _lsb, _install, _open):
         '''Test configuring installation source from UCA sources'''
         _lsb.return_value = FAKE_RELEASE
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         for src, url in UCA_SOURCES:
             openstack.configure_installation_source(src)
@@ -455,13 +474,13 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
                     'export setting2=bar\n']
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
         _exists.return_value = False
@@ -583,21 +602,21 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'apt_install')
     def test_get_host_ip_with_hostname(self, apt_install):
         fake_dns = FakeDNS('10.0.0.1')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns]):
             ip = openstack.get_host_ip('www.ubuntu.com')
         self.assertEquals(ip, '10.0.0.1')
 
     @patch.object(openstack, 'apt_install')
     def test_get_host_ip_with_ip(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns]):
             ip = openstack.get_host_ip('4.2.2.1')
         self.assertEquals(ip, '4.2.2.1')
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_trigger_apt_install(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
-        with patch('__builtin__.__import__', side_effect=[ImportError, fake_dns]):
+        with patch(builtin_import, side_effect=[ImportError, fake_dns]):
             nsq = openstack.ns_query('5.5.5.5')
             apt_install.assert_called_with('python-dnspython')
         self.assertEquals(nsq, '5.5.5.5')
@@ -605,7 +624,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'apt_install')
     def test_ns_query_ptr_record(self, apt_install):
         fake_dns = FakeDNS('127.0.0.1')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns]):
             nsq = openstack.ns_query('127.0.0.1')
         self.assertEquals(nsq, '127.0.0.1')
 
@@ -613,35 +632,35 @@ class OpenStackHelpersTestCase(TestCase):
     def test_ns_query_a_record(self, apt_install):
         fake_dns = FakeDNS('127.0.0.1')
         fake_dns_name = FakeDNSName('www.somedomain.tld')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns]):
             nsq = openstack.ns_query(fake_dns_name)
         self.assertEquals(nsq, '127.0.0.1')
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_blank_record(self, apt_install):
         fake_dns = FakeDNS(None)
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
             nsq = openstack.ns_query(None)
         self.assertEquals(nsq, None)
 
     @patch.object(openstack, 'apt_install')
     def test_ns_query_lookup_fail(self, apt_install):
         fake_dns = FakeDNS('')
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
             nsq = openstack.ns_query('nonexistant')
         self.assertEquals(nsq, None)
 
     @patch.object(openstack, 'apt_install')
     def test_get_hostname_with_ip(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
         self.assertEquals(hn, 'www.ubuntu.com')
 
     @patch.object(openstack, 'apt_install')
     def test_get_hostname_with_ip_not_fqdn(self, apt_install):
         fake_dns = FakeDNS('packages.ubuntu.com')
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1', fqdn=False)
         self.assertEquals(hn, 'packages')
 
@@ -663,7 +682,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'apt_install')
     def test_get_hostname_trigger_apt_install(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
-        with patch('__builtin__.__import__', side_effect=[ImportError, fake_dns, fake_dns]):
+        with patch(builtin_import, side_effect=[ImportError, fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
             apt_install.assert_called_with('python-dnspython')
         self.assertEquals(hn, 'www.ubuntu.com')
@@ -673,12 +692,12 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_hostname_lookup_fail(self, apt_install, ns_query):
         fake_dns = FakeDNS('www.ubuntu.com')
         ns_query.return_value = []
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
+        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
             hn = openstack.get_hostname('4.2.2.1')
         self.assertEquals(hn, None)
 
     @patch('os.path.isfile')
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     def test_get_matchmaker_map(self, _open, _isfile):
         _isfile.return_value = True
         mm_data = """
@@ -696,13 +715,179 @@ class OpenStackHelpersTestCase(TestCase):
         )
 
     @patch('os.path.isfile')
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     def test_get_matchmaker_map_nofile(self, _open, _isfile):
         _isfile.return_value = False
         self.assertEqual(
             openstack.get_matchmaker_map(),
             {}
         )
+
+    @patch.object(openstack, 'config')
+    def test_git_install_requested_none(self, config):
+        config.return_value = 'None'
+        result = openstack.git_install_requested()
+        self.assertEquals(result, False)
+
+    @patch.object(openstack, 'config')
+    def test_git_install_requested_not_none(self, config):
+        config.return_value = 'config/git-tip.yaml'
+        result = openstack.git_install_requested()
+        self.assertEquals(result, True)
+
+    @patch.object(openstack, 'charm_dir')
+    @patch.object(openstack, '_git_clone_and_install_subset')
+    @patch.object(openstack, 'error_out')
+    def test_git_clone_and_install_errors(self, error_out, _git_install_subset,
+                                          charm_dir):
+        file_name = 'config/git-tip.yaml'
+        proj = 'core-proj'
+        charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
+        _git_install_subset.return_value = []
+
+        openstack.git_clone_and_install(file_name, proj)
+        expected = [
+            call('requirements git repository must be specified'),
+            call('core-proj git repository must be specified')
+        ]
+        self.assertEquals(expected, error_out.call_args_list)
+
+    @patch.object(openstack, 'charm_dir')
+    @patch.object(openstack, '_git_clone_and_install_subset')
+    @patch.object(openstack, 'error_out')
+    def test_git_clone_and_install_success(self, error_out, _git_install_subset,
+                                           charm_dir):
+        file_name = 'config/git-tip.yaml'
+        proj = 'core-proj'
+        config = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
+        charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
+        _git_install_subset.return_value = ['requirements', proj]
+
+        openstack.git_clone_and_install(file_name, proj)
+        self.assertTrue(_git_install_subset.call_count == 3)
+        expected = [
+            call(config, whitelist=['requirements']),
+            call(config, blacklist=['requirements', 'core-proj'],
+                 update_requirements=True),
+            call(config, whitelist=['core-proj'], update_requirements=True)
+        ]
+        self.assertEquals(expected, _git_install_subset.call_args_list)
+        assert not error_out.called
+
+    @patch(builtin_open)
+    @patch('yaml.load')
+    @patch.object(openstack, '_git_clone_and_install_single')
+    def test_git_clone_and_install_subset_whitelist(self, _git_install_single,
+                                                    yaml_load, _open):
+        file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
+        _file = MagicMock(spec=io.FileIO)
+        _open.return_value = _file
+        yaml_load.return_value = GIT_PROJECTS
+
+        openstack._git_clone_and_install_subset(file_name,
+                                                whitelist=['requirements'])
+        _open.assert_called_with(file_name, 'r')
+        _git_install_single.assert_called_once_with('git://git.openstack.org/'
+                                                    'openstack/requirements.git',
+                                                    'master', False)
+
+    @patch(builtin_open)
+    @patch('yaml.load')
+    @patch.object(openstack, '_git_clone_and_install_single')
+    def test_git_clone_and_install_subset_blacklist(self, _git_install_single,
+                                                    yaml_load, _open):
+        file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
+        _file = MagicMock(spec=io.FileIO)
+        _open.return_value = _file
+        yaml_load.return_value = GIT_PROJECTS
+
+        openstack._git_clone_and_install_subset(file_name,
+                                                blacklist=['core-proj'])
+        _open.assert_called_with(file_name, 'r')
+        _git_install_single.assert_called_once_with('git://git.openstack.org/'
+                                                    'openstack/requirements.git',
+                                                    'master', False)
+
+    @patch(builtin_open)
+    @patch('yaml.load')
+    @patch.object(openstack, '_git_clone_and_install_single')
+    def test_git_clone_and_install_subset_all(self, _git_install_single,
+                                              yaml_load, _open):
+        file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
+        _file = MagicMock(spec=io.FileIO)
+        _open.return_value = _file
+        yaml_load.return_value = GIT_PROJECTS
+
+        openstack._git_clone_and_install_subset(file_name)
+        _open.assert_called_with(file_name, 'r')
+        expected = [
+            call('git://git.openstack.org/openstack/requirements.git',
+                 'master', False),
+            call('git://git.openstack.org/openstack/core-proj.git',
+                 'master', False)
+        ]
+        _git_install_single.assert_has_calls(expected, any_order=True)
+
+    @patch('os.mkdir')
+    @patch('os.path.exists')
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'install_remote')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, '_git_update_requirements')
+    def test_git_clone_and_install_single(self, _git_update_reqs, pip_install,
+                                          install_remote, log, path_exists,
+                                          mkdir):
+        repo = 'git://git.openstack.org/openstack/requirements.git'
+        branch = 'master'
+        dest_parent_dir = '/mnt/openstack-git/'
+        dest_dir = '/mnt/openstack-git/repo-dir'
+        path_exists.return_value = False
+        install_remote.return_value = dest_dir
+
+        openstack._git_clone_and_install_single(repo, branch)
+        mkdir.assert_called_with(dest_parent_dir)
+        install_remote.assert_called_with(repo, dest=dest_parent_dir, branch=branch)
+        assert not _git_update_reqs.called
+        pip_install.assert_called_with(dest_dir)
+
+    @patch('os.mkdir')
+    @patch('os.path.exists')
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'install_remote')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, '_git_update_requirements')
+    def test_git_clone_and_install_single_with_update(self, _git_update_reqs,
+                                                      pip_install,
+                                                      install_remote, log,
+                                                      path_exists, mkdir):
+        repo = 'git://git.openstack.org/openstack/requirements.git'
+        branch = 'master'
+        dest_parent_dir = '/mnt/openstack-git/'
+        dest_dir = '/mnt/openstack-git/repo-dir'
+        reqs_dir = '/mnt/openstack-git/requirements-dir'
+        openstack.requirements_dir = reqs_dir
+        path_exists.return_value = False
+        install_remote.return_value = dest_dir
+
+        openstack._git_clone_and_install_single(repo, branch, True)
+        mkdir.assert_called_with(dest_parent_dir)
+        install_remote.assert_called_with(repo, dest=dest_parent_dir, branch=branch)
+        _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
+        pip_install.assert_called_with(dest_dir)
+
+    @patch('os.getcwd')
+    @patch('os.chdir')
+    @patch('subprocess.check_call')
+    def test_git_update_requirements(self, check_call, chdir, getcwd):
+        pkg_dir = '/mnt/openstack-git/repo-dir'
+        reqs_dir = '/mnt/openstack-git/reqs-dir'
+        orig_dir = '/var/lib/juju/units/testing-foo-0/charm'
+        getcwd.return_value = orig_dir
+
+        openstack._git_update_requirements(pkg_dir, reqs_dir)
+        expected = [call(reqs_dir), call(orig_dir)]
+        self.assertEquals(expected, chdir.call_args_list)
+        check_call.assert_called_with(['python', 'update.py', pkg_dir])
 
 if __name__ == '__main__':
     unittest.main()

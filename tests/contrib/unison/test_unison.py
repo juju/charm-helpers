@@ -110,13 +110,13 @@ class UnisonHelperTests(TestCase):
 
         isfile.return_value = False
         with patch_open() as (_open, _file):
-            self.check_output.return_value = 'fookey'
+            self.check_output.return_value = b'fookey'
             unison.create_public_key(
                 user='foo', priv_key_path='/home/foo/.ssh/id_rsa',
                 pub_key_path='/home/foo/.ssh/id_rsa.pub')
             self.assertIn(call(create_cmd), self.check_output.call_args_list)
             _open.assert_called_with('/home/foo/.ssh/id_rsa.pub', 'wb')
-            _file.write.assert_called_with('fookey')
+            _file.write.assert_called_with(b'fookey')
 
     @patch('os.mkdir')
     @patch('os.path.isdir')
@@ -297,6 +297,26 @@ class UnisonHelperTests(TestCase):
             ex_cmd += ['/tmp/foo', 'ssh://foo@clusterhost1//tmp/foo']
             run_as_user.assert_called_with('foo', ex_cmd, gid)
 
+    @patch.object(unison, 'run_as_user')
+    def test_sync_path_to_host_error(self, run_as_user):
+        for i, path in enumerate(['/tmp/foo', '/tmp/foo/']):
+            run_as_user.side_effect = Exception
+            if i == 0:
+                unison.sync_path_to_host(path=path, host='clusterhost1',
+                                         user='foo', verbose=True, gid=None)
+            else:
+                self.assertRaises(Exception, unison.sync_path_to_host,
+                                  path=path, host='clusterhost1',
+                                  user='foo', verbose=True, gid=None,
+                                  fatal=True)
+
+            ex_cmd = ['unison', '-auto', '-batch=true',
+                      '-confirmbigdel=false', '-fastcheck=true',
+                      '-group=false', '-owner=false',
+                      '-prefer=newer', '-times=true',
+                      '/tmp/foo', 'ssh://foo@clusterhost1//tmp/foo']
+            run_as_user.assert_called_with('foo', ex_cmd, None)
+
     def test_sync_path_to_host_non_verbose(self):
         return self.test_sync_path_to_host(verbose=False)
 
@@ -308,8 +328,8 @@ class UnisonHelperTests(TestCase):
         paths = ['/tmp/foo1', '/tmp/foo2']
         host = 'host1'
         unison.sync_to_peer(host, 'foouser', paths, True)
-        calls = [call('/tmp/foo1', host, 'foouser', True, None, None),
-                 call('/tmp/foo2', host, 'foouser', True, None, None)]
+        calls = [call('/tmp/foo1', host, 'foouser', True, None, None, False),
+                 call('/tmp/foo2', host, 'foouser', True, None, None, False)]
         sync_path_to_host.assert_has_calls(calls)
 
     @patch.object(unison, 'sync_path_to_host')
@@ -317,8 +337,8 @@ class UnisonHelperTests(TestCase):
         paths = ['/tmp/foo1', '/tmp/foo2']
         host = 'host1'
         unison.sync_to_peer(host, 'foouser', paths, True, gid=111)
-        calls = [call('/tmp/foo1', host, 'foouser', True, None, 111),
-                 call('/tmp/foo2', host, 'foouser', True, None, 111)]
+        calls = [call('/tmp/foo1', host, 'foouser', True, None, 111, False),
+                 call('/tmp/foo2', host, 'foouser', True, None, 111, False)]
         sync_path_to_host.assert_has_calls(calls)
 
     @patch.object(unison, 'collect_authed_hosts')
@@ -328,9 +348,9 @@ class UnisonHelperTests(TestCase):
         paths = ['/tmp/foo']
         unison.sync_to_peers(peer_interface='cluster', user='foouser',
                              paths=paths, verbose=True)
-        calls = [call('host1', 'foouser', ['/tmp/foo'], True, None, None),
-                 call('host2', 'foouser', ['/tmp/foo'], True, None, None),
-                 call('host3', 'foouser', ['/tmp/foo'], True, None, None)]
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True, None, None, False),
+                 call('host2', 'foouser', ['/tmp/foo'], True, None, None, False),
+                 call('host3', 'foouser', ['/tmp/foo'], True, None, None, False)]
         sync_to_peer.assert_has_calls(calls)
 
     @patch.object(unison, 'collect_authed_hosts')
@@ -340,9 +360,9 @@ class UnisonHelperTests(TestCase):
         paths = ['/tmp/foo']
         unison.sync_to_peers(peer_interface='cluster', user='foouser',
                              paths=paths, verbose=True, gid=111)
-        calls = [call('host1', 'foouser', ['/tmp/foo'], True, None, 111),
-                 call('host2', 'foouser', ['/tmp/foo'], True, None, 111),
-                 call('host3', 'foouser', ['/tmp/foo'], True, None, 111)]
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True, None, 111, False),
+                 call('host2', 'foouser', ['/tmp/foo'], True, None, 111, False),
+                 call('host3', 'foouser', ['/tmp/foo'], True, None, 111, False)]
         sync_to_peer.assert_has_calls(calls)
 
     @patch.object(unison, 'collect_authed_hosts')
@@ -353,7 +373,7 @@ class UnisonHelperTests(TestCase):
         cmd = ['dummy_cmd']
         unison.sync_to_peers(peer_interface='cluster', user='foouser',
                              paths=paths, verbose=True, cmd=cmd, gid=111)
-        calls = [call('host1', 'foouser', ['/tmp/foo'], True, cmd, 111),
-                 call('host2', 'foouser', ['/tmp/foo'], True, cmd, 111),
-                 call('host3', 'foouser', ['/tmp/foo'], True, cmd, 111)]
+        calls = [call('host1', 'foouser', ['/tmp/foo'], True, cmd, 111, False),
+                 call('host2', 'foouser', ['/tmp/foo'], True, cmd, 111, False),
+                 call('host3', 'foouser', ['/tmp/foo'], True, cmd, 111, False)]
         sync_to_peer.assert_has_calls(calls)

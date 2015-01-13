@@ -3,19 +3,20 @@
 
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
-from charmhelpers.fetch import apt_install
+from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import log
 
 try:
     from pip import main as pip_execute
 except ImportError:
+    apt_update()
     apt_install('python-pip')
     from pip import main as pip_execute
 
 
 def parse_options(given, available):
     """Given a set of options, check if available"""
-    for key, value in given.items():
+    for key, value in sorted(given.items()):
         if key in available:
             yield "--{0}={1}".format(key, value)
 

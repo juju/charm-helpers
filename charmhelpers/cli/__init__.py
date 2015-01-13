@@ -1,7 +1,8 @@
 import inspect
-import itertools
 import argparse
 import sys
+
+from six.moves import zip
 
 
 class OutputFormatter(object):
@@ -136,7 +137,7 @@ def describe_arguments(func):
     if argspec.defaults:
         positional_args = argspec.args[:-len(argspec.defaults)]
         keyword_names = argspec.args[-len(argspec.defaults):]
-        for arg, default in itertools.izip(keyword_names, argspec.defaults):
+        for arg, default in zip(keyword_names, argspec.defaults):
             yield ('--{}'.format(arg),), {'default': default}
     else:
         positional_args = argspec.args
