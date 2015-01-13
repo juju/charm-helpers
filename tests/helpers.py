@@ -3,6 +3,12 @@ from contextlib import contextmanager
 from mock import patch, MagicMock
 import io
 
+import six
+if not six.PY3:
+    builtin_open = '__builtin__.open'
+else:
+    builtin_open = 'builtins.open'
+
 
 @contextmanager
 def patch_open():
@@ -11,26 +17,29 @@ def patch_open():
 
     Yields the mock for "open" and "file", respectively.'''
     mock_open = MagicMock(spec=open)
-    mock_file = MagicMock(spec=file)
+    mock_file = MagicMock(spec=io.FileIO)
 
     @contextmanager
     def stub_open(*args, **kwargs):
         mock_open(*args, **kwargs)
         yield mock_file
 
-    with patch('__builtin__.open', stub_open):
+    with patch(builtin_open, stub_open):
         yield mock_open, mock_file
 
 
 @contextmanager
 def mock_open(filename, contents=None):
     ''' Slightly simpler mock of open to return contents for filename '''
-    def mock_file(*args):
-        if args[0] == filename:
+    def mock_file(name, mode='r', buffering=-1):  # Python 2 signature.
+        if name == filename:
+            if (not six.PY3) or 'b' in mode:
+                return io.BytesIO(contents)
             return io.StringIO(contents)
         else:
-            return open(*args)
-    with patch('__builtin__.open', mock_file):
+            return open(name, mode, buffering)
+
+    with patch(builtin_open, mock_file):
         yield
 
 

@@ -1,7 +1,7 @@
 """Tests for the commandant code that analyzes a function signature to
 determine the parameters to argparse."""
 
-from testtools import TestCase, matchers
+from testtools import TestCase
 
 from charmhelpers import cli
 
@@ -42,5 +42,5 @@ class FunctionSignatureTest(TestCase):
         args = cli.describe_arguments(lambda x, y=3, *z, **missing: False)
         for opts, _ in args:
             # opts should be ('varname',) at this point
-            self.assertThat(opts, matchers.HasLength(1))
+            self.assertTrue(len(opts) == 1)
             self.assertNotIn('missing', opts)

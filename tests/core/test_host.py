@@ -19,30 +19,30 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
-LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
+LSB_RELEASE = '''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
 
-IP_LINE_ETH0 = ("""
+IP_LINE_ETH0 = b"""
 2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
-IP_LINE_ETH1 = ("""
+IP_LINE_ETH1 = b"""
 3: eth1: <BROADCAST,MULTICAST> mtu 1546 qdisc noop state DOWN qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
-IP_LINE_HWADDR = ("""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff""")
+IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
 IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
 
-IP_LINE_BONDS = ("""
+IP_LINE_BONDS = b"""
 6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
 link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
 
 class HelpersTest(TestCase):
@@ -166,12 +166,12 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_service_running_on_stopped_service(self, check_output):
-        check_output.return_value = 'foo stop/waiting'
+        check_output.return_value = b'foo stop/waiting'
         self.assertFalse(host.service_running('foo'))
 
     @patch('subprocess.check_output')
     def test_service_running_on_running_service(self, check_output):
-        check_output.return_value = 'foo start/running, process 23871'
+        check_output.return_value = b'foo start/running, process 23871'
         self.assertTrue(host.service_running('foo'))
 
     @patch('subprocess.check_output')
@@ -279,12 +279,64 @@ class HelpersTest(TestCase):
             group
         ])
 
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_a_group_if_it_doesnt_exist(self, log, check_call, getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        result = host.add_group(group_name)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with(['addgroup', '--group', group_name])
+        getgrnam.assert_called_with(group_name)
+
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_doesnt_add_group_if_it_already_exists(self, log, check_call,
+                                                   getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = 'some group grnam'
+
+        getgrnam.return_value = existing_group_grnam
+
+        result = host.add_group(group_name)
+
+        self.assertEqual(result, existing_group_grnam)
+        self.assertFalse(check_call.called)
+        getgrnam.assert_called_with(group_name)
+
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_a_system_group(self, log, check_call, getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        result = host.add_group(group_name, system_group=True)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with([
+            'addgroup',
+            '--system',
+            group_name
+        ])
+        getgrnam.assert_called_with(group_name)
+
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_rsyncs_a_path(self, log, check_output):
         from_path = '/from/this/path/foo'
         to_path = '/to/this/path/bar'
-        check_output.return_value = ' some output '
+        check_output.return_value = b' some output '  # Spaces will be stripped
 
         result = host.rsync(from_path, to_path)
 
@@ -319,7 +371,7 @@ class HelpersTest(TestCase):
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
-        perms = 0644
+        perms = 0o644
 
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
@@ -343,7 +395,7 @@ class HelpersTest(TestCase):
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
-        perms = 0555
+        perms = 0o555
 
         os_.path.abspath.return_value = realpath
         os_.path.exists.return_value = path_exists
@@ -370,7 +422,7 @@ class HelpersTest(TestCase):
         path_exists = True
         force = True
         is_dir = False
-        perms = 0644
+        perms = 0o644
 
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
@@ -385,7 +437,7 @@ class HelpersTest(TestCase):
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.unlink.assert_called_with(realpath)
-        self.assertFalse(os_.makedirs.called)
+        os_.makedirs.assert_called()
         os_.chown.assert_called_with(realpath, uid, gid)
 
     @patch('pwd.getpwnam')
@@ -402,7 +454,7 @@ class HelpersTest(TestCase):
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
         contents = 'what is {juju}'
-        perms = 0644
+        perms = 0o644
         fileno = 'some-fileno'
 
         getpwnam.return_value.pw_uid = uid
@@ -428,7 +480,7 @@ class HelpersTest(TestCase):
         gid = 0
         path = '/some/path/{baz}'
         fmtstr = 'what is {juju}'
-        perms = 0444
+        perms = 0o444
         fileno = 'some-fileno'
 
         with patch_open() as (mock_open, mock_file):
@@ -636,7 +688,7 @@ class HelpersTest(TestCase):
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
-            mock_file.read.return_value = "newstuff"
+            mock_file.read.return_value = b"newstuff"
 
         with patch_open() as (mock_open, mock_file):
             make_some_changes(mock_file)
@@ -664,7 +716,7 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
         # Restart should only happen once per service
@@ -691,7 +743,7 @@ class HelpersTest(TestCase):
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
@@ -713,7 +765,6 @@ class HelpersTest(TestCase):
         with mocked_open('/etc/lsb-release', LSB_RELEASE):
             lsb_release = host.lsb_release()
             for key in result:
-                print lsb_release
                 self.assertEqual(result[key], lsb_release[key])
 
     def test_pwgen(self):
