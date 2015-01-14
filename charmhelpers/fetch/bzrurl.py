@@ -11,12 +11,12 @@ if six.PY3:
 
 try:
     from bzrlib.branch import Branch
-    from bzrlib import bzrdir, errors
+    from bzrlib import bzrdir, workingtree, errors
 except ImportError:
     from charmhelpers.fetch import apt_install
     apt_install("python-bzrlib")
     from bzrlib.branch import Branch
-    from bzrlib import bzrdir, errors
+    from bzrlib import bzrdir, workingtree, errors
 
 
 class BzrUrlFetchHandler(BaseFetchHandler):
@@ -38,12 +38,13 @@ class BzrUrlFetchHandler(BaseFetchHandler):
             load_plugins()
         try:
             local_branch = bzrdir.BzrDir.create_branch_convenience(dest)
-            local_branch.bzrdir.create_workingtree()
         except errors.AlreadyControlDirError:
             local_branch = Branch.open(dest)
         try:
             remote_branch = Branch.open(source)
             remote_branch.push(local_branch)
+            tree = workingtree.WorkingTree.open(dest)
+            tree.update()
         except Exception as e:
             raise e
 

@@ -65,9 +65,10 @@ class BzrUrlFetchHandlerTest(TestCase):
             self.assertNotEqual(result, True, url)
 
     @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
+    @patch('bzrlib.workingtree.WorkingTree.open')
     @patch('bzrlib.bzrdir.BzrDir.create_branch_convenience')
     @patch('bzrlib.branch.Branch.open')
-    def test_branch(self, _open, _bzrdir):
+    def test_branch(self, _open, _bzrdir, _tree_open):
         dest_path = "/destination/path"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
@@ -76,6 +77,7 @@ class BzrUrlFetchHandlerTest(TestCase):
 
             _open.assert_called_with(url)
             _bzrdir.assert_called_with(dest_path)
+            _tree_open.assert_called_with(dest_path)
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
