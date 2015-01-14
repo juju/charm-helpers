@@ -38,6 +38,7 @@ class BzrUrlFetchHandler(BaseFetchHandler):
             load_plugins()
         try:
             local_branch = bzrdir.BzrDir.create_branch_convenience(dest)
+            local_branch.bzrdir.create_workingtree()
         except errors.AlreadyControlDirError:
             local_branch = Branch.open(dest)
         try:
