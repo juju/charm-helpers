@@ -1940,10 +1940,11 @@ class ContextTests(unittest.TestCase):
         self.is_relation_made.return_value = True
         self.relation_ids.return_value = ['zeromq-configuration:1']
         self.related_units.return_value = ['openstack-zeromq/0']
-        self.relation_get.side_effect = ['nonce-data', 'hostname']
+        self.relation_get.side_effect = ['nonce-data', 'hostname', 'redis']
         self.assertEquals(context.ZeroMQContext()(),
                           {'zmq_host': 'hostname',
-                           'zmq_nonce': 'nonce-data'})
+                           'zmq_nonce': 'nonce-data',
+                           'zmq_redis_address': 'redis'})
 
     def test_notificationdriver_context_nomsg(self):
         relations = {
