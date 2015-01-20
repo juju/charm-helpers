@@ -6,6 +6,8 @@ rpc_zmq_host = {{ zmq_host }}
 rpc_zmq_matchmaker = oslo.messaging._drivers.matchmaker_redis.MatchMakerRedis
 [matchmaker_redis]
 host = {{ zmq_redis_address }}
+matchmaker_heartbeat_freq = 15
+matchmaker_heartbeat_ttl = 30
 {% else -%}
 rpc_zmq_matchmaker = oslo.messaging._drivers.matchmaker_ring.MatchMakerRing
 {% endif -%}
