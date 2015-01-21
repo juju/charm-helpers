@@ -80,6 +80,15 @@ class PipTestCase(TestCase):
                                              "--proxy=proxy_addr:8080",
                                              "mock"])
 
+    def test_pip_install_upgrade(self):
+        """
+        Check if pip_install works correctly with a single package
+        """
+        packages.pip_install("mock", upgrade=True)
+        self.pip_execute.assert_called_with(["install",
+                                             "--upgrade",
+                                             "mock"])
+
     def test_pip_install_multiple(self):
         """
         Check if pip_install works correctly with multiple packages
