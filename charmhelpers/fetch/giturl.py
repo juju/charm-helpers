@@ -16,6 +16,8 @@ except ImportError:
     apt_install("python-git")
     from git import Repo
 
+from git.exc import GitCommandError
+
 
 class GitUrlFetchHandler(BaseFetchHandler):
     """Handler for git branches via generic and github URLs"""
@@ -46,6 +48,8 @@ class GitUrlFetchHandler(BaseFetchHandler):
             mkdir(dest_dir, perms=0o755)
         try:
             self.clone(source, dest_dir, branch)
+        except GitCommandError as e:
+            raise UnhandledSource(e.message)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir
