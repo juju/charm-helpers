@@ -168,10 +168,10 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
             log("Removing non-directory file {} prior to mkdir()".format(path))
             os.unlink(realpath)
             os.makedirs(realpath, perms)
-        os.chown(realpath, uid, gid)
     elif not path_exists:
         os.makedirs(realpath, perms)
-        os.chown(realpath, uid, gid)
+    os.chown(realpath, uid, gid)
+    os.chmod(realpath, perms)
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
@@ -389,6 +389,9 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
     *  0 => Installed revno is the same as supplied arg
     * -1 => Installed revno is less than supplied arg
 
+    This function imports apt_cache function from charmhelpers.fetch if
+    the pkgcache argument is None. Be sure to add charmhelpers.fetch if
+    you call this function, or pass an apt_pkg.Cache() instance.
     '''
     from apt import apt_pkg
     if not pkgcache:
@@ -407,13 +410,21 @@ def chdir(d):
         os.chdir(cur)
 
 
-def chownr(path, owner, group):
+def chownr(path, owner, group, follow_links=True):
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
+    if follow_links:
+        chown = os.chown
+    else:
+        chown = os.lchown
 
     for root, dirs, files in os.walk(path):
         for name in dirs + files:
             full = os.path.join(root, name)
             broken_symlink = os.path.lexists(full) and not os.path.exists(full)
             if not broken_symlink:
-                os.chown(full, uid, gid)
+                chown(full, uid, gid)
+
+
+def lchownr(path, owner, group):
+    chownr(path, owner, group, follow_links=False)
