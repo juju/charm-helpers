@@ -407,13 +407,21 @@ def chdir(d):
         os.chdir(cur)
 
 
-def chownr(path, owner, group):
+def chownr(path, owner, group, follow_links=True):
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
+    if follow_links:
+        chown = os.chown
+    else:
+        chown = os.lchown
 
     for root, dirs, files in os.walk(path):
         for name in dirs + files:
             full = os.path.join(root, name)
             broken_symlink = os.path.lexists(full) and not os.path.exists(full)
             if not broken_symlink:
-                os.chown(full, uid, gid)
+                chown(full, uid, gid)
+
+
+def lchownr(path, owner, group):
+    chownr(path, owner, group, follow_links=False)
