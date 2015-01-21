@@ -168,10 +168,10 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
             log("Removing non-directory file {} prior to mkdir()".format(path))
             os.unlink(realpath)
             os.makedirs(realpath, perms)
-        os.chown(realpath, uid, gid)
     elif not path_exists:
         os.makedirs(realpath, perms)
-        os.chown(realpath, uid, gid)
+    os.chown(realpath, uid, gid)
+    os.chmod(realpath, perms)
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
