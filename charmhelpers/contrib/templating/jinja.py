@@ -1,19 +1,19 @@
 """
 Templating using the python-jinja2 package.
 """
-from charmhelpers.fetch import (
-    apt_install,
-)
-
-
-DEFAULT_TEMPLATES_DIR = 'templates'
-
-
+import six
+from charmhelpers.fetch import apt_install
 try:
     import jinja2
 except ImportError:
-    apt_install(["python-jinja2"])
+    if six.PY3:
+        apt_install(["python3-jinja2"])
+    else:
+        apt_install(["python-jinja2"])
     import jinja2
+
+
+DEFAULT_TEMPLATES_DIR = 'templates'
 
 
 def render(template_name, context, template_dir=DEFAULT_TEMPLATES_DIR):
