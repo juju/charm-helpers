@@ -32,13 +32,23 @@ block scope. It will also record the current hook name and timestamp
 to provide additional context when looking at historical values.
 
 Values are automatically json de/serialized to preserve basic typing
-capabilities (ints, booleans, etc).
+and complex data struct capabilities (dicts, lists, ints, booleans, etc).
 
 Individual values can be manipulated via get/set::
 
    >>> kv.set('y', True)
    >>> kv.get('y')
    True
+
+   # We can set complex values (dicts, lists) as a single key.
+   >>> kv.set('config', {'a': 1, 'b': True'})
+
+   # Also supports returning dictionaries as a record which
+   # provides attribute access.
+   >>> config = kv.get('config', record=True)
+   >>> config.b
+   True
+
 
 Groups of keys can be manipulated with update/getrange::
 
@@ -114,6 +124,7 @@ class Storage(object):
         self.flush(False)
         self.cursor.close()
         self.conn.close()
+        self._closed = True
 
     def _scoped_query(self, stmt, params=None):
         if params is None:
@@ -149,10 +160,10 @@ class Storage(object):
 
     def unset(self, key):
         self.cursor.execute('delete from kv where key=?', [key])
-        if self.revision:
+        if self.revision and self.cursor.rowcount:
             self.cursor.execute(
                 'insert into kv_revisions values (?, ?, ?)',
-                [self.revision, key, 'DELETED'])
+                [key, self.revision, json.dumps('DELETED')])
 
     def set(self, key, value):
         serialized = json.dumps(value)
@@ -228,12 +239,10 @@ class Storage(object):
             if c != p:
                 delta[k] = Delta(p, c)
 
-        if delta:
-            return delta
-        return None
+        return delta
 
     @contextlib.contextmanager
-    def hook_scope(self, name="", context=True):
+    def hook_scope(self, name=""):
         """Scope all future interactions to the current hook execution
         revision."""
         assert not self.revision
@@ -242,9 +251,6 @@ class Storage(object):
             (name or sys.argv[0],
              datetime.datetime.utcnow().isoformat()))
         self.revision = self.cursor.lastrowid
-        if not context:
-            yield self.revision
-            raise StopIteration()
         try:
             yield self.revision
             self.revision = None
@@ -285,7 +291,7 @@ class Storage(object):
                )''')
         self.conn.commit()
 
-    def gethistory(self, key):
+    def gethistory(self, key, deserialize=False):
         self.cursor.execute(
             '''
             select kv.revision, kv.key, kv.data, h.hook, h.date
@@ -294,13 +300,20 @@ class Storage(object):
             where kv.key=?
              and kv.revision = h.version
             ''', [key])
-        return self.cursor.fetchall()
+        if deserialize is False:
+            return self.cursor.fetchall()
+        return map(_parse_history, self.cursor.fetchall())
 
-    def debug(self):
+    def debug(self, fh=sys.stderr):
         self.cursor.execute('select * from kv')
-        pprint.pprint(self.cursor.fetchall())
+        pprint.pprint(self.cursor.fetchall(), stream=fh)
         self.cursor.execute('select * from kv_revisions')
-        pprint.pprint(self.cursor.fetchall())
+        pprint.pprint(self.cursor.fetchall(), stream=fh)
+
+
+def _parse_history(d):
+    return (d[0], d[1], json.loads(d[2]), d[3],
+            datetime.datetime.strptime(d[-1], "%Y-%m-%dT%H:%M:%S.%f"))
 
 
 class Record(dict):

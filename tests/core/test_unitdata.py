@@ -5,6 +5,11 @@
 # Authors:
 #  Kapil Thangavelu <kapil.foss@gmail.com>
 #
+try:
+    from StringIO import StringIO
+except:
+    from io import StringIO
+
 import unittest
 import tempfile
 
@@ -48,12 +53,18 @@ class StorageTest(unittest.TestCase):
             kv.set('a', True)
         self.assertEqual(kv.get('a'), True)
 
-        # History doesn't decode atm
+        # History doesn't decode values by default
         history = [h[:-1] for h in kv.gethistory('a')]
         self.assertEqual(
             history,
             [(1, 'a', '1', 'config-changed'),
              (2, 'a', 'true', 'start')])
+
+        history = [h[:-1] for h in kv.gethistory('a', deserialize=True)]
+        self.assertEqual(
+            history,
+            [(1, 'a', 1, 'config-changed'),
+             (2, 'a', True, 'start')])
 
     def test_delta_no_previous_and_history(self):
         kv = Storage(':memory:')
@@ -76,6 +87,53 @@ class StorageTest(unittest.TestCase):
             history,
             [(1, 'settings.a', '0', 'install'),
              (2, 'settings.a', '1', 'config')])
+
+    def test_unset(self):
+        kv = Storage(':memory:')
+        with kv.hook_scope('install'):
+            kv.set('a', True)
+        with kv.hook_scope('start'):
+            kv.set('a', False)
+        with kv.hook_scope('config-changed'):
+            kv.unset('a')
+        history = [h[:-1] for h in kv.gethistory('a')]
+
+        self.assertEqual(history, [
+            (1, 'a', 'true', 'install'),
+            (2, 'a', 'false', 'start'),
+            (3, 'a', '"DELETED"', "config-changed")])
+
+    def test_flush_and_close_on_closed(self):
+        kv = Storage(':memory:')
+        kv.close()
+        kv.flush(False)
+        kv.close()
+
+    def test_multi_value_set_skips(self):
+        # pure coverage test
+        kv = Storage(':memory:')
+        kv.set('x', 1)
+        self.assertEqual(kv.set('x', 1), 1)
+
+    def test_debug(self):
+        # pure coverage test...
+        io = StringIO()
+        kv = Storage(':memory:')
+        kv.debug(io)
+
+    def test_record(self):
+        kv = Storage(':memory:')
+        kv.set('config', {'x': 1, 'b': False})
+        config = kv.get('config', record=True)
+        self.assertEqual(config.b, False)
+        self.assertEqual(config.x, 1)
+        self.assertEqual(kv.set('config.x', 1), 1)
+        try:
+            config.z
+        except AttributeError:
+            pass
+        else:
+            self.fail('attribute error should fire on nonexistant')
 
     def test_delta(self):
         kv = Storage(':memory:')
