@@ -165,7 +165,7 @@ def local_unit():
 
 def remote_unit():
     """The remote unit for the current relation hook"""
-    return os.environ['JUJU_REMOTE_UNIT']
+    return os.environ.get('JUJU_REMOTE_UNIT', None)
 
 
 def service_name():
