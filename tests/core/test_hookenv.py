@@ -446,6 +446,11 @@ class HelpersTest(TestCase):
 
         self.assertEqual(hookenv.remote_unit(), 'foo')
 
+    @patch('charmhelpers.core.hookenv.os')
+    def test_no_remote_unit(self, os_):
+        os_.environ = {}
+        self.assertEqual(hookenv.remote_unit(), None)
+
     @patch('charmhelpers.core.hookenv.remote_unit')
     @patch('charmhelpers.core.hookenv.relation_get')
     def test_gets_relation_for_unit(self, relation_get, remote_unit):
