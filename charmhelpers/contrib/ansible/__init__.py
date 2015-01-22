@@ -1,5 +1,5 @@
 # Copyright 2014-2015 Canonical Limited.
-# 
+#
 # This file is part of charm-helpers.
 #
 # charm-helpers is free software: you can redistribute it and/or modify
