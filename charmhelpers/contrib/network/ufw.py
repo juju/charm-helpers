@@ -53,6 +53,7 @@ def is_enabled():
     :returns: True if ufw is enabled
     """
     output = subprocess.check_output(['ufw', 'status'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
 
@@ -82,6 +83,7 @@ def enable():
             raise Exception("Couldn't disable IPv6 support in ufw")
 
     output = subprocess.check_output(['ufw', 'enable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
 
@@ -107,6 +109,7 @@ def disable():
         return True
 
     output = subprocess.check_output(['ufw', 'disable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
 
@@ -151,7 +154,7 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow'):
         cmd += ['to', dst]
 
     if port is not None:
-        cmd += ['port', port]
+        cmd += ['port', str(port)]
 
     if proto is not None:
         cmd += ['proto', proto]
@@ -208,9 +211,11 @@ def service(name, action):
     :param action: `open` or `close`
     """
     if action == 'open':
-        subprocess.check_output(['ufw', 'allow', name])
+        subprocess.check_output(['ufw', 'allow', str(name)],
+                                universal_newlines=True)
     elif action == 'close':
-        subprocess.check_output(['ufw', 'delete', 'allow', name])
+        subprocess.check_output(['ufw', 'delete', 'allow', str(name)],
+                                universal_newlines=True)
     else:
         raise Exception(("'{}' not supported, use 'allow' "
                          "or 'delete'").format(action))
