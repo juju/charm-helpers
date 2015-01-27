@@ -41,6 +41,7 @@ class TestUFW(unittest.TestCase):
         self.assertTrue(ufw.enable())
 
         check_output.assert_any_call(['ufw', 'enable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
@@ -54,6 +55,7 @@ class TestUFW(unittest.TestCase):
         self.assertFalse(ufw.enable())
 
         check_output.assert_any_call(['ufw', 'enable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
@@ -69,6 +71,7 @@ class TestUFW(unittest.TestCase):
         self.assertTrue(ufw.disable())
 
         check_output.assert_any_call(['ufw', 'disable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
@@ -84,6 +87,7 @@ class TestUFW(unittest.TestCase):
         self.assertFalse(ufw.disable())
 
         check_output.assert_any_call(['ufw', 'disable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
@@ -225,12 +229,14 @@ class TestUFW(unittest.TestCase):
     @mock.patch('subprocess.check_output')
     def test_service_open(self, check_output):
         ufw.service('ssh', 'open')
-        check_output.assert_any_call(['ufw', 'allow', 'ssh'])
+        check_output.assert_any_call(['ufw', 'allow', 'ssh'],
+                                     universal_newlines=True)
 
     @mock.patch('subprocess.check_output')
     def test_service_close(self, check_output):
         ufw.service('ssh', 'close')
-        check_output.assert_any_call(['ufw', 'delete', 'allow', 'ssh'])
+        check_output.assert_any_call(['ufw', 'delete', 'allow', 'ssh'],
+                                     universal_newlines=True)
 
     @mock.patch('subprocess.check_output')
     def test_service_unsupport_action(self, check_output):

@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 import json
 import os
 import time
@@ -468,21 +484,25 @@ class HAProxyContext(OSContextGenerator):
                             _unit = unit.replace('/', '-')
                             cluster_hosts[laddr]['backends'][_unit] = _laddr
 
-        # NOTE(jamespage) no split configurations found, just use
-        # private addresses
-        if not cluster_hosts:
-            netmask = get_netmask_for_address(addr)
-            cluster_hosts[addr] = {'network': "{}/{}".format(addr, netmask),
-                                   'backends': {l_unit: addr}}
-            for rid in relation_ids('cluster'):
-                for unit in related_units(rid):
-                    _laddr = relation_get('private-address',
-                                          rid=rid, unit=unit)
-                    if _laddr:
-                        _unit = unit.replace('/', '-')
-                        cluster_hosts[addr]['backends'][_unit] = _laddr
+        # NOTE(jamespage) add backend based on private address - this
+        # with either be the only backend or the fallback if no acls
+        # match in the frontend
+        cluster_hosts[addr] = {}
+        netmask = get_netmask_for_address(addr)
+        cluster_hosts[addr] = {'network': "{}/{}".format(addr, netmask),
+                               'backends': {l_unit: addr}}
+        for rid in relation_ids('cluster'):
+            for unit in related_units(rid):
+                _laddr = relation_get('private-address',
+                                      rid=rid, unit=unit)
+                if _laddr:
+                    _unit = unit.replace('/', '-')
+                    cluster_hosts[addr]['backends'][_unit] = _laddr
 
-        ctxt = {'frontends': cluster_hosts}
+        ctxt = {
+            'frontends': cluster_hosts,
+            'default_backend': addr
+        }
 
         if config('haproxy-server-timeout'):
             ctxt['haproxy_server_timeout'] = config('haproxy-server-timeout')
@@ -491,6 +511,7 @@ class HAProxyContext(OSContextGenerator):
             ctxt['haproxy_client_timeout'] = config('haproxy-client-timeout')
 
         if config('prefer-ipv6'):
+            ctxt['ipv6'] = True
             ctxt['local_host'] = 'ip6-localhost'
             ctxt['haproxy_host'] = '::'
             ctxt['stat_port'] = ':::8888'
@@ -662,8 +683,9 @@ class ApacheSSLContext(OSContextGenerator):
         addresses = self.get_network_addresses()
         for address, endpoint in sorted(set(addresses)):
             for api_port in self.external_ports:
-                ext_port = determine_apache_port(api_port)
-                int_port = determine_api_port(api_port)
+                ext_port = determine_apache_port(api_port,
+                                                 singlenode_mode=True)
+                int_port = determine_api_port(api_port, singlenode_mode=True)
                 portmap = (address, endpoint, int(ext_port), int(int_port))
                 ctxt['endpoints'].append(portmap)
                 ctxt['ext_ports'].append(int(ext_port))
