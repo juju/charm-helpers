@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 import importlib
 from tempfile import NamedTemporaryFile
 import time
@@ -64,9 +80,16 @@ CLOUD_ARCHIVE_POCKETS = {
     'trusty-juno/updates': 'trusty-updates/juno',
     'trusty-updates/juno': 'trusty-updates/juno',
     'juno/proposed': 'trusty-proposed/juno',
-    'juno/proposed': 'trusty-proposed/juno',
     'trusty-juno/proposed': 'trusty-proposed/juno',
     'trusty-proposed/juno': 'trusty-proposed/juno',
+    # Kilo
+    'kilo': 'trusty-updates/kilo',
+    'trusty-kilo': 'trusty-updates/kilo',
+    'trusty-kilo/updates': 'trusty-updates/kilo',
+    'trusty-updates/kilo': 'trusty-updates/kilo',
+    'kilo/proposed': 'trusty-proposed/kilo',
+    'trusty-kilo/proposed': 'trusty-proposed/kilo',
+    'trusty-proposed/kilo': 'trusty-proposed/kilo',
 }
 
 # The order of this list is very important. Handlers should be listed in from
