@@ -52,3 +52,15 @@ class SysctlTests(unittest.TestCase):
         self.check_call.assert_called_with([
             "sysctl", "-p",
             "/etc/sysctl.d/test-sysctl.conf"])
+
+    @patch(builtin_open)
+    def test_create_invalid_argument(self, mock_open):
+        """Test create sysctl with an invalid argument"""
+        _file = MagicMock(spec=io.FileIO)
+        mock_open.return_value = _file
+
+        create('{"kernel.max_pid": 1337 xxxx', "/etc/sysctl.d/test-sysctl.conf")
+
+        self.log.assert_called_with(
+            'Error parsing YAML sysctl_dict: {"kernel.max_pid": 1337 xxxx',
+            level='ERROR')
