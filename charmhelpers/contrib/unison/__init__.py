@@ -73,6 +73,7 @@ from charmhelpers.core.hookenv import (
     relation_set,
     relation_get,
     unit_private_ip,
+    INFO,
     ERROR,
 )
 
@@ -86,7 +87,7 @@ def get_homedir(user):
         user = pwd.getpwnam(user)
         return user.pw_dir
     except KeyError:
-        log('Could not get homedir for user %s: user exists?', ERROR)
+        log('Could not get homedir for user %s: user exists?' % (user), ERROR)
         raise Exception
 
 
@@ -233,14 +234,15 @@ def collect_authed_hosts(peer_interface):
                                         rid=r_id, unit=unit)
 
             if not authed_hosts:
-                log('Peer %s has not authorized *any* hosts yet, skipping.')
+                log('Peer %s has not authorized *any* hosts yet, skipping.' %
+                    (unit), level=INFO)
                 continue
 
             if unit_private_ip() in authed_hosts.split(':'):
                 hosts.append(private_addr)
             else:
-                log('Peer %s has not authorized *this* host yet, skipping.')
-
+                log('Peer %s has not authorized *this* host yet, skipping.' %
+                    (unit), level=INFO)
     return hosts
 
 
