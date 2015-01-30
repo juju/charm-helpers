@@ -361,7 +361,7 @@ def list_nics(nic_type):
         ip_output = (line for line in ip_output if line)
         for line in ip_output:
             if line.split()[1].startswith(int_type):
-                matched = re.search('.*: (bond[0-9]+\.[0-9]+)@.*', line)
+                matched = re.search('.*: (' + int_type + r'[0-9]+\.[0-9]+)@.*', line)
                 if matched:
                     interface = matched.groups()[0]
                 else:
