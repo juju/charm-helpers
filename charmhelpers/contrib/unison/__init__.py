@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 # Easy file synchronization among peer units using ssh + unison.
 #
 # From *both* peer relation -joined and -changed, add a call to
@@ -57,6 +73,7 @@ from charmhelpers.core.hookenv import (
     relation_set,
     relation_get,
     unit_private_ip,
+    INFO,
     ERROR,
 )
 
@@ -70,7 +87,7 @@ def get_homedir(user):
         user = pwd.getpwnam(user)
         return user.pw_dir
     except KeyError:
-        log('Could not get homedir for user %s: user exists?', ERROR)
+        log('Could not get homedir for user %s: user exists?' % (user), ERROR)
         raise Exception
 
 
@@ -217,14 +234,15 @@ def collect_authed_hosts(peer_interface):
                                         rid=r_id, unit=unit)
 
             if not authed_hosts:
-                log('Peer %s has not authorized *any* hosts yet, skipping.')
+                log('Peer %s has not authorized *any* hosts yet, skipping.' %
+                    (unit), level=INFO)
                 continue
 
             if unit_private_ip() in authed_hosts.split(':'):
                 hosts.append(private_addr)
             else:
-                log('Peer %s has not authorized *this* host yet, skipping.')
-
+                log('Peer %s has not authorized *this* host yet, skipping.' %
+                    (unit), level=INFO)
     return hosts
 
 

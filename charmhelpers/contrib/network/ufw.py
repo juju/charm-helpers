@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 """
 This module contains helpers to add and remove ufw rules.
 
@@ -37,6 +53,7 @@ def is_enabled():
     :returns: True if ufw is enabled
     """
     output = subprocess.check_output(['ufw', 'status'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
 
@@ -66,6 +83,7 @@ def enable():
             raise Exception("Couldn't disable IPv6 support in ufw")
 
     output = subprocess.check_output(['ufw', 'enable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
 
@@ -91,6 +109,7 @@ def disable():
         return True
 
     output = subprocess.check_output(['ufw', 'disable'],
+                                     universal_newlines=True,
                                      env={'LANG': 'en_US',
                                           'PATH': os.environ['PATH']})
 
@@ -135,7 +154,7 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow'):
         cmd += ['to', dst]
 
     if port is not None:
-        cmd += ['port', port]
+        cmd += ['port', str(port)]
 
     if proto is not None:
         cmd += ['proto', proto]
@@ -192,9 +211,11 @@ def service(name, action):
     :param action: `open` or `close`
     """
     if action == 'open':
-        subprocess.check_output(['ufw', 'allow', name])
+        subprocess.check_output(['ufw', 'allow', str(name)],
+                                universal_newlines=True)
     elif action == 'close':
-        subprocess.check_output(['ufw', 'delete', 'allow', name])
+        subprocess.check_output(['ufw', 'delete', 'allow', str(name)],
+                                universal_newlines=True)
     else:
         raise Exception(("'{}' not supported, use 'allow' "
                          "or 'delete'").format(action))
