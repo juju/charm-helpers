@@ -38,13 +38,15 @@ class TestTemplating(unittest.TestCase):
                 },
                 'nginx_port': 80,
             }
-            templating.render('fake_cc.yml', fn1, context, templates_dir=TEMPLATES_DIR)
+            templating.render('fake_cc.yml', fn1,
+                              context, templates_dir=TEMPLATES_DIR)
             contents = open(fn1).read()
             self.assertRegexpMatches(contents, 'port: 1234')
             self.assertRegexpMatches(contents, 'host: example.com')
             self.assertRegexpMatches(contents, 'domain: api.foo.com')
 
-            templating.render('test.conf', fn2, context, templates_dir=TEMPLATES_DIR)
+            templating.render('test.conf', fn2, context,
+                              templates_dir=TEMPLATES_DIR)
             contents = open(fn2).read()
             self.assertRegexpMatches(contents, 'listen 80')
             self.assertEqual(fchown.call_count, 2)
