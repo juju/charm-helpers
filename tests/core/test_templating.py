@@ -4,6 +4,8 @@ import shutil
 import tempfile
 import unittest
 import jinja2
+import pwd
+import grp
 
 import mock
 from charmhelpers.core import templating
@@ -64,7 +66,10 @@ class TestTemplating(unittest.TestCase):
         fn1 = os.path.join(tmpdir, 'test.conf')
         try:
             context = {'nginx_port': 80}
-            templating.render('test.conf', fn1, context, templates_dir=TEMPLATES_DIR)
+            templating.render('test.conf', fn1, context,
+                              owner=pwd.getpwuid(os.getuid()).pw_name,
+                              group=grp.getgrgid(os.getgid()).gr_name,
+                              templates_dir=TEMPLATES_DIR)
             with open(fn1) as f:
                 contents = f.read()
 
