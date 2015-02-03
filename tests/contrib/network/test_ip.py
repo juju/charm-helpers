@@ -501,3 +501,33 @@ class IPTest(unittest.TestCase):
 
         with nose.tools.assert_raises(Exception):
             net_ip.get_iface_from_addr('1.2.3.4')
+
+    @patch('charmhelpers.contrib.network.ip.config')
+    @patch('charmhelpers.contrib.network.ip.unit_get')
+    @patch('charmhelpers.contrib.network.ip.list_nics')
+    @patch('charmhelpers.contrib.network.ip.get_ipv4_addr')
+    @patch('charmhelpers.contrib.network.ip.get_bridge_nics')
+    @patch('charmhelpers.contrib.network.ip.get_nic_mtu')
+    @patch('charmhelpers.contrib.network.ip.set_nic_mtu')
+    @patch('charmhelpers.contrib.network.ip.log')
+    def test_configure_phy_nic_mtu(self, mock_log, mock_set_nic_mtu,
+                                   mock_get_nic_mtu, mock_get_bridge_nics,
+                                   mock_get_ipv4_addr, mock_list_nics,
+                                   mock_unit_get, mock_config):
+        mock_config.return_value = 1546
+        mock_unit_get.return_value = '10.0.5.12'
+        mock_list_nics.return_value = ['eth0', 'br-phy']
+
+        def my_side_effect(*args, **kwargs):
+            if args[0] == 'eth0':
+                return ['1.2.3.4']
+            elif args[0] == 'br-phy':
+                return ['10.0.5.12']
+            else:
+                return []
+        mock_get_ipv4_addr.side_effect = my_side_effect
+        mock_get_bridge_nics.return_value = ['eth0', 'tap0']
+        mock_get_nic_mtu.return_value = 1500
+        net_ip.configure_phy_nic_mtu()
+        mock_set_nic_mtu.assert_called_once_with('eth0', '1546',
+                                                 persistence=True)

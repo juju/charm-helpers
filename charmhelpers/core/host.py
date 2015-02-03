@@ -371,10 +371,40 @@ def list_nics(nic_type):
     return interfaces
 
 
-def set_nic_mtu(nic, mtu):
+def set_nic_mtu(nic, mtu, persistence=False):
     '''Set MTU on a network interface'''
     cmd = ['ip', 'link', 'set', nic, 'mtu', mtu]
     subprocess.check_call(cmd)
+    # persistence mtu configuration
+    if not persistence:
+        return
+    if os.path.exists("/etc/network/interfaces.d/%s.cfg" % nic):
+        nic_cfg_file = "/etc/network/interfaces.d/%s.cfg" % nic
+    else:
+        nic_cfg_file = "/etc/network/interfaces"
+
+    f = open(nic_cfg_file, "r")
+    lines = f.readlines()
+    found = False
+    length = len(lines)
+    for i in range(len(lines)):
+        lines[i] = lines[i].replace('\n', '')
+        if lines[i].startswith("iface %s" % nic):
+            found = True
+            lines.insert(i + 1, "    up ip link set $IFACE mtu %s" % mtu)
+            lines.insert(i + 2, "    down ip link set $IFACE mtu 1500")
+            if length > i + 2 and lines[i + 3].startswith("    up ip link set $IFACE mtu"):
+                del lines[i + 3]
+            if length > i + 2 and lines[i + 3].startswith("    down ip link set $IFACE mtu"):
+                del lines[i + 3]
+            break
+    if not found:
+        lines.insert(length + 1, "")
+        lines.insert(length + 2, "auto %s" % nic)
+        lines.insert(length + 3, "iface %s inet dhcp" % nic)
+        lines.insert(length + 4, "    up ip link set $IFACE mtu %s" % mtu)
+        lines.insert(length + 5, "    down ip link set $IFACE mtu 1500")
+    write_file(path=nic_cfg_file, content="\n".join(lines), perms=0o644)
 
 
 def get_nic_mtu(nic):
