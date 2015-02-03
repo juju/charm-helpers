@@ -191,11 +191,11 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
-    """Create or overwrite a file with the contents of a string"""
+    """Create or overwrite a file with the contents of a byte string."""
     log("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
-    with open(path, 'w') as target:
+    with open(path, 'wb') as target:
         os.fchown(target.fileno(), uid, gid)
         os.fchmod(target.fileno(), perms)
         target.write(content)
