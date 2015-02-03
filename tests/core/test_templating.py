@@ -1,5 +1,6 @@
 import os
 import pkg_resources
+import shutil
 import tempfile
 import unittest
 import jinja2
@@ -55,6 +56,21 @@ class TestTemplating(unittest.TestCase):
             for fn in (fn1, fn2):
                 if os.path.exists(fn):
                     os.remove(fn)
+
+    @mock.patch.object(templating.host.os, 'fchown')
+    @mock.patch.object(templating.host, 'log')
+    def test_render_2(self, log, fchown):
+        tmpdir = tempfile.mkdtemp()
+        fn1 = os.path.join(tmpdir, 'test.conf')
+        try:
+            context = {'nginx_port': 80}
+            templating.render('test.conf', fn1, context, templates_dir=TEMPLATES_DIR)
+            with open(fn1) as f:
+                contents = f.read()
+
+            self.assertRegexpMatches(contents, 'something')
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     @mock.patch.object(templating, 'hookenv')
     @mock.patch('jinja2.Environment')
