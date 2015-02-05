@@ -17,7 +17,6 @@ from charmhelpers.core.host import (
 from charmhelpers.core.hookenv import (
     relation_get,
     related_units,
-    service_name,
     unit_get,
     log,
     DEBUG,
@@ -129,8 +128,9 @@ class MySQLHelper(object):
 
     def migrate_passwords_to_peer_relation(self):
         """Migrate any passwords storage on disk to cluster peer relation."""
-        template = self.user_passwd_file_template
-        for f in glob.glob(template.format(service_name(), '*')):
+        dirname = os.path.dirname(self.root_passwd_file_template)
+        path = os.path.join(dirname, '*')
+        for f in glob.glob(path):
             _key = os.path.basename(f)
             with open(f, 'r') as passwd:
                 _value = passwd.read().strip()
@@ -147,10 +147,9 @@ class MySQLHelper(object):
         username on disk."""
         if username:
             template = self.user_passwd_file_template
-            passwd_file = template.format(service_name(), username)
+            passwd_file = template.format(username)
         else:
-            template = self.root_passwd_file_template
-            passwd_file = template.format(service_name())
+            passwd_file = self.root_passwd_file_template
 
         _password = None
         if os.path.exists(passwd_file):
