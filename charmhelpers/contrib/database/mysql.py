@@ -42,7 +42,7 @@ except ImportError:
     import MySQLdb
 
 
-class MySQLHelper():
+class MySQLHelper(object):
 
     def __init__(self, rpasswdf_template, upasswdf_template, host='localhost'):
         self.host = host
@@ -127,6 +127,21 @@ class MySQLHelper():
         finally:
             cursor.close()
 
+    def migrate_passwords_to_peer_relation(self):
+        """Migrate any passwords storage on disk to cluster peer relation."""
+        template = self.user_passwd_file_template
+        for f in glob.glob(template.format(service_name(), '*')):
+            _key = os.path.basename(f)
+            with open(f, 'r') as passwd:
+                _value = passwd.read().strip()
+
+            try:
+                peer_store(_key, _value)
+                os.unlink(f)
+            except ValueError:
+                # NOTE cluster relation not yet ready - skip for now
+                pass
+
     def get_mysql_password_on_disk(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username on disk."""
@@ -155,7 +170,7 @@ class MySQLHelper():
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
-        migrate_passwords_to_peer_relation()
+        self.migrate_passwords_to_peer_relation()
         if username:
             _key = '{}.passwd'.format(username)
         else:
@@ -243,133 +258,116 @@ class MySQLHelper():
         return password
 
 
-def migrate_passwords_to_peer_relation():
-    """Migrate any passwords storage on disk to cluster peer relation."""
-    for f in glob.glob('/var/lib/charm/{}/*.passwd'.format(service_name())):
-        _key = os.path.basename(f)
-        with open(f, 'r') as passwd:
-            _value = passwd.read().strip()
+class PerconaClusterHelper(object):
+
+    # Going for the biggest page size to avoid wasted bytes. InnoDB page size is
+    # 16MB
+    DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
+
+    def human_to_bytes(self, human):
+        """Convert human readable configuration options to bytes."""
+        num_re = re.compile('^[0-9]+$')
+        if num_re.match(human):
+            return human
+
+        factors = {
+            'K': 1024,
+            'M': 1048576,
+            'G': 1073741824,
+            'T': 1099511627776
+        }
+        modifier = human[-1]
+        if modifier in factors:
+            return int(human[:-1]) * factors[modifier]
+
+        if modifier == '%':
+            total_ram = self.human_to_bytes(self.get_mem_total())
+            if self.is_32bit_system() and total_ram > self.sys_mem_limit():
+                total_ram = self.sys_mem_limit()
+            factor = int(human[:-1]) * 0.01
+            pctram = total_ram * factor
+            return int(pctram - (pctram % self.DEFAULT_PAGE_SIZE))
+
+        raise ValueError("Can only convert K,M,G, or T")
+
+    def is_32bit_system(self):
+        """Determine whether system is 32 or 64 bit."""
         try:
-            peer_store(_key, _value)
-            os.unlink(f)
-        except ValueError:
-            # NOTE cluster relation not yet ready - skip for now
-            pass
+            return sys.maxsize < 2 ** 32
+        except OverflowError:
+            return False
 
-
-# Going for the biggest page size to avoid wasted bytes. InnoDB page size is
-# 16MB
-DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
-
-
-def human_to_bytes(human):
-    """Convert human readable configuration options to bytes."""
-    num_re = re.compile('^[0-9]+$')
-    if num_re.match(human):
-        return human
-
-    factors = {
-        'K': 1024,
-        'M': 1048576,
-        'G': 1073741824,
-        'T': 1099511627776
-    }
-    modifier = human[-1]
-    if modifier in factors:
-        return int(human[:-1]) * factors[modifier]
-
-    if modifier == '%':
-        total_ram = human_to_bytes(get_mem_total())
-        if is_32bit_system() and total_ram > sys_mem_limit():
-            total_ram = sys_mem_limit()
-        factor = int(human[:-1]) * 0.01
-        pctram = total_ram * factor
-        return int(pctram - (pctram % DEFAULT_PAGE_SIZE))
-
-    raise ValueError("Can only convert K,M,G, or T")
-
-
-def is_32bit_system():
-    """Determine whether system is 32 or 64 bit."""
-    try:
-        return sys.maxsize < 2 ** 32
-    except OverflowError:
-        return False
-
-
-def sys_mem_limit():
-    """Determine the default memory limit for the current service unit."""
-    if platform.machine() in ['armv7l']:
-        _mem_limit = human_to_bytes('2700M')  # experimentally determined
-    else:
-        # Limit for x86 based 32bit systems
-        _mem_limit = human_to_bytes('4G')
-
-    return _mem_limit
-
-
-def get_mem_total():
-    """Calculate the total memory in the current service unit."""
-    with open('/proc/meminfo') as meminfo_file:
-        for line in meminfo_file:
-            key, mem = line.split(':', 2)
-            if key == 'MemTotal':
-                mtot, modifier = mem.strip().split(' ')
-                return '%s%s' % (mtot, upper(modifier[0]))
-
-
-def parse_config():
-    """Parse charm configuration and calculate values for config files."""
-    config = config_get()
-    mysql_config = {}
-    if 'max-connections' in config:
-        mysql_config['max_connections'] = config['max-connections']
-
-    # Total memory available for dataset
-    dataset_bytes = human_to_bytes(config['dataset-size'])
-    mysql_config['dataset_bytes'] = dataset_bytes
-
-    if 'query-cache-type' in config:
-        # Query Cache Configuration
-        mysql_config['query_cache_size'] = config['query-cache-size']
-        if (config['query-cache-size'] == -1 and
-                config['query-cache-type'] in ['ON', 'DEMAND']):
-            # Calculate the query cache size automatically
-            qcache_bytes = (dataset_bytes * 0.20)
-            qcache_bytes = int(qcache_bytes -
-                               (qcache_bytes % DEFAULT_PAGE_SIZE))
-            mysql_config['query_cache_size'] = qcache_bytes
-            dataset_bytes -= qcache_bytes
-
-        # 5.5 allows the words, but not 5.1
-        if config['query-cache-type'] == 'ON':
-            mysql_config['query_cache_type'] = 1
-        elif config['query-cache-type'] == 'DEMAND':
-            mysql_config['query_cache_type'] = 2
+    def sys_mem_limit(self):
+        """Determine the default memory limit for the current service unit."""
+        if platform.machine() in ['armv7l']:
+            _mem_limit = self.human_to_bytes('2700M')  # experimentally determined
         else:
-            mysql_config['query_cache_type'] = 0
+            # Limit for x86 based 32bit systems
+            _mem_limit = self.human_to_bytes('4G')
 
-    # Set a sane default key_buffer size
-    mysql_config['key_buffer'] = human_to_bytes('32M')
+        return _mem_limit
 
-    if 'preferred-storage-engine' in config:
-        # Storage engine configuration
-        preferred_engines = config['preferred-storage-engine'].split(',')
-        chunk_size = int(dataset_bytes / len(preferred_engines))
-        mysql_config['innodb_flush_log_at_trx_commit'] = 1
-        mysql_config['sync_binlog'] = 1
-        if 'InnoDB' in preferred_engines:
-            mysql_config['innodb_buffer_pool_size'] = chunk_size
+    def get_mem_total(self):
+        """Calculate the total memory in the current service unit."""
+        with open('/proc/meminfo') as meminfo_file:
+            for line in meminfo_file:
+                key, mem = line.split(':', 2)
+                if key == 'MemTotal':
+                    mtot, modifier = mem.strip().split(' ')
+                    return '%s%s' % (mtot, upper(modifier[0]))
+
+    def parse_config(self):
+        """Parse charm configuration and calculate values for config files."""
+        config = config_get()
+        mysql_config = {}
+        if 'max-connections' in config:
+            mysql_config['max_connections'] = config['max-connections']
+
+        # Total memory available for dataset
+        dataset_bytes = self.human_to_bytes(config['dataset-size'])
+        mysql_config['dataset_bytes'] = dataset_bytes
+
+        if 'query-cache-type' in config:
+            # Query Cache Configuration
+            mysql_config['query_cache_size'] = config['query-cache-size']
+            if (config['query-cache-size'] == -1 and
+                    config['query-cache-type'] in ['ON', 'DEMAND']):
+                # Calculate the query cache size automatically
+                qcache_bytes = (dataset_bytes * 0.20)
+                qcache_bytes = int(qcache_bytes -
+                                   (qcache_bytes % self.DEFAULT_PAGE_SIZE))
+                mysql_config['query_cache_size'] = qcache_bytes
+                dataset_bytes -= qcache_bytes
+
+            # 5.5 allows the words, but not 5.1
+            if config['query-cache-type'] == 'ON':
+                mysql_config['query_cache_type'] = 1
+            elif config['query-cache-type'] == 'DEMAND':
+                mysql_config['query_cache_type'] = 2
+            else:
+                mysql_config['query_cache_type'] = 0
+
+        # Set a sane default key_buffer size
+        mysql_config['key_buffer'] = self.human_to_bytes('32M')
+
+        if 'preferred-storage-engine' in config:
+            # Storage engine configuration
+            preferred_engines = config['preferred-storage-engine'].split(',')
+            chunk_size = int(dataset_bytes / len(preferred_engines))
+            mysql_config['innodb_flush_log_at_trx_commit'] = 1
+            mysql_config['sync_binlog'] = 1
+            if 'InnoDB' in preferred_engines:
+                mysql_config['innodb_buffer_pool_size'] = chunk_size
+                if config['tuning-level'] == 'fast':
+                    mysql_config['innodb_flush_log_at_trx_commit'] = 2
+            else:
+                mysql_config['innodb_buffer_pool_size'] = 0
+
+            mysql_config['default_storage_engine'] = preferred_engines[0]
+            if 'MyISAM' in preferred_engines:
+                mysql_config['key_buffer'] = chunk_size
+
             if config['tuning-level'] == 'fast':
-                mysql_config['innodb_flush_log_at_trx_commit'] = 2
-        else:
-            mysql_config['innodb_buffer_pool_size'] = 0
+                mysql_config['sync_binlog'] = 0
 
-        mysql_config['default_storage_engine'] = preferred_engines[0]
-        if 'MyISAM' in preferred_engines:
-            mysql_config['key_buffer'] = chunk_size
-
-        if config['tuning-level'] == 'fast':
-            mysql_config['sync_binlog'] = 0
-
-    return mysql_config
+        return mysql_config
