@@ -129,7 +129,7 @@ class MySQLHelper(object):
     def migrate_passwords_to_peer_relation(self):
         """Migrate any passwords storage on disk to cluster peer relation."""
         dirname = os.path.dirname(self.root_passwd_file_template)
-        path = os.path.join(dirname, '*')
+        path = os.path.join(dirname, '*.passwd')
         for f in glob.glob(path):
             _key = os.path.basename(f)
             with open(f, 'r') as passwd:
@@ -171,7 +171,7 @@ class MySQLHelper(object):
         username using peer relation cluster."""
         self.migrate_passwords_to_peer_relation()
         if username:
-            _key = '{}.passwd'.format(username)
+            _key = 'mysql-{}.passwd'.format(username)
         else:
             _key = 'mysql.passwd'
 
