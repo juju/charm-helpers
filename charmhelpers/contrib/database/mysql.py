@@ -44,8 +44,11 @@ except ImportError:
 
 class MySQLHelper():
 
-    def __init__(self, host='localhost'):
+    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost'):
         self.host = host
+        # Password file path templates
+        self.root_passwd_file_template = rpasswdf_template
+        self.user_passwd_file_template = upasswdf_template
 
     def connect(self, user='root', password=None):
         self.connection = MySQLdb.connect(user=user, host=self.host,
@@ -124,58 +127,120 @@ class MySQLHelper():
         finally:
             cursor.close()
 
-# These are percona-only since mysql charm uses /var/lib/mysql/...
-_root_passwd = '/var/lib/charm/{}/mysql.passwd'
-_named_passwd = '/var/lib/charm/{}/mysql-{}.passwd'
-
-
-def get_mysql_password_on_disk(username=None, password=None, passwd_file=None):
-    """Retrieve, generate or store a mysql password for the provided username
-    on disk."""
-    if not passwd_file:
+    def get_mysql_password_on_disk(self, username=None, password=None):
+        """Retrieve, generate or store a mysql password for the provided
+        username on disk."""
         if username:
-            passwd_file = _named_passwd.format(service_name(), username)
+            template = self.user_passwd_file_template
+            passwd_file = template.format(service_name(), username)
         else:
-            passwd_file = _root_passwd.format(service_name())
+            template = self.root_passwd_file_template
+            passwd_file = template.format(service_name())
 
-    _password = None
-    if os.path.exists(passwd_file):
-        with open(passwd_file, 'r') as passwd:
-            _password = passwd.read().strip()
-    else:
-        mkdir(os.path.dirname(passwd_file),
-              owner='root', group='root',
-              perms=0o770)
-        # Force permissions - for some reason the chmod in makedirs fails
-        os.chmod(os.path.dirname(passwd_file), 0o770)
-        _password = password or pwgen(length=32)
-        write_file(passwd_file, _password,
-                   owner='root', group='root',
-                   perms=0o660)
-
-    return _password
-
-
-def get_mysql_password(username=None, password=None, passwd_file=None):
-    """Retrieve, generate or store a mysql password for the provided username
-    using peer relation cluster."""
-    migrate_passwords_to_peer_relation()
-    if username:
-        _key = '{}.passwd'.format(username)
-    else:
-        _key = 'mysql.passwd'
-
-    try:
-        _password = peer_retrieve(_key)
-        if _password is None:
+        _password = None
+        if os.path.exists(passwd_file):
+            with open(passwd_file, 'r') as passwd:
+                _password = passwd.read().strip()
+        else:
+            mkdir(os.path.dirname(passwd_file), owner='root', group='root',
+                  perms=0o770)
+            # Force permissions - for some reason the chmod in makedirs fails
+            os.chmod(os.path.dirname(passwd_file), 0o770)
             _password = password or pwgen(length=32)
-            peer_store(_key, _password)
-    except ValueError:
-        # cluster relation is not yet started; use on-disk
-        _password = get_mysql_password_on_disk(username, password,
-                                               passwd_file=passwd_file)
+            write_file(passwd_file, _password, owner='root', group='root',
+                       perms=0o660)
 
-    return _password
+        return _password
+
+    def get_mysql_password(self, username=None, password=None):
+        """Retrieve, generate or store a mysql password for the provided
+        username using peer relation cluster."""
+        migrate_passwords_to_peer_relation()
+        if username:
+            _key = '{}.passwd'.format(username)
+        else:
+            _key = 'mysql.passwd'
+
+        try:
+            _password = peer_retrieve(_key)
+            if _password is None:
+                _password = password or pwgen(length=32)
+                peer_store(_key, _password)
+        except ValueError:
+            # cluster relation is not yet started; use on-disk
+            _password = self.get_mysql_password_on_disk(username, password)
+
+        return _password
+
+    def get_mysql_root_password(self, password=None):
+        """Retrieve or generate mysql root password for service units."""
+        return self.get_mysql_password(username=None, password=password)
+
+    def get_allowed_units(self, database, username, relation_id=None):
+        """Get list of units with access grants for database with username.
+
+        This is typically used to provide shared-db relations with a list of
+        which units have been granted access to the given database.
+        """
+        self.connect(password=self.get_mysql_root_password())
+        allowed_units = set()
+        for unit in related_units(relation_id):
+            settings = relation_get(rid=relation_id, unit=unit)
+            # First check for setting with prefix, then without
+            for attr in ["%s_hostname" % (database), 'hostname']:
+                hosts = settings.get(attr, None)
+                if hosts:
+                    break
+
+            if hosts:
+                # hostname can be json-encoded list of hostnames
+                try:
+                    hosts = json.loads(hosts)
+                except ValueError:
+                    hosts = [hosts]
+            else:
+                hosts = [settings['private-address']]
+
+            if hosts:
+                for host in hosts:
+                    if self.grant_exists(database, username, host):
+                        log("Grant exists for host '%s' on db '%s'" %
+                            (host, database), level=DEBUG)
+                        if unit not in allowed_units:
+                            allowed_units.add(unit)
+                    else:
+                        log("Grant does NOT exist for host '%s' on db '%s'" %
+                            (host, database), level=DEBUG)
+            else:
+                log("No hosts found for grant check", level=INFO)
+
+        return allowed_units
+
+    def configure_db(self, hostname, database, username, admin=False):
+        """Configure access to database for username from hostname."""
+        if config_get('prefer-ipv6'):
+            remote_ip = hostname
+        elif hostname != unit_get('private-address'):
+            try:
+                remote_ip = socket.gethostbyname(hostname)
+            except Exception:
+                # socket.gethostbyname doesn't support ipv6
+                remote_ip = hostname
+        else:
+            remote_ip = '127.0.0.1'
+
+        self.connect(password=self.get_mysql_root_password())
+        if not self.database_exists(database):
+            self.create_database(database)
+
+        password = self.get_mysql_password(username)
+        if not self.grant_exists(database, username, remote_ip):
+            if not admin:
+                self.create_grant(database, username, remote_ip, password)
+            else:
+                self.create_admin_grant(username, remote_ip, password)
+
+        return password
 
 
 def migrate_passwords_to_peer_relation():
@@ -191,41 +256,6 @@ def migrate_passwords_to_peer_relation():
             # NOTE cluster relation not yet ready - skip for now
             pass
 
-
-def get_mysql_root_password(password=None, passwd_file=None):
-    """Retrieve or generate mysql root password for service units."""
-    return get_mysql_password(username=None, password=password,
-                              passwd_file=passwd_file)
-
-
-def configure_db(hostname, database, username, admin=False, passwd_file=None):
-    """Configure access to database for username from hostname."""
-    if config_get('prefer-ipv6'):
-        remote_ip = hostname
-    elif hostname != unit_get('private-address'):
-        try:
-            remote_ip = socket.gethostbyname(hostname)
-        except Exception:
-            # socket.gethostbyname doesn't support ipv6
-            remote_ip = hostname
-    else:
-        remote_ip = '127.0.0.1'
-
-    password = get_mysql_password(username, passwd_file=passwd_file)
-    m_helper = MySQLHelper()
-    m_helper.connect(password=get_mysql_root_password())
-    if not m_helper.database_exists(database):
-        m_helper.create_database(database)
-
-    if not m_helper.grant_exists(database,
-                                 username,
-                                 remote_ip):
-        if not admin:
-            m_helper.create_grant(database, username, remote_ip, password)
-        else:
-            m_helper.create_admin_grant(username, remote_ip, password)
-
-    return password
 
 # Going for the biggest page size to avoid wasted bytes. InnoDB page size is
 # 16MB
@@ -343,45 +373,3 @@ def parse_config():
             mysql_config['sync_binlog'] = 0
 
     return mysql_config
-
-
-def get_allowed_units(database, username, db_root_password, relation_id=None):
-    """Get list of units with access grants for database with username.
-
-    This is typically used to provide shared-db relations with a list of which
-    units have been granted access to the given database.
-    """
-    m_helper = MySQLHelper()
-    m_helper.connect(password=db_root_password)
-    allowed_units = set()
-    for unit in related_units(relation_id):
-        settings = relation_get(rid=relation_id, unit=unit)
-        # First check for setting with prefix, then without
-        for attr in ["%s_hostname" % (database), 'hostname']:
-            hosts = settings.get(attr, None)
-            if hosts:
-                break
-
-        if hosts:
-            # hostname can be json-encoded list of hostnames
-            try:
-                hosts = json.loads(hosts)
-            except ValueError:
-                hosts = [hosts]
-        else:
-            hosts = [settings['private-address']]
-
-        if hosts:
-            for host in hosts:
-                if m_helper.grant_exists(database, username, host):
-                    log("Grant exists for host '%s' on db '%s'" %
-                        (host, database), level=DEBUG)
-                    if unit not in allowed_units:
-                        allowed_units.add(unit)
-                else:
-                    log("Grant does NOT exist for host '%s' on db '%s'" %
-                        (host, database), level=DEBUG)
-        else:
-            log("No hosts found for grant check", level=INFO)
-
-    return allowed_units
