@@ -11,13 +11,15 @@
 Intro
 -----
 
-A simple way to carry state in units, supports versioned
-and transactional operation.
+A simple way to store state in units. This provides a key value
+storage with support for versioned, transactional operation,
+and can calculate deltas from previous values to simplify unit logic
+when processing changes.
 
 
 Usage
 -----
-The preferred usage mode is via context manager::
+The recommended usage mode is via context manager::
 
   >>> from unitdata import kv
   >>> db = kv()
@@ -75,18 +77,15 @@ be explicitly saved via 'update' method::
    >>> kv.update(data, 'config.')
 
 Values modified in the context of a hook scope retain historical values
-associated to the hookname. History does not automatically json decode
-values.
+associated to the hookname.
 
    >>> with db.hook_scope('config-changed'):
    ...      db.set('x', 42)
    >>> db.gethistory('x')
-   [(1, u'x', u'1', u'install', u'2015-01-21T16:49:30.038372'),
-    (2, u'x', u'42', u'config-changed', u'2015-01-21T16:49:30.038786')]
+   [(1, u'x', 1, u'install', u'2015-01-21T16:49:30.038372'),
+    (2, u'x', 42, u'config-changed', u'2015-01-21T16:49:30.038786')]
 
 """
-
-__author__ = 'Kapil Thangavelu <kapil.foss@gmail.com>'
 
 import collections
 import contextlib
@@ -96,6 +95,8 @@ import os
 import pprint
 import sqlite3
 import sys
+
+__author__ = 'Kapil Thangavelu <kapil.foss@gmail.com>'
 
 
 class Storage(object):
