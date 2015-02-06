@@ -10,10 +10,51 @@ try:
 except:
     from io import StringIO
 
-import unittest
+import os
+import shutil
 import tempfile
+import unittest
 
-from charmhelpers.core.unitdata import Storage
+from mock import patch
+
+from charmhelpers.core.unitdata import Storage, HookData, kv
+
+
+class HookDataTest(unittest.TestCase):
+
+    def setUp(self):
+        self.charm_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(self.charm_dir))
+        self.change_environment(CHARM_DIR=self.charm_dir)
+
+    def change_environment(self, **kw):
+        original_env = dict(os.environ)
+
+        @self.addCleanup
+        def cleanup_env():
+            os.environ.clear()
+            os.environ.update(original_env)
+
+        os.environ.update(kw)
+
+    @patch('charmhelpers.core.hookenv.hook_name')
+    @patch('charmhelpers.core.hookenv.execution_environment')
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    def test_hook_data_records(self, cdir, ctx, name):
+        name.return_value = 'config-changed'
+        ctx.return_value = {
+            'rels': {}, 'conf': {'a': 1}, 'env': {}, 'unit': 'someunit'}
+        cdir.return_value = self.charm_dir
+        with open(os.path.join(self.charm_dir, 'revision'), 'w') as fh:
+            fh.write('1')
+        hook_data = HookData()
+
+        with hook_data():
+            self.assertEqual(kv(), hook_data.kv)
+            self.assertEqual(kv().get('charm_revisions'), ['1'])
+            self.assertEqual(kv().get('unit'), 'someunit')
+            self.assertEqual(list(hook_data.conf), ['a'])
+            self.assertEqual(tuple(hook_data.conf.a), (None, 1))
 
 
 class StorageTest(unittest.TestCase):
