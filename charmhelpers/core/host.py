@@ -305,11 +305,11 @@ def restart_on_change(restart_map, stopstart=False):
     ceph_client_changed function.
     """
     def wrap(f):
-        def wrapped_f(*args):
+        def wrapped_f(*args, **kwargs):
             checksums = {}
             for path in restart_map:
                 checksums[path] = file_hash(path)
-            f(*args)
+            f(*args, **kwargs)
             restarts = []
             for path in restart_map:
                 if checksums[path] != file_hash(path):
