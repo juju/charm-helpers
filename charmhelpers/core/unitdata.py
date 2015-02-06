@@ -17,21 +17,69 @@ and can calculate deltas from previous values to simplify unit logic
 when processing changes.
 
 
-Usage
------
-The recommended usage mode is via context manager::
+Hook Integration
+----------------
+
+There are several extant frameworks for hook execution, including
+
+ - charmhelpers.core.hookenv.Hooks
+ - charmhelpers.core.services.ServiceManager
+
+The storage classes are framework agnostic, one simple integration is
+via the HookData contextmanager. It will record the current hook
+execution environment (including relation data, config data, etc.),
+setup a transaction and allow easy access to the changes from
+previously seen values. One consequence of the integration is the
+reservation of particular keys ('rels', 'unit', 'env', 'config',
+'charm_revisions') for their respective values.
+
+Here's a fully worked integration example using hookenv.Hooks::
+
+       from charmhelper.core import hookenv, unitdata
+
+       hook_data = unitdata.HookData()
+       db = unitdata.kv()
+       hooks = hookenv.Hooks()
+
+       @hooks.hook
+       def config_changed():
+           # Print all changes to configuration from previously seen
+           # values.
+           for changed, (prev, cur) in hook_data.conf.items():
+               print('config changed', changed,
+                     'previous value', prev,
+                     'current value',  cur)
+
+           # Get some unit specific bookeeping
+           if not db.get('pkg_key'):
+               key = urllib.urlopen('https://example.com/pkg_key').read()
+               db.set('pkg_key', key)
+
+           # Directly access all charm config as a mapping.
+           conf = db.getrange('config', True)
+
+           # Directly access all relation data as a mapping
+           rels = db.getrange('rels', True)
+
+       if __name__ == '__main__':
+           with hook_data():
+               hook.execute()
+
+
+A more basic integration is via the hook_scope context manager which simply
+manages transaction scope (and records hook name, and timestamp)::
 
   >>> from unitdata import kv
   >>> db = kv()
   >>> with db.hook_scope('install'):
-  ...    # do work
+  ...    # do work, in transactional scope.
   ...    db.set('x', 1)
   >>> db.get('x')
   1
 
-will automatically use a transaction for operations within the with
-block scope. It will also record the current hook name and timestamp
-to provide additional context when looking at historical values.
+
+Usage
+-----
 
 Values are automatically json de/serialized to preserve basic typing
 and complex data struct capabilities (dicts, lists, ints, booleans, etc).
@@ -315,6 +363,76 @@ class Storage(object):
 def _parse_history(d):
     return (d[0], d[1], json.loads(d[2]), d[3],
             datetime.datetime.strptime(d[-1], "%Y-%m-%dT%H:%M:%S.%f"))
+
+
+class HookData(object):
+    """Simple integration for existing hook exec frameworks.
+
+    Records all unit information, and stores deltas for processing
+    by the hook.
+
+    Sample::
+
+       from charmhelper.core import hookenv, unitdata
+
+       changes = unitdata.HookData()
+       db = unitdata.kv()
+       hooks = hookenv.Hooks()
+
+       @hooks.hook
+       def config_changed():
+           # View all changes to configuration
+           for changed, (prev, cur) in changes.conf.items():
+               print('config changed', changed,
+                     'previous value', prev,
+                     'current value',  cur)
+
+           # Get some unit specific bookeeping
+           if not db.get('pkg_key'):
+               key = urllib.urlopen('https://example.com/pkg_key').read()
+               db.set('pkg_key', key)
+
+       if __name__ == '__main__':
+           with changes():
+               hook.execute()
+
+    """
+    def __init__(self):
+        self.kv = kv()
+        self.conf = None
+        self.rels = None
+
+    @contextlib.contextmanager
+    def __call__(self):
+        from charmhelpers.core import hookenv
+        hook_name = hookenv.hook_name()
+
+        with self.kv.hook_scope(hook_name):
+            self._record_charm_version(hookenv.charm_dir())
+            delta_config, delta_relation = self._record_hook(hookenv)
+            yield self.kv, delta_config, delta_relation
+
+    def _record_charm_version(self, charm_dir):
+        # Record revisions.. charm revisions are meaningless
+        # to charm authors as they don't control the revision.
+        # so logic dependnent on revision is not particularly
+        # useful, however it is useful for debugging analysis.
+        charm_rev = open(
+            os.path.join(charm_dir, 'revision')).read().strip()
+        charm_rev = charm_rev or '0'
+        revs = self.kv.get('charm_revisions', [])
+        if not charm_rev in revs:
+            revs.append(charm_rev.strip() or '0')
+            self.kv.set('charm_revisions', revs)
+
+    def _record_hook(self, hookenv):
+        data = hookenv.execution_environment()
+        self.conf = conf_delta = self.kv.delta(data['conf'], 'config')
+        self.rels = rels_delta = self.kv.delta(data['rels'], 'rels')
+        self.kv.set('env', data['env'])
+        self.kv.set('unit', data['unit'])
+        self.kv.set('relid', data.get('relid'))
+        return conf_delta, rels_delta
 
 
 class Record(dict):
