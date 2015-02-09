@@ -514,18 +514,28 @@ class IPTest(unittest.TestCase):
                                    mock_get_nic_mtu, mock_get_bridge_nics,
                                    mock_get_ipv4_addr, mock_list_nics,
                                    mock_unit_get, mock_config):
-        mock_config.return_value = 1546
+
+        def fake_get_config(key):
+            if key == 'phy-nic-mtu':
+                return 1546
+            elif key == 'prefer-ipv6':
+                return False
+            else:
+                return None
+
+        mock_config.side_effect = fake_get_config
         mock_unit_get.return_value = '10.0.5.12'
         mock_list_nics.return_value = ['eth0', 'br-phy']
 
-        def my_side_effect(*args, **kwargs):
-            if args[0] == 'eth0':
+        def fake_get_ipv4_addr(*args, **kwargs):
+            if kwargs['iface'] == 'eth0':
                 return ['1.2.3.4']
-            elif args[0] == 'br-phy':
+            elif kwargs['iface'] == 'br-phy':
                 return ['10.0.5.12']
             else:
                 return []
-        mock_get_ipv4_addr.side_effect = my_side_effect
+
+        mock_get_ipv4_addr.side_effect = fake_get_ipv4_addr
         mock_get_bridge_nics.return_value = ['eth0', 'tap0']
         mock_get_nic_mtu.return_value = 1500
         net_ip.configure_phy_nic_mtu()

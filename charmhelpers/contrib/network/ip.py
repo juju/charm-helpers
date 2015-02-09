@@ -374,24 +374,33 @@ def is_bridge_member(nic):
     return False
 
 
-def configure_phy_nic_mtu(mng_ip=None):
+def configure_phy_nic_mtu(mgmt_ip=None):
     """Configure mtu for physical nic."""
     phy_nic_mtu = config('phy-nic-mtu')
     if phy_nic_mtu >= 1500:
         phy_nic = None
-        if mng_ip is None:
-            mng_ip = unit_get('private-address')
+        if mgmt_ip is None:
+            mgmt_ip = unit_get('private-address')
+
         for nic in list_nics(['eth', 'bond', 'br']):
-            if mng_ip in get_ipv4_addr(nic, fatal=False):
+            if config('prefer-ipv6'):
+                addrs = get_ipv6_addr(iface=nic, fatal=False)
+            else:
+                addrs = get_ipv4_addr(iface=nic, fatal=False)
+
+            if mgmt_ip in addrs:
                 phy_nic = nic
-                # need to find the associated phy nic for bridge
+                # If bridge iface, find the associated phy nic
                 if nic.startswith('br'):
                     for brnic in get_bridge_nics(nic):
                         if brnic.startswith('eth') or brnic.startswith('bond'):
                             phy_nic = brnic
                             break
+
+                if phy_nic and phy_nic_mtu != get_nic_mtu(phy_nic):
+                    set_nic_mtu(phy_nic, str(phy_nic_mtu), persistence=True)
+                    log('Setting mtu=%s for phy_nic=%s' % (phy_nic_mtu,
+                                                           phy_nic),
+                        level=INFO)
+
                 break
-        if phy_nic is not None and phy_nic_mtu != get_nic_mtu(phy_nic):
-            set_nic_mtu(phy_nic, str(phy_nic_mtu), persistence=True)
-            log('set mtu={} for phy_nic={}'
-                .format(phy_nic_mtu, phy_nic), level=INFO)
