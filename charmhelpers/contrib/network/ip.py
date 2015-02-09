@@ -23,14 +23,7 @@ from functools import partial
 from charmhelpers.core.hookenv import unit_get
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
-    config,
-    log,
-    INFO
-)
-from charmhelpers.core.host import (
-    list_nics,
-    get_nic_mtu,
-    set_nic_mtu
+    log
 )
 
 try:
@@ -372,35 +365,3 @@ def is_bridge_member(nic):
             return True
 
     return False
-
-
-def configure_phy_nic_mtu(mgmt_ip=None):
-    """Configure mtu for physical nic."""
-    phy_nic_mtu = config('phy-nic-mtu')
-    if phy_nic_mtu >= 1500:
-        phy_nic = None
-        if mgmt_ip is None:
-            mgmt_ip = unit_get('private-address')
-
-        for nic in list_nics(['eth', 'bond', 'br']):
-            if config('prefer-ipv6'):
-                addrs = get_ipv6_addr(iface=nic, fatal=False)
-            else:
-                addrs = get_ipv4_addr(iface=nic, fatal=False)
-
-            if mgmt_ip in addrs:
-                phy_nic = nic
-                # If bridge iface, find the associated phy nic
-                if nic.startswith('br'):
-                    for brnic in get_bridge_nics(nic):
-                        if brnic.startswith('eth') or brnic.startswith('bond'):
-                            phy_nic = brnic
-                            break
-
-                if phy_nic and phy_nic_mtu != get_nic_mtu(phy_nic):
-                    set_nic_mtu(phy_nic, str(phy_nic_mtu), persistence=True)
-                    log('Setting mtu=%s for phy_nic=%s' % (phy_nic_mtu,
-                                                           phy_nic),
-                        level=INFO)
-
-                break

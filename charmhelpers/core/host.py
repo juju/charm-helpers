@@ -371,73 +371,10 @@ def list_nics(nic_type):
     return interfaces
 
 
-def set_nic_mtu(nic, mtu, persistence=False):
-    """Set MTU on a network interface."""
+def set_nic_mtu(nic, mtu):
+    '''Set MTU on a network interface'''
     cmd = ['ip', 'link', 'set', nic, 'mtu', mtu]
     subprocess.check_call(cmd)
-
-    # persistence mtu configuration
-    if not persistence:
-        return
-
-    nic_cfg_path = "/etc/network/interfaces"
-    nicd_cfg_path = "%s.d/%s.cfg" % (nic_cfg_path, nic)
-    if os.path.exists(nicd_cfg_path):
-        nic_cfg_path = nicd_cfg_path
-
-    with open(nic_cfg_path, "r") as fd:
-        lines = fd.readlines()
-
-    found = False
-    length = len(lines)
-    for i, line in enumerate(lines):
-        lines[i] = line.strip()
-        if line.strip().startswith("iface %s" % nic):
-            found = True
-            index = i
-            break
-
-    inserts_cfg_found = """
-    up ip link set $IFACE mtu %s
-    down ip link set $IFACE mtu 1500
-    """ % (mtu)
-
-    inserts_cfg_not_found = """
-    auto %s
-    iface %s inet dhcp
-    up ip link set $IFACE mtu %s
-    down ip link set $IFACE mtu 1500
-    """ % (nic, nic, mtu)
-
-    deletes = """
-    up ip link set $IFACE mtu
-    down ip link set $IFACE mtu
-    """
-
-    if found:
-        for line in inserts_cfg_found.split('\n'):
-            if not line.strip():
-                continue
-
-            index += 1
-            lines.insert(index, "    %s" % line.strip())
-
-        for line in deletes.split('\n'):
-            if not line.strip():
-                continue
-
-            if length > index and lines[index + 1].startswith(line):
-                del lines[index + 1]
-    else:
-        index = length
-        for line in inserts_cfg_not_found.split('\n'):
-            if not line.strip():
-                continue
-
-            index += 1
-            lines.insert(index, "    %s" % line.strip())
-
-    write_file(path=nic_cfg_path, content="\n".join(lines), perms=0o644)
 
 
 def get_nic_mtu(nic):
