@@ -26,12 +26,6 @@ DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
 
-NETWORK_INTERFACE = '''auto %s
-iface %s inet dhcp
-    up ip link set $IFACE mtu %s
-    down ip link set $IFACE mtu 1500\n
-'''
-
 IP_LINE_ETH0 = b"""
 2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
@@ -826,24 +820,12 @@ class HelpersTest(TestCase):
         self.assertEqual(mtu, '1500')
 
     @patch('subprocess.check_call')
-    @patch.object(host, 'os')
-    @patch.object(host, 'write_file')
-    def test_set_nic_mtu(self, mock_write_file, mock_os, mock_call):
+    def test_set_nic_mtu(self, mock_call):
         mock_call.return_value = 0
         nic = 'eth7'
         mtu = '1546'
         host.set_nic_mtu(nic, mtu)
         mock_call.assert_called_with(['ip', 'link', 'set', nic, 'mtu', mtu])
-
-        mock_os.path.exists.return_value = False
-        with mocked_open('/etc/network/interfaces',
-                         NETWORK_INTERFACE % (nic, nic, 1500)):
-            host.set_nic_mtu(nic, mtu, persistence=True)
-            desired_content = NETWORK_INTERFACE % (nic, nic, mtu)
-            hostspath = '/etc/network/interfaces'
-            mock_write_file.assert_called_once_with(perms=420,
-                                                    content=desired_content,
-                                                    path=hostspath)
 
     @patch('subprocess.check_output')
     def test_get_nic_mtu(self, check_output):
