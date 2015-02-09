@@ -16,6 +16,7 @@
 
 import json
 import os
+import re
 import time
 from base64 import b64decode
 from subprocess import check_call
@@ -47,6 +48,8 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.sysctl import create as sysctl_create
 
 from charmhelpers.core.host import (
+    list_nics,
+    get_nic_hwaddr,
     mkdir,
     write_file,
 )
@@ -66,10 +69,12 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
+    get_ipv4_addr,
     get_ipv6_addr,
     get_netmask_for_address,
     format_ipv6_addr,
     is_address_in_network,
+    is_bridge_member,
 )
 from charmhelpers.contrib.openstack.utils import get_host_ip
 
@@ -831,6 +836,40 @@ class NeutronContext(OSContextGenerator):
 
         self._save_flag_file()
         return ctxt
+
+
+class NeutronPortContext(OSContextGenerator):
+    def resolve_port(self, config_key):
+        if not config(config_key):
+            return None
+
+        hwaddr_to_nic = {}
+        hwaddr_to_ip = {}
+        for nic in list_nics(['eth', 'bond']):
+            hwaddr = get_nic_hwaddr(nic)
+            hwaddr_to_nic[hwaddr] = nic
+            addresses = get_ipv4_addr(nic, fatal=False) + \
+                get_ipv6_addr(iface=nic, fatal=False)
+            hwaddr_to_ip[hwaddr] = addresses
+
+        mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
+        for entry in config(config_key).split():
+            entry = entry.strip()
+            if re.match(mac_regex, entry):
+                if entry in hwaddr_to_nic and len(hwaddr_to_ip[entry]) == 0:
+                    # If the nic is part of a bridge then don't use it
+                    if is_bridge_member(hwaddr_to_nic[entry]):
+                        continue
+                    # Entry is a MAC address for a valid interface that doesn't
+                    # have an IP address assigned yet.
+                    return hwaddr_to_nic[entry]
+            else:
+                # If the passed entry is not a MAC address, assume it's a valid
+                # interface, and that the user put it there on purpose (we can
+                # trust it to be the real external network).
+                return entry
+
+        return None
 
 
 class OSConfigFlagContext(OSContextGenerator):
