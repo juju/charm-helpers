@@ -46,6 +46,10 @@ import subprocess
 from charmhelpers.core import hookenv
 
 
+class UFWError(Exception):
+    pass
+
+
 def is_enabled():
     """
     Check if `ufw` is enabled
@@ -62,6 +66,53 @@ def is_enabled():
     return len(m) >= 1
 
 
+def is_ipv6_ok():
+    """
+    Check if IPv6 support is present and ip6tables functional
+
+    :returns: True if IPv6 is working, False otherwise
+    """
+
+    # do we have IPv6 in the machine?
+    if os.path.isdir('/proc/sys/net/ipv6'):
+        # is ip6tables kernel module loaded?
+        lsmod = subprocess.check_output(['lsmod'], universal_newlines=True)
+        matches = re.findall('^ip6_tables[ ]+', lsmod, re.M)
+        if len(matches) == 0:
+            # ip6tables support isn't complete, let's try to load it
+            try:
+                subprocess.check_output(['modprobe', 'ip6_tables'],
+                                        universal_newlines=True)
+                # great, we could load the module
+                return True
+            except subprocess.CalledProcessError as ex:
+                hookenv.log("Couldn't load ip6_tables module: %s" % ex.output,
+                            level="WARN")
+                # we are in a world where ip6tables isn't working
+                # so we inform that the machine doesn't have IPv6
+                return False
+        else:
+            # the module is present :)
+            return True
+
+    else:
+        # the system doesn't have IPv6
+        return False
+
+
+def disable_ipv6():
+    """
+    Disable ufw IPv6 support in /etc/default/ufw
+    """
+    exit_code = subprocess.call(['sed', '-i', 's/IPV6=.*/IPV6=no/g',
+                                 '/etc/default/ufw'])
+    if exit_code == 0:
+        hookenv.log('IPv6 support in ufw disabled', level='INFO')
+    else:
+        hookenv.log("Couldn't disable IPv6 support in ufw", level="ERROR")
+        raise UFWError("Couldn't disable IPv6 support in ufw")
+
+
 def enable():
     """
     Enable ufw
@@ -71,16 +122,8 @@ def enable():
     if is_enabled():
         return True
 
-    if not os.path.isdir('/proc/sys/net/ipv6'):
-        # disable IPv6 support in ufw
-        hookenv.log("This machine doesn't have IPv6 enabled", level="INFO")
-        exit_code = subprocess.call(['sed', '-i', 's/IPV6=yes/IPV6=no/g',
-                                     '/etc/default/ufw'])
-        if exit_code == 0:
-            hookenv.log('IPv6 support in ufw disabled', level='INFO')
-        else:
-            hookenv.log("Couldn't disable IPv6 support in ufw", level="ERROR")
-            raise Exception("Couldn't disable IPv6 support in ufw")
+    if not is_ipv6_ok():
+        disable_ipv6()
 
     output = subprocess.check_output(['ufw', 'enable'],
                                      universal_newlines=True,
@@ -217,5 +260,5 @@ def service(name, action):
         subprocess.check_output(['ufw', 'delete', 'allow', str(name)],
                                 universal_newlines=True)
     else:
-        raise Exception(("'{}' not supported, use 'allow' "
-                         "or 'delete'").format(action))
+        raise UFWError(("'{}' not supported, use 'allow' "
+                        "or 'delete'").format(action))
