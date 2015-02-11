@@ -1,5 +1,4 @@
 from __future__ import print_function
-__author__ = 'Felipe Reyes <felipe.reyes@canonical.com>'
 
 import mock
 import os
@@ -7,6 +6,8 @@ import subprocess
 import unittest
 
 from charmhelpers.contrib.network import ufw
+
+__author__ = 'Felipe Reyes <felipe.reyes@canonical.com>'
 
 
 LSMOD_NO_IP6 = """Module                  Size  Used by

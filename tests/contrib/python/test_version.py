@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
-
 from unittest import TestCase
 from charmhelpers.contrib.python import version
 
 import sys
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 
 class VersionTestCase(TestCase):

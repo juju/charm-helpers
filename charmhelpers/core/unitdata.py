@@ -435,7 +435,7 @@ class HookData(object):
             os.path.join(charm_dir, 'revision')).read().strip()
         charm_rev = charm_rev or '0'
         revs = self.kv.get('charm_revisions', [])
-        if not charm_rev in revs:
+        if charm_rev not in revs:
             revs.append(charm_rev.strip() or '0')
             self.kv.set('charm_revisions', revs)
 

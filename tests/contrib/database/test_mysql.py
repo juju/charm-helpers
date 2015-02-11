@@ -4,7 +4,7 @@ import unittest
 import sys
 
 sys.modules['MySQLdb'] = mock.Mock()
-from charmhelpers.contrib.database import mysql
+from charmhelpers.contrib.database import mysql  # noqa
 
 
 class MysqlTests(unittest.TestCase):
