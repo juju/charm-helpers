@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
-
 from charmhelpers.core.fstab import Fstab
 from nose.tools import (assert_is,
                         assert_is_not,
@@ -10,6 +8,8 @@ from nose.tools import (assert_is,
 import unittest
 import tempfile
 import os
+
+__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 DEFAULT_FSTAB_FILE = """/dev/sda /mnt/sda ext3 defaults 0 0
 /dev/sdb /mnt/sdb ext3 defaults 0 0

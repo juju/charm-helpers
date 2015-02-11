@@ -11,7 +11,7 @@ import sys
 # /usr/local/lib.  This is necessary since /usr/local/lib is prepended before
 # what is specified in PYTHONPATH.
 sys.path.insert(0, 'helpers/python')
-from charmhelpers.contrib import charmhelpers
+from charmhelpers.contrib import charmhelpers  # noqa
 
 
 class CharmHelpersTestCase(TestCase):
@@ -23,8 +23,7 @@ class CharmHelpersTestCase(TestCase):
         :param replacement_command: The replacement Callable for
                                     command().
         """
-        new_command = lambda *args: replacement_command
-        self.patch(charmhelpers, 'command', new_command)
+        self.patch(charmhelpers, 'command', lambda *args: replacement_command)
 
     def _make_juju_status_dict(self, num_units=1,
                                service_name='test-service',
@@ -86,8 +85,7 @@ class CharmHelpersTestCase(TestCase):
     def test_unit_info(self):
         # unit_info returns requested data about a given service.
         juju_yaml = self._make_juju_status_yaml()
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertEqual(
             'pending',
             charmhelpers.unit_info('test-service', 'agent-state'))
@@ -97,8 +95,7 @@ class CharmHelpersTestCase(TestCase):
         # otherwise doesn't exist), unit_info() will return an empty
         # string.
         juju_yaml = "services: {}"
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertEqual(
             '', charmhelpers.unit_info('test-service', 'state'))
 
@@ -119,8 +116,7 @@ class CharmHelpersTestCase(TestCase):
         # By default, unit_info() just returns the value of the
         # requested item for the first unit in a service.
         juju_yaml = self._make_juju_status_yaml(num_units=2)
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         unit_address = charmhelpers.unit_info(
             'test-service', 'public-address')
         self.assertEqual('test-service-0.example.com', unit_address)
@@ -130,8 +126,7 @@ class CharmHelpersTestCase(TestCase):
         # requested item for the first unit in a service. However, it's
         # possible to pass a unit name to it, too.
         juju_yaml = self._make_juju_status_yaml(num_units=2)
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         unit_address = charmhelpers.unit_info(
             'test-service', 'public-address', unit='test-service/1')
         self.assertEqual('test-service-1.example.com', unit_address)
@@ -140,8 +135,7 @@ class CharmHelpersTestCase(TestCase):
         # get_machine_data() returns a dict containing the machine data
         # parsed from juju status.
         juju_yaml = self._make_juju_status_yaml()
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         machine_0_data = charmhelpers.get_machine_data()[0]
         self.assertEqual('zookeeper.example.com', machine_0_data['dns-name'])
 
@@ -149,8 +143,7 @@ class CharmHelpersTestCase(TestCase):
         # If wait_for_machine() is called and the machine(s) it is
         # waiting for are already up, it will return.
         juju_yaml = self._make_juju_status_yaml(machine_state='running')
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         machines, time_taken = charmhelpers.wait_for_machine(timeout=1)
         self.assertEqual(1, machines)
 
@@ -159,8 +152,7 @@ class CharmHelpersTestCase(TestCase):
         # 'running' before the passed timeout is reached,
         # wait_for_machine will raise an error.
         juju_yaml = self._make_juju_status_yaml()
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_machine, timeout=0)
 
@@ -172,8 +164,7 @@ class CharmHelpersTestCase(TestCase):
         # container.
         juju_status_dict['machines'][0]['dns-name'] = 'localhost'
         juju_yaml = yaml.dump(juju_status_dict)
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         machines, time_taken = charmhelpers.wait_for_machine(timeout=1)
         # wait_for_machine will always return 1 machine started here,
         # since there's only one machine to start.
@@ -185,8 +176,7 @@ class CharmHelpersTestCase(TestCase):
         # wait_for_machine can be told to wait for multiple machines.
         juju_yaml = self._make_juju_status_yaml(
             num_units=2, machine_state='running')
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         machines, time_taken = charmhelpers.wait_for_machine(num_machines=2)
         self.assertEqual(2, machines)
 
@@ -195,8 +185,7 @@ class CharmHelpersTestCase(TestCase):
         # already up.
         juju_yaml = self._make_juju_status_yaml(
             unit_state='started', machine_state='running')
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         charmhelpers.wait_for_unit('test-service', timeout=0)
 
     def test_wait_for_unit_raises_error_on_error_state(self):
@@ -204,8 +193,7 @@ class CharmHelpersTestCase(TestCase):
         # raise a RuntimeError.
         juju_yaml = self._make_juju_status_yaml(
             unit_state='start-error', machine_state='running')
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertRaises(RuntimeError, charmhelpers.wait_for_unit,
                           'test-service', timeout=0)
 
@@ -214,8 +202,7 @@ class CharmHelpersTestCase(TestCase):
         # wait_for_unit will raise a RuntimeError.
         juju_yaml = self._make_juju_status_yaml(
             unit_state='pending', machine_state='running')
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertRaises(RuntimeError, charmhelpers.wait_for_unit,
                           'test-service', timeout=0)
 
@@ -225,8 +212,7 @@ class CharmHelpersTestCase(TestCase):
         # immediately.
         juju_yaml = self._make_juju_status_yaml(
             unit_state='started', machine_state='running')
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         charmhelpers.wait_for_relation('test-service', 'db', timeout=0)
 
     def test_wait_for_relation_times_out_if_relation_not_present(self):
@@ -239,8 +225,7 @@ class CharmHelpersTestCase(TestCase):
         units['test-service/0']['relations'] = {}
         juju_dict['services']['test-service']['units'] = units
         juju_yaml = yaml.dump(juju_dict)
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_relation, 'test-service',
             'db', timeout=0)
@@ -255,8 +240,7 @@ class CharmHelpersTestCase(TestCase):
         units['test-service/0']['relations']['db']['state'] = 'down'
         juju_dict['services']['test-service']['units'] = units
         juju_yaml = yaml.dump(juju_dict)
-        mock_juju_status = lambda: juju_yaml
-        self.patch(charmhelpers, 'juju_status', mock_juju_status)
+        self.patch(charmhelpers, 'juju_status', lambda: juju_yaml)
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_relation, 'test-service',
             'db', timeout=0)
@@ -268,8 +252,8 @@ class CharmHelpersTestCase(TestCase):
         # We need to patch the charmhelpers instance of urlopen so that
         # it doesn't try to connect out.
         test_content = "Hello, world."
-        new_urlopen = lambda *args: StringIO(test_content)
-        self.patch(charmhelpers, 'urlopen', new_urlopen)
+        self.patch(charmhelpers, 'urlopen',
+                   lambda *args: StringIO(test_content))
         charmhelpers.wait_for_page_contents(
             'http://example.com', test_content, timeout=0)
 
@@ -279,8 +263,8 @@ class CharmHelpersTestCase(TestCase):
         # RuntimeError.
         # We need to patch the charmhelpers instance of urlopen so that
         # it doesn't try to connect out.
-        new_urlopen = lambda *args: StringIO("This won't work.")
-        self.patch(charmhelpers, 'urlopen', new_urlopen)
+        self.patch(charmhelpers, 'urlopen',
+                   lambda *args: StringIO("This won't work."))
         self.assertRaises(
             RuntimeError, charmhelpers.wait_for_page_contents,
             'http://example.com', "This will error", timeout=0)

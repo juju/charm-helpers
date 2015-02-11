@@ -175,7 +175,10 @@ class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
         self.playbook_path = playbook_path
 
         default_hooks = default_hooks or []
-        noop = lambda *args, **kwargs: None
+
+        def noop(*args, **kwargs):
+            pass
+
         for hook in default_hooks:
             self.register(hook, noop)
 

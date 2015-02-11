@@ -19,8 +19,6 @@
 
 from __future__ import print_function
 
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
-
 import atexit
 import sys
 
@@ -31,6 +29,8 @@ from charmhelpers.core.hookenv import (
     ERROR,
     log
 )
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 DEFAULT_ADDR = "0.0.0.0"
 DEFAULT_PORT = 4444

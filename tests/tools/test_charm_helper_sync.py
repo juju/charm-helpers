@@ -2,14 +2,14 @@ import unittest
 from mock import call, patch
 import yaml
 
+import tools.charm_helpers_sync.charm_helpers_sync as sync
+
 import six
 if not six.PY3:
     builtin_open = '__builtin__.open'
 else:
     builtin_open = 'builtins.open'
 
-
-import tools.charm_helpers_sync.charm_helpers_sync as sync
 
 INCLUDE = """
 include:
