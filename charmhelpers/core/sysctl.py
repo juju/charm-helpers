@@ -17,8 +17,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
-
 import yaml
 
 from subprocess import check_call
@@ -28,6 +26,8 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     ERROR,
 )
+
+__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 
 def create(sysctl_dict, sysctl_file):

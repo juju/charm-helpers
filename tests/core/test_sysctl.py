@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
-
 from charmhelpers.core.sysctl import create
 import io
 from mock import patch, MagicMock
@@ -14,6 +12,8 @@ if not six.PY3:
     builtin_open = '__builtin__.open'
 else:
     builtin_open = 'builtins.open'
+
+__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 
 TO_PATCH = [

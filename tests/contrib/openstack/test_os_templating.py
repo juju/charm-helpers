@@ -2,17 +2,17 @@
 import os
 import unittest
 
-import six
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-else:
-    builtin_open = 'builtins.open'
-
 from mock import patch, call, MagicMock
 
 import charmhelpers.contrib.openstack.templating as templating
 
 from jinja2.exceptions import TemplateNotFound
+
+import six
+if not six.PY3:
+    builtin_open = '__builtin__.open'
+else:
+    builtin_open = 'builtins.open'
 
 
 class FakeContextGenerator(object):
