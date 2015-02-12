@@ -37,13 +37,12 @@ Examples:
   >>> ufw.enable()
   >>> ufw.service('4949', 'close')  # munin
 """
-
-__author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
-
 import re
 import os
 import subprocess
 from charmhelpers.core import hookenv
+
+__author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
 
 
 class UFWError(Exception):
