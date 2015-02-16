@@ -169,11 +169,14 @@ class AmuletUtils(object):
             cmd = 'pgrep -o -f {}'.format(service)
         else:
             cmd = 'pgrep -o {}'.format(service)
-        proc_dir = '/proc/{}'.format(sentry_unit.run(cmd)[0].strip())
-        return self._get_dir_mtime(sentry_unit, proc_dir)
+        cmd = cmd + '  | grep  -v pgrep || exit 0'
+        cmd_out = sentry_unit.run(cmd)
+        if cmd_out[0]:
+            proc_dir = '/proc/{}'.format(cmd_out[0].strip())
+            return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
-                          pgrep_full=False, sleep_time=20):
+                          pgrep_full=False, sleep_time=20, retry_count=2):
         """Check if service was restarted.
 
            Compare a service's start time vs a file's last modification time
@@ -181,8 +184,17 @@ class AmuletUtils(object):
            has been restarted.
            """
         time.sleep(sleep_time)
-        if (self._get_proc_start_time(sentry_unit, service, pgrep_full) >=
-                self._get_file_mtime(sentry_unit, filename)):
+        proc_start_time = self._get_proc_start_time(sentry_unit, service,
+                                                    pgrep_full)
+        while retry_count > 0 and not proc_start_time:
+            time.sleep(5)
+            proc_start_time = self._get_proc_start_time(sentry_unit, service,
+                                                        pgrep_full)
+            retry_count = retry_count - 1
+
+        if not proc_start_time:
+            return False
+        if proc_start_time >= self._get_file_mtime(sentry_unit, filename):
             return True
         else:
             return False
