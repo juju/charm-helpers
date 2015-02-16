@@ -18,6 +18,9 @@ class TestStrUtils(unittest.TestCase):
         self.assertTrue(strutils.bool_from_string('y'))
         self.assertTrue(strutils.bool_from_string('Y'))
 
+        # unicode should also work
+        self.assertTrue(strutils.bool_from_string(u'true'))
+
         self.assertFalse(strutils.bool_from_string('False'))
         self.assertFalse(strutils.bool_from_string('false'))
         self.assertFalse(strutils.bool_from_string('no'))
