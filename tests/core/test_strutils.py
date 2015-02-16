@@ -25,5 +25,5 @@ class TestStrUtils(unittest.TestCase):
         self.assertFalse(strutils.bool_from_string('n'))
         self.assertFalse(strutils.bool_from_string('N'))
 
+        self.assertRaises(ValueError, strutils.bool_from_string, None)
         self.assertRaises(ValueError, strutils.bool_from_string, 'foo')
-        self.assertFalse(strutils.bool_from_string('foo', fatal=False))
