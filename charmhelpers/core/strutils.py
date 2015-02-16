@@ -17,17 +17,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import six
+
 
 def bool_from_string(value):
     """Interpret string value as boolean.
 
     Returns True if value translates to True otherwise False.
     """
-    if isinstance(value, str):
-        value = value.lower()
+    if isinstance(value, six.string_types):
+        value = six.text_type(value)
     else:
         msg = "Unable to interpret non-string value '%s' as boolean" % (value)
         raise ValueError(msg)
+
+    value = value.strip().lower()
 
     if value in ['y', 'yes', 'true', 't']:
         return True
