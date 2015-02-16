@@ -18,20 +18,21 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 
-def bool_from_string(value, fatal=True, default=False):
+def bool_from_string(value):
     """Interpret string value as boolean.
 
     Returns True if value translates to True otherwise False.
     """
     if isinstance(value, str):
         value = value.lower()
+    else:
+        msg = "Unable to interpret non-string value '%s' as boolean" % (value)
+        raise ValueError(msg)
 
     if value in ['y', 'yes', 'true', 't']:
         return True
     elif value in ['n', 'no', 'false', 'f']:
         return False
-    elif fatal:
-        msg = "Unable to interpret string value as boolean - %s" % (value)
-        raise ValueError(msg)
 
-    return default
+    msg = "Unable to interpret string value '%s' as boolean" % (value)
+    raise ValueError(msg)
