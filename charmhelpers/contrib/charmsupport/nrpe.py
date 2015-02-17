@@ -322,3 +322,38 @@ def add_init_service_checks(nrpe, services, unit_name):
                 check_cmd='check_status_file.py -f '
                           '/var/lib/nagios/service-check-%s.txt' % svc,
             )
+
+
+def copy_nrpe_checks():
+    """
+    Copy the nrpe checks into place
+
+    """
+    NAGIOS_PLUGINS = '/usr/local/lib/nagios/plugins'
+    nrpe_files_dir = os.path.join(os.getenv('CHARM_DIR'), 'hooks',
+                                  'charmhelpers', 'contrib', 'openstack',
+                                  'files')
+
+    if not os.path.exists(NAGIOS_PLUGINS):
+        os.makedirs(NAGIOS_PLUGINS)
+    for fname in glob.glob(os.path.join(nrpe_files_dir, "check_*")):
+        if os.path.isfile(fname):
+            shutil.copy2(fname,
+                         os.path.join(NAGIOS_PLUGINS, os.path.basename(fname)))
+
+
+def add_haproxy_checks(nrpe, unit_name):
+    """
+    Add checks for each service in list
+
+    :param NRPE nrpe: NRPE object to add check to
+    :param str unit_name: Unit name to use in check description
+    """
+    nrpe.add_check(
+        shortname='haproxy_servers',
+        description='Check HAProxy {%s}' % unit_name,
+        check_cmd='check_haproxy.sh')
+    nrpe.add_check(
+        shortname='haproxy_queue',
+        description='Check HAProxy queue depth {%s}' % unit_name,
+        check_cmd='check_haproxy_queue_depth.sh')
