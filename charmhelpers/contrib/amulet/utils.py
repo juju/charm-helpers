@@ -183,6 +183,8 @@ class AmuletUtils(object):
            (such as a config file for that service) to determine if the service
            has been restarted.
            """
+        self.log.debug('Checking %s restarted after %s was changed'
+                       % (service, filename))
         time.sleep(sleep_time)
         proc_start_time = self._get_proc_start_time(sentry_unit, service,
                                                     pgrep_full)
