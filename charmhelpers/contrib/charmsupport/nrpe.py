@@ -182,9 +182,6 @@ define service {{
             if re.search('.*{}.cfg'.format(self.command), f):
                 os.remove(os.path.join(NRPE.nagios_exportdir, f))
 
-        if not nagios_servicegroups:
-            nagios_servicegroups = nagios_context
-
         templ_vars = {
             'nagios_hostname': hostname,
             'nagios_servicegroup': nagios_servicegroups,
@@ -214,7 +211,7 @@ class NRPE(object):
         if 'nagios_servicegroups' in self.config:
             self.nagios_servicegroups = self.config['nagios_servicegroups']
         else:
-            self.nagios_servicegroups = 'juju'
+            self.nagios_servicegroups = self.nagios_context
         self.unit_name = local_unit().replace('/', '-')
         if hostname:
             self.hostname = hostname
