@@ -77,7 +77,7 @@ class Fstab(io.FileIO):
         for line in self.readlines():
             line = line.decode('us-ascii')
             try:
-                if line.strip() and not line.startswith("#"):
+                if line.strip() and not line.strip().startswith("#"):
                     yield self._hydrate_entry(line)
             except ValueError:
                 pass
@@ -104,7 +104,7 @@ class Fstab(io.FileIO):
 
         found = False
         for index, line in enumerate(lines):
-            if not line.startswith("#"):
+            if line.strip() and not line.strip().startswith("#"):
                 if self._hydrate_entry(line) == entry:
                     found = True
                     break
