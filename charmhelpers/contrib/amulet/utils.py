@@ -195,10 +195,16 @@ class AmuletUtils(object):
             retry_count = retry_count - 1
 
         if not proc_start_time:
+            self.log.warn('No proc start time found, assuming service did '
+                          'start')
             return False
         if proc_start_time >= self._get_file_mtime(sentry_unit, filename):
+            self.log.debug('proc start time is newer than config changed '
+                           'time')
             return True
         else:
+            self.log.warn('proc start time is older than config changed '
+                          'time, service did not restart')
             return False
 
     def relation_error(self, name, data):
