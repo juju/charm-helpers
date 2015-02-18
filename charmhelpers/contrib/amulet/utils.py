@@ -196,7 +196,7 @@ class AmuletUtils(object):
 
         if not proc_start_time:
             self.log.warn('No proc start time found, assuming service did '
-                          'start')
+                          'not start')
             return False
         if proc_start_time >= self._get_file_mtime(sentry_unit, filename):
             self.log.debug('proc start time is newer than config changed '
