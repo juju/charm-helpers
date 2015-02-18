@@ -37,13 +37,20 @@ Examples:
   >>> ufw.enable()
   >>> ufw.service('4949', 'close')  # munin
 """
-
-__author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
-
 import re
 import os
 import subprocess
 from charmhelpers.core import hookenv
+
+__author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
+
+
+class UFWError(Exception):
+    pass
+
+
+class UFWIPv6Error(UFWError):
+    pass
 
 
 def is_enabled():
@@ -62,25 +69,73 @@ def is_enabled():
     return len(m) >= 1
 
 
-def enable():
+def is_ipv6_ok(soft_fail=False):
+    """
+    Check if IPv6 support is present and ip6tables functional
+
+    :param soft_fail: If set to True and IPv6 support is broken, then reports
+                      that the host doesn't have IPv6 support, otherwise a
+                      UFWIPv6Error exception is raised.
+    :returns: True if IPv6 is working, False otherwise
+    """
+
+    # do we have IPv6 in the machine?
+    if os.path.isdir('/proc/sys/net/ipv6'):
+        # is ip6tables kernel module loaded?
+        lsmod = subprocess.check_output(['lsmod'], universal_newlines=True)
+        matches = re.findall('^ip6_tables[ ]+', lsmod, re.M)
+        if len(matches) == 0:
+            # ip6tables support isn't complete, let's try to load it
+            try:
+                subprocess.check_output(['modprobe', 'ip6_tables'],
+                                        universal_newlines=True)
+                # great, we could load the module
+                return True
+            except subprocess.CalledProcessError as ex:
+                hookenv.log("Couldn't load ip6_tables module: %s" % ex.output,
+                            level="WARN")
+                # we are in a world where ip6tables isn't working
+                if soft_fail:
+                    # so we inform that the machine doesn't have IPv6
+                    return False
+                else:
+                    raise UFWIPv6Error("IPv6 firewall support broken")
+        else:
+            # the module is present :)
+            return True
+
+    else:
+        # the system doesn't have IPv6
+        return False
+
+
+def disable_ipv6():
+    """
+    Disable ufw IPv6 support in /etc/default/ufw
+    """
+    exit_code = subprocess.call(['sed', '-i', 's/IPV6=.*/IPV6=no/g',
+                                 '/etc/default/ufw'])
+    if exit_code == 0:
+        hookenv.log('IPv6 support in ufw disabled', level='INFO')
+    else:
+        hookenv.log("Couldn't disable IPv6 support in ufw", level="ERROR")
+        raise UFWError("Couldn't disable IPv6 support in ufw")
+
+
+def enable(soft_fail=False):
     """
     Enable ufw
 
+    :param soft_fail: If set to True silently disables IPv6 support in ufw,
+                      otherwise a UFWIPv6Error exception is raised when IP6
+                      support is broken.
     :returns: True if ufw is successfully enabled
     """
     if is_enabled():
         return True
 
-    if not os.path.isdir('/proc/sys/net/ipv6'):
-        # disable IPv6 support in ufw
-        hookenv.log("This machine doesn't have IPv6 enabled", level="INFO")
-        exit_code = subprocess.call(['sed', '-i', 's/IPV6=yes/IPV6=no/g',
-                                     '/etc/default/ufw'])
-        if exit_code == 0:
-            hookenv.log('IPv6 support in ufw disabled', level='INFO')
-        else:
-            hookenv.log("Couldn't disable IPv6 support in ufw", level="ERROR")
-            raise Exception("Couldn't disable IPv6 support in ufw")
+    if not is_ipv6_ok(soft_fail):
+        disable_ipv6()
 
     output = subprocess.check_output(['ufw', 'enable'],
                                      universal_newlines=True,
@@ -217,5 +272,5 @@ def service(name, action):
         subprocess.check_output(['ufw', 'delete', 'allow', str(name)],
                                 universal_newlines=True)
     else:
-        raise Exception(("'{}' not supported, use 'allow' "
-                         "or 'delete'").format(action))
+        raise UFWError(("'{}' not supported, use 'allow' "
+                        "or 'delete'").format(action))

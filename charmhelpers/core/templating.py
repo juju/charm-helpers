@@ -64,5 +64,5 @@ def render(source, target, context, owner='root', group='root',
                     level=hookenv.ERROR)
         raise e
     content = template.render(context)
-    host.mkdir(os.path.dirname(target), owner, group)
+    host.mkdir(os.path.dirname(target), owner, group, perms=0o755)
     host.write_file(target, content.encode(encoding), owner, group, perms)
