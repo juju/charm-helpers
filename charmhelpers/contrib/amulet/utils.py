@@ -183,10 +183,15 @@ class AmuletUtils(object):
            (such as a config file for that service) to determine if the service
            has been restarted.
            """
+        if sleep_time < 10:
+            self.log.warn('sleep time has been set to a low value, this can '
+                          'intefere with hook execution')
         time.sleep(sleep_time)
         proc_start_time = self._get_proc_start_time(sentry_unit, service,
                                                     pgrep_full)
         while retry_count > 0 and not proc_start_time:
+            self.log.debug('No pid file found for service %s, will retry %i '
+                           'more times' % (service, retry_count))
             time.sleep(5)
             proc_start_time = self._get_proc_start_time(sentry_unit, service,
                                                         pgrep_full)
