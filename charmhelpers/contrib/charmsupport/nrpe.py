@@ -161,7 +161,7 @@ define service {{
         log('Check command not found: {}'.format(parts[0]))
         return ''
 
-    def write(self, nagios_context, hostname, nagios_servicegroups=None):
+    def write(self, nagios_context, hostname, nagios_servicegroups):
         nrpe_check_file = '/etc/nagios/nrpe.d/{}.cfg'.format(
             self.command)
         with open(nrpe_check_file, 'w') as nrpe_check_config:
@@ -177,7 +177,7 @@ define service {{
                                       nagios_servicegroups)
 
     def write_service_config(self, nagios_context, hostname,
-                             nagios_servicegroups=None):
+                             nagios_servicegroups):
         for f in os.listdir(NRPE.nagios_exportdir):
             if re.search('.*{}.cfg'.format(self.command), f):
                 os.remove(os.path.join(NRPE.nagios_exportdir, f))
