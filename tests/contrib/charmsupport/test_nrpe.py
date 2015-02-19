@@ -76,7 +76,7 @@ class NRPETestCase(NRPEBaseTestCase):
         """Test that nagios_servicegroups gets set to the default if omitted"""
         self.patched['config'].return_value = {'nagios_context': 'testctx'}
         checker = nrpe.NRPE()
-        self.assertEqual(checker.nagios_servicegroups, 'juju')
+        self.assertEqual(checker.nagios_servicegroups, 'testctx')
 
     def test_no_nagios_installed_bails(self):
         self.patched['config'].return_value = {'nagios_context': 'test',
