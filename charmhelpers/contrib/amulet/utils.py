@@ -20,7 +20,6 @@ import logging
 import re
 import sys
 import time
-import datetime
 
 import six
 
@@ -277,6 +276,16 @@ class AmuletUtils(object):
           sleep_time (int): Seconds to sleep before looking for process
           retry_count (int): If service is not found, how many times to retry
 
+        Typical Usage:
+            u = OpenStackAmuletUtils(ERROR)
+            ...
+            mtime = u.get_sentry_time(self.cinder_sentry)
+            self.d.configure('cinder', {'verbose': 'True', 'debug': 'True'})
+            if not u.validate_service_config_changed(self.cinder_sentry,
+                                                     mtime,
+                                                     'cinder-api',
+                                                     '/etc/cinder/cinder.conf')
+                amulet.raise_status(amulet.FAIL, msg='update failed')
         Returns:
           bool: True if both service and file where updated/restarted after
                 mtime, False if service is older than mtime or if service was
