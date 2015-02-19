@@ -179,37 +179,18 @@ class AmuletUtils(object):
             return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
-                          pgrep_full=False, sleep_time=20, retry_count=2):
+                          pgrep_full=False, sleep_time=20):
         """Check if service was restarted.
 
            Compare a service's start time vs a file's last modification time
            (such as a config file for that service) to determine if the service
            has been restarted.
            """
-        self.log.debug('Checking %s restarted after %s was changed'
-                       % (service, filename))
         time.sleep(sleep_time)
-        proc_start_time = self._get_proc_start_time(sentry_unit, service,
-                                                    pgrep_full)
-        while retry_count > 0 and not proc_start_time:
-            self.log.debug('No pid file found for service %s, will retry %i '
-                           'more times' % (service, retry_count))
-            time.sleep(30)
-            proc_start_time = self._get_proc_start_time(sentry_unit, service,
-                                                        pgrep_full)
-            retry_count = retry_count - 1
-
-        if not proc_start_time:
-            self.log.warn('No proc start time found, assuming service did '
-                          'not start')
-            return False
-        if proc_start_time >= self._get_file_mtime(sentry_unit, filename):
-            self.log.debug('proc start time is newer than config changed '
-                           'time')
+        if (self._get_proc_start_time(sentry_unit, service, pgrep_full) >=
+                self._get_file_mtime(sentry_unit, filename)):
             return True
         else:
-            self.log.warn('proc start time is older than config changed '
-                          'time, service did not restart')
             return False
 
     def service_restarted_since(self, sentry_unit, mtime, service,
