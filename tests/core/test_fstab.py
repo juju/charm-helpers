@@ -12,13 +12,17 @@ import os
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 DEFAULT_FSTAB_FILE = """/dev/sda /mnt/sda ext3 defaults 0 0
+ # This is an indented comment, and the next line is entirely blank.
+
 /dev/sdb /mnt/sdb ext3 defaults 0 0
 /dev/sdc	/mnt/sdc	ext3	defaults	0	0
 UUID=3af44368-c50b-4768-8e58-aff003cef8be / ext4 errors=remount-ro 0 1
 """
 
-# NOTE: helper will writeback with spaces instead of tabs
-GENERATED_FSTAB_FILE = DEFAULT_FSTAB_FILE.replace('\t', ' ')
+GENERATED_FSTAB_FILE = '\n'.join(
+    # Helper will writeback with spaces instead of tabs
+    line.replace('\t', ' ') for line in DEFAULT_FSTAB_FILE.splitlines()
+    if line.strip() and not line.strip().startswith('#'))
 
 
 class FstabTest(unittest.TestCase):
