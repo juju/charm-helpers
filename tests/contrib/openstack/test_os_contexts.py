@@ -631,6 +631,30 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    def test_identity_service_context_with_cache(self):
+        '''Test shared-db context with signing cache info'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
+        self.relation_get.side_effect = relation.get
+        svc = 'cinder'
+        identity_service = context.IdentityServiceContext(service=svc,
+                                                          service_user=svc)
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'signing_dir': '/var/cache/cinder',
+        }
+        self.assertTrue(self.mkdir.called)
+        self.assertEquals(result, expected)
+
     def test_identity_service_context_with_data_http(self):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
