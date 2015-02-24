@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
 
 # Copyright 2014-2015 Canonical Limited.
 #
@@ -17,18 +17,26 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
+import six
 
 
-def current_version():
-    """Current system python version"""
-    return sys.version_info
+def bool_from_string(value):
+    """Interpret string value as boolean.
 
+    Returns True if value translates to True otherwise False.
+    """
+    if isinstance(value, six.string_types):
+        value = six.text_type(value)
+    else:
+        msg = "Unable to interpret non-string value '%s' as boolean" % (value)
+        raise ValueError(msg)
 
-def current_version_string():
-    """Current system python version as string major.minor.micro"""
-    return "{0}.{1}.{2}".format(sys.version_info.major,
-                                sys.version_info.minor,
-                                sys.version_info.micro)
+    value = value.strip().lower()
+
+    if value in ['y', 'yes', 'true', 't']:
+        return True
+    elif value in ['n', 'no', 'false', 'f']:
+        return False
+
+    msg = "Unable to interpret string value '%s' as boolean" % (value)
+    raise ValueError(msg)

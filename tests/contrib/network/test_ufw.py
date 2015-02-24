@@ -1,5 +1,4 @@
 from __future__ import print_function
-__author__ = 'Felipe Reyes <felipe.reyes@canonical.com>'
 
 import mock
 import os
@@ -7,6 +6,8 @@ import subprocess
 import unittest
 
 from charmhelpers.contrib.network import ufw
+
+__author__ = 'Felipe Reyes <felipe.reyes@canonical.com>'
 
 
 LSMOD_NO_IP6 = """Module                  Size  Used by
@@ -302,7 +303,31 @@ class TestUFW(unittest.TestCase):
         call.return_value = 0
 
         is_enabled.return_value = False
-        self.assertTrue(ufw.enable())
+        self.assertRaises(ufw.UFWIPv6Error, ufw.enable)
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('os.path.isdir')
+    @mock.patch('subprocess.call')
+    @mock.patch('subprocess.check_output')
+    def test_no_ip6_tables_fail_to_load_soft_fail(self, check_output, call,
+                                                  isdir, log, is_enabled):
+        def c(*args, **kwargs):
+            if args[0] == ['lsmod']:
+                return LSMOD_NO_IP6
+            elif args[0] == ['modprobe', 'ip6_tables']:
+                raise subprocess.CalledProcessError(1, ['modprobe',
+                                                        'ip6_tables'],
+                                                    "fail to load ip6_tables")
+            else:
+                return 'Firewall is active and enabled on system startup\n'
+
+        check_output.side_effect = c
+        isdir.return_value = True
+        call.return_value = 0
+
+        is_enabled.return_value = False
+        self.assertTrue(ufw.enable(soft_fail=True))
         call.assert_called_with(['sed', '-i', 's/IPV6=.*/IPV6=no/g',
                                  '/etc/default/ufw'])
         log.assert_any_call('IPv6 support in ufw disabled', level='INFO')

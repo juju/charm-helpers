@@ -37,16 +37,19 @@ Examples:
   >>> ufw.enable()
   >>> ufw.service('4949', 'close')  # munin
 """
-
-__author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
-
 import re
 import os
 import subprocess
 from charmhelpers.core import hookenv
 
+__author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
+
 
 class UFWError(Exception):
+    pass
+
+
+class UFWIPv6Error(UFWError):
     pass
 
 
@@ -66,10 +69,13 @@ def is_enabled():
     return len(m) >= 1
 
 
-def is_ipv6_ok():
+def is_ipv6_ok(soft_fail=False):
     """
     Check if IPv6 support is present and ip6tables functional
 
+    :param soft_fail: If set to True and IPv6 support is broken, then reports
+                      that the host doesn't have IPv6 support, otherwise a
+                      UFWIPv6Error exception is raised.
     :returns: True if IPv6 is working, False otherwise
     """
 
@@ -89,8 +95,11 @@ def is_ipv6_ok():
                 hookenv.log("Couldn't load ip6_tables module: %s" % ex.output,
                             level="WARN")
                 # we are in a world where ip6tables isn't working
-                # so we inform that the machine doesn't have IPv6
-                return False
+                if soft_fail:
+                    # so we inform that the machine doesn't have IPv6
+                    return False
+                else:
+                    raise UFWIPv6Error("IPv6 firewall support broken")
         else:
             # the module is present :)
             return True
@@ -113,16 +122,19 @@ def disable_ipv6():
         raise UFWError("Couldn't disable IPv6 support in ufw")
 
 
-def enable():
+def enable(soft_fail=False):
     """
     Enable ufw
 
+    :param soft_fail: If set to True silently disables IPv6 support in ufw,
+                      otherwise a UFWIPv6Error exception is raised when IP6
+                      support is broken.
     :returns: True if ufw is successfully enabled
     """
     if is_enabled():
         return True
 
-    if not is_ipv6_ok():
+    if not is_ipv6_ok(soft_fail):
         disable_ipv6()
 
     output = subprocess.check_output(['ufw', 'enable'],
