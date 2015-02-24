@@ -6,6 +6,7 @@ from mock import patch, call
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
+import six
 
 from charmhelpers.core import host
 
@@ -30,6 +31,11 @@ IP_LINE_ETH0 = b"""
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """
 
+IP_LINE_ETH0_VLAN = b"""
+6: eth0.10@eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
+"""
+
 IP_LINE_ETH1 = b"""
 3: eth1: <BROADCAST,MULTICAST> mtu 1546 qdisc noop state DOWN qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
@@ -37,7 +43,7 @@ IP_LINE_ETH1 = b"""
 
 IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
-IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
+IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN
 
 IP_LINE_BONDS = b"""
 6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
@@ -453,7 +459,7 @@ class HelpersTest(TestCase):
         owner = 'some-user-{foo}'
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
-        contents = 'what is {juju}'
+        contents = b'what is {juju}'
         perms = 0o644
         fileno = 'some-fileno'
 
@@ -468,10 +474,10 @@ class HelpersTest(TestCase):
 
             getpwnam.assert_called_with('some-user-{foo}')
             getgrnam.assert_called_with('some-group-{bar}')
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with(b'what is {juju}')
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')
@@ -479,7 +485,7 @@ class HelpersTest(TestCase):
         uid = 0
         gid = 0
         path = '/some/path/{baz}'
-        fmtstr = 'what is {juju}'
+        fmtstr = b'what is {juju}'
         perms = 0o444
         fileno = 'some-fileno'
 
@@ -488,10 +494,25 @@ class HelpersTest(TestCase):
 
             host.write_file(path, fmtstr)
 
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with(b'what is {juju}')
+
+    @patch.object(host, 'log')
+    @patch.object(host, 'os')
+    def test_writes_binary_contents(self, os_, log):
+        path = '/some/path/{baz}'
+        fmtstr = six.u('what is {juju}\N{TRADE MARK SIGN}').encode('UTF-8')
+        fileno = 'some-fileno'
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.fileno.return_value = fileno
+
+            host.write_file(path, fmtstr)
+
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
+            mock_file.write.assert_called_with(fmtstr)
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
@@ -781,15 +802,22 @@ class HelpersTest(TestCase):
     def test_list_nics(self, check_output):
         check_output.return_value = IP_LINES
         nics = host.list_nics('eth')
-        self.assertEqual(nics, ['eth0', 'eth1'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
         nics = host.list_nics(['eth'])
-        self.assertEqual(nics, ['eth0', 'eth1'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
 
     @patch('subprocess.check_output')
     def test_list_nics_with_bonds(self, check_output):
         check_output.return_value = IP_LINE_BONDS
         nics = host.list_nics('bond')
         self.assertEqual(nics, ['bond0.10', ])
+
+    @patch('subprocess.check_output')
+    def test_get_nic_mtu_with_bonds(self, check_output):
+        check_output.return_value = IP_LINE_BONDS
+        nic = "bond0.10"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
 
     @patch('subprocess.check_call')
     def test_set_nic_mtu(self, mock_call):
@@ -803,6 +831,13 @@ class HelpersTest(TestCase):
     def test_get_nic_mtu(self, check_output):
         check_output.return_value = IP_LINE_ETH0
         nic = "eth0"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
+
+    @patch('subprocess.check_output')
+    def test_get_nic_mtu_vlan(self, check_output):
+        check_output.return_value = IP_LINE_ETH0_VLAN
+        nic = "eth0.10"
         mtu = host.get_nic_mtu(nic)
         self.assertEqual(mtu, '1500')
 

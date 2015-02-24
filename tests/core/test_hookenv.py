@@ -11,12 +11,13 @@ import yaml
 import six
 import io
 
+from charmhelpers.core import hookenv
+
 if six.PY3:
     import pickle
 else:
     import cPickle as pickle
 
-from charmhelpers.core import hookenv
 
 CHARM_METADATA = b"""name: testmock
 summary: test mock summary
