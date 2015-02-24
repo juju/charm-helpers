@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
-
 from unittest import TestCase
 
 from charmhelpers.contrib.python import debug
 
 import mock
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 TO_PATCH = [
     "log",

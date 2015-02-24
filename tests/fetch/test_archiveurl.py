@@ -1,13 +1,5 @@
 import os
 
-import six
-if six.PY3:
-    from urllib.parse import urlparse
-    from urllib.error import URLError
-else:
-    from urllib2 import URLError
-    from urlparse import urlparse
-
 from unittest import TestCase
 from mock import (
     MagicMock,
@@ -19,6 +11,14 @@ from charmhelpers.fetch import (
     archiveurl,
     UnhandledSource,
 )
+
+import six
+if six.PY3:
+    from urllib.parse import urlparse
+    from urllib.error import URLError
+else:
+    from urllib2 import URLError
+    from urlparse import urlparse
 
 
 class ArchiveUrlFetchHandlerTest(TestCase):
