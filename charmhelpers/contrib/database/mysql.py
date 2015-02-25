@@ -259,9 +259,11 @@ class MySQLHelper(object):
 
 class PerconaClusterHelper(object):
 
-    # Going for the biggest page size to avoid wasted bytes. InnoDB page size is
+    # Going for the biggest page size to avoid wasted bytes.
+    # InnoDB page size is
     # 16MB
     DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
+    DEFAULT_INNODB_POOL_FACTOR = 0.10
 
     def human_to_bytes(self, human):
         """Convert human readable configuration options to bytes."""
@@ -299,7 +301,8 @@ class PerconaClusterHelper(object):
     def sys_mem_limit(self):
         """Determine the default memory limit for the current service unit."""
         if platform.machine() in ['armv7l']:
-            _mem_limit = self.human_to_bytes('2700M')  # experimentally determined
+            _mem_limit = self.human_to_bytes(
+                '2700M')  # experimentally determined
         else:
             # Limit for x86 based 32bit systems
             _mem_limit = self.human_to_bytes('4G')
@@ -324,6 +327,14 @@ class PerconaClusterHelper(object):
 
         # Total memory available for dataset
         dataset_bytes = self.human_to_bytes(config['dataset-size'])
+        total_mem = self.human_to_bytes(self.get_mem_total())
+
+        if dataset_bytes > total_mem:
+            log("Dataset size: {} is greater than current system's available RAM: {}".format(
+                dataset_bytes,
+                total_mem),
+                level='WARN')
+
         mysql_config['dataset_bytes'] = dataset_bytes
 
         if 'query-cache-type' in config:
@@ -349,18 +360,33 @@ class PerconaClusterHelper(object):
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
 
+        preferred_engines = None
         if 'preferred-storage-engine' in config:
             # Storage engine configuration
             preferred_engines = config['preferred-storage-engine'].split(',')
             chunk_size = int(dataset_bytes / len(preferred_engines))
+
+        innodb_buffer_pool_size = config.get(
+            'innodb-buffer-pool-size', None)
+
+        if innodb_buffer_pool_size in (None, ''):
+            if preferred_engines:
+                innodb_buffer_pool_size = chunk_size
+            else:
+                innodb_buffer_pool_size = int(dataset_bytes + (
+                    dataset_bytes * self.DEFAULT_INNODB_POOL_FACTOR))
+        else:
+            innodb_buffer_pool_size = self.human_to_bytes(
+                innodb_buffer_pool_size)
+
+        mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
+
+        if preferred_engines:
             mysql_config['innodb_flush_log_at_trx_commit'] = 1
             mysql_config['sync_binlog'] = 1
             if 'InnoDB' in preferred_engines:
-                mysql_config['innodb_buffer_pool_size'] = chunk_size
                 if config['tuning-level'] == 'fast':
                     mysql_config['innodb_flush_log_at_trx_commit'] = 2
-            else:
-                mysql_config['innodb_buffer_pool_size'] = 0
 
             mysql_config['default_storage_engine'] = preferred_engines[0]
             if 'MyISAM' in preferred_engines:
