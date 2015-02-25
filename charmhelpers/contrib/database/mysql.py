@@ -43,11 +43,17 @@ except ImportError:
 
 class MySQLHelper(object):
 
-    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost'):
+    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
+                 migrate_passwd_to_peer_relation=True,
+                 delete_ondisk_passwd_file=True):
         self.host = host
         # Password file path templates
         self.root_passwd_file_template = rpasswdf_template
         self.user_passwd_file_template = upasswdf_template
+
+        self.migrate_passwd_to_peer_relation = migrate_passwd_to_peer_relation
+        # If we migrate we have the option to delete local copy of root passwd
+        self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
 
     def connect(self, user='root', password=None):
         self.connection = MySQLdb.connect(user=user, host=self.host,
@@ -137,7 +143,8 @@ class MySQLHelper(object):
 
             try:
                 peer_store(_key, _value)
-                os.unlink(f)
+                if self.delete_ondisk_passwd_file:
+                    os.unlink(f)
             except ValueError:
                 # NOTE cluster relation not yet ready - skip for now
                 pass
@@ -153,9 +160,11 @@ class MySQLHelper(object):
 
         _password = None
         if os.path.exists(passwd_file):
+            log("Using existing password file '%s'" % passwd_file, level=DEBUG)
             with open(passwd_file, 'r') as passwd:
                 _password = passwd.read().strip()
         else:
+            log("Generating new password file '%s'" % passwd_file, level=DEBUG)
             mkdir(os.path.dirname(passwd_file), owner='root', group='root',
                   perms=0o770)
             # Force permissions - for some reason the chmod in makedirs fails
@@ -169,7 +178,10 @@ class MySQLHelper(object):
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
-        self.migrate_passwords_to_peer_relation()
+        if self.migrate_passwd_to_peer_relation:
+            self.migrate_passwords_to_peer_relation()
+
+        # For back-compat, check peer rel anyway
         if username:
             _key = 'mysql-{}.passwd'.format(username)
         else:
@@ -180,8 +192,12 @@ class MySQLHelper(object):
             if _password is None:
                 _password = password or pwgen(length=32)
                 peer_store(_key, _password)
+
         except ValueError:
             # cluster relation is not yet started; use on-disk
+            _password = None
+
+        if not _password:
             _password = self.get_mysql_password_on_disk(username, password)
 
         return _password
