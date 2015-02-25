@@ -325,8 +325,6 @@ class PerconaClusterHelper(object):
 
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
-        mysql_config['innodb_flush_log_at_trx_commit'] = 2
-        mysql_config['sync_binlog'] = 0
 
         mem_total = self.human_to_bytes(self.get_mem_total())
 
@@ -334,6 +332,7 @@ class PerconaClusterHelper(object):
         if innodb_buffer_pool_size:
             innodb_buffer_pool_size = self.human_to_bytes(
                 innodb_buffer_pool_size)
+
             if innodb_buffer_pool_size > mem_total:
                 log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
                     innodb_buffer_pool_size,
