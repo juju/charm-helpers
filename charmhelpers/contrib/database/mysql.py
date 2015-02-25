@@ -133,11 +133,15 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
-    def migrate_passwords_to_peer_relation(self):
+    def migrate_passwords_to_peer_relation(self, excludes=None):
         """Migrate any passwords storage on disk to cluster peer relation."""
         dirname = os.path.dirname(self.root_passwd_file_template)
         path = os.path.join(dirname, '*.passwd')
         for f in glob.glob(path):
+            if excludes and f in excludes:
+                log("Excluding %s from peer migration" % (f), level=DEBUG)
+                continue
+
             _key = os.path.basename(f)
             with open(f, 'r') as passwd:
                 _value = passwd.read().strip()
@@ -184,6 +188,8 @@ class MySQLHelper(object):
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
+        excludes = []
+
         # First check peer relation
         if username:
             _key = 'mysql-{}.passwd'.format(username)
@@ -192,6 +198,10 @@ class MySQLHelper(object):
 
         try:
             _password = peer_retrieve(_key)
+            # If root password available don't update peer relation from local
+            if _password and not username:
+                excludes.append(self.root_passwd_file_template)
+
         except ValueError:
             # cluster relation is not yet started; use on-disk
             _password = None
@@ -202,7 +212,7 @@ class MySQLHelper(object):
 
         # Put on wire if required
         if self.migrate_passwd_to_peer_relation:
-            self.migrate_passwords_to_peer_relation()
+            self.migrate_passwords_to_peer_relation(excludes=excludes)
 
         return _password
 
