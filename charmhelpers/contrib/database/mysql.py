@@ -336,10 +336,9 @@ class PerconaClusterHelper(object):
         mem_total = self.human_to_bytes(self.get_mem_total())
 
         innodb_buffer_pool_size = config.get('innodb-buffer-pool-size', None)
-        if innodb_buffer_pool_size not in (None, ''):
+        if innodb_buffer_pool_size:
             innodb_buffer_pool_size = self.human_to_bytes(
                 innodb_buffer_pool_size)
-
             if innodb_buffer_pool_size > mem_total:
                 log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
                     innodb_buffer_pool_size,
