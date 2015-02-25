@@ -63,19 +63,14 @@ class PerconaTests(unittest.TestCase):
     @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'config_get')
     def test_parse_config_innodb_pool_fixed(self, config, mem):
-        """Checks that a fixed buffer pool size uses the indicated amount of
-        dataset-size"""
         mem.return_value = "100G"
         config.return_value = {
-            'dataset-size': "100%",
             'innodb-buffer-pool-size': "50%",
+            'tuning-level': None,
         }
 
         helper = mysql.PerconaClusterHelper()
         mysql_config = helper.parse_config()
-
-        self.assertEqual(mysql_config.get('dataset_bytes'),
-                         helper.human_to_bytes(mem.return_value))
 
         self.assertEqual(mysql_config.get('innodb_buffer_pool_size'),
                          helper.human_to_bytes("50G"))
@@ -85,39 +80,14 @@ class PerconaTests(unittest.TestCase):
     def test_parse_config_innodb_pool_not_set(self, config, mem):
         mem.return_value = "100G"
         config.return_value = {
-            'dataset-size': "32G",
+            'innodb-buffer-pool-size': '',
+            'tuning-level': None,
         }
 
         helper = mysql.PerconaClusterHelper()
         mysql_config = helper.parse_config()
 
-        self.assertEqual(mysql_config.get('dataset_bytes'),
-                         helper.human_to_bytes(
-                             config.return_value.get('dataset-size')))
-
-        dataset_bytes = helper.human_to_bytes(config.return_value.get(
-            'dataset-size'))
-
-        # Check if innodb_buffer_pool_size is set to dataset-size + 10%
         self.assertEqual(
             mysql_config.get('innodb_buffer_pool_size'),
-            int(dataset_bytes + (
-                dataset_bytes * helper.DEFAULT_INNODB_POOL_FACTOR))
-        )
-
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
-    @mock.patch.object(mysql, 'log')
-    def test_parse_config_warn_dataset(self, log, config, mem):
-        mem.return_value = "100G"
-        config.return_value = {
-            'dataset-size': "200G",
-        }
-
-        helper = mysql.PerconaClusterHelper()
-
-        helper.parse_config()
-        log.assert_has_calls(
-            mock.call("Dataset size: 214748364800 is greater than current system's available RAM: 107374182400",
-                      level='WARN')
-        )
+            int(helper.human_to_bytes(mem.return_value) *
+                helper.DEFAULT_INNODB_BUFFER_FACTOR))
