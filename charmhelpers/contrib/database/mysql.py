@@ -178,9 +178,6 @@ class MySQLHelper(object):
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
-        if self.migrate_passwd_to_peer_relation:
-            self.migrate_passwords_to_peer_relation()
-
         # For back-compat, check peer rel anyway
         if username:
             _key = 'mysql-{}.passwd'.format(username)
@@ -189,16 +186,15 @@ class MySQLHelper(object):
 
         try:
             _password = peer_retrieve(_key)
-            if _password is None and self.migrate_passwd_to_peer_relation:
-                _password = password or pwgen(length=32)
-                peer_store(_key, _password)
-
         except ValueError:
             # cluster relation is not yet started; use on-disk
             _password = None
 
         if not _password:
             _password = self.get_mysql_password_on_disk(username, password)
+
+        if self.migrate_passwd_to_peer_relation:
+            self.migrate_passwords_to_peer_relation()
 
         return _password
 
