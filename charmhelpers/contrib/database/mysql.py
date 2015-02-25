@@ -342,7 +342,7 @@ class PerconaClusterHelper(object):
             if innodb_buffer_pool_size > mem_total:
                 log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
                     innodb_buffer_pool_size,
-                    mem_total))
+                    mem_total), level='WARN')
         else:
             innodb_buffer_pool_size = int(
                 mem_total * self.DEFAULT_INNODB_BUFFER_FACTOR)
