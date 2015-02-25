@@ -56,7 +56,7 @@ class MySQLHelper(object):
         self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
 
     def connect(self, user='root', password=None):
-        log("Opening db connection for %s@%s" % (user, host), level=DEBUG)
+        log("Opening db connection for %s@%s" % (user, self.host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=self.host,
                                           passwd=password)
 
