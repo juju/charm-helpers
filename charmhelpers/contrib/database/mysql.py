@@ -56,6 +56,7 @@ class MySQLHelper(object):
         self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
 
     def connect(self, user='root', password=None):
+        log("Opening db connection for %s@%s" % (user, host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=self.host,
                                           passwd=password)
 
@@ -165,10 +166,15 @@ class MySQLHelper(object):
                 _password = passwd.read().strip()
         else:
             log("Generating new password file '%s'" % passwd_file, level=DEBUG)
-            mkdir(os.path.dirname(passwd_file), owner='root', group='root',
-                  perms=0o770)
-            # Force permissions - for some reason the chmod in makedirs fails
-            os.chmod(os.path.dirname(passwd_file), 0o770)
+            if not os.path.isdir(os.path.dirname(passwd_file)):
+                # NOTE: need to ensure this is not mysql root dir (which needs
+                # to be mysql readable)
+                mkdir(os.path.dirname(passwd_file), owner='root', group='root',
+                      perms=0o770)
+                # Force permissions - for some reason the chmod in makedirs
+                # fails
+                os.chmod(os.path.dirname(passwd_file), 0o770)
+
             _password = password or pwgen(length=32)
             write_file(passwd_file, _password, owner='root', group='root',
                        perms=0o660)
