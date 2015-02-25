@@ -66,7 +66,6 @@ class PerconaTests(unittest.TestCase):
         mem.return_value = "100G"
         config.return_value = {
             'innodb-buffer-pool-size': "50%",
-            'tuning-level': None,
         }
 
         helper = mysql.PerconaClusterHelper()
@@ -81,7 +80,6 @@ class PerconaTests(unittest.TestCase):
         mem.return_value = "100G"
         config.return_value = {
             'innodb-buffer-pool-size': '',
-            'tuning-level': None,
         }
 
         helper = mysql.PerconaClusterHelper()

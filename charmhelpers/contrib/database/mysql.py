@@ -325,13 +325,8 @@ class PerconaClusterHelper(object):
 
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
-        mysql_config['innodb_flush_log_at_trx_commit'] = 1
-
-        if config['tuning-level'] == 'fast':
-            mysql_config['innodb_flush_log_at_trx_commit'] = 2
-            mysql_config['sync_binlog'] = 0
-        else:
-            mysql_config['sync_binlog'] = 1
+        mysql_config['innodb_flush_log_at_trx_commit'] = 2
+        mysql_config['sync_binlog'] = 0
 
         mem_total = self.human_to_bytes(self.get_mem_total())
 
