@@ -189,7 +189,7 @@ class MySQLHelper(object):
 
         try:
             _password = peer_retrieve(_key)
-            if _password is None:
+            if _password is None and self.migrate_passwd_to_peer_relation:
                 _password = password or pwgen(length=32)
                 peer_store(_key, _password)
 
