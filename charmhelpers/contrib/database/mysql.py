@@ -43,13 +43,20 @@ except ImportError:
 
 class MySQLHelper(object):
 
-    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost'):
+    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
+                 migrate_passwd_to_peer_relation=True,
+                 delete_ondisk_passwd_file=True):
         self.host = host
         # Password file path templates
         self.root_passwd_file_template = rpasswdf_template
         self.user_passwd_file_template = upasswdf_template
 
+        self.migrate_passwd_to_peer_relation = migrate_passwd_to_peer_relation
+        # If we migrate we have the option to delete local copy of root passwd
+        self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
+
     def connect(self, user='root', password=None):
+        log("Opening db connection for %s@%s" % (user, self.host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=self.host,
                                           passwd=password)
 
@@ -126,18 +133,23 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
-    def migrate_passwords_to_peer_relation(self):
+    def migrate_passwords_to_peer_relation(self, excludes=None):
         """Migrate any passwords storage on disk to cluster peer relation."""
         dirname = os.path.dirname(self.root_passwd_file_template)
         path = os.path.join(dirname, '*.passwd')
         for f in glob.glob(path):
+            if excludes and f in excludes:
+                log("Excluding %s from peer migration" % (f), level=DEBUG)
+                continue
+
             _key = os.path.basename(f)
             with open(f, 'r') as passwd:
                 _value = passwd.read().strip()
 
             try:
                 peer_store(_key, _value)
-                os.unlink(f)
+                if self.delete_ondisk_passwd_file:
+                    os.unlink(f)
             except ValueError:
                 # NOTE cluster relation not yet ready - skip for now
                 pass
@@ -153,13 +165,20 @@ class MySQLHelper(object):
 
         _password = None
         if os.path.exists(passwd_file):
+            log("Using existing password file '%s'" % passwd_file, level=DEBUG)
             with open(passwd_file, 'r') as passwd:
                 _password = passwd.read().strip()
         else:
-            mkdir(os.path.dirname(passwd_file), owner='root', group='root',
-                  perms=0o770)
-            # Force permissions - for some reason the chmod in makedirs fails
-            os.chmod(os.path.dirname(passwd_file), 0o770)
+            log("Generating new password file '%s'" % passwd_file, level=DEBUG)
+            if not os.path.isdir(os.path.dirname(passwd_file)):
+                # NOTE: need to ensure this is not mysql root dir (which needs
+                # to be mysql readable)
+                mkdir(os.path.dirname(passwd_file), owner='root', group='root',
+                      perms=0o770)
+                # Force permissions - for some reason the chmod in makedirs
+                # fails
+                os.chmod(os.path.dirname(passwd_file), 0o770)
+
             _password = password or pwgen(length=32)
             write_file(passwd_file, _password, owner='root', group='root',
                        perms=0o660)
@@ -169,7 +188,9 @@ class MySQLHelper(object):
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
-        self.migrate_passwords_to_peer_relation()
+        excludes = []
+
+        # First check peer relation
         if username:
             _key = 'mysql-{}.passwd'.format(username)
         else:
@@ -177,12 +198,21 @@ class MySQLHelper(object):
 
         try:
             _password = peer_retrieve(_key)
-            if _password is None:
-                _password = password or pwgen(length=32)
-                peer_store(_key, _password)
+            # If root password available don't update peer relation from local
+            if _password and not username:
+                excludes.append(self.root_passwd_file_template)
+
         except ValueError:
             # cluster relation is not yet started; use on-disk
+            _password = None
+
+        # If none available, generate new one
+        if not _password:
             _password = self.get_mysql_password_on_disk(username, password)
+
+        # Put on wire if required
+        if self.migrate_passwd_to_peer_relation:
+            self.migrate_passwords_to_peer_relation(excludes=excludes)
 
         return _password
 
