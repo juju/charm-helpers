@@ -53,3 +53,39 @@ class MysqlTests(unittest.TestCase):
 
         helper.grant_exists.assert_has_calls(calls)
         self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2']))
+
+
+class PerconaTests(unittest.TestCase):
+
+    def setUp(self):
+        super(PerconaTests, self).setUp()
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    def test_parse_config_innodb_pool_fixed(self, config, mem):
+        mem.return_value = "100G"
+        config.return_value = {
+            'innodb-buffer-pool-size': "50%",
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(mysql_config.get('innodb_buffer_pool_size'),
+                         helper.human_to_bytes("50G"))
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    def test_parse_config_innodb_pool_not_set(self, config, mem):
+        mem.return_value = "100G"
+        config.return_value = {
+            'innodb-buffer-pool-size': '',
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('innodb_buffer_pool_size'),
+            int(helper.human_to_bytes(mem.return_value) *
+                helper.DEFAULT_INNODB_BUFFER_FACTOR))
