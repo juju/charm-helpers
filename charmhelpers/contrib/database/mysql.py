@@ -259,8 +259,9 @@ class MySQLHelper(object):
 
 class PerconaClusterHelper(object):
 
-    # Going for the biggest page size to avoid wasted bytes. InnoDB page size is
-    # 16MB
+    # Going for the biggest page size to avoid wasted bytes.
+    # InnoDB page size is 16MB
+
     DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
     DEFAULT_INNODB_BUFFER_FACTOR = 0.50
 
@@ -325,21 +326,47 @@ class PerconaClusterHelper(object):
 
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
+        total_memory = self.human_to_bytes(self.get_mem_total())
 
-        mem_total = self.human_to_bytes(self.get_mem_total())
+        log("Option 'dataset-size' has been deprecated, instead by default %d%% of system \
+        available RAM will be used for innodb_buffer_pool_size allocation" %
+            (self.DEFAULT_INNODB_BUFFER_FACTOR * 100), level="WARN")
+
+        if 'query-cache-type' in config:
+            # Query Cache Configuration
+            mysql_config['query_cache_size'] = config['query-cache-size']
+            if (
+                    config['query-cache-size'] == -1 and
+                    config['query-cache-type'] in ['ON', 'DEMAND']
+            ):
+                # Calculate the query cache size automatically
+                qcache_bytes = (total_memory * 0.20)
+                qcache_bytes = int(qcache_bytes -
+                                   (qcache_bytes % self.DEFAULT_PAGE_SIZE))
+                mysql_config['query_cache_size'] = qcache_bytes
+                total_memory -= qcache_bytes
+
+                # 5.5 allows the words, but not 5.1
+                if config['query-cache-type'] == 'ON':
+                    mysql_config['query_cache_type'] = 1
+                elif config['query-cache-type'] == 'DEMAND':
+                    mysql_config['query_cache_type'] = 2
+                else:
+                    mysql_config['query_cache_type'] = 0
 
         innodb_buffer_pool_size = config.get('innodb-buffer-pool-size', None)
+
         if innodb_buffer_pool_size:
             innodb_buffer_pool_size = self.human_to_bytes(
                 innodb_buffer_pool_size)
 
-            if innodb_buffer_pool_size > mem_total:
+            if innodb_buffer_pool_size > total_memory:
                 log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
                     innodb_buffer_pool_size,
-                    mem_total), level='WARN')
+                    total_memory), level='WARN')
         else:
             innodb_buffer_pool_size = int(
-                mem_total * self.DEFAULT_INNODB_BUFFER_FACTOR)
+                total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR)
 
         mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
         return mysql_config
