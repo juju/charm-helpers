@@ -138,8 +138,8 @@ class MysqlRelation(RelationContext):
     interface = 'mysql'
 
     def __init__(self, *args, **kwargs):
-        super(HttpRelation).__init__(self, *args, **kwargs)
         self.required_keys = ['host', 'user', 'password', 'database']
+        super(HttpRelation).__init__(self, *args, **kwargs)
 
 
 class HttpRelation(RelationContext):
@@ -153,8 +153,8 @@ class HttpRelation(RelationContext):
     interface = 'http'
 
     def __init__(self, *args, **kwargs):
-        super(HttpRelation).__init__(self, *args, **kwargs)
         self.required_keys = ['host', 'port']
+        super(HttpRelation).__init__(self, *args, **kwargs)
 
     def provide_data(self):
         return {
