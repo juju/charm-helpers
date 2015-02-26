@@ -18,7 +18,7 @@
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
-from functools import wraps, partial
+from functools import wraps
 
 import subprocess
 import json
@@ -422,10 +422,10 @@ def clean_storage(block_device):
     else:
         zap_disk(block_device)
 
-is_ip = partial(ip.is_ip)
-ns_query = partial(ip.ns_query)
-get_host_ip = partial(ip.get_host_ip)
-get_hostname = partial(ip.get_hostname)
+is_ip = ip.is_ip
+ns_query = ip.ns_query
+get_host_ip = ip.get_host_ip
+get_hostname = ip.get_hostname
 
 
 def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
