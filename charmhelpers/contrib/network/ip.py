@@ -415,7 +415,7 @@ def get_host_ip(hostname, fallback=None):
         try:
             ip_addr = socket.gethostbyname(hostname)
         except:
-            log("Failed to normalize hostname '%s'" % (hostname),
+            log("Failed to resolve hostname '%s'" % (hostname),
                 level=WARNING)
             return fallback
     return ip_addr
