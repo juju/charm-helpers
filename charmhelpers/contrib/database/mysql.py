@@ -332,28 +332,6 @@ class PerconaClusterHelper(object):
         available RAM will be used for innodb_buffer_pool_size allocation" %
             (self.DEFAULT_INNODB_BUFFER_FACTOR * 100), level="WARN")
 
-        if 'query-cache-type' in config:
-            # Query Cache Configuration
-            mysql_config['query_cache_size'] = config['query-cache-size']
-            if (
-                    config['query-cache-size'] == -1 and
-                    config['query-cache-type'] in ['ON', 'DEMAND']
-            ):
-                # Calculate the query cache size automatically
-                qcache_bytes = (total_memory * 0.20)
-                qcache_bytes = int(qcache_bytes -
-                                   (qcache_bytes % self.DEFAULT_PAGE_SIZE))
-                mysql_config['query_cache_size'] = qcache_bytes
-                total_memory -= qcache_bytes
-
-                # 5.5 allows the words, but not 5.1
-                if config['query-cache-type'] == 'ON':
-                    mysql_config['query_cache_type'] = 1
-                elif config['query-cache-type'] == 'DEMAND':
-                    mysql_config['query_cache_type'] = 2
-                else:
-                    mysql_config['query_cache_type'] = 0
-
         innodb_buffer_pool_size = config.get('innodb-buffer-pool-size', None)
 
         if innodb_buffer_pool_size:
