@@ -289,9 +289,11 @@ class MySQLHelper(object):
 
 class PerconaClusterHelper(object):
 
-    # Going for the biggest page size to avoid wasted bytes. InnoDB page size is
-    # 16MB
+    # Going for the biggest page size to avoid wasted bytes.
+    # InnoDB page size is 16MB
+
     DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
+    DEFAULT_INNODB_BUFFER_FACTOR = 0.50
 
     def human_to_bytes(self, human):
         """Convert human readable configuration options to bytes."""
@@ -352,51 +354,27 @@ class PerconaClusterHelper(object):
         if 'max-connections' in config:
             mysql_config['max_connections'] = config['max-connections']
 
-        # Total memory available for dataset
-        dataset_bytes = self.human_to_bytes(config['dataset-size'])
-        mysql_config['dataset_bytes'] = dataset_bytes
-
-        if 'query-cache-type' in config:
-            # Query Cache Configuration
-            mysql_config['query_cache_size'] = config['query-cache-size']
-            if (config['query-cache-size'] == -1 and
-                    config['query-cache-type'] in ['ON', 'DEMAND']):
-                # Calculate the query cache size automatically
-                qcache_bytes = (dataset_bytes * 0.20)
-                qcache_bytes = int(qcache_bytes -
-                                   (qcache_bytes % self.DEFAULT_PAGE_SIZE))
-                mysql_config['query_cache_size'] = qcache_bytes
-                dataset_bytes -= qcache_bytes
-
-            # 5.5 allows the words, but not 5.1
-            if config['query-cache-type'] == 'ON':
-                mysql_config['query_cache_type'] = 1
-            elif config['query-cache-type'] == 'DEMAND':
-                mysql_config['query_cache_type'] = 2
-            else:
-                mysql_config['query_cache_type'] = 0
-
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
+        total_memory = self.human_to_bytes(self.get_mem_total())
 
-        if 'preferred-storage-engine' in config:
-            # Storage engine configuration
-            preferred_engines = config['preferred-storage-engine'].split(',')
-            chunk_size = int(dataset_bytes / len(preferred_engines))
-            mysql_config['innodb_flush_log_at_trx_commit'] = 1
-            mysql_config['sync_binlog'] = 1
-            if 'InnoDB' in preferred_engines:
-                mysql_config['innodb_buffer_pool_size'] = chunk_size
-                if config['tuning-level'] == 'fast':
-                    mysql_config['innodb_flush_log_at_trx_commit'] = 2
-            else:
-                mysql_config['innodb_buffer_pool_size'] = 0
+        log("Option 'dataset-size' has been deprecated, instead by default %d%% of system \
+        available RAM will be used for innodb_buffer_pool_size allocation" %
+            (self.DEFAULT_INNODB_BUFFER_FACTOR * 100), level="WARN")
 
-            mysql_config['default_storage_engine'] = preferred_engines[0]
-            if 'MyISAM' in preferred_engines:
-                mysql_config['key_buffer'] = chunk_size
+        innodb_buffer_pool_size = config.get('innodb-buffer-pool-size', None)
 
-            if config['tuning-level'] == 'fast':
-                mysql_config['sync_binlog'] = 0
+        if innodb_buffer_pool_size:
+            innodb_buffer_pool_size = self.human_to_bytes(
+                innodb_buffer_pool_size)
 
+            if innodb_buffer_pool_size > total_memory:
+                log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
+                    innodb_buffer_pool_size,
+                    total_memory), level='WARN')
+        else:
+            innodb_buffer_pool_size = int(
+                total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR)
+
+        mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
         return mysql_config
