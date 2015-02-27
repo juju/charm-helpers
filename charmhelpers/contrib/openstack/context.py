@@ -839,37 +839,45 @@ class NeutronContext(OSContextGenerator):
 
 
 class NeutronPortContext(OSContextGenerator):
-    def resolve_port(self, config_key):
-        if not config(config_key):
+    NIC_PREFIXES = ['eth', 'bond']
+
+    def resolve_ports(self, ports):
+        """Resolve NICs not yet bound to bridge(s)
+
+        If hwaddress provided then returns resolved hwaddress otherwise NIC.  
+        """
+        if not ports:
             return None
 
         hwaddr_to_nic = {}
         hwaddr_to_ip = {}
-        for nic in list_nics(['eth', 'bond']):
+        for nic in list_nics(self.NIC_PREFIXES):
             hwaddr = get_nic_hwaddr(nic)
             hwaddr_to_nic[hwaddr] = nic
-            addresses = get_ipv4_addr(nic, fatal=False) + \
-                get_ipv6_addr(iface=nic, fatal=False)
+            addresses = get_ipv4_addr(nic, fatal=False)
+            addresses += get_ipv6_addr(iface=nic, fatal=False)
             hwaddr_to_ip[hwaddr] = addresses
 
+        resolved = []
         mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
-        for entry in config(config_key).split():
-            entry = entry.strip()
+        for entry in ports:
             if re.match(mac_regex, entry):
-                if entry in hwaddr_to_nic and len(hwaddr_to_ip[entry]) == 0:
+                # NIC is in known NICs and does NOT hace an IP address
+                if entry in hwaddr_to_nic and not hwaddr_to_ip[entry]:
                     # If the nic is part of a bridge then don't use it
                     if is_bridge_member(hwaddr_to_nic[entry]):
                         continue
+
                     # Entry is a MAC address for a valid interface that doesn't
                     # have an IP address assigned yet.
-                    return hwaddr_to_nic[entry]
+                    resolved.append(hwaddr_to_nic[entry])
             else:
                 # If the passed entry is not a MAC address, assume it's a valid
                 # interface, and that the user put it there on purpose (we can
                 # trust it to be the real external network).
-                return entry
+                resolved.append(entry)
 
-        return None
+        return resolved
 
 
 class OSConfigFlagContext(OSContextGenerator):

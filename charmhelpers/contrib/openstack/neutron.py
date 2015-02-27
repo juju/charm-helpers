@@ -246,7 +246,7 @@ def parse_mappings(mappings):
         for m in mappings:
             p = m.partition(':')
             if p[1] == ':':
-                parsed[p[0]] = p[2]
+                parsed[p[0].strip()] = p[2].strip()
 
     return parsed
 
