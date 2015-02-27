@@ -59,7 +59,7 @@ class MysqlTests(unittest.TestCase):
         helper.grant_exists.assert_has_calls(calls)
         self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2']))
 
-    @mock.patch.object(mysql, 'socket')
+    @mock.patch('charmhelpers.contrib.network.ip.socket')
     @mock.patch.object(mysql, 'unit_get')
     @mock.patch.object(mysql, 'config_get')
     @mock.patch.object(mysql, 'log')
@@ -74,14 +74,28 @@ class MysqlTests(unittest.TestCase):
         mock_unit_get.return_value = '10.0.0.1'
         out = helper.normalize_address('10.0.0.1')
         self.assertEqual('127.0.0.1', out)
+        mock_config_get.assert_called_with('prefer-ipv6')
 
         mock_unit_get.return_value = '10.0.0.1'
         out = helper.normalize_address('10.0.0.2')
         self.assertEqual('10.0.0.2', out)
+        mock_config_get.assert_called_with('prefer-ipv6')
+
+        out = helper.normalize_address('2001:db8:1::1')
+        self.assertEqual('2001:db8:1::1', out)
+        mock_config_get.assert_called_with('prefer-ipv6')
 
         mock_socket.gethostbyname.side_effect = Exception
         out = helper.normalize_address('unresolvable')
         self.assertEqual('unresolvable', out)
+        mock_config_get.assert_called_with('prefer-ipv6')
+
+        # prefer-ipv6
+        mock_config_get.return_value = True
+        mock_socket.gethostbyname.side_effect = 'other'
+        out = helper.normalize_address('unresolvable')
+        self.assertEqual('unresolvable', out)
+        mock_config_get.assert_called_with('prefer-ipv6')
 
 
 class PerconaTests(unittest.TestCase):
