@@ -1,6 +1,5 @@
 """Helper for working with a MySQL database"""
 import json
-import socket
 import re
 import sys
 import platform
@@ -15,6 +14,7 @@ from charmhelpers.core.host import (
     write_file
 )
 from charmhelpers.core.hookenv import (
+    config as config_get,
     relation_get,
     related_units,
     unit_get,
@@ -22,7 +22,6 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     INFO,
 )
-from charmhelpers.core.hookenv import config as config_get
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
@@ -32,6 +31,7 @@ from charmhelpers.contrib.peerstorage import (
     peer_store,
     peer_retrieve,
 )
+from charmhelpers.contrib.network.ip import get_host_ip
 
 try:
     import MySQLdb
@@ -220,6 +220,18 @@ class MySQLHelper(object):
         """Retrieve or generate mysql root password for service units."""
         return self.get_mysql_password(username=None, password=password)
 
+    def normalize_address(self, hostname):
+        """Ensure that address returned is an IP address (i.e. not fqdn)"""
+        if config_get('prefer-ipv6'):
+            # TODO: add support for ipv6 dns
+            return hostname
+
+        if hostname != unit_get('private-address'):
+            return get_host_ip(hostname, fallback=hostname)
+
+        # Otherwise assume localhost
+        return '127.0.0.1'
+
     def get_allowed_units(self, database, username, relation_id=None):
         """Get list of units with access grants for database with username.
 
@@ -247,6 +259,7 @@ class MySQLHelper(object):
 
             if hosts:
                 for host in hosts:
+                    host = self.normalize_address(host)
                     if self.grant_exists(database, username, host):
                         log("Grant exists for host '%s' on db '%s'" %
                             (host, database), level=DEBUG)
@@ -262,21 +275,11 @@ class MySQLHelper(object):
 
     def configure_db(self, hostname, database, username, admin=False):
         """Configure access to database for username from hostname."""
-        if config_get('prefer-ipv6'):
-            remote_ip = hostname
-        elif hostname != unit_get('private-address'):
-            try:
-                remote_ip = socket.gethostbyname(hostname)
-            except Exception:
-                # socket.gethostbyname doesn't support ipv6
-                remote_ip = hostname
-        else:
-            remote_ip = '127.0.0.1'
-
         self.connect(password=self.get_mysql_root_password())
         if not self.database_exists(database):
             self.create_database(database)
 
+        remote_ip = self.normalize_address(hostname)
         password = self.get_mysql_password(username)
         if not self.grant_exists(database, username, remote_ip):
             if not admin:
