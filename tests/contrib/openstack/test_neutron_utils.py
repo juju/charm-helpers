@@ -168,3 +168,15 @@ class NeutronTests(unittest.TestCase):
             self.config.return_value = nwmanager
             renamed_manager = neutron.network_manager()
             self.assertEquals(renamed_manager, icehouse_cases[nwmanager])
+
+    def test_parse_bridge_mappings(self):
+        ret = neutron.parse_bridge_mappings(None)
+        self.assertEqual(ret, {})
+        ret = neutron.parse_bridge_mappings("br0:physnet1")
+        self.assertEqual(ret, {'br0': 'physnet1'})
+
+    def test_parse_data_port_mappings(self):
+        ret = neutron.parse_data_port_mappings(None)
+        self.assertEqual(ret, {})
+        ret = neutron.parse_data_port_mappings("eth0:physnet1")
+        self.assertEqual(ret, {'eth0': 'physnet1'})
