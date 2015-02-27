@@ -254,9 +254,9 @@ def parse_mappings(mappings):
 def parse_bridge_mappings(mappings):
     """Parse bridge mappings.
 
-    Mappings must be a space-delimited list of bridge:provider mappings.
+    Mappings must be a space-delimited list of provider:bridge mappings.
 
-    Returns dict of the form {brifdge: provider}.
+    Returns dict of the form {provider:bridge}.
     """
     return parse_mappings(mappings)
 
@@ -264,9 +264,9 @@ def parse_bridge_mappings(mappings):
 def parse_data_port_mappings(mappings):
     """Parse data port mappings.
 
-    Mappings must be a space-delimited list of port:provider mappings.
+    Mappings must be a space-delimited list of provider:port mappings.
 
-    Returns dict of the form {port: provider}.
+    Returns dict of the form {provider:port}.
     """
     return parse_mappings(mappings)
 
