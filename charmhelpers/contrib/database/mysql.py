@@ -15,6 +15,7 @@ from charmhelpers.core.host import (
     write_file
 )
 from charmhelpers.core.hookenv import (
+    config as config_get,
     relation_get,
     related_units,
     unit_get,
@@ -23,7 +24,6 @@ from charmhelpers.core.hookenv import (
     INFO,
     WARNING,
 )
-from charmhelpers.core.hookenv import config as config_get
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
@@ -33,6 +33,7 @@ from charmhelpers.contrib.peerstorage import (
     peer_store,
     peer_retrieve,
 )
+from charmhelpers.contrib.network.ip import get_host_ip
 
 try:
     import MySQLdb
@@ -228,13 +229,7 @@ class MySQLHelper(object):
             return hostname
 
         if hostname != unit_get('private-address'):
-            try:
-                return socket.gethostbyname(hostname)
-            except Exception:
-                # socket.gethostbyname doesn't support ipv6
-                log("Failed to normalize hostname '%s'" % (hostname),
-                    level=WARNING)
-                return hostname
+            return get_host_ip(hostname, fallback=hostname)
 
         # Otherwise assume localhost
         return '127.0.0.1'
