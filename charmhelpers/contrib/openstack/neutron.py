@@ -237,3 +237,36 @@ def network_manager():
     else:
         # ensure accurate naming for all releases post-H
         return 'neutron'
+
+
+def parse_mappings(mappings):
+    parsed = {}
+    if mappings:
+        mappings = mappings.split(' ')
+        for m in mappings:
+            p = m.partition(':')
+            if p[1] == ':':
+                parsed[p[0]] = p[2]
+
+    return parsed
+
+
+def parse_bridge_mappings(mappings):
+    """Parse bridge mappings.
+
+    Mappings must be a space-delimited list of bridge:provider mappings.
+
+    Returns dict of the form {brifdge: provider}.
+    """
+    return parse_mappings(mappings)
+
+
+def parse_data_port_mappings(mappings):
+    """Parse data port mappings.
+
+    Mappings must be a space-delimited list of port:provider mappings.
+
+    Returns dict of the form {port: provider}.
+    """
+    return parse_mappings(mappings)
+
