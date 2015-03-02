@@ -457,7 +457,7 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
-        self.assertEquals(result, {})
+        self.assertEquals(result, None)
         self.relation_set.assert_called_with(
             relation_settings={
                 'hostname': '10.5.5.1'})
