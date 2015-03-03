@@ -1,6 +1,5 @@
 """Helper for working with a MySQL database"""
 import json
-import socket
 import re
 import sys
 import platform
@@ -15,6 +14,7 @@ from charmhelpers.core.host import (
     write_file
 )
 from charmhelpers.core.hookenv import (
+    config as config_get,
     relation_get,
     related_units,
     unit_get,
@@ -22,7 +22,6 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     INFO,
 )
-from charmhelpers.core.hookenv import config as config_get
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
@@ -32,6 +31,7 @@ from charmhelpers.contrib.peerstorage import (
     peer_store,
     peer_retrieve,
 )
+from charmhelpers.contrib.network.ip import get_host_ip
 
 try:
     import MySQLdb
@@ -43,13 +43,20 @@ except ImportError:
 
 class MySQLHelper(object):
 
-    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost'):
+    def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
+                 migrate_passwd_to_peer_relation=True,
+                 delete_ondisk_passwd_file=True):
         self.host = host
         # Password file path templates
         self.root_passwd_file_template = rpasswdf_template
         self.user_passwd_file_template = upasswdf_template
 
+        self.migrate_passwd_to_peer_relation = migrate_passwd_to_peer_relation
+        # If we migrate we have the option to delete local copy of root passwd
+        self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
+
     def connect(self, user='root', password=None):
+        log("Opening db connection for %s@%s" % (user, self.host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=self.host,
                                           passwd=password)
 
@@ -126,18 +133,23 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
-    def migrate_passwords_to_peer_relation(self):
+    def migrate_passwords_to_peer_relation(self, excludes=None):
         """Migrate any passwords storage on disk to cluster peer relation."""
         dirname = os.path.dirname(self.root_passwd_file_template)
         path = os.path.join(dirname, '*.passwd')
         for f in glob.glob(path):
+            if excludes and f in excludes:
+                log("Excluding %s from peer migration" % (f), level=DEBUG)
+                continue
+
             _key = os.path.basename(f)
             with open(f, 'r') as passwd:
                 _value = passwd.read().strip()
 
             try:
                 peer_store(_key, _value)
-                os.unlink(f)
+                if self.delete_ondisk_passwd_file:
+                    os.unlink(f)
             except ValueError:
                 # NOTE cluster relation not yet ready - skip for now
                 pass
@@ -153,13 +165,20 @@ class MySQLHelper(object):
 
         _password = None
         if os.path.exists(passwd_file):
+            log("Using existing password file '%s'" % passwd_file, level=DEBUG)
             with open(passwd_file, 'r') as passwd:
                 _password = passwd.read().strip()
         else:
-            mkdir(os.path.dirname(passwd_file), owner='root', group='root',
-                  perms=0o770)
-            # Force permissions - for some reason the chmod in makedirs fails
-            os.chmod(os.path.dirname(passwd_file), 0o770)
+            log("Generating new password file '%s'" % passwd_file, level=DEBUG)
+            if not os.path.isdir(os.path.dirname(passwd_file)):
+                # NOTE: need to ensure this is not mysql root dir (which needs
+                # to be mysql readable)
+                mkdir(os.path.dirname(passwd_file), owner='root', group='root',
+                      perms=0o770)
+                # Force permissions - for some reason the chmod in makedirs
+                # fails
+                os.chmod(os.path.dirname(passwd_file), 0o770)
+
             _password = password or pwgen(length=32)
             write_file(passwd_file, _password, owner='root', group='root',
                        perms=0o660)
@@ -169,7 +188,9 @@ class MySQLHelper(object):
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
-        self.migrate_passwords_to_peer_relation()
+        excludes = []
+
+        # First check peer relation
         if username:
             _key = 'mysql-{}.passwd'.format(username)
         else:
@@ -177,18 +198,39 @@ class MySQLHelper(object):
 
         try:
             _password = peer_retrieve(_key)
-            if _password is None:
-                _password = password or pwgen(length=32)
-                peer_store(_key, _password)
+            # If root password available don't update peer relation from local
+            if _password and not username:
+                excludes.append(self.root_passwd_file_template)
+
         except ValueError:
             # cluster relation is not yet started; use on-disk
+            _password = None
+
+        # If none available, generate new one
+        if not _password:
             _password = self.get_mysql_password_on_disk(username, password)
+
+        # Put on wire if required
+        if self.migrate_passwd_to_peer_relation:
+            self.migrate_passwords_to_peer_relation(excludes=excludes)
 
         return _password
 
     def get_mysql_root_password(self, password=None):
         """Retrieve or generate mysql root password for service units."""
         return self.get_mysql_password(username=None, password=password)
+
+    def normalize_address(self, hostname):
+        """Ensure that address returned is an IP address (i.e. not fqdn)"""
+        if config_get('prefer-ipv6'):
+            # TODO: add support for ipv6 dns
+            return hostname
+
+        if hostname != unit_get('private-address'):
+            return get_host_ip(hostname, fallback=hostname)
+
+        # Otherwise assume localhost
+        return '127.0.0.1'
 
     def get_allowed_units(self, database, username, relation_id=None):
         """Get list of units with access grants for database with username.
@@ -217,6 +259,7 @@ class MySQLHelper(object):
 
             if hosts:
                 for host in hosts:
+                    host = self.normalize_address(host)
                     if self.grant_exists(database, username, host):
                         log("Grant exists for host '%s' on db '%s'" %
                             (host, database), level=DEBUG)
@@ -232,21 +275,11 @@ class MySQLHelper(object):
 
     def configure_db(self, hostname, database, username, admin=False):
         """Configure access to database for username from hostname."""
-        if config_get('prefer-ipv6'):
-            remote_ip = hostname
-        elif hostname != unit_get('private-address'):
-            try:
-                remote_ip = socket.gethostbyname(hostname)
-            except Exception:
-                # socket.gethostbyname doesn't support ipv6
-                remote_ip = hostname
-        else:
-            remote_ip = '127.0.0.1'
-
         self.connect(password=self.get_mysql_root_password())
         if not self.database_exists(database):
             self.create_database(database)
 
+        remote_ip = self.normalize_address(hostname)
         password = self.get_mysql_password(username)
         if not self.grant_exists(database, username, remote_ip):
             if not admin:
@@ -259,9 +292,11 @@ class MySQLHelper(object):
 
 class PerconaClusterHelper(object):
 
-    # Going for the biggest page size to avoid wasted bytes. InnoDB page size is
-    # 16MB
+    # Going for the biggest page size to avoid wasted bytes.
+    # InnoDB page size is 16MB
+
     DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
+    DEFAULT_INNODB_BUFFER_FACTOR = 0.50
 
     def human_to_bytes(self, human):
         """Convert human readable configuration options to bytes."""
@@ -322,51 +357,27 @@ class PerconaClusterHelper(object):
         if 'max-connections' in config:
             mysql_config['max_connections'] = config['max-connections']
 
-        # Total memory available for dataset
-        dataset_bytes = self.human_to_bytes(config['dataset-size'])
-        mysql_config['dataset_bytes'] = dataset_bytes
-
-        if 'query-cache-type' in config:
-            # Query Cache Configuration
-            mysql_config['query_cache_size'] = config['query-cache-size']
-            if (config['query-cache-size'] == -1 and
-                    config['query-cache-type'] in ['ON', 'DEMAND']):
-                # Calculate the query cache size automatically
-                qcache_bytes = (dataset_bytes * 0.20)
-                qcache_bytes = int(qcache_bytes -
-                                   (qcache_bytes % self.DEFAULT_PAGE_SIZE))
-                mysql_config['query_cache_size'] = qcache_bytes
-                dataset_bytes -= qcache_bytes
-
-            # 5.5 allows the words, but not 5.1
-            if config['query-cache-type'] == 'ON':
-                mysql_config['query_cache_type'] = 1
-            elif config['query-cache-type'] == 'DEMAND':
-                mysql_config['query_cache_type'] = 2
-            else:
-                mysql_config['query_cache_type'] = 0
-
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
+        total_memory = self.human_to_bytes(self.get_mem_total())
 
-        if 'preferred-storage-engine' in config:
-            # Storage engine configuration
-            preferred_engines = config['preferred-storage-engine'].split(',')
-            chunk_size = int(dataset_bytes / len(preferred_engines))
-            mysql_config['innodb_flush_log_at_trx_commit'] = 1
-            mysql_config['sync_binlog'] = 1
-            if 'InnoDB' in preferred_engines:
-                mysql_config['innodb_buffer_pool_size'] = chunk_size
-                if config['tuning-level'] == 'fast':
-                    mysql_config['innodb_flush_log_at_trx_commit'] = 2
-            else:
-                mysql_config['innodb_buffer_pool_size'] = 0
+        log("Option 'dataset-size' has been deprecated, instead by default %d%% of system \
+        available RAM will be used for innodb_buffer_pool_size allocation" %
+            (self.DEFAULT_INNODB_BUFFER_FACTOR * 100), level="WARN")
 
-            mysql_config['default_storage_engine'] = preferred_engines[0]
-            if 'MyISAM' in preferred_engines:
-                mysql_config['key_buffer'] = chunk_size
+        innodb_buffer_pool_size = config.get('innodb-buffer-pool-size', None)
 
-            if config['tuning-level'] == 'fast':
-                mysql_config['sync_binlog'] = 0
+        if innodb_buffer_pool_size:
+            innodb_buffer_pool_size = self.human_to_bytes(
+                innodb_buffer_pool_size)
 
+            if innodb_buffer_pool_size > total_memory:
+                log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
+                    innodb_buffer_pool_size,
+                    total_memory), level='WARN')
+        else:
+            innodb_buffer_pool_size = int(
+                total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR)
+
+        mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
         return mysql_config
