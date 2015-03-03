@@ -2188,3 +2188,28 @@ class ContextTests(unittest.TestCase):
                  call('2001:db9::/113', '2001:db8::5050'),
                  call('2001:dba::/113', '2001:db8::5050')]
         self.get_address_in_network.assert_has_calls(calls)
+
+    def test_config_flag_parsing_simple(self):
+        # Standard key=value checks...
+        flags = context.config_flags_parser('key1=value1, key2=value2')
+        self.assertEqual(flags, {'key1': 'value1', 'key2': 'value2'})
+
+        # Check for multiple values to a single key
+        flags = context.config_flags_parser('key1=value1, '
+                                            'key2=value2,value3,value4')
+        self.assertEqual(flags, {'key1': 'value1',
+                                 'key2': 'value2,value3,value4'})
+
+        # Check for yaml formatted key value pairings for more complex
+        # assignment options.
+        flags = context.config_flags_parser('key1: subkey1=value1,'
+                                            'subkey2=value2')
+        self.assertEqual(flags, {'key1': 'subkey1=value1,subkey2=value2'})
+
+        # Check for good measure the ldap formats
+        test_string = ('user_tree_dn: ou=ABC General,'
+                       'ou=User Accounts,dc=example,dc=com')
+        flags = context.config_flags_parser(test_string)
+        self.assertEqual(flags, {'user_tree_dn': ('ou=ABC General,'
+                                                  'ou=User Accounts,'
+                                                  'dc=example,dc=com')})
