@@ -264,8 +264,19 @@ def parse_bridge_mappings(mappings):
 def parse_data_port_mappings(mappings):
     """Parse data port mappings.
 
-    Mappings must be a space-delimited list of provider:port mappings.
+    Mappings must be a space-delimited list of bridge:port mappings.
 
-    Returns dict of the form {provider:port}.
+    Returns dict of the form {bridge:port}.
     """
-    return parse_mappings(mappings)
+    mappings = parse_mappings(mappings)
+    bridges = mappings.keys()
+    ports = mappings.values()
+    if len(set(bridges)) != len(bridges):
+        raise Exception("It is not allowed to have more than one port "
+                        "configured on the same bridge")
+
+    if len(set(ports)) != len(ports):
+        raise Exception("It is not allowed to have the same port configured "
+                        "on more than one bridge")
+
+    return mappings
