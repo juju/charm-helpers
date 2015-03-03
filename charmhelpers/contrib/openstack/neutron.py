@@ -239,10 +239,10 @@ def network_manager():
         return 'neutron'
 
 
-def parse_mappings(mappings):
+def parse_mappings(mappings, delimiter=' '):
     parsed = {}
     if mappings:
-        mappings = mappings.split(' ')
+        mappings = mappings.split(delimiter)
         for m in mappings:
             p = m.partition(':')
             if p[1] == ':':
@@ -278,5 +278,20 @@ def parse_data_port_mappings(mappings):
     if len(set(ports)) != len(ports):
         raise Exception("It is not allowed to have the same port configured "
                         "on more than one bridge")
+
+    return mappings
+
+
+def parse_vlan_range_mappings(mappings):
+    """Parse vlan range mappings.
+
+    Mappings must be a space-delimited list of provider:start:end mappings.
+
+    Returns dict of the form {provider: (start, end)}.
+    """
+    _mappings = parse_mappings(mappings)
+    mappings = {}
+    for p, r in _mappings.iteritems():
+        mappings[p] = tuple(r.split(':'))
 
     return mappings
