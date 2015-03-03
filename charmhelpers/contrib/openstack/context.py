@@ -21,6 +21,7 @@ from base64 import b64decode
 from subprocess import check_call
 
 import six
+import yaml
 
 from charmhelpers.fetch import (
     apt_install,
@@ -104,9 +105,41 @@ def context_complete(ctxt):
 def config_flags_parser(config_flags):
     """Parses config flags string into dict.
 
+    This parsing method supports a few different formats for the config
+    flag values to be parsed:
+
+      1. A string in the simple format of key=value pairs, with the possibility
+         of specifying multiple key value pairs within the same string. For
+         example, a string in the format of 'key1=value1, key2=value2' will
+         return a dict of:
+         {'key1': 'value1',
+          'key2': 'value2'}.
+
+      2. A string in the above format, but supporting a comma-delimited list
+         of values for the same key. For example, a string in the format of
+         'key1=value1, key2=value3,value4,value5' will return a dict of:
+         {'key1', 'value1',
+          'key2', 'value2,value3,value4'}
+
+      3. A string containing a colon character (:) prior to an equal
+         character (=) will be treated as yaml and parsed as such. This can be
+         used to specify more complex key value pairs. For example,
+         a string in the format of 'key1: subkey1=value1, subkey2=value2' will
+         return a dict of:
+         {'key1', 'subkey1=value1, subkey2=value2'}
+
     The provided config_flags string may be a list of comma-separated values
     which themselves may be comma-separated list of values.
     """
+    # If we find a colon before an equals sign then treat it as yaml.
+    # Note: limit it to finding the colon first since this indicates assignment
+    # for inline yaml.
+    colon = config_flags.find(':')
+    equals = config_flags.find('=')
+    if colon > 0:
+        if colon < equals or equals < 0:
+            return yaml.safe_load(config_flags)
+
     if config_flags.find('==') >= 0:
         log("config_flags is not in expected format (key=value)", level=ERROR)
         raise OSContextError
