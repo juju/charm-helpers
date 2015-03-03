@@ -457,7 +457,7 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
-        self.assertEquals(result, {})
+        self.assertEquals(result, None)
         self.relation_set.assert_called_with(
             relation_settings={
                 'hostname': '10.5.5.1'})
@@ -629,6 +629,30 @@ class ContextTests(unittest.TestCase):
             'service_port': '5000',
             'service_protocol': 'http'
         }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_cache(self):
+        '''Test shared-db context with signing cache info'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
+        self.relation_get.side_effect = relation.get
+        svc = 'cinder'
+        identity_service = context.IdentityServiceContext(service=svc,
+                                                          service_user=svc)
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'signing_dir': '/var/cache/cinder',
+        }
+        self.assertTrue(self.mkdir.called)
         self.assertEquals(result, expected)
 
     def test_identity_service_context_with_data_http(self):
@@ -1940,10 +1964,11 @@ class ContextTests(unittest.TestCase):
         self.is_relation_made.return_value = True
         self.relation_ids.return_value = ['zeromq-configuration:1']
         self.related_units.return_value = ['openstack-zeromq/0']
-        self.relation_get.side_effect = ['nonce-data', 'hostname']
+        self.relation_get.side_effect = ['nonce-data', 'hostname', 'redis']
         self.assertEquals(context.ZeroMQContext()(),
                           {'zmq_host': 'hostname',
-                           'zmq_nonce': 'nonce-data'})
+                           'zmq_nonce': 'nonce-data',
+                           'zmq_redis_address': 'redis'})
 
     def test_notificationdriver_context_nomsg(self):
         relations = {
