@@ -269,4 +269,3 @@ def parse_data_port_mappings(mappings):
     Returns dict of the form {provider:port}.
     """
     return parse_mappings(mappings)
-

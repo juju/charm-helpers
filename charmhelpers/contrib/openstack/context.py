@@ -861,7 +861,7 @@ class NeutronPortContext(OSContextGenerator):
     def resolve_ports(self, ports):
         """Resolve NICs not yet bound to bridge(s)
 
-        If hwaddress provided then returns resolved hwaddress otherwise NIC.  
+        If hwaddress provided then returns resolved hwaddress otherwise NIC.
         """
         if not ports:
             return None
