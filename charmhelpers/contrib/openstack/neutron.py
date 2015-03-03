@@ -239,10 +239,10 @@ def network_manager():
         return 'neutron'
 
 
-def parse_mappings(mappings, delimiter=' '):
+def parse_mappings(mappings):
     parsed = {}
     if mappings:
-        mappings = mappings.split(delimiter)
+        mappings = mappings.split(' ')
         for m in mappings:
             p = m.partition(':')
             if p[1] == ':':
@@ -261,16 +261,24 @@ def parse_bridge_mappings(mappings):
     return parse_mappings(mappings)
 
 
-def parse_data_port_mappings(mappings):
+def parse_data_port_mappings(mappings, default_bridge='br-data'):
     """Parse data port mappings.
 
     Mappings must be a space-delimited list of bridge:port mappings.
 
     Returns dict of the form {bridge:port}.
     """
-    mappings = parse_mappings(mappings)
-    bridges = mappings.keys()
-    ports = mappings.values()
+    _mappings = parse_mappings(mappings)
+    if not _mappings:
+        if not mappings:
+            return {}
+
+        # For backwards-compatibility we need to support port-only provided in
+        # config.
+        _mappings = {default_bridge: mappings.split(' ')[0]}
+
+    bridges = _mappings.keys()
+    ports = _mappings.values()
     if len(set(bridges)) != len(bridges):
         raise Exception("It is not allowed to have more than one port "
                         "configured on the same bridge")
@@ -279,7 +287,7 @@ def parse_data_port_mappings(mappings):
         raise Exception("It is not allowed to have the same port configured "
                         "on more than one bridge")
 
-    return mappings
+    return _mappings
 
 
 def parse_vlan_range_mappings(mappings):
@@ -290,6 +298,9 @@ def parse_vlan_range_mappings(mappings):
     Returns dict of the form {provider: (start, end)}.
     """
     _mappings = parse_mappings(mappings)
+    if not _mappings:
+        return {}
+
     mappings = {}
     for p, r in _mappings.iteritems():
         mappings[p] = tuple(r.split(':'))
