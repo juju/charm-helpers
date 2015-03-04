@@ -357,6 +357,9 @@ class PerconaClusterHelper(object):
         if 'max-connections' in config:
             mysql_config['max_connections'] = config['max-connections']
 
+        if 'wait-timeout' in config:
+            mysql_config['wait_timeout'] = config['wait-timeout']
+
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
         total_memory = self.human_to_bytes(self.get_mem_total())
