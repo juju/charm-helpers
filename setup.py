@@ -34,8 +34,6 @@ SETUP = {
         "bin/chlp",
         "bin/contrib/charmsupport/charmsupport",
         "bin/contrib/saltstack/salt-call",
-        "bin/contrib/benchmark/benchmark-start",
-        "bin/contrib/benchmark/benchmark-finish",
     ],
     'license': "Affero GNU Public License v3",
     'long_description': open('README.txt').read(),
