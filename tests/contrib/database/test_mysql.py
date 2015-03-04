@@ -134,3 +134,21 @@ class PerconaTests(unittest.TestCase):
             mysql_config.get('innodb_buffer_pool_size'),
             int(helper.human_to_bytes(mem.return_value) *
                 helper.DEFAULT_INNODB_BUFFER_FACTOR))
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_wait_timeout(self, mog, config, mem):
+        mem.return_value = "100G"
+
+        timeout = 314
+        config.return_value = {
+            'wait-timeout': timeout,
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('wait_timeout'),
+            timeout)
