@@ -20,10 +20,12 @@
 from collections import OrderedDict
 from functools import wraps
 
+import errno
 import subprocess
 import json
 import os
 import sys
+import time
 
 import six
 import yaml
@@ -535,23 +537,50 @@ def _git_clone_and_install_single(repo, branch, parent_dir,
                                   update_requirements=False):
     """Clone and install a single git repository."""
     dest_dir = os.path.join(parent_dir, os.path.basename(repo))
+    lock_dir = os.path.join(parent_dir, os.path.basename(repo) + '.lock')
 
-    if not os.path.exists(parent_dir):
-        juju_log('Host dir not mounted at {}. '
-                 'Creating directory there instead.'.format(parent_dir))
+    # Note(coreycb): The parent directory for storing git repositories can be
+    # shared by multiple charms via bind mount, etc, so we use exception
+    # handling to ensure the test for existence and mkdir are atomic.
+    try:
         os.mkdir(parent_dir)
-
-    if not os.path.exists(dest_dir):
-        juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-        repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            juju_log('Directory already exists at {}. '
+                     'No need to create directory.'.format(parent_dir))
+            pass
     else:
-        repo_dir = dest_dir
+        juju_log('Host directory not mounted at {}. '
+                 'Directory created.'.format(parent_dir))
 
-    if update_requirements:
-        if not requirements_dir:
-            error_out('requirements repo must be cloned before '
-                      'updating from global requirements.')
-        _git_update_requirements(repo_dir, requirements_dir)
+    # Note(coreycb): Similar to above, the cloned git repositories can be shared
+    # by multiple charms via bind mount, etc, so we use exception handling and
+    # special lock directories to ensure that a repository clone is only
+    # attempted once.
+    try:
+        os.mkdir(lock_dir)
+    except OSError as e:                                                                              
+        if e.errno == errno.EEXIST:
+            juju_log('Lock directory exists at {}. Skip git clone and wait '
+                     'for lock removal before installing.'.format(lock_dir))
+            while os.path.exists(lock_dir):
+                juju_log('Waiting for git clone to complete before installing.')
+                time.sleep(1)
+            pass
+    else:
+        if not os.path.exists(dest_dir):
+            juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
+            repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
+        else:
+            repo_dir = dest_dir
+
+        if update_requirements:
+            if not requirements_dir:
+                error_out('requirements repo must be cloned before '
+                          'updating from global requirements.')
+            _git_update_requirements(repo_dir, requirements_dir)
+
+        os.rmdir(lock_dir)
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     pip_install(repo_dir)
