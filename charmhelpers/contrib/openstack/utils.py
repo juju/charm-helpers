@@ -479,6 +479,7 @@ requirements_dir = None
 def git_clone_and_install(projects, core_project):
     """Clone/install all OpenStack repos specified in projects dictionary."""
     global requirements_dir
+    update_reqs = True
 
     if not projects:
         return
@@ -487,17 +488,17 @@ def git_clone_and_install(projects, core_project):
     installed = _git_clone_and_install_subset(projects,
                                               whitelist=['requirements'])
     if 'requirements' not in installed:
-        error_out('requirements git repository must be specified')
+        update_reqs = False
 
     # clone/install all other projects except requirements and the core project
     blacklist = ['requirements', core_project]
     _git_clone_and_install_subset(projects, blacklist=blacklist,
-                                  update_requirements=True)
+                                  update_requirements=update_reqs)
 
     # clone/install the core project
     whitelist = [core_project]
     installed = _git_clone_and_install_subset(projects, whitelist=whitelist,
-                                              update_requirements=True)
+                                              update_requirements=update_reqs)
     if core_project not in installed:
         error_out('{} git repository must be specified'.format(core_project))
 
