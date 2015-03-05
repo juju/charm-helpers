@@ -476,7 +476,8 @@ def git_install_requested():
 requirements_dir = None
 
 
-def git_clone_and_install(projects, core_project):
+def git_clone_and_install(projects, core_project,
+                          parent_dir='/mnt/openstack-git'):
     """Clone/install all OpenStack repos specified in projects dictionary."""
     global requirements_dir
     update_reqs = True
@@ -485,26 +486,27 @@ def git_clone_and_install(projects, core_project):
         return
 
     # clone/install the requirements project first
-    installed = _git_clone_and_install_subset(projects,
+    installed = _git_clone_and_install_subset(projects, parent_dir,
                                               whitelist=['requirements'])
     if 'requirements' not in installed:
         update_reqs = False
 
     # clone/install all other projects except requirements and the core project
     blacklist = ['requirements', core_project]
-    _git_clone_and_install_subset(projects, blacklist=blacklist,
+    _git_clone_and_install_subset(projects, parent_dir, blacklist=blacklist,
                                   update_requirements=update_reqs)
 
     # clone/install the core project
     whitelist = [core_project]
-    installed = _git_clone_and_install_subset(projects, whitelist=whitelist,
+    installed = _git_clone_and_install_subset(projects, parent_dir,
+                                              whitelist=whitelist,
                                               update_requirements=update_reqs)
     if core_project not in installed:
         error_out('{} git repository must be specified'.format(core_project))
 
 
-def _git_clone_and_install_subset(projects, whitelist=[], blacklist=[],
-                                  update_requirements=False):
+def _git_clone_and_install_subset(projects, parent_dir, whitelist=[],
+                                  blacklist=[], update_requirements=False):
     """Clone/install subset of OpenStack repos specified in projects dict."""
     global requirements_dir
     installed = []
@@ -521,7 +523,7 @@ def _git_clone_and_install_subset(projects, whitelist=[], blacklist=[],
             continue
         repo = val['repository']
         branch = val['branch']
-        repo_dir = _git_clone_and_install_single(repo, branch,
+        repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
                                                  update_requirements)
         if proj == 'requirements':
             requirements_dir = repo_dir
@@ -529,19 +531,19 @@ def _git_clone_and_install_subset(projects, whitelist=[], blacklist=[],
     return installed
 
 
-def _git_clone_and_install_single(repo, branch, update_requirements=False):
+def _git_clone_and_install_single(repo, branch, parent_dir,
+                                  update_requirements=False):
     """Clone and install a single git repository."""
-    dest_parent_dir = "/mnt/openstack-git/"
-    dest_dir = os.path.join(dest_parent_dir, os.path.basename(repo))
+    dest_dir = os.path.join(parent_dir, os.path.basename(repo))
 
-    if not os.path.exists(dest_parent_dir):
+    if not os.path.exists(parent_dir):
         juju_log('Host dir not mounted at {}. '
-                 'Creating directory there instead.'.format(dest_parent_dir))
-        os.mkdir(dest_parent_dir)
+                 'Creating directory there instead.'.format(parent_dir))
+        os.mkdir(parent_dir)
 
     if not os.path.exists(dest_dir):
         juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-        repo_dir = install_remote(repo, dest=dest_parent_dir, branch=branch)
+        repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
     else:
         repo_dir = dest_dir
 
