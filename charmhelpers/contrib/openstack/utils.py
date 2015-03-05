@@ -476,59 +476,55 @@ def git_install_requested():
 requirements_dir = None
 
 
-def git_clone_and_install(file_name, core_project):
-    """Clone/install all OpenStack repos specified in yaml config file."""
+def git_clone_and_install(projects, core_project):
+    """Clone/install all OpenStack repos specified in projects dictionary."""
     global requirements_dir
 
-    if file_name == "None":
+    if not projects:
         return
 
-    yaml_file = os.path.join(charm_dir(), file_name)
-
     # clone/install the requirements project first
-    installed = _git_clone_and_install_subset(yaml_file,
+    installed = _git_clone_and_install_subset(projects,
                                               whitelist=['requirements'])
     if 'requirements' not in installed:
         error_out('requirements git repository must be specified')
 
     # clone/install all other projects except requirements and the core project
     blacklist = ['requirements', core_project]
-    _git_clone_and_install_subset(yaml_file, blacklist=blacklist,
+    _git_clone_and_install_subset(projects, blacklist=blacklist,
                                   update_requirements=True)
 
     # clone/install the core project
     whitelist = [core_project]
-    installed = _git_clone_and_install_subset(yaml_file, whitelist=whitelist,
+    installed = _git_clone_and_install_subset(projects, whitelist=whitelist,
                                               update_requirements=True)
     if core_project not in installed:
         error_out('{} git repository must be specified'.format(core_project))
 
 
-def _git_clone_and_install_subset(yaml_file, whitelist=[], blacklist=[],
+def _git_clone_and_install_subset(projects, whitelist=[], blacklist=[],
                                   update_requirements=False):
-    """Clone/install subset of OpenStack repos specified in yaml config file."""
+    """Clone/install subset of OpenStack repos specified in projects dict."""
     global requirements_dir
     installed = []
 
-    with open(yaml_file, 'r') as fd:
-        projects = yaml.load(fd)
-        for proj, val in projects.items():
-            # The project subset is chosen based on the following 3 rules:
-            # 1) If project is in blacklist, we don't clone/install it, period.
-            # 2) If whitelist is empty, we clone/install everything else.
-            # 3) If whitelist is not empty, we clone/install everything in the
-            #    whitelist.
-            if proj in blacklist:
-                continue
-            if whitelist and proj not in whitelist:
-                continue
-            repo = val['repository']
-            branch = val['branch']
-            repo_dir = _git_clone_and_install_single(repo, branch,
-                                                     update_requirements)
-            if proj == 'requirements':
-                requirements_dir = repo_dir
-            installed.append(proj)
+    for proj, val in projects.items():
+        # The project subset is chosen based on the following 3 rules:
+        # 1) If project is in blacklist, we don't clone/install it, period.
+        # 2) If whitelist is empty, we clone/install everything else.
+        # 3) If whitelist is not empty, we clone/install everything in the
+        #    whitelist.
+        if proj in blacklist:
+            continue
+        if whitelist and proj not in whitelist:
+            continue
+        repo = val['repository']
+        branch = val['branch']
+        repo_dir = _git_clone_and_install_single(repo, branch,
+                                                 update_requirements)
+        if proj == 'requirements':
+            requirements_dir = repo_dir
+        installed.append(proj)
     return installed
 
 
