@@ -24,6 +24,7 @@ from charmhelpers.core.hookenv import (
     relation_set as _relation_set,
     leader_get,
     leader_set,
+    is_leader,
 )
 
 
@@ -124,6 +125,13 @@ def peer_echo(includes=None):
     This is a requirement to use the peerstorage module - it needs to be called
     from the peer relation's changed hook.
     """
+    try:
+        is_leader()
+    except NotImplementedError:
+        pass
+    else:
+        return  # NOOP if leader-election is supported
+
     rdata = relation_get()
     echo_data = {}
     if includes is None:
