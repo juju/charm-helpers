@@ -63,7 +63,9 @@ def relation_set(relation_settings=None, relation_id=None, **kwargs):
         else:
             raise NotImplementedError
     except NotImplementedError:
-        return _relation_set(relation_settings=relation_settings, **kwargs)
+        return _relation_set(relation_id=relation_id,
+                             relation_settings=relation_settings,
+                             **kwargs)
 
 
 def relation_get(attribute=None, rid=None, unit=None):
