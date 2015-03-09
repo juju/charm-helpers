@@ -568,6 +568,20 @@ def charm_dir():
     return os.environ.get('CHARM_DIR')
 
 
+def translate_exc(from_exc, to_exc):
+    def inner_translate_exc1(f):
+        def inner_translate_exc2(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except from_exc:
+                raise to_exc
+
+        return inner_translate_exc2
+
+    return inner_translate_exc1
+
+
+@translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
 def is_leader():
     """Does the current unit hold the juju leadership
 
@@ -580,5 +594,46 @@ def is_leader():
         return (leader is True)
     except ValueError:
         raise NotImplementedError
-    except CalledProcessError:
-        raise NotImplementedError
+
+
+@cached
+@translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
+def leader_get(attribute=None, unit=None, rid=None):
+    """Juju leader get."""
+    cmd = ['leader-get', '--format=json']
+    if rid:
+        cmd += ['-r', rid]
+
+    cmd += [attribute or '-']
+    if unit:
+        cmd.append(unit)
+
+    try:
+        return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
+    except ValueError:
+        return None
+    except CalledProcessError as e:
+        if e.returncode == 2:
+            return None
+
+        raise
+
+
+@translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
+def leader_set(relation_id=None, relation_settings=None, **kwargs):
+    """Juju leader set."""
+    cmd = ['leader-set']
+    if relation_id is not None:
+        cmd += ['-r', relation_id]
+
+    relation_settings = relation_settings or {}
+    relation_settings.update(kwargs)
+    for k, v in relation_settings.iteritems():
+        if v is None:
+            cmd.append('{}='.format(k))
+        else:
+            cmd.append('{}={}'.format(k, v))
+
+    subprocess.check_call(cmd)
+    # Flush cache of any leader-gets for local unit
+    flush(local_unit())
