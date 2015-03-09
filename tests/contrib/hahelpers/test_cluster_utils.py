@@ -18,6 +18,7 @@ class ClusterUtilsTests(TestCase):
             'get_unit_hostname',
             'config_get',
             'unit_get',
+            'juju_is_leader'
         ]]
 
     def _patch(self, method):
@@ -118,6 +119,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'is_clustered')
     def test_is_elected_leader_clustered(self, is_clustered, is_crm_leader):
         '''It detects it is the eligible leader in a hacluster of units'''
+        self.juju_is_leader.side_effect = NotImplementedError
         is_clustered.return_value = True
         is_crm_leader.return_value = True
         self.assertTrue(cluster_utils.is_elected_leader('vip'))
@@ -126,6 +128,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'is_clustered')
     def test_not_is_elected_leader_clustered(self, is_clustered, is_crm_leader):
         '''It detects it is not the eligible leader in a hacluster of units'''
+        self.juju_is_leader.side_effect = NotImplementedError
         is_clustered.return_value = True
         is_crm_leader.return_value = False
         self.assertFalse(cluster_utils.is_elected_leader('vip'))
@@ -136,6 +139,7 @@ class ClusterUtilsTests(TestCase):
     def test_is_is_elected_leader_unclustered(self, is_clustered,
                                               peer_units, oldest_peer):
         '''It detects it is the eligible leader in non-clustered peer group'''
+        self.juju_is_leader.side_effect = NotImplementedError
         is_clustered.return_value = False
         oldest_peer.return_value = True
         self.assertTrue(cluster_utils.is_elected_leader('vip'))
@@ -146,8 +150,16 @@ class ClusterUtilsTests(TestCase):
     def test_not_is_elected_leader_unclustered(self, is_clustered,
                                                peer_units, oldest_peer):
         '''It detects it is not the eligible leader in non-clustered group'''
+        self.juju_is_leader.side_effect = NotImplementedError
         is_clustered.return_value = False
         oldest_peer.return_value = False
+        self.assertFalse(cluster_utils.is_elected_leader('vip'))
+
+    def test_is_elected_leader_juju_leadership(self):
+        '''Ensure that juju is-leader is used in preference to other methods'''
+        self.juju_is_leader.return_value = True
+        self.assertTrue(cluster_utils.is_elected_leader('vip'))
+        self.juju_is_leader.return_value = False
         self.assertFalse(cluster_utils.is_elected_leader('vip'))
 
     def test_https_explict(self):

@@ -972,6 +972,20 @@ class HelpersTest(TestCase):
         with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
             self.assertEqual(hookenv.charm_dir(), '/var/empty')
 
+    @patch('subprocess.check_output')
+    def test_is_leader_unsupported(self, check_output_):
+        check_output_.side_effect = CalledProcessError(2, 'is-leader')
+        self.assertRaises(NotImplementedError, hookenv.is_leader)
+        check_output_.side_effect = ValueError
+        self.assertRaises(NotImplementedError, hookenv.is_leader)
+
+    @patch('subprocess.check_output')
+    def test_is_leader(self, check_output_):
+        check_output_.return_value = 'false'
+        self.assertFalse(hookenv.is_leader())
+        check_output_.return_value = 'true'
+        self.assertTrue(hookenv.is_leader())
+
 
 class HooksTest(TestCase):
     def setUp(self):
