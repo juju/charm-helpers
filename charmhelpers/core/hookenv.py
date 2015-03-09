@@ -598,16 +598,9 @@ def is_leader():
 
 @cached
 @translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
-def leader_get(attribute=None, unit=None, rid=None):
-    """Juju leader get."""
-    cmd = ['leader-get', '--format=json']
-    if rid:
-        cmd += ['-r', rid]
-
-    cmd += [attribute or '-']
-    if unit:
-        cmd.append(unit)
-
+def leader_get(attribute=None):
+    """Juju leader get value(s)"""
+    cmd = ['leader-get', '--format=json'] + [attribute or '-']
     try:
         return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
     except ValueError:
@@ -620,20 +613,15 @@ def leader_get(attribute=None, unit=None, rid=None):
 
 
 @translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
-def leader_set(relation_id=None, relation_settings=None, **kwargs):
-    """Juju leader set."""
+def leader_set(settings=None, **kwargs):
+    """Juju leader set value(s)"""
     cmd = ['leader-set']
-    if relation_id is not None:
-        cmd += ['-r', relation_id]
-
-    relation_settings = relation_settings or {}
-    relation_settings.update(kwargs)
-    for k, v in relation_settings.iteritems():
+    settings = settings or {}
+    settings.update(kwargs)
+    for k, v in settings.iteritems():
         if v is None:
             cmd.append('{}='.format(k))
         else:
             cmd.append('{}={}'.format(k, v))
 
     subprocess.check_call(cmd)
-    # Flush cache of any leader-gets for local unit
-    flush(local_unit())
