@@ -974,7 +974,7 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_is_leader_unsupported(self, check_output_):
-        check_output_.side_effect = CalledProcessError(2, 'is-leader')
+        check_output_.side_effect = OSError(2, 'is-leader')
         self.assertRaises(NotImplementedError, hookenv.is_leader)
         check_output_.side_effect = ValueError
         self.assertRaises(NotImplementedError, hookenv.is_leader)
