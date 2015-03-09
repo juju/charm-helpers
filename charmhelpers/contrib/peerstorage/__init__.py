@@ -19,9 +19,11 @@ from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
-    relation_get,
+    relation_get as _relation_get,
     local_unit,
-    relation_set,
+    relation_set as _relation_set,
+    leader_get,
+    leader_set,
 )
 
 
@@ -52,6 +54,26 @@ def some_hook():
     else:
         print "No peers joind the relation, cannot share key/values :("
 """
+
+
+def relation_set(relation_settings=None, relation_id=None, **kwargs):
+    try:
+        if relation_id and relation_id in relation_ids('cluster'):
+            return leader_set(settings=relation_settings, **kwargs)
+        else:
+            raise NotImplementedError
+    except NotImplementedError:
+        return _relation_set(relation_settings=relation_settings, **kwargs)
+
+
+def relation_get(attribute=None, rid=None, unit=None):
+    try:
+        if relation_id and relation_id in relation_ids('cluster'):
+            return leader_get(attribute)
+        else:
+            raise NotImplementedError
+    except NotImplementedError:
+        return _relation_get(attribute=attribute, rid=rid, unit=unit)
 
 
 def peer_retrieve(key, relation_name='cluster'):
