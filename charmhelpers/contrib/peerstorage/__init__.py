@@ -68,7 +68,7 @@ def relation_set(relation_settings=None, relation_id=None, **kwargs):
 
 def relation_get(attribute=None, rid=None, unit=None):
     try:
-        if relation_id and relation_id in relation_ids('cluster'):
+        if rid and rid in relation_ids('cluster'):
             return leader_get(attribute)
         else:
             raise NotImplementedError
