@@ -596,7 +596,6 @@ def is_leader():
         raise NotImplementedError
 
 
-@cached
 @translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
 def leader_get(attribute=None):
     """Juju leader get value(s)"""
