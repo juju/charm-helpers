@@ -121,18 +121,21 @@ def peer_store(key, value, relation_name='cluster'):
                          'peer relation {}'.format(relation_name))
 
 
-def peer_echo(includes=None):
+def peer_echo(includes=None, force=False):
     """Echo filtered attributes back onto the same relation for storage.
 
     This is a requirement to use the peerstorage module - it needs to be called
     from the peer relation's changed hook.
+
+    If Juju leader support exists this will be a noop unless force is True.
     """
     try:
         is_leader()
     except NotImplementedError:
         pass
     else:
-        return  # NOOP if leader-election is supported
+        if not force:
+            return  # NOOP if leader-election is supported
 
     rdata = relation_get()
     echo_data = {}
