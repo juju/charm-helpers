@@ -137,6 +137,10 @@ def peer_echo(includes=None, force=False):
         if not force:
             return  # NOOP if leader-election is supported
 
+    # Use original non-leader calls
+    relation_get = _relation_get
+    relation_set = _relation_set
+
     rdata = relation_get()
     echo_data = {}
     if includes is None:

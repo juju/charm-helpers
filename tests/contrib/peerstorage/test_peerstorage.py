@@ -9,8 +9,10 @@ TO_PATCH = [
     'is_relation_made',
     'local_unit',
     'relation_get',
+    '_relation_get',
     'relation_ids',
     'relation_set',
+    '_relation_set',
 ]
 FAKE_RELATION_NAME = 'cluster'
 FAKE_RELATION = {
@@ -67,13 +69,18 @@ class TestPeerStorage(TestCase):
                                              relation_settings={'key': 'value'})
 
     def test_peer_echo_no_includes(self):
+        settings = {'key1': 'value1', 'key2': 'value2'}
+        self._relation_get.copy.return_value = settings
+        self._relation_get.return_value = settings
         peerstorage.peer_echo()
-        self.relation_set.assert_called_with(relation_settings={'key1': 'value1',
-                                                                'key2': 'value2'})
+        self._relation_set.assert_called_with(relation_settings=settings)
 
     def test_peer_echo_includes(self):
+        settings = {'key1': 'value1'}
+        self._relation_get.copy.return_value = settings
+        self._relation_get.return_value = settings
         peerstorage.peer_echo(['key1'])
-        self.relation_set.assert_called_with(relation_settings={'key1': 'value1'})
+        self._relation_set.assert_called_with(relation_settings=settings)
 
     @patch.object(peerstorage, 'peer_store')
     def test_peer_store_and_set_no_relation(self, peer_store):
