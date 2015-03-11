@@ -590,7 +590,5 @@ def action_set(values):
 def action_fail(message):
     """Sets the action status to failed and sets the error message.
 
-       The results set by action_set are preserved."""
-    cmd = ['action-fail']
-    cmd.append('{}'.format(message))
-    subprocess.check_call(cmd)
+    The results set by action_set are preserved."""
+    subprocess.check_call(['action-fail', message])
