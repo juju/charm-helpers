@@ -59,7 +59,7 @@ def some_hook():
 
 def relation_set(relation_settings=None, relation_id=None, **kwargs):
     try:
-        if not relation_id or (relation_id in relation_ids('cluster')):
+        if relation_id in relation_ids('cluster'):
             return leader_set(settings=relation_settings, **kwargs)
         else:
             raise NotImplementedError
@@ -71,7 +71,7 @@ def relation_set(relation_settings=None, relation_id=None, **kwargs):
 
 def relation_get(attribute=None, rid=None, unit=None):
     try:
-        if not rid or (rid in relation_ids('cluster')):
+        if rid in relation_ids('cluster'):
             return leader_get(attribute)
         else:
             raise NotImplementedError
