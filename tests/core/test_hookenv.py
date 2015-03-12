@@ -1104,7 +1104,11 @@ class HooksTest(TestCase):
     def test_action_set(self, check_call):
         values = {'foo': 'bar', 'fooz': 'barz'}
         hookenv.action_set(values)
-        check_call.assert_called_with(['action-set', 'foo=bar', 'fooz=barz'])
+        # The order of the key/value pairs can change, so sort them before test
+        called_args = check_call.call_args_list[0][0][0]
+        called_args.pop(0)
+        called_args.sort()
+        self.assertEqual(called_args, ['foo=bar', 'fooz=barz'])
 
     @patch('subprocess.check_call')
     def test_action_fail(self, check_call):
