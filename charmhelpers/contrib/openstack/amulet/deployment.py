@@ -100,12 +100,14 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            """
         (self.precise_essex, self.precise_folsom, self.precise_grizzly,
          self.precise_havana, self.precise_icehouse,
-         self.trusty_icehouse) = range(6)
+         self.trusty_icehouse, self.trusty_juno, self.trusty_kilo) = range(8)
         releases = {
             ('precise', None): self.precise_essex,
             ('precise', 'cloud:precise-folsom'): self.precise_folsom,
             ('precise', 'cloud:precise-grizzly'): self.precise_grizzly,
             ('precise', 'cloud:precise-havana'): self.precise_havana,
             ('precise', 'cloud:precise-icehouse'): self.precise_icehouse,
-            ('trusty', None): self.trusty_icehouse}
+            ('trusty', None): self.trusty_icehouse,
+            ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
+            ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo}
         return releases[(self.series, self.openstack)]
