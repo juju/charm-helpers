@@ -622,6 +622,27 @@ class HelpersTest(TestCase):
             },
         })
 
+    @patch('charmhelpers.core.hookenv.relation_set')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    def test_relation_clear(self, local_unit,
+                            relation_get,
+                            relation_set):
+        local_unit.return_value = 'local-unit'
+        relation_get.return_value = {
+            'private-address': '10.5.0.1',
+            'foo': 'bar',
+            'public-address': '146.192.45.6'
+        }
+        hookenv.relation_clear('relation:1')
+        relation_get.assert_called_with(rid='relation:1',
+                                        unit='local-unit')
+        relation_set.assert_called_with(
+            relation_id='relation:1',
+            **{'private-address': '10.5.0.1',
+               'foo': None,
+               'public-address': '146.192.45.6'})
+
     @patch('charmhelpers.core.hookenv.relation_ids')
     @patch('charmhelpers.core.hookenv.related_units')
     @patch('charmhelpers.core.hookenv.relation_get')
