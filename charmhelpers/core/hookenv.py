@@ -352,6 +352,17 @@ def relation_set(relation_id=None, relation_settings=None, **kwargs):
     flush(local_unit())
 
 
+def relation_clear(r_id=None):
+    ''' Clears any relation data already set on relation r_id '''
+    settings = relation_get(rid=r_id,
+                            unit=local_unit())
+    for setting in settings:
+        if setting not in ['public-address', 'private-address']:
+            settings[setting] = None
+    relation_set(relation_id=r_id,
+                 **settings)
+
+
 @cached
 def relation_ids(reltype=None):
     """A list of relation_ids"""
