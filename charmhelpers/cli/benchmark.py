@@ -20,9 +20,9 @@ from charmhelpers.contrib.benchmark import Benchmark
 
 @cmdline.subcommand(command_name='benchmark-start')
 def start():
-    return Benchmark().start()
+    Benchmark().start()
 
 
 @cmdline.subcommand(command_name='benchmark-finish')
 def finish():
-    return Benchmark().finish()
+    Benchmark().finish()
