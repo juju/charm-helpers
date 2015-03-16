@@ -117,7 +117,14 @@ class NRPETestCase(NRPEBaseTestCase):
         self.patched['config'].return_value = {'nagios_context': 'a',
                                                'nagios_servicegroups': ''}
         self.patched['exists'].return_value = True
-        self.patched['relation_ids'].return_value = ['local-monitors:1']
+
+        def _rels(rname):
+            relations = {
+                'local-monitors': 'local-monitors:1',
+                'nrpe-external-master': 'nrpe-external-master:2',
+            }
+            return [relations[rname]]
+        self.patched['relation_ids'].side_effect = _rels
 
         checker = nrpe.NRPE()
         checker.add_check(shortname="myservice",
@@ -159,11 +166,14 @@ define service {
                          {'command': 'check_myservice'}}
         monitors = yaml.dump(
             {"monitors": {"remote": {"nrpe": nrpe_monitors}}})
-        self.patched['relation_set'].assert_called_once_with(
-            relation_id="local-monitors:1", monitors=monitors)
+        relation_set_calls = [
+            call(monitors=monitors, relation_id="local-monitors:1"),
+            call(monitors=monitors, relation_id="nrpe-external-master:2"),
+        ]
+        self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
                                exists=3, open=2, listdir=1,
-                               relation_ids=1, relation_set=1)
+                               relation_ids=2, relation_set=2)
 
 
 class NRPECheckTestCase(NRPEBaseTestCase):
