@@ -1,6 +1,6 @@
 import mock
-import os
-import subprocess
+# import os
+# import subprocess
 import unittest
 # from charmhelpers.core import hookenv
 from charmhelpers.contrib.benchmark import Benchmark, action_set  # noqa
@@ -75,7 +75,6 @@ class TestBenchmark(unittest.TestCase):
 
         check_call.assert_any_call(['action-set', 'baz.foo=1'])
         check_call.assert_any_call(['action-set', 'baz.bar=2'])
-
 
     @mock.patch('__builtin__.open')
     @mock.patch('charmhelpers.contrib.benchmark.relation_get')
