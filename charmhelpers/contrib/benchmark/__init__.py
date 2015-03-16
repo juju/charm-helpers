@@ -18,16 +18,23 @@ import subprocess
 import time
 import os
 from distutils.spawn import find_executable
-from charmhelpers.core import hookenv
+
+from charmhelpers.core.hookenv import (
+    in_relation_hook,
+    relation_ids,
+    relation_set,
+    relation_get,
+)
 
 
 def action_set(key, val):
     if find_executable('action-set'):
         action_cmd = ['action-set']
+
         if isinstance(val, dict):
             for k, v in val.iteritems():
                 action_set('%s.%s' % (key, k), v)
-            return
+            return True
 
         action_cmd.append('%s=%s' % (key, val))
         subprocess.check_call(action_cmd)
@@ -55,17 +62,17 @@ class Benchmark():
     ]
 
     def __init__(self, benchmarks=None):
-        if hookenv.in_relation_hook():
+        if in_relation_hook():
             if benchmarks is not None:
-                for rid in sorted(hookenv.relation_ids('benchmark')):
-                    hookenv.relation_set(relation_id=rid, relation_settings={
+                for rid in sorted(relation_ids('benchmark')):
+                    relation_set(relation_id=rid, relation_settings={
                         'benchmarks': ",".join(benchmarks)
                     })
 
             # Check the relation data
             config = {}
             for key in self.required_keys:
-                val = hookenv.relation_get(key)
+                val = relation_get(key)
                 if val is not None:
                     config[key] = val
                 else:
