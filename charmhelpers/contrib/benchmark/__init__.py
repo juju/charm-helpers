@@ -32,7 +32,7 @@ def action_set(key, val):
         action_cmd = ['action-set']
 
         if isinstance(val, dict):
-            for k, v in val.iteritems():
+            for k, v in iter(val.items()):
                 action_set('%s.%s' % (key, k), v)
             return True
 
@@ -82,7 +82,7 @@ class Benchmark():
 
             if len(config):
                 with open('/etc/benchmark.conf', 'w') as f:
-                    for key, val in config.iteritems():
+                    for key, val in iter(config.items()):
                         f.write("%s=%s\n" % (key, val))
 
     def start(self):

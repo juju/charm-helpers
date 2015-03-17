@@ -111,5 +111,5 @@ class TestBenchmark(TestCase):
             )
 
             _open.assert_called_with('/etc/benchmark.conf', 'w')
-            for key, val in FAKE_RELATION['benchmark:0']['benchmark/0'].iteritems():
+            for key, val in iter(FAKE_RELATION['benchmark:0']['benchmark/0'].items()):
                 _file.write.assert_any_called("%s=%s\n" % (key, val))
