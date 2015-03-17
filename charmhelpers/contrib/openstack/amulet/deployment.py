@@ -15,6 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import six
+from collections import OrderedDict
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )
@@ -111,3 +112,23 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
             ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo}
         return releases[(self.series, self.openstack)]
+
+    def _get_openstack_release_string(self):
+        """Get openstack release string.
+
+           Return a string representing the openstack release.
+           """
+        releases = OrderedDict([
+            ('precise', 'essex'),
+            ('quantal', 'folsom'),
+            ('raring', 'grizzly'),
+            ('saucy', 'havana'),
+            ('trusty', 'icehouse'),
+            ('utopic', 'juno'),
+            ('vivid', 'kilo'),
+        ])
+        if self.openstack:
+            os_origin = self.openstack.split(':')[1]
+            return os_origin.split('%s-' % self.series)[1].split('/')[0]
+        else:
+            return releases[self.series]
