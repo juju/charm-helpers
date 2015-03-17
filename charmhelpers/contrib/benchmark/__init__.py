@@ -81,10 +81,9 @@ class Benchmark():
                     break
 
             if len(config):
-                f = open('/etc/benchmark.conf', 'w')
-                for key, val in config.iteritems():
-                    f.write("%s=%s\n" % (key, val))
-                f.close()
+                with open('/etc/benchmark.conf', 'w') as f:
+                    for key, val in config.iteritems():
+                        f.write("%s=%s\n" % (key, val))
 
     def start(self):
         action_set('meta.start', time.strftime('%Y-%m-%dT%H:%M:%SZ'))
