@@ -241,10 +241,12 @@ class TemplateCallback(ManagerCallback):
     :param str source: The template source file, relative to
     `$CHARM_DIR/templates`
 
-    :param str target: The target to write the rendered template to
+    :param str target: The target to write the rendered template to (or None)
     :param str owner: The owner of the rendered file
     :param str group: The group of the rendered file
     :param int perms: The permissions of the rendered file
+
+    :return str: The rendered template
     """
     def __init__(self, source, target,
                  owner='root', group='root', perms=0o444):
@@ -259,8 +261,8 @@ class TemplateCallback(ManagerCallback):
         context = {}
         for ctx in service.get('required_data', []):
             context.update(ctx)
-        templating.render(self.source, self.target, context,
-                          self.owner, self.group, self.perms)
+        return templating.render(self.source, self.target, context,
+                                 self.owner, self.group, self.perms)
 
 
 # Convenience aliases for templates
