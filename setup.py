@@ -23,6 +23,7 @@ SETUP = {
         "charmhelpers.payload",
         "charmhelpers.contrib",
         "charmhelpers.contrib.ansible",
+        "charmhelpers.contrib.benchmark",
         "charmhelpers.contrib.charmhelpers",
         "charmhelpers.contrib.charmsupport",
         "charmhelpers.contrib.saltstack",
