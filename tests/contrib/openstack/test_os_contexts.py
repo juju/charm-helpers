@@ -1424,14 +1424,16 @@ class ContextTests(unittest.TestCase):
             if cn_provided:
                 apache.configure_cert.assert_called_with('cinderhost1')
             else:
-                apache.configure_cert.assert_called_with()
+                apache.configure_cert.assert_called_with('10.0.0.1')
 
         self.assertTrue(apache.configure_ca.called)
         self.assertTrue(apache.enable_modules.called)
         self.assertTrue(apache.configure_cert.called)
 
-    def test_https_context_no_cn(self):
+    @patch.object(context, 'resolve_address')
+    def test_https_context_no_cn(self, mock_resolve_address):
         '''Test apache2 https with no cn provided'''
+        mock_resolve_address.return_value = "10.0.0.1"
         apache = context.ApacheSSLContext()
         self._test_https_context(apache, is_clustered=False, peer_units=None,
                                  cn_provided=False)

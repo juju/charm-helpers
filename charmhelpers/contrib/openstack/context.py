@@ -68,6 +68,10 @@ from charmhelpers.contrib.hahelpers.apache import (
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
 )
+from charmhelpers.contrib.openstack.ip import (
+    resolve_address,
+    INTERNAL,
+)
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv4_addr,
@@ -737,8 +741,10 @@ class ApacheSSLContext(OSContextGenerator):
             for cn in cns:
                 self.configure_cert(cn)
         else:
-            # Expect cert/key provided in config
-            self.configure_cert()
+            # Expect cert/key provided in config (currently assumed that ca
+            # uses ip for cn)
+            cn = resolve_address(endpoint_type=INTERNAL)
+            self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
         for address, endpoint in sorted(set(addresses)):
