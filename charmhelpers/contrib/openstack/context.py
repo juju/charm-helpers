@@ -732,8 +732,13 @@ class ApacheSSLContext(OSContextGenerator):
                 'endpoints': [],
                 'ext_ports': []}
 
-        for cn in self.canonical_names():
-            self.configure_cert(cn)
+        cns = self.canonical_names()
+        if cns:
+            for cn in cns:
+                self.configure_cert(cn)
+        else:
+            # Expect cert/key provided in config
+            self.configure_cert()
 
         addresses = self.get_network_addresses()
         for address, endpoint in sorted(set(addresses)):
