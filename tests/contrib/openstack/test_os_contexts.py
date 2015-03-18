@@ -1330,7 +1330,8 @@ class ContextTests(unittest.TestCase):
     @patch('charmhelpers.contrib.network.ip.is_address_in_network')
     def _test_https_context(self, mock_is_address_in_network, apache,
                             is_clustered, peer_units,
-                            network_config=NONET_CONFIG, multinet=False):
+                            network_config=NONET_CONFIG, multinet=False,
+                            cn_provided=True):
         self.https.return_value = True
         vips = network_config['vip'].split()
         if multinet:
@@ -1351,11 +1352,13 @@ class ContextTests(unittest.TestCase):
         apache.configure_cert = MagicMock()
         apache.enable_modules = MagicMock()
         apache.configure_ca = MagicMock()
-        apache.canonical_names = MagicMock()
+        apache.canonical_names = MagicMock(return_value=[])
 
         if is_clustered:
-            apache.canonical_names.return_value = \
-                network_config['vip'].split()
+            if cn_provided:
+                apache.canonical_names.return_value = \
+                    network_config['vip'].split()
+
             self.determine_api_port.return_value = 8756
             self.determine_apache_port.return_value = 8766
             if len(vips) > 1:
@@ -1365,7 +1368,9 @@ class ContextTests(unittest.TestCase):
             else:
                 mock_is_address_in_network.return_value = True
         else:
-            apache.canonical_names.return_value = ['cinderhost1']
+            if cn_provided:
+                apache.canonical_names.return_value = ['cinderhost1']
+
             self.determine_api_port.return_value = 8766
             self.determine_apache_port.return_value = 8776
 
@@ -1416,9 +1421,20 @@ class ContextTests(unittest.TestCase):
             else:
                 apache.configure_cert.assert_called_with('cinderhost1vip')
         else:
-            apache.configure_cert.assert_called_with('cinderhost1')
+            if cn_provided:
+                apache.configure_cert.assert_called_with('cinderhost1')
+            else:
+                apache.configure_cert.assert_called_with()
+
         self.assertTrue(apache.configure_ca.called)
         self.assertTrue(apache.enable_modules.called)
+        self.assertTrue(apache.configure_cert.called)
+
+    def test_https_context_no_cn(self):
+        '''Test apache2 https with no cn provided'''
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=False, peer_units=None,
+                                 cn_provided=False)
 
     def test_https_context_no_peers_no_cluster(self):
         '''Test apache2 https on a single, unclustered unit'''
