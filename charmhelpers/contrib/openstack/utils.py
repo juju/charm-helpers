@@ -30,6 +30,11 @@ import yaml
 
 from charmhelpers.contrib.network import ip
 
+from charmhelpers.core import (
+    hookenv,
+    unitdata,
+)
+
 from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
@@ -330,6 +335,19 @@ def configure_installation_source(rel):
         error_out("Invalid openstack-release specified: %s" % rel)
 
 
+def config_value_changed(option):
+    """
+    Determine if config value changed since last call to this function.
+    """
+    hook_data = unitdata.HookData()
+    with hook_data():
+        db = unitdata.kv()
+        current = hookenv.execution_environment()['conf'][option]
+        saved = db.get(option)
+        db.set(option, current)
+        return current != saved
+
+
 def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     """
     Write an rc file in the charm-delivered directory containing
@@ -469,7 +487,9 @@ def os_requires_version(ostack_release, pkg):
 
 
 def git_install_requested():
-    """Returns true if openstack-origin-git is specified."""
+    """
+    Returns true if openstack-origin-git is specified.
+    """
     return config('openstack-origin-git').lower() != "none"
 
 
@@ -477,7 +497,8 @@ requirements_dir = None
 
 
 def git_clone_and_install(projects_yaml, core_project):
-    """Clone/install all specified OpenStack repositories.
+    """
+    Clone/install all specified OpenStack repositories.
 
     The expected format of projects_yaml is:
         repositories:
@@ -516,7 +537,9 @@ def git_clone_and_install(projects_yaml, core_project):
 
 
 def _git_validate_projects_yaml(projects, core_project):
-    """Validate the projects yaml"""
+    """
+    Validate the projects yaml.
+    """
     _git_ensure_key_exists('repositories', projects)
 
     for project in projects['repositories']:
@@ -532,13 +555,17 @@ def _git_validate_projects_yaml(projects, core_project):
 
 
 def _git_ensure_key_exists(key, keys):
-    """Ensure that the key exists in keys"""
+    """
+    Ensure that key exists in keys.
+    """
     if key not in keys:
         error_out('openstack-origin-git key \'{}\' is missing'.format(key))
 
 
 def _git_clone_and_install_single(repo, branch, parent_dir, update_requirements):
-    """Clone and install a single git repository."""
+    """
+    Clone and install a single git repository.
+    """
     dest_dir = os.path.join(parent_dir, os.path.basename(repo))
 
     if not os.path.exists(parent_dir):
@@ -565,10 +592,12 @@ def _git_clone_and_install_single(repo, branch, parent_dir, update_requirements)
 
 
 def _git_update_requirements(package_dir, reqs_dir):
-    """Update from global requirements.
+    """
+    Update from global requirements.
 
-       Update an OpenStack git directory's requirements.txt and
-       test-requirements.txt from global-requirements.txt."""
+    Update an OpenStack git directory's requirements.txt and
+    test-requirements.txt from global-requirements.txt.
+    """
     orig_dir = os.getcwd()
     os.chdir(reqs_dir)
     cmd = ['python', 'update.py', package_dir]
@@ -581,7 +610,9 @@ def _git_update_requirements(package_dir, reqs_dir):
 
 
 def git_src_dir(projects_yaml, project):
-    """Return the directory where the specified project's source is located"""
+    """
+    Return the directory where the specified project's source is located.
+    """
     parent_dir = '/mnt/openstack-git'
 
     if not projects_yaml:
