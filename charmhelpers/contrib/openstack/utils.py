@@ -345,6 +345,8 @@ def config_value_changed(option):
         current = hookenv.execution_environment()['conf'][option]
         saved = db.get(option)
         db.set(option, current)
+        if not saved:
+            return False
         return current != saved
 
 
