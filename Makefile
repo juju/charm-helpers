@@ -11,6 +11,7 @@ all:
 	@echo "make userinstall - Install locally"
 	@echo "make docs - Build html documentation"
 	@echo "make release - Build and upload package and docs to PyPI"
+	@echo "make test"
 
 sdeb: source
 	scripts/build source
