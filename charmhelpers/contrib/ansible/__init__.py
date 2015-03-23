@@ -75,9 +75,35 @@ Read more online about `playbooks`_ and standard ansible `modules`_.
 .. _playbooks: http://www.ansibleworks.com/docs/playbooks.html
 .. _modules: http://www.ansibleworks.com/docs/modules.html
 
+A further feature os the ansible hooks is to provide a light weight "action"
+scripting tool. This is a decorator that you apply to a function, and that
+function can now receive cli args, and can pass extra args to the playbook.
+
+e.g.
+
+
+@hooks.action()
+def some_action(amount, force="False"):
+    "Usage: some-action AMOUNT [force=True]"  # <-- shown on error
+    # process the arguments
+    # do some calls
+    # return extra-vars to be passed to ansible-playbook
+    return {
+        'amount': int(amount),
+        'type': force,
+    }
+
+You can now create a symlink to hooks.py that can be invoked like a hook, but
+with cli params:
+
+# link actions/some-action to hooks/hooks.py
+
+actions/some-action amount=10 force=true
+
 """
 import os
 import subprocess
+import functools
 
 import charmhelpers.contrib.templating.contexts
 import charmhelpers.core.host
@@ -112,7 +138,7 @@ def install_ansible_support(from_ppa=True, ppa_location='ppa:rquillo/ansible'):
         hosts_file.write('localhost ansible_connection=local')
 
 
-def apply_playbook(playbook, tags=None):
+def apply_playbook(playbook, tags=None, extra_vars=None):
     tags = tags or []
     tags = ",".join(tags)
     charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
@@ -129,6 +155,9 @@ def apply_playbook(playbook, tags=None):
     ]
     if tags:
         call.extend(['--tags', '{}'.format(tags)])
+    if extra_vars:
+        extra = ["%s=%s" % (k, v) for k, v in extra_vars.items()]
+        call.extend(['--extra-vars', " ".join(extra)])
     subprocess.check_call(call, env=env)
 
 
@@ -172,6 +201,7 @@ class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
         """Register any hooks handled by ansible."""
         super(AnsibleHooks, self).__init__()
 
+        self._actions = {}
         self.playbook_path = playbook_path
 
         default_hooks = default_hooks or []
@@ -182,9 +212,41 @@ class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
         for hook in default_hooks:
             self.register(hook, noop)
 
+    def register_action(self, name, function):
+        """Register a hook"""
+        self._actions[name] = function
+
     def execute(self, args):
         """Execute the hook followed by the playbook using the hook as tag."""
-        super(AnsibleHooks, self).execute(args)
         hook_name = os.path.basename(args[0])
+        extra_vars = None
+        if hook_name in self._actions:
+            extra_vars = self._actions[hook_name](args[1:])
+        else:
+            super(AnsibleHooks, self).execute(args)
+
         charmhelpers.contrib.ansible.apply_playbook(
-            self.playbook_path, tags=[hook_name])
+            self.playbook_path, tags=[hook_name], extra_vars=extra_vars)
+
+    def action(self, *action_names):
+        """Decorator, registering them as actions"""
+        def action_wrapper(decorated):
+
+            @functools.wraps(decorated)
+            def wrapper(argv):
+                kwargs = dict(arg.split('=') for arg in argv)
+                try:
+                    return decorated(**kwargs)
+                except TypeError as e:
+                    if decorated.__doc__:
+                        e.args += (decorated.__doc__,)
+                    raise
+
+            self.register_action(decorated.__name__, wrapper)
+            if '_' in decorated.__name__:
+                self.register_action(
+                    decorated.__name__.replace('_', '-'), wrapper)
+
+            return wrapper
+
+        return action_wrapper
