@@ -5,6 +5,7 @@
 import mock
 import os
 import shutil
+import stat
 import tempfile
 import unittest
 import yaml
@@ -156,6 +157,12 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'playbooks/dependencies.yaml')
 
         self.assertTrue(os.path.exists(self.vars_path))
+        stats = os.stat(self.vars_path)
+        self.assertEqual(
+            stats.st_mode & stat.S_IRWXU,
+            stat.S_IRUSR | stat.S_IWUSR)
+        self.assertEqual(stats.st_mode & stat.S_IRWXG, 0)
+        self.assertEqual(stats.st_mode & stat.S_IRWXO, 0)
         with open(self.vars_path, 'r') as vars_file:
             result = yaml.load(vars_file.read())
             self.assertEqual({

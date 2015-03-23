@@ -102,6 +102,7 @@ actions/some-action amount=10 force=true
 
 """
 import os
+import stat
 import subprocess
 import functools
 
@@ -143,7 +144,8 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
     tags = ",".join(tags)
     charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
         ansible_vars_path, namespace_separator='__',
-        allow_hyphens_in_keys=False)
+        allow_hyphens_in_keys=False, mode=(stat.S_IRUSR | stat.S_IWUSR))
+
     # we want ansible's log output to be unbuffered
     env = os.environ.copy()
     env['PYTHONUNBUFFERED'] = "1"
