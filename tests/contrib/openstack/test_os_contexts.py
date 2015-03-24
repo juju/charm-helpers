@@ -274,6 +274,23 @@ IDENTITY_RELATION_MULTIPLE_CERT = {
     }
 }
 
+QUANTUM_NETWORK_SERVICE_RELATION = {
+    'quantum-network-service:0': {
+        'unit/0': {
+            'keystone_host': '10.5.0.1',
+            'service_port': '5000',
+            'auth_port': '20000',
+            'service_tenant': 'tenant',
+            'service_username': 'username',
+            'service_password': 'password',
+            'quantum_host': '10.5.0.2',
+            'quantum_port': '9696',
+            'quantum_url': 'http://10.5.0.2:9696/v2',
+            'region': 'aregion'
+        },
+    }
+}
+
 
 SUB_CONFIG = """
 nova:
@@ -2355,3 +2372,41 @@ class ContextTests(unittest.TestCase):
         self.relation_get.return_value = {'l2-population': 'True'}
         api_ctxt = context.NeutronAPIContext()()
         self.assertEquals(api_ctxt['network_device_mtu'], None)
+
+    def test_network_service_ctxt_no_units(self):
+        self.relation_ids.return_value = []
+        self.relation_ids.return_value = ['foo']
+        self.related_units.return_value = []
+        self.assertEquals(context.NetworkServiceContext()(), {})
+
+    @patch.object(context, 'context_complete')
+    def test_network_service_ctxt_no_data(self, mock_context_complete):
+        rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_get.side_effect = relation.get
+        mock_context_complete.return_value = False
+        self.assertEquals(context.NetworkServiceContext()(), {})
+
+    def test_network_service_ctxt_data(self):
+        data_result = {
+            'keystone_host': '10.5.0.1',
+            'service_port': '5000',
+            'auth_port': '20000',
+            'service_tenant': 'tenant',
+            'service_username': 'username',
+            'service_password': 'password',
+            'quantum_host': '10.5.0.2',
+            'quantum_port': '9696',
+            'quantum_url': 'http://10.5.0.2:9696/v2',
+            'region': 'aregion',
+            'service_protocol': 'http',
+            'auth_protocol': 'http',
+        }
+        rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.assertEquals(context.NetworkServiceContext()(), data_result)
