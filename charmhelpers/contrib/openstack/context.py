@@ -1176,23 +1176,27 @@ class NeutronAPIContext(OSContextGenerator):
         self.neutron_defaults = {
             'l2_population': {
                 'rel_key': 'l2-population',
-                'default': False
-            },
-            'enable_dvr': {
-                'rel_key': 'enable-dvr',
-                'default': False
-            },
-            'enable_l3ha': {
-                'rel_key': 'enable-l3ha',
-                'default': False
+                'default': False,
             },
             'overlay_network_type': {
                 'rel_key': 'overlay-network-type',
-                'default': 'gre'
+                'default': 'gre',
+            },
+            'neutron_security_groups': {
+                'rel_key': 'neutron-security-groups',
+                'default': False,
             },
             'network_device_mtu': {
                 'rel_key': 'network-device-mtu',
-                'default': None
+                'default': None,
+            },
+            'enable_dvr': {
+                'rel_key': 'enable-dvr',
+                'default': False,
+            },
+            'enable_l3ha': {
+                'rel_key': 'enable-l3ha',
+                'default': False,
             },
         }
         ctxt = self.get_neutron_options({})
@@ -1251,7 +1255,7 @@ class DataPortContext(NeutronPortContext):
                                if port in ports})
             if resolved:
                 return {bridge: normalized[port] for bridge, port in
-                        portmap.iteritems() if port in normalized.keys()}
+                        six.iteritems(portmap) if port in normalized.keys()}
 
         return None
 
