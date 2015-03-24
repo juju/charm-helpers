@@ -28,3 +28,4 @@ Import the sub-modules to be included by chlp.
 """
 import host  # noqa
 import benchmark  # noqa
+import unitdata  # noqa
