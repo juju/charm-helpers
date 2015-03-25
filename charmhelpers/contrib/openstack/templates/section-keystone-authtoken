@@ -6,4 +6,4 @@ admin_tenant_name = {{ admin_tenant_name }}
 admin_user = {{ admin_user }}
 admin_password = {{ admin_password }}
 signing_dir = {{ signing_dir }}
-{% endif %}
+{% endif -%}
