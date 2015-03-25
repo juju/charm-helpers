@@ -20,3 +20,4 @@ kombu_ssl_ca_certs = {{ rabbit_ssl_ca }}
 {% endif -%}
 {% endif -%}
 {% endif -%}
+
