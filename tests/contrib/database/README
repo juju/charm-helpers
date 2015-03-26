@@ -1,0 +1,7 @@
+The Mysql test is not enabled. In order to enable it, touch __init__.py.
+
+As it currently stands, the test has poor coverage and fails under python3.
+These things should be addressed before re-enabling the test.
+
+Adam Israel <adam.israel@canonical.com>
+March 17, 2015

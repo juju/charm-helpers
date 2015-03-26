@@ -6,7 +6,7 @@ import platform
 import os
 import glob
 
-from string import upper
+# from string import upper
 
 from charmhelpers.core.host import (
     mkdir,
@@ -348,7 +348,7 @@ class PerconaClusterHelper(object):
                 key, mem = line.split(':', 2)
                 if key == 'MemTotal':
                     mtot, modifier = mem.strip().split(' ')
-                    return '%s%s' % (mtot, upper(modifier[0]))
+                    return '%s%s' % (mtot, modifier[0].upper())
 
     def parse_config(self):
         """Parse charm configuration and calculate values for config files."""
