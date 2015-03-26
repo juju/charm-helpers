@@ -472,6 +472,79 @@ class TestRelationContext(unittest.TestCase):
         self.assertEqual(self.context.provide_data(), {})
 
 
+class TestHttpRelation(unittest.TestCase):
+    def setUp(self):
+        self.phookenv = mock.patch.object(services.helpers, 'hookenv')
+        self.mhookenv = self.phookenv.start()
+
+        self.context = services.helpers.HttpRelation()
+
+    def tearDown(self):
+        self.phookenv.stop()
+
+    def test_provide_data(self):
+        self.mhookenv.unit_get.return_value = "127.0.0.1"
+        self.assertEqual(self.context.provide_data(), {
+            'host': "127.0.0.1",
+            'port': 80,
+        })
+
+    def test_complete(self):
+        self.mhookenv.relation_ids.return_value = ['website']
+        self.mhookenv.related_units.side_effect = lambda i: [i + '/0']
+        self.mhookenv.relation_get.side_effect = [{'host': '127.0.0.2',
+                                                   'port': 8080}]
+        self.context.get_data()
+        self.assertTrue(self.context.is_ready())
+        self.assertEqual(self.context, {'website': [
+            {
+                'host': '127.0.0.2',
+                'port': 8080,
+            },
+        ]})
+
+        self.mhookenv.relation_ids.assert_called_with('website')
+        self.assertEqual(self.mhookenv.relation_get.call_args_list, [
+            mock.call(rid='website', unit='website/0'),
+        ])
+
+
+class TestMysqlRelation(unittest.TestCase):
+
+    def setUp(self):
+        self.phookenv = mock.patch.object(services.helpers, 'hookenv')
+        self.mhookenv = self.phookenv.start()
+
+        self.context = services.helpers.MysqlRelation()
+
+    def tearDown(self):
+        self.phookenv.stop()
+
+    def test_complete(self):
+        self.mhookenv.relation_ids.return_value = ['db']
+        self.mhookenv.related_units.side_effect = lambda i: [i + '/0']
+        self.mhookenv.relation_get.side_effect = [{'host': '127.0.0.2',
+                                                   'user': 'mysql',
+                                                   'password': 'mysql',
+                                                   'database': 'mysql',
+                                                   }]
+        self.context.get_data()
+        self.assertTrue(self.context.is_ready())
+        self.assertEqual(self.context, {'db': [
+            {
+                'host': '127.0.0.2',
+                'user': 'mysql',
+                'password': 'mysql',
+                'database': 'mysql',
+            },
+        ]})
+
+        self.mhookenv.relation_ids.assert_called_with('db')
+        self.assertEqual(self.mhookenv.relation_get.call_args_list, [
+            mock.call(rid='db', unit='db/0'),
+        ])
+
+
 class TestRequiredConfig(unittest.TestCase):
     def setUp(self):
         self.options = {
@@ -696,7 +769,6 @@ class TestPortsCallback(unittest.TestCase):
             mock.call(20),
             mock.call(1),
             mock.call(2)])
-
 
 if __name__ == '__main__':
     unittest.main()

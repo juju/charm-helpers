@@ -274,6 +274,23 @@ IDENTITY_RELATION_MULTIPLE_CERT = {
     }
 }
 
+QUANTUM_NETWORK_SERVICE_RELATION = {
+    'quantum-network-service:0': {
+        'unit/0': {
+            'keystone_host': '10.5.0.1',
+            'service_port': '5000',
+            'auth_port': '20000',
+            'service_tenant': 'tenant',
+            'service_username': 'username',
+            'service_password': 'password',
+            'quantum_host': '10.5.0.2',
+            'quantum_port': '9696',
+            'quantum_url': 'http://10.5.0.2:9696/v2',
+            'region': 'aregion'
+        },
+    }
+}
+
 
 SUB_CONFIG = """
 nova:
@@ -354,6 +371,22 @@ FULLNET_CONFIG = {
     'os-admin-network': "10.5.2.0/24",
     'os-public-network': "10.5.3.0/24"
 }
+
+MACHINE_MACS = {
+    'eth0': 'fe:c5:ce:8e:2b:00',
+    'eth1': 'fe:c5:ce:8e:2b:01',
+    'eth2': 'fe:c5:ce:8e:2b:02',
+    'eth3': 'fe:c5:ce:8e:2b:03',
+}
+
+MACHINE_NICS = {
+    'eth0': ['192.168.0.1'],
+    'eth1': ['192.168.0.2'],
+    'eth2': [],
+    'eth3': [],
+}
+
+ABSENT_MACS = "aa:a5:ae:ae:ab:a4 "
 
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
@@ -1330,7 +1363,8 @@ class ContextTests(unittest.TestCase):
     @patch('charmhelpers.contrib.network.ip.is_address_in_network')
     def _test_https_context(self, mock_is_address_in_network, apache,
                             is_clustered, peer_units,
-                            network_config=NONET_CONFIG, multinet=False):
+                            network_config=NONET_CONFIG, multinet=False,
+                            cn_provided=True):
         self.https.return_value = True
         vips = network_config['vip'].split()
         if multinet:
@@ -1351,11 +1385,13 @@ class ContextTests(unittest.TestCase):
         apache.configure_cert = MagicMock()
         apache.enable_modules = MagicMock()
         apache.configure_ca = MagicMock()
-        apache.canonical_names = MagicMock()
+        apache.canonical_names = MagicMock(return_value=[])
 
         if is_clustered:
-            apache.canonical_names.return_value = \
-                network_config['vip'].split()
+            if cn_provided:
+                apache.canonical_names.return_value = \
+                    network_config['vip'].split()
+
             self.determine_api_port.return_value = 8756
             self.determine_apache_port.return_value = 8766
             if len(vips) > 1:
@@ -1365,7 +1401,9 @@ class ContextTests(unittest.TestCase):
             else:
                 mock_is_address_in_network.return_value = True
         else:
-            apache.canonical_names.return_value = ['cinderhost1']
+            if cn_provided:
+                apache.canonical_names.return_value = ['cinderhost1']
+
             self.determine_api_port.return_value = 8766
             self.determine_apache_port.return_value = 8776
 
@@ -1416,9 +1454,22 @@ class ContextTests(unittest.TestCase):
             else:
                 apache.configure_cert.assert_called_with('cinderhost1vip')
         else:
-            apache.configure_cert.assert_called_with('cinderhost1')
+            if cn_provided:
+                apache.configure_cert.assert_called_with('cinderhost1')
+            else:
+                apache.configure_cert.assert_called_with('10.0.0.1')
+
         self.assertTrue(apache.configure_ca.called)
         self.assertTrue(apache.enable_modules.called)
+        self.assertTrue(apache.configure_cert.called)
+
+    @patch.object(context, 'resolve_address')
+    def test_https_context_no_cn(self, mock_resolve_address):
+        '''Test apache2 https with no cn provided'''
+        mock_resolve_address.return_value = "10.0.0.1"
+        apache = context.ApacheSSLContext()
+        self._test_https_context(apache, is_clustered=False, peer_units=None,
+                                 cn_provided=False)
 
     def test_https_context_no_peers_no_cluster(self):
         '''Test apache2 https on a single, unclustered unit'''
@@ -2213,3 +2264,149 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(flags, {'user_tree_dn': ('ou=ABC General,'
                                                   'ou=User Accounts,'
                                                   'dc=example,dc=com')})
+
+    def _fake_get_hwaddr(self, arg):
+        return MACHINE_MACS[arg]
+
+    def _fake_get_ipv4(self, arg, fatal=False):
+        return MACHINE_NICS[arg]
+
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_no_ext_port(self, mock_config):
+        self.config.side_effect = config = fake_config({})
+        mock_config.side_effect = config
+        self.assertEquals(context.ExternalPortContext()(), {})
+
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_ext_port_eth(self, mock_config):
+        config = fake_config({'ext-port': 'eth1010'})
+        self.config.side_effect = config
+        mock_config.side_effect = config
+        self.assertEquals(context.ExternalPortContext()(),
+                          {'ext_port': 'eth1010'})
+
+    @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
+    @patch('charmhelpers.contrib.openstack.context.list_nics')
+    @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
+    @patch('charmhelpers.contrib.openstack.context.get_ipv4_addr')
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_ext_port_mac(self, mock_config, mock_get_ipv4_addr,
+                          mock_get_ipv6_addr, mock_list_nics,
+                          mock_get_nic_hwaddr):
+        config_macs = ABSENT_MACS + " " + MACHINE_MACS['eth2']
+        config = fake_config({'ext-port': config_macs})
+        self.config.side_effect = config
+        mock_config.side_effect = config
+
+        mock_get_ipv4_addr.side_effect = self._fake_get_ipv4
+        mock_get_ipv6_addr.return_value = []
+        mock_list_nics.return_value = MACHINE_MACS.keys()
+        mock_get_nic_hwaddr.side_effect = self._fake_get_hwaddr
+
+        self.assertEquals(context.ExternalPortContext()(),
+                          {'ext_port': 'eth2'})
+
+        config = fake_config({'ext-port': ABSENT_MACS})
+        self.config.side_effect = config
+        mock_config.side_effect = config
+
+        self.assertEquals(context.ExternalPortContext()(), {})
+
+    @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
+    @patch('charmhelpers.contrib.openstack.context.list_nics')
+    @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
+    @patch('charmhelpers.contrib.openstack.context.get_ipv4_addr')
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_ext_port_mac_one_used_nic(self, mock_config,
+                                       mock_get_ipv4_addr,
+                                       mock_get_ipv6_addr, mock_list_nics,
+                                       mock_get_nic_hwaddr):
+
+        self.relation_ids.return_value = ['neutron-plugin-api:1']
+        self.related_units.return_value = ['neutron-api/0']
+        self.relation_get.return_value = {'network-device-mtu': 1234,
+                                          'l2-population': 'False'}
+        config_macs = "%s %s" % (MACHINE_MACS['eth1'],
+                                 MACHINE_MACS['eth2'])
+
+        mock_get_ipv4_addr.side_effect = self._fake_get_ipv4
+        mock_get_ipv6_addr.return_value = []
+        mock_list_nics.return_value = MACHINE_MACS.keys()
+        mock_get_nic_hwaddr.side_effect = self._fake_get_hwaddr
+
+        config = fake_config({'ext-port': config_macs})
+        self.config.side_effect = config
+        mock_config.side_effect = config
+        self.assertEquals(context.ExternalPortContext()(),
+                          {'ext_port': 'eth2', 'ext_port_mtu': 1234})
+
+    @patch('charmhelpers.contrib.openstack.context.NeutronPortContext.'
+           'resolve_ports')
+    def test_data_port_eth(self, mock_resolve):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth1010'})
+        mock_resolve.side_effect = lambda ports: ports
+        self.assertEquals(context.DataPortContext()(),
+                          {'phybr1': 'eth1010'})
+
+    def test_neutronapicontext_defaults(self):
+        self.relation_ids.return_value = []
+        expected_keys = [
+            'l2_population', 'enable_dvr', 'enable_l3ha',
+            'overlay_network_type', 'network_device_mtu'
+        ]
+        api_ctxt = context.NeutronAPIContext()()
+        for key in expected_keys:
+            self.assertTrue(key in api_ctxt)
+
+    def test_neutronapicontext_string_converted(self):
+        self.relation_ids.return_value = ['neutron-plugin-api:1']
+        self.related_units.return_value = ['neutron-api/0']
+        self.relation_get.return_value = {'l2-population': 'True'}
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['l2_population'], True)
+
+    def test_neutronapicontext_none(self):
+        self.relation_ids.return_value = ['neutron-plugin-api:1']
+        self.related_units.return_value = ['neutron-api/0']
+        self.relation_get.return_value = {'l2-population': 'True'}
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['network_device_mtu'], None)
+
+    def test_network_service_ctxt_no_units(self):
+        self.relation_ids.return_value = []
+        self.relation_ids.return_value = ['foo']
+        self.related_units.return_value = []
+        self.assertEquals(context.NetworkServiceContext()(), {})
+
+    @patch.object(context, 'context_complete')
+    def test_network_service_ctxt_no_data(self, mock_context_complete):
+        rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_get.side_effect = relation.get
+        mock_context_complete.return_value = False
+        self.assertEquals(context.NetworkServiceContext()(), {})
+
+    def test_network_service_ctxt_data(self):
+        data_result = {
+            'keystone_host': '10.5.0.1',
+            'service_port': '5000',
+            'auth_port': '20000',
+            'service_tenant': 'tenant',
+            'service_username': 'username',
+            'service_password': 'password',
+            'quantum_host': '10.5.0.2',
+            'quantum_port': '9696',
+            'quantum_url': 'http://10.5.0.2:9696/v2',
+            'region': 'aregion',
+            'service_protocol': 'http',
+            'auth_protocol': 'http',
+        }
+        rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.assertEquals(context.NetworkServiceContext()(), data_result)
