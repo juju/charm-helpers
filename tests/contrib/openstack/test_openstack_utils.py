@@ -622,7 +622,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'config')
     def test_git_install_requested_none(self, config):
-        config.return_value = 'None'
+        config.return_value = None
         result = openstack.git_install_requested()
         self.assertEquals(result, False)
 
