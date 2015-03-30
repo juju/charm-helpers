@@ -31,7 +31,6 @@ import yaml
 from charmhelpers.contrib.network import ip
 
 from charmhelpers.core import (
-    hookenv,
     unitdata,
 )
 
