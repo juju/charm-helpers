@@ -342,7 +342,7 @@ def config_value_changed(option):
     hook_data = unitdata.HookData()
     with hook_data():
         db = unitdata.kv()
-        current = hookenv.execution_environment()['conf'][option]
+        current = config(option)
         saved = db.get(option)
         db.set(option, current)
         if saved is None:
@@ -492,7 +492,7 @@ def git_install_requested():
     """
     Returns true if openstack-origin-git is specified.
     """
-    return config('openstack-origin-git').lower() != "none"
+    return config('openstack-origin-git') is not None
 
 
 requirements_dir = None
