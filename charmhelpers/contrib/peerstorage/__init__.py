@@ -14,7 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import six
+
 from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
     is_relation_made,
@@ -22,7 +24,7 @@ from charmhelpers.core.hookenv import (
     relation_get as _relation_get,
     local_unit,
     relation_set as _relation_set,
-    leader_get,
+    leader_get as _leader_get,
     leader_set,
     is_leader,
 )
@@ -57,7 +59,74 @@ def some_hook():
 """
 
 
-def relation_set(relation_settings=None, relation_id=None, **kwargs):
+def leader_get(attribute=None):
+    """Wrapper to ensure that settings are migrated from the peer relation.
+
+    This is to support upgrading an environment that does not support
+    Juju leadership election to one that does.
+
+    If a setting is not extant in the leader-get but us on the relation-get
+    peer rel, it is migrated and marked as such so that it is not re-migrated.
+    """
+    settings = _leader_get(attribute=attribute) or {}
+    migrated = settings
+    settings_migrated = False
+    migration_key = '__leader_get_migrated_settings__'
+    if migration_key not in migrated:
+        migrated = _leader_get(attribute=migration_key) or {}
+
+    if migrated.get(migration_key):
+        migrated = set(json.loads(migrated[migration_key]))
+        if migration_key in settings:
+            # Remove from returned settings
+            del settings[migration_key]
+    else:
+        migrated = set([])
+
+    if attribute:
+        if attribute in migrated:
+            return settings
+
+        # New settings wins
+        if not settings:
+            settings = relation_get(attribute=attribute, unit=local_unit())
+            if settings:
+                leader_set(**settings)
+
+        if settings:
+            settings_migrated = True
+            migrated.add(attribute)
+    else:
+        r_settings = relation_get(unit=local_unit())
+        if r_settings:
+            for key in set(r_settings.keys()).symmetric_difference(migrated):
+                # New settings wins
+                if not settings.get(key):
+                    value = relation_get(attribute=key, unit=local_unit())
+                    value = value or {}
+                    settings[key] = value.get(key)
+
+                settings_migrated = True
+                migrated.add(key)
+
+            if settings_migrated:
+                leader_set(**settings)
+
+    if migrated and settings_migrated:
+        migrated = json.dumps(list(migrated))
+        leader_set(settings={migration_key: migrated})
+
+    return settings
+
+
+def relation_set(relation_id=None, relation_settings=None, **kwargs):
+    """Attempt to use leader-set if supported in the current version of Juju,
+    otherwise falls back on relation-set.
+
+    Note that we only attempt to use leader-set if the provided relation_id is
+    a peer relation id or no relation id is provided (in which case we assume
+    we are within the peer relation context).
+    """
     try:
         if relation_id in relation_ids('cluster'):
             return leader_set(settings=relation_settings, **kwargs)
@@ -65,11 +134,17 @@ def relation_set(relation_settings=None, relation_id=None, **kwargs):
             raise NotImplementedError
     except NotImplementedError:
         return _relation_set(relation_id=relation_id,
-                             relation_settings=relation_settings,
-                             **kwargs)
+                             relation_settings=relation_settings, **kwargs)
 
 
-def relation_get(attribute=None, rid=None, unit=None):
+def relation_get(attribute=None, unit=None, rid=None):
+    """Attempt to use leader-get if supported in the current version of Juju,
+    otherwise falls back on relation-get.
+
+    Note that we only attempt to use leader-get if the provided rid is a peer
+    relation id or no relation id is provided (in which case we assume we are
+    within the peer relation context).
+    """
     try:
         if rid in relation_ids('cluster'):
             return leader_get(attribute)
