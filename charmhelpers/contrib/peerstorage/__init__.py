@@ -65,7 +65,7 @@ def leader_get(attribute=None):
     This is to support upgrading an environment that does not support
     Juju leadership election to one that does.
 
-    If a setting is not extant in the leader-get but us on the relation-get
+    If a setting is not extant in the leader-get but is on the relation-get
     peer rel, it is migrated and marked as such so that it is not re-migrated.
     """
     settings = _leader_get(attribute=attribute)
@@ -78,6 +78,8 @@ def leader_get(attribute=None):
         migrated = _leader_get(attribute=migration_key)
         if migrated:
             migrated = set(json.loads(migrated))
+        else:
+            migrated = set([])
     elif migration_key in settings:
         migrated = set(json.loads(settings[migration_key]))
         # Remove from returned settings
@@ -89,11 +91,11 @@ def leader_get(attribute=None):
         if attribute in migrated:
             return settings
 
-        # New settings wins
+        # Leader setting wins
         if not settings:
             settings = relation_get(attribute=attribute, unit=local_unit())
             if settings:
-                leader_set(**settings)
+                leader_set(settings={attribute: settings})
 
         if settings:
             settings_migrated = True
@@ -101,11 +103,10 @@ def leader_get(attribute=None):
     else:
         r_settings = relation_get(unit=local_unit())
         if r_settings:
-            for key in set(r_settings.keys()).symmetric_difference(migrated):
-                # New settings wins
+            for key in set(r_settings.keys()).difference(migrated):
+                # Leader setting wins
                 if not settings.get(key):
-                    value = relation_get(attribute=key, unit=local_unit())
-                    settings[key] = value
+                    settings[key] = r_settings[key]
 
                 settings_migrated = True
                 migrated.add(key)

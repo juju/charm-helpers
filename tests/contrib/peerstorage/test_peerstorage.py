@@ -218,10 +218,10 @@ class TestPeerStorage(TestCase):
             l_settings.update(kwargs)
 
         migration_key = '__leader_get_migrated_settings__'
-
         self.relation_get.side_effect = mock_relation_get
         self._leader_get.side_effect = mock_leader_get
         self.leader_set.side_effect = mock_leader_set
+
         self.assertEqual({'s1': 1, 's2': 2}, peerstorage.relation_get())
         self.assertEqual({'s3': 3}, peerstorage._leader_get())
         self.assertEqual({'s1': 1, 's2': 2, 's3': 3}, peerstorage.leader_get())
@@ -235,6 +235,13 @@ class TestPeerStorage(TestCase):
                           migration_key: '["s2", "s1"]'}, l_settings)
         self.assertFalse(peerstorage.leader_set.called)
 
+        l_settings = {'s3': 3}
+        peerstorage.leader_set.reset_mock()
+        self.assertEqual(1, peerstorage.leader_get('s1'))
+        self.assertEqual({'s1': 1, 's3': 3,
+                          migration_key: '["s1"]'}, l_settings)
+        self.assertTrue(peerstorage.leader_set.called)
+
         # Test that leader vals take precedence over non-leader vals
         r_settings['s3'] = 2
         r_settings['s4'] = 3
@@ -242,9 +249,23 @@ class TestPeerStorage(TestCase):
 
         peerstorage.leader_set.reset_mock()
         self.assertEqual(4, peerstorage.leader_get('s4'))
-        self.assertEqual({'s1': 1, 's2': 2, 's3': 3, 's4': 4,
-                          migration_key: '["s2", "s1", "s4"]'}, l_settings)
+        self.assertEqual({'s1': 1, 's3': 3, 's4': 4,
+                          migration_key: '["s1", "s4"]'}, l_settings)
         self.assertTrue(peerstorage.leader_set.called)
+
+        peerstorage.leader_set.reset_mock()
+        self.assertEqual({'s1': 1, 's2': 2, 's3': 2, 's4': 3},
+                         peerstorage.relation_get())
+        self.assertEqual({'s1': 1, 's3': 3, 's4': 4,
+                          migration_key: '["s1", "s4"]'},
+                         peerstorage._leader_get())
+        self.assertEqual({'s1': 1, 's2': 2, 's3': 3, 's4': 4},
+                         peerstorage.leader_get())
+        self.assertEqual({'s1': 1, 's2': 2, 's3': 3, 's4': 4,
+                          migration_key: '["s3", "s2", "s1", "s4"]'},
+                         l_settings)
+        self.assertTrue(peerstorage.leader_set.called)
+
 
     def test_leader_get_migration_is_not_leader(self):
         self.is_leader.return_value = False
