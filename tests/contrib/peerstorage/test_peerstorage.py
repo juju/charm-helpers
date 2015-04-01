@@ -192,18 +192,18 @@ class TestPeerStorage(TestCase):
         def mock_relation_get(attribute=None, unit=None):
             if attribute:
                 if attribute in r_settings:
-                    return {attribute: r_settings.get(attribute)}
+                    return r_settings.get(attribute)
                 else:
-                    return {}
+                    return None
 
             return copy.deepcopy(r_settings)
 
         def mock_leader_get(attribute=None):
             if attribute:
                 if attribute in l_settings:
-                    return {attribute: l_settings.get(attribute)}
+                    return l_settings.get(attribute)
                 else:
-                    return {}
+                    return None
 
             return copy.deepcopy(l_settings)
 
@@ -237,8 +237,7 @@ class TestPeerStorage(TestCase):
         l_settings['s4'] = 4
 
         peerstorage.leader_set.reset_mock()
-        self.assertEqual({'s4': 4},
-                         peerstorage.leader_get('s4'))
+        self.assertEqual(4, peerstorage.leader_get('s4'))
         self.assertEqual({'s1': 1, 's2': 2, 's3': 3, 's4': 4,
                           migration_key: '["s2", "s1", "s4"]'}, l_settings)
         self.assertTrue(peerstorage.leader_set.called)
