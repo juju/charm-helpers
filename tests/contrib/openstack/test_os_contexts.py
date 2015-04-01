@@ -134,6 +134,20 @@ IDENTITY_SERVICE_RELATION_UNSET = {
     'service_username': 'adam',
 }
 
+APIIDENTITY_SERVICE_RELATION_UNSET = {
+    'neutron-plugin-api:0': {
+        'neutron-api/0': {
+            'service_port': '5000',
+            'service_host': 'keystonehost.local',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'service_tenant': 'admin',
+            'service_password': 'foo',
+            'service_username': 'adam',
+        }
+    }
+}
+
 IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_port': '5000',
     'service_host': 'keystonehost.local',
@@ -649,6 +663,32 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'http'
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_altname(self):
+        '''Test identity context when using an explicit relation name'''
+        relation = FakeRelation(
+            relation_data=APIIDENTITY_SERVICE_RELATION_UNSET
+        )
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.return_value = ['neutron-plugin-api:0']
+        self.related_units.return_value = ['neutron-api/0']
+        identity_service = context.IdentityServiceContext(
+            rel_name='neutron-plugin-api'
+        )
         result = identity_service()
         expected = {
             'admin_password': 'foo',
