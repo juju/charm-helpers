@@ -90,16 +90,14 @@ UCA_SOURCES = [
     ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
 ]
 
-GIT_PROJECTS = {
-    'core-proj': {
-        'repository': 'git://git.openstack.org/openstack/core-proj.git',
-        'branch': 'master'
-    },
-    'requirements': {
-        'repository': 'git://git.openstack.org/openstack/requirements.git',
-        'branch': 'master'
-    }
-}
+openstack_origin_git = \
+    """repositories:
+         - {name: requirements,
+            repository: 'git://git.openstack.org/openstack/requirements',
+            branch: stable/juno}
+         - {name: keystone,
+            repository: 'git://git.openstack.org/openstack/keystone',
+            branch: stable/juno}"""
 
 # Mock python-dnspython resolver used by get_host_ip()
 
@@ -624,109 +622,110 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'config')
     def test_git_install_requested_none(self, config):
-        config.return_value = 'None'
+        config.return_value = None
         result = openstack.git_install_requested()
         self.assertEquals(result, False)
 
     @patch.object(openstack, 'config')
     def test_git_install_requested_not_none(self, config):
-        config.return_value = 'config/git-tip.yaml'
+        config.return_value = openstack_origin_git
         result = openstack.git_install_requested()
         self.assertEquals(result, True)
 
-    @patch.object(openstack, 'charm_dir')
-    @patch.object(openstack, '_git_clone_and_install_subset')
+    def _test_key_error(self, os_origin_git, key, error_out):
+        try:
+            openstack.git_clone_and_install(os_origin_git, 'keystone')
+        except KeyError:
+            # KeyError expected because _git_ensure_key_exists() doesn't exit
+            # when mocked.
+            pass
+        error_out.assert_called_with(
+            'openstack-origin-git key \'%s\' is missing' % key)
+
     @patch.object(openstack, 'error_out')
-    def test_git_clone_and_install_errors(self, error_out, _git_install_subset,
-                                          charm_dir):
-        file_name = 'config/git-tip.yaml'
-        proj = 'core-proj'
-        charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
-        _git_install_subset.return_value = []
+    @patch.object(openstack, '_git_clone_and_install_single')
+    def test_git_clone_and_install_errors(self, git_install_single, error_out):
+        git_missing_repos = """
+          repostories:
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_repos, 'repositories', error_out)
 
-        openstack.git_clone_and_install(file_name, proj)
-        expected = [
-            call('requirements git repository must be specified'),
-            call('core-proj git repository must be specified')
-        ]
-        self.assertEquals(expected, error_out.call_args_list)
+        git_missing_name = """
+          repositories:
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}
+             - {repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_name, 'name', error_out)
+
+        git_missing_repo = """
+          repositories:
+             - {name: requirements,
+                repoistroy: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_repo, 'repository', error_out)
+
+        git_missing_branch = """
+          repositories:
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements'}
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_branch, 'branch', error_out)
+
+        git_wrong_order_1 = """
+          repositories:
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}"""
+        openstack.git_clone_and_install(git_wrong_order_1, 'keystone')
+        error_out.assert_called_with('keystone git repo must be specified last')
+
+        git_wrong_order_2 = """
+          repositories:
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        openstack.git_clone_and_install(git_wrong_order_2, 'keystone')
+        error_out.assert_called_with('requirements git repo must be specified first')
 
     @patch.object(openstack, 'charm_dir')
-    @patch.object(openstack, '_git_clone_and_install_subset')
     @patch.object(openstack, 'error_out')
-    def test_git_clone_and_install_success(self, error_out, _git_install_subset,
-                                           charm_dir):
-        file_name = 'config/git-tip.yaml'
-        proj = 'core-proj'
-        config = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
+    @patch.object(openstack, '_git_clone_and_install_single')
+    def test_git_clone_and_install_success(self, _git_install_single,
+                                           error_out, charm_dir):
+        proj = 'keystone'
         charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
-        _git_install_subset.return_value = ['requirements', proj]
+        # the following sets the global requirements_dir
+        _git_install_single.return_value = '/mnt/openstack-git/requirements'
 
-        openstack.git_clone_and_install(file_name, proj)
-        self.assertTrue(_git_install_subset.call_count == 3)
+        openstack.git_clone_and_install(openstack_origin_git, proj)
+        self.assertTrue(_git_install_single.call_count == 2)
         expected = [
-            call(config, whitelist=['requirements']),
-            call(config, blacklist=['requirements', 'core-proj'],
-                 update_requirements=True),
-            call(config, whitelist=['core-proj'], update_requirements=True)
+            call('git://git.openstack.org/openstack/requirements',
+                 'stable/juno', '/mnt/openstack-git',
+                 update_requirements=False),
+            call('git://git.openstack.org/openstack/keystone',
+                 'stable/juno', '/mnt/openstack-git',
+                 update_requirements=True)
         ]
-        self.assertEquals(expected, _git_install_subset.call_args_list)
+        self.assertEquals(expected, _git_install_single.call_args_list)
         assert not error_out.called
 
-    @patch(builtin_open)
-    @patch('yaml.load')
-    @patch.object(openstack, '_git_clone_and_install_single')
-    def test_git_clone_and_install_subset_whitelist(self, _git_install_single,
-                                                    yaml_load, _open):
-        file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
-        _file = MagicMock(spec=io.FileIO)
-        _open.return_value = _file
-        yaml_load.return_value = GIT_PROJECTS
-
-        openstack._git_clone_and_install_subset(file_name,
-                                                whitelist=['requirements'])
-        _open.assert_called_with(file_name, 'r')
-        _git_install_single.assert_called_once_with('git://git.openstack.org/'
-                                                    'openstack/requirements.git',
-                                                    'master', False)
-
-    @patch(builtin_open)
-    @patch('yaml.load')
-    @patch.object(openstack, '_git_clone_and_install_single')
-    def test_git_clone_and_install_subset_blacklist(self, _git_install_single,
-                                                    yaml_load, _open):
-        file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
-        _file = MagicMock(spec=io.FileIO)
-        _open.return_value = _file
-        yaml_load.return_value = GIT_PROJECTS
-
-        openstack._git_clone_and_install_subset(file_name,
-                                                blacklist=['core-proj'])
-        _open.assert_called_with(file_name, 'r')
-        _git_install_single.assert_called_once_with('git://git.openstack.org/'
-                                                    'openstack/requirements.git',
-                                                    'master', False)
-
-    @patch(builtin_open)
-    @patch('yaml.load')
-    @patch.object(openstack, '_git_clone_and_install_single')
-    def test_git_clone_and_install_subset_all(self, _git_install_single,
-                                              yaml_load, _open):
-        file_name = '/var/lib/juju/units/testing-foo-0/charm/config/git-tip.yaml'
-        _file = MagicMock(spec=io.FileIO)
-        _open.return_value = _file
-        yaml_load.return_value = GIT_PROJECTS
-
-        openstack._git_clone_and_install_subset(file_name)
-        _open.assert_called_with(file_name, 'r')
-        expected = [
-            call('git://git.openstack.org/openstack/requirements.git',
-                 'master', False),
-            call('git://git.openstack.org/openstack/core-proj.git',
-                 'master', False)
-        ]
-        _git_install_single.assert_has_calls(expected, any_order=True)
-
+    @patch('os.path.join')
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch.object(openstack, 'juju_log')
@@ -735,21 +734,23 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, '_git_update_requirements')
     def test_git_clone_and_install_single(self, _git_update_reqs, pip_install,
                                           install_remote, log, path_exists,
-                                          mkdir):
+                                          mkdir, join):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
-        dest_parent_dir = '/mnt/openstack-git/'
+        parent_dir = '/mnt/openstack-git/'
         dest_dir = '/mnt/openstack-git/repo-dir'
+        join.return_value = dest_dir
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch)
-        mkdir.assert_called_with(dest_parent_dir)
-        install_remote.assert_called_with(repo, dest=dest_parent_dir,
+        openstack._git_clone_and_install_single(repo, branch, parent_dir, False)
+        mkdir.assert_called_with(parent_dir)
+        install_remote.assert_called_with(repo, dest=parent_dir,
                                           branch=branch)
         assert not _git_update_reqs.called
         pip_install.assert_called_with(dest_dir)
 
+    @patch('os.path.join')
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch.object(openstack, 'juju_log')
@@ -759,19 +760,20 @@ class OpenStackHelpersTestCase(TestCase):
     def test_git_clone_and_install_single_with_update(self, _git_update_reqs,
                                                       pip_install,
                                                       install_remote, log,
-                                                      path_exists, mkdir):
+                                                      path_exists, mkdir, join):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
-        dest_parent_dir = '/mnt/openstack-git/'
+        parent_dir = '/mnt/openstack-git/'
         dest_dir = '/mnt/openstack-git/repo-dir'
         reqs_dir = '/mnt/openstack-git/requirements-dir'
+        join.return_value = dest_dir
         openstack.requirements_dir = reqs_dir
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, True)
-        mkdir.assert_called_with(dest_parent_dir)
-        install_remote.assert_called_with(repo, dest=dest_parent_dir,
+        openstack._git_clone_and_install_single(repo, branch, parent_dir, True)
+        mkdir.assert_called_with(parent_dir)
+        install_remote.assert_called_with(repo, dest=parent_dir,
                                           branch=branch)
         _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir)
@@ -789,6 +791,12 @@ class OpenStackHelpersTestCase(TestCase):
         expected = [call(reqs_dir), call(orig_dir)]
         self.assertEquals(expected, chdir.call_args_list)
         check_call.assert_called_with(['python', 'update.py', pkg_dir])
+
+    @patch('os.path.join')
+    @patch('subprocess.check_call')
+    def test_git_src_dir(self, check_call, join):
+        openstack.git_src_dir(openstack_origin_git, 'keystone')
+        join.assert_called_with('/mnt/openstack-git', 'keystone')
 
 if __name__ == '__main__':
     unittest.main()
