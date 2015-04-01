@@ -69,17 +69,17 @@ def leader_get(attribute=None):
     peer rel, it is migrated and marked as such so that it is not re-migrated.
     """
     settings = _leader_get(attribute=attribute) or {}
-    migrated = settings
     settings_migrated = False
     migration_key = '__leader_get_migrated_settings__'
-    if migration_key not in migrated:
-        migrated = _leader_get(attribute=migration_key) or {}
 
-    if migrated.get(migration_key):
-        migrated = set(json.loads(migrated[migration_key]))
-        if migration_key in settings:
-            # Remove from returned settings
-            del settings[migration_key]
+    if attribute:
+        migrated = _leader_get(attribute=migration_key)
+        if migrated:
+            migrated = set(json.loads(migrated))
+    elif migration_key in settings:
+        migrated = set(json.loads(settings[migration_key]))
+        # Remove from returned settings
+        del settings[migration_key]
     else:
         migrated = set([])
 
@@ -103,8 +103,7 @@ def leader_get(attribute=None):
                 # New settings wins
                 if not settings.get(key):
                     value = relation_get(attribute=key, unit=local_unit())
-                    value = value or {}
-                    settings[key] = value.get(key)
+                    settings[key] = value
 
                 settings_migrated = True
                 migrated.add(key)
