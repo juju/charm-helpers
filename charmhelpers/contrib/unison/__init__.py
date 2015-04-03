@@ -158,7 +158,7 @@ def write_known_hosts(user, hosts):
     log('Syncing known_hosts @ %s.' % known_hosts)
     with open(known_hosts, 'wb') as out:
         for host in khosts:
-            out.write('%s\n' % host)
+            out.write(b'%s\n' % host)
 
 
 def ensure_user(user, group=None):
