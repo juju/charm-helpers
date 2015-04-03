@@ -153,12 +153,12 @@ def write_known_hosts(user, hosts):
     khosts = []
     for host in hosts:
         cmd = ['ssh-keyscan', '-H', '-t', 'rsa', host]
-        remote_key = check_output(cmd).strip()
+        remote_key = check_output(cmd, universal_newlines=True).strip()
         khosts.append(remote_key)
     log('Syncing known_hosts @ %s.' % known_hosts)
-    with open(known_hosts, 'wb') as out:
+    with open(known_hosts, 'w') as out:
         for host in khosts:
-            out.write(b'%s\n' % host)
+            out.write('%s\n' % host)
 
 
 def ensure_user(user, group=None):
