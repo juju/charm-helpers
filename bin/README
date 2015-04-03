@@ -1,1 +1,4 @@
 This directory contains executables for accessing charmhelpers functionality
+
+
+Please see charmhelpers.cli for the recommended way to add scripts.
