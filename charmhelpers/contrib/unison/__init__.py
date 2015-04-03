@@ -156,7 +156,7 @@ def write_known_hosts(user, hosts):
         remote_key = check_output(cmd).strip()
         khosts.append(remote_key)
     log('Syncing known_hosts @ %s.' % known_hosts)
-    with open(known_hosts, 'w') as out:
+    with open(known_hosts, 'wb') as out:
         for host in khosts:
             out.write('%s\n' % host)
 
