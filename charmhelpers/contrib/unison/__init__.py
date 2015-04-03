@@ -63,6 +63,7 @@ from subprocess import check_call, check_output
 from charmhelpers.core.host import (
     adduser,
     add_user_to_group,
+    pwgen,
 )
 
 from charmhelpers.core.hookenv import (
@@ -140,7 +141,7 @@ def write_authorized_keys(user, keys):
     ssh_dir = os.path.join(home_dir, '.ssh')
     auth_keys = os.path.join(ssh_dir, 'authorized_keys')
     log('Syncing authorized_keys @ %s.' % auth_keys)
-    with open(auth_keys, 'wb') as out:
+    with open(auth_keys, 'w') as out:
         for k in keys:
             out.write('%s\n' % k)
 
@@ -161,7 +162,7 @@ def write_known_hosts(user, hosts):
 
 
 def ensure_user(user, group=None):
-    adduser(user)
+    adduser(user, pwgen())
     if group:
         add_user_to_group(user, group)
 

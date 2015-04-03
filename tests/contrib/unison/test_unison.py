@@ -1,5 +1,5 @@
 
-from mock import call, patch, MagicMock
+from mock import call, patch, MagicMock, sentinel
 from testtools import TestCase
 
 from tests.helpers import patch_open, FakeRelation
@@ -146,7 +146,7 @@ class UnisonHelperTests(TestCase):
         ]
         with patch_open() as (_open, _file):
             unison.write_authorized_keys('foo', keys)
-            _open.assert_called_with('/home/foo/.ssh/authorized_keys', 'wb')
+            _open.assert_called_with('/home/foo/.ssh/authorized_keys', 'w')
             for k in keys:
                 self.assertIn(call('%s\n' % k), _file.write.call_args_list)
 
@@ -154,8 +154,8 @@ class UnisonHelperTests(TestCase):
     def test_write_known_hosts(self, get_homedir):
         get_homedir.return_value = '/home/foo'
         keys = [
-            '10.0.0.1 ssh-rsa KJDSJF=',
-            '10.0.0.2 ssh-rsa KJDSJF=',
+            b'10.0.0.1 ssh-rsa KJDSJF=',
+            b'10.0.0.2 ssh-rsa KJDSJF=',
         ]
         self.check_output.side_effect = keys
         with patch_open() as (_open, _file):
@@ -164,11 +164,13 @@ class UnisonHelperTests(TestCase):
             for k in keys:
                 self.assertIn(call('%s\n' % k), _file.write.call_args_list)
 
+    @patch.object(unison, 'pwgen')
     @patch.object(unison, 'add_user_to_group')
     @patch.object(unison, 'adduser')
-    def test_ensure_user(self, adduser, to_group):
+    def test_ensure_user(self, adduser, to_group, pwgen):
+        pwgen.return_value = sentinel.password
         unison.ensure_user('foo', group='foobar')
-        adduser.assert_called_with('foo')
+        adduser.assert_called_with('foo', sentinel.password)
         to_group.assert_called_with('foo', 'foobar')
 
     @patch.object(unison, '_run_as_user')
