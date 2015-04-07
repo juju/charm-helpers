@@ -20,6 +20,7 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
+from __future__ import print_function
 import os
 import json
 import yaml
@@ -89,15 +90,17 @@ def log(message, level=None):
         message = repr(message)
     command += [message]
     # Missing juju-log should not cause failures in unit tests
+    # Send log output to stderr
     try:
         subprocess.call(command)
     except OSError as e:
         if e.errno == errno.ENOENT:
-            pass
+            if level:
+                message = "{}: {}".format(level, message)
+            message = "juju-log: {}".format(message)
+            print(message, file=sys.stderr)
         else:
             raise
-    except:
-        raise
 
 
 class Serializable(UserDict):
