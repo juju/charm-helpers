@@ -92,24 +92,26 @@ class ServiceCA(object):
 
         if not exists(path_join(ca_dir, 'serial')):
             with open(path_join(ca_dir, 'serial'), 'wb') as fh:
-                fh.write('02\n')
+                fh.write(bytes('02\n', 'UTF-8'))
 
         if not exists(path_join(ca_dir, 'index.txt')):
             with open(path_join(ca_dir, 'index.txt'), 'wb') as fh:
-                fh.write('')
+                fh.write(bytes('', 'UTF-8'))
 
     def _init_ca(self):
         """Generate the root ca's cert and key.
         """
         if not exists(path_join(self.ca_dir, 'ca.cnf')):
             with open(path_join(self.ca_dir, 'ca.cnf'), 'wb') as fh:
-                fh.write(
-                    CA_CONF_TEMPLATE % (self.get_conf_variables()))
+                fh.write(bytes(
+                    CA_CONF_TEMPLATE % (self.get_conf_variables()),
+                    'UTF-8'))
 
         if not exists(path_join(self.ca_dir, 'signing.cnf')):
             with open(path_join(self.ca_dir, 'signing.cnf'), 'wb') as fh:
-                fh.write(
-                    SIGNING_CONF_TEMPLATE % (self.get_conf_variables()))
+                fh.write(bytes(
+                    SIGNING_CONF_TEMPLATE % (self.get_conf_variables()),
+                    'UTF-8'))
 
         if exists(self.ca_cert) or exists(self.ca_key):
             raise RuntimeError("Initialized called when CA already exists")
