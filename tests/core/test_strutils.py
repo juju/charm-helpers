@@ -17,6 +17,7 @@ class TestStrUtils(unittest.TestCase):
         self.assertTrue(strutils.bool_from_string('Yes'))
         self.assertTrue(strutils.bool_from_string('y'))
         self.assertTrue(strutils.bool_from_string('Y'))
+        self.assertTrue(strutils.bool_from_string('on'))
 
         # unicode should also work
         self.assertTrue(strutils.bool_from_string(u'true'))
@@ -27,6 +28,7 @@ class TestStrUtils(unittest.TestCase):
         self.assertFalse(strutils.bool_from_string('No'))
         self.assertFalse(strutils.bool_from_string('n'))
         self.assertFalse(strutils.bool_from_string('N'))
+        self.assertFalse(strutils.bool_from_string('off'))
 
         self.assertRaises(ValueError, strutils.bool_from_string, None)
         self.assertRaises(ValueError, strutils.bool_from_string, 'foo')
