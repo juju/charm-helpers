@@ -212,6 +212,10 @@ AMQP_CONFIG = {
     'rabbit-vhost': 'foo',
 }
 
+AMQP_OSLO_CONFIG = {
+    'oslo-messaging-flags': "rabbit-max-retries=1,rabbit-retry-backoff=1,rabbit-retry-interval=1"
+}
+
 AMQP_NOVA_CONFIG = {
     'nova-rabbit-user': 'adam',
     'nova-rabbit-vhost': 'foo',
@@ -947,6 +951,27 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
+        }
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_oslo_messaging(self):
+        """Test amqp context with oslo-messaging-flags option"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_OSLO_CONFIG.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_OSLO_CONFIG
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'oslo_messaging_flags': {
+                'rabbit-max-retries': '1',
+                'rabbit-retry-backoff': '1',
+                'rabbit-retry-interval': '1'
+            },
         }
         self.assertEquals(result, expected)
 
