@@ -213,7 +213,7 @@ AMQP_CONFIG = {
 }
 
 AMQP_OSLO_CONFIG = {
-    'oslo-messaging-flags': "rabbit-max-retries=1,rabbit-retry-backoff=1,rabbit-retry-interval=1"
+    'oslo-messaging-flags': "rabbit_max_retries=1,rabbit_retry_backoff=1,rabbit_retry_interval=1"
 }
 
 AMQP_NOVA_CONFIG = {
@@ -968,11 +968,12 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'oslo_messaging_flags': {
-                'rabbit-max-retries': '1',
-                'rabbit-retry-backoff': '1',
-                'rabbit-retry-interval': '1'
+                'rabbit_max_retries': '1',
+                'rabbit_retry_backoff': '1',
+                'rabbit_retry_interval': '1'
             },
         }
+
         self.assertEquals(result, expected)
 
     def test_ceph_no_relids(self):
