@@ -3,6 +3,7 @@ import tempfile
 import shutil
 import subprocess
 import six
+import mock
 
 from os.path import exists, join, isdir
 
@@ -19,7 +20,8 @@ class ServiceCATest(TestCase):
         super(ServiceCATest, self).tearDown()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_init(self):
+    @mock.patch("charmhelpers.contrib.ssl.service.log")
+    def test_init(self, *args):
         """
         Tests that a ServiceCA is initialized with the correct directory
         layout.
@@ -50,7 +52,8 @@ class ServiceCATest(TestCase):
                 self.assertTrue(isdir(full_path),
                                 'Path {} is not a dir'.format(full_path))
 
-    def test_create_cert(self):
+    @mock.patch("charmhelpers.contrib.ssl.service.log")
+    def test_create_cert(self, *args):
         """
         Tests that a generated certificate is valid against the ca.
         """
@@ -67,7 +70,8 @@ class ServiceCATest(TestCase):
         cmd = ['openssl', 'verify', '-verbose',
                '-CAfile', join(ca_root_dir, 'cacert.pem'), full_cert_path]
 
-        output = subprocess.check_output(cmd).strip()
+        output = subprocess.check_output(cmd,
+                                         stderr=subprocess.STDOUT).strip()
         expected = '{}: OK'.format(full_cert_path)
         if six.PY3:
             expected = bytes(expected, 'utf-8')
