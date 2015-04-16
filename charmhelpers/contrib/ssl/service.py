@@ -14,16 +14,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
 import os
 from os.path import join as path_join
 from os.path import exists
 import subprocess
 
-
-log = logging.getLogger("service_ca")
-
-logging.basicConfig(level=logging.DEBUG)
+from charmhelpers.core.hookenv import log, DEBUG
 
 STD_CERT = "standard"
 
@@ -62,7 +58,7 @@ class ServiceCA(object):
     ###############
 
     def init(self):
-        log.debug("initializing service ca")
+        log("initializing service ca", level=DEBUG)
         if not exists(self.ca_dir):
             self._init_ca_dir(self.ca_dir)
             self._init_ca()
@@ -119,7 +115,7 @@ class ServiceCA(object):
                '-keyout', self.ca_key, '-out', self.ca_cert,
                '-outform', 'PEM']
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        log.debug("CA Init:\n %s", output)
+        log("CA Init:\n %s" % output, level=DEBUG)
 
     def get_conf_variables(self):
         return dict(
@@ -163,15 +159,15 @@ class ServiceCA(object):
         subj = '/O=%(org_name)s/OU=%(org_unit_name)s/CN=%(common_name)s' % (
             template_vars)
 
-        log.debug("CA Create Cert %s", common_name)
+        log("CA Create Cert %s" % common_name, level=DEBUG)
         cmd = ['openssl', 'req', '-sha1', '-newkey', 'rsa:2048',
                '-nodes', '-days', self.default_expiry,
                '-keyout', key_p, '-out', csr_p, '-subj', subj]
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, stderr=subprocess.PIPE)
         cmd = ['openssl', 'rsa', '-in', key_p, '-out', key_p]
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, stderr=subprocess.PIPE)
 
-        log.debug("CA Sign Cert %s", common_name)
+        log("CA Sign Cert %s" % common_name, level=DEBUG)
         if self.cert_type == MYSQL_CERT:
             cmd = ['openssl', 'x509', '-req',
                    '-in', csr_p, '-days', self.default_expiry,
@@ -182,8 +178,8 @@ class ServiceCA(object):
                    '-extensions', 'req_extensions',
                    '-days', self.default_expiry, '-notext',
                    '-in', csr_p, '-out', crt_p, '-subj', subj, '-batch']
-        log.debug("running %s", " ".join(cmd))
-        subprocess.check_call(cmd)
+        log("running %s" % " ".join(cmd), level=DEBUG)
+        subprocess.check_call(cmd, stderr=subprocess.PIPE)
 
     def get_ca_bundle(self):
         with open(self.ca_cert) as fh:
