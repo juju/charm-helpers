@@ -79,6 +79,9 @@ class AmuletUtils(object):
         for k, v in six.iteritems(commands):
             for cmd in v:
                 output, code = k.run(cmd)
+                self.log.debug('{} `{}` returned '
+                               '{}'.format(k.info['unit_name'],
+                                           cmd, code))
                 if code != 0:
                     return "command `{}` returned {}".format(cmd, str(code))
         return None
