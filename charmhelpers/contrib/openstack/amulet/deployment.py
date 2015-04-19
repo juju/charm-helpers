@@ -37,6 +37,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         # Note(coreycb): this needs to be changed when new next branches come
         # out.
         self.current_next = "trusty"
+        self.current_stable = "trusty"
 
     def _determine_branch_locations(self, other_services):
         """Determine the branch locations for the other services.
@@ -53,8 +54,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         else:
             for svc in other_services:
                 if svc['name'] in base_charms:
-                    temp = 'lp:charms/{}'
-                    svc['location'] = temp.format(svc['name'])
+                    temp = 'lp:charms/{}/{}'
+                    svc['location'] = temp.format(self.current_stable,
+                                                  svc['name'])
                 else:
                     temp = 'lp:~openstack-charmers/charms/{}/{}/next'
                     svc['location'] = temp.format(self.current_next,
