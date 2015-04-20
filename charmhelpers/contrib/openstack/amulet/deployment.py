@@ -37,7 +37,6 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         # Note(coreycb): this needs to be changed when new next branches come
         # out.
         self.current_next = "trusty"
-        self.current_stable = "trusty"
 
     def _determine_branch_locations(self, other_services):
         """Determine the branch locations for the other services.
@@ -47,6 +46,13 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            stable or next branches for the other_services."""
         base_charms = ['mysql', 'mongodb']
 
+        if self.series == 'precise':
+            base_series = self.series
+        else:
+            base_series = self.current_next
+        self.log.debug('series: {}'.format(self.series))
+        self.log.debug('base_series: {}'.format(base_series))
+
         if self.stable:
             for svc in other_services:
                 temp = 'lp:charms/{}'
@@ -55,7 +61,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             for svc in other_services:
                 if svc['name'] in base_charms:
                     temp = 'lp:charms/{}/{}'
-                    svc['location'] = temp.format(self.current_stable,
+                    svc['location'] = temp.format(base_series,
                                                   svc['name'])
                 else:
                     temp = 'lp:~openstack-charmers/charms/{}/{}/next'
