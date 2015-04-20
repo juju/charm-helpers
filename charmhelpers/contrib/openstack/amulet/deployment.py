@@ -46,7 +46,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            stable or next branches for the other_services."""
         base_charms = ['mysql', 'mongodb']
 
-        if self.series == 'precise':
+        if self.series in ['precise', 'trusty']:
             base_series = self.series
         else:
             base_series = self.current_next
@@ -55,8 +55,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         if self.stable:
             for svc in other_services:
-                temp = 'lp:charms/{}'
-                svc['location'] = temp.format(svc['name'])
+                temp = 'lp:charms/{}/{}'
+                svc['location'] = temp.format(base_series,
+                                              svc['name'])
         else:
             for svc in other_services:
                 if svc['name'] in base_charms:
