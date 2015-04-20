@@ -50,8 +50,6 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             base_series = self.series
         else:
             base_series = self.current_next
-        self.log.debug('series: {}'.format(self.series))
-        self.log.debug('base_series: {}'.format(base_series))
 
         if self.stable:
             for svc in other_services:
