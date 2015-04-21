@@ -109,7 +109,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         # Must be ordered by OpenStack release (not by Ubuntu release):
         (self.precise_essex, self.precise_folsom, self.precise_grizzly,
          self.precise_havana, self.precise_icehouse,
-         self.trusty_icehouse, self.trusty_juno, self.utopic_juno, 
+         self.trusty_icehouse, self.trusty_juno, self.utopic_juno,
          self.trusty_kilo, self.vivid_kilo) = range(10)
 
         releases = {
