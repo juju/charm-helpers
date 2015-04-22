@@ -716,10 +716,10 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
-                 'stable/juno', '/mnt/openstack-git',
+                 'stable/juno', '/mnt/openstack-git', None,
                  update_requirements=False),
             call('git://git.openstack.org/openstack/keystone',
-                 'stable/juno', '/mnt/openstack-git',
+                 'stable/juno', '/mnt/openstack-git', None,
                  update_requirements=True)
         ]
         self.assertEquals(expected, _git_install_single.call_args_list)
@@ -738,17 +738,20 @@ class OpenStackHelpersTestCase(TestCase):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
         parent_dir = '/mnt/openstack-git/'
+        http_proxy = 'http://squid.internal:3128'
         dest_dir = '/mnt/openstack-git/repo-dir'
         join.return_value = dest_dir
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, parent_dir, False)
+        openstack._git_clone_and_install_single(repo, branch, parent_dir,
+                                                http_proxy, False)
         mkdir.assert_called_with(parent_dir)
         install_remote.assert_called_with(repo, dest=parent_dir,
                                           branch=branch)
         assert not _git_update_reqs.called
-        pip_install.assert_called_with(dest_dir)
+        pip_install.assert_called_with(dest_dir, ignore=True,
+                                       proxy='http://squid.internal:3128')
 
     @patch('os.path.join')
     @patch('os.mkdir')
@@ -764,6 +767,7 @@ class OpenStackHelpersTestCase(TestCase):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
         parent_dir = '/mnt/openstack-git/'
+        http_proxy = 'http://squid.internal:3128'
         dest_dir = '/mnt/openstack-git/repo-dir'
         reqs_dir = '/mnt/openstack-git/requirements-dir'
         join.return_value = dest_dir
@@ -771,12 +775,14 @@ class OpenStackHelpersTestCase(TestCase):
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, parent_dir, True)
+        openstack._git_clone_and_install_single(repo, branch, parent_dir,
+                                                http_proxy, True)
         mkdir.assert_called_with(parent_dir)
         install_remote.assert_called_with(repo, dest=parent_dir,
                                           branch=branch)
         _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
-        pip_install.assert_called_with(dest_dir)
+        pip_install.assert_called_with(dest_dir, ignore=True,
+                                       proxy='http://squid.internal:3128')
 
     @patch('os.getcwd')
     @patch('os.chdir')
