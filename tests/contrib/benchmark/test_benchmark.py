@@ -62,6 +62,16 @@ class TestBenchmark(TestCase):
             self.assertIsNone(Benchmark().finish())
             # _open.assert_called_with('/etc/benchmark.conf', 'w')
 
+    @mock.patch('charmhelpers.contrib.benchmark.action_set')
+    def test_benchmark_set_composite_score(self, action_set):
+        self.assertTrue(Benchmark().set_composite_score(15.7, 'hits/sec'))
+        action_set.assert_called_once_with('meta.composite', {'units': 15.7, 'value': 15.7})
+
+    @mock.patch('charmhelpers.contrib.benchmark.action_set')
+    def test_benchmark_set_composite_scale(self, action_set):
+        self.assertTrue(Benchmark().set_composite_scale('desc'))
+        action_set.assert_called_once_with('meta.composite.direction', 'desc')
+
     @mock.patch('charmhelpers.contrib.benchmark.find_executable')
     @mock.patch('charmhelpers.contrib.benchmark.subprocess.check_call')
     def test_benchmark_action_set(self, check_call, find_executable):
