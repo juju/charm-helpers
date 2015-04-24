@@ -56,9 +56,8 @@ class Benchmark():
         siege = Benchmark(['siege'])
         siege.start()
         [... run siege ...]
-        siege.set_composite_score(16.70, 'trans/sec')
         # The higher the score, the better the benchmark
-        siege.set_composite_scale('desc')
+        siege.set_composite_score(16.70, 'trans/sec', 'desc')
         siege.finish()
 
 
