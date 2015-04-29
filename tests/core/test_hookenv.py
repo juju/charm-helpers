@@ -143,6 +143,32 @@ class ConfigTest(TestCase):
         c["baz"] = "bar"
         self.assertEqual(sorted([six.u("foo"), "baz"]), sorted(c.keys()))
 
+    def test_in(self):
+        # Test behavior of the in operator.
+
+        # Items that exist in the dict exist. Items that don't don't.
+        c = hookenv.Config(dict(foo='one'))
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' not in c)
+        c.save()
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' not in c)
+
+        # Adding items works as expected.
+        c['foo'] = 'two'
+        c['bar'] = 'two'
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' in c)
+        c.save()
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' in c)
+
+        # Removing items works as expected.
+        del c['foo']
+        self.assertTrue('foo' not in c)
+        c.save()
+        self.assertTrue('foo' not in c)
+
 
 class SerializableTest(TestCase):
     def test_serializes_object_to_json(self):
