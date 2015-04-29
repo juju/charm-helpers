@@ -1,8 +1,11 @@
 import os
 import pkg_resources
+import shutil
 import tempfile
 import unittest
 import jinja2
+import pwd
+import grp
 
 import mock
 from charmhelpers.core import templating
@@ -38,13 +41,15 @@ class TestTemplating(unittest.TestCase):
                 },
                 'nginx_port': 80,
             }
-            templating.render('fake_cc.yml', fn1, context, templates_dir=TEMPLATES_DIR)
+            templating.render('fake_cc.yml', fn1,
+                              context, templates_dir=TEMPLATES_DIR)
             contents = open(fn1).read()
             self.assertRegexpMatches(contents, 'port: 1234')
             self.assertRegexpMatches(contents, 'host: example.com')
             self.assertRegexpMatches(contents, 'domain: api.foo.com')
 
-            templating.render('test.conf', fn2, context, templates_dir=TEMPLATES_DIR)
+            templating.render('test.conf', fn2, context,
+                              templates_dir=TEMPLATES_DIR)
             contents = open(fn2).read()
             self.assertRegexpMatches(contents, 'listen 80')
             self.assertEqual(fchown.call_count, 2)
@@ -53,6 +58,24 @@ class TestTemplating(unittest.TestCase):
             for fn in (fn1, fn2):
                 if os.path.exists(fn):
                     os.remove(fn)
+
+    @mock.patch.object(templating.host.os, 'fchown')
+    @mock.patch.object(templating.host, 'log')
+    def test_render_2(self, log, fchown):
+        tmpdir = tempfile.mkdtemp()
+        fn1 = os.path.join(tmpdir, 'test.conf')
+        try:
+            context = {'nginx_port': 80}
+            templating.render('test.conf', fn1, context,
+                              owner=pwd.getpwuid(os.getuid()).pw_name,
+                              group=grp.getgrgid(os.getgid()).gr_name,
+                              templates_dir=TEMPLATES_DIR)
+            with open(fn1) as f:
+                contents = f.read()
+
+            self.assertRegexpMatches(contents, 'something')
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     @mock.patch.object(templating, 'hookenv')
     @mock.patch('jinja2.Environment')

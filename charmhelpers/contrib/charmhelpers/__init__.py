@@ -18,7 +18,20 @@
 # GNU Affero General Public License version 3 (see the file LICENSE).
 
 import warnings
-warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
+warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)  # noqa
+
+import operator
+import tempfile
+import time
+import yaml
+import subprocess
+
+import six
+if six.PY3:
+    from urllib.request import urlopen
+    from urllib.error import (HTTPError, URLError)
+else:
+    from urllib2 import (urlopen, HTTPError, URLError)
 
 """Helper functions for writing Juju charms in Python."""
 
@@ -44,24 +57,14 @@ __all__ = [
     'wait_for_unit',          # client-side, NOT IMPLEMENTED
 ]
 
-import operator
-import tempfile
-import time
-import yaml
-import subprocess
-
-import six
-if six.PY3:
-    from urllib.request import urlopen
-    from urllib.error import (HTTPError, URLError)
-else:
-    from urllib2 import (urlopen, HTTPError, URLError)
-
 
 SLEEP_AMOUNT = 0.1
+
+
 # We create a juju_status Command here because it makes testing much,
 # much easier.
-juju_status = lambda: subprocess.check_call(['juju', 'status'])
+def juju_status():
+    subprocess.check_call(['juju', 'status'])
 
 # re-implemented as charmhelpers.fetch.configure_sources()
 # def configure_source(update=False):

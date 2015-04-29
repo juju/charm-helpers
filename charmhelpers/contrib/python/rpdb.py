@@ -16,12 +16,12 @@
 
 """Remote Python Debugger (pdb wrapper)."""
 
-__author__ = "Bertrand Janin <b@janin.com>"
-__version__ = "0.1.3"
-
 import pdb
 import socket
 import sys
+
+__author__ = "Bertrand Janin <b@janin.com>"
+__version__ = "0.1.3"
 
 
 class Rpdb(pdb.Pdb):
