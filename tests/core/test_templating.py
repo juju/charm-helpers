@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 import jinja2
+import os.path
 import pwd
 import grp
 
