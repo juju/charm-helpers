@@ -1,8 +1,37 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright 2012 Canonical Ltd.  This software is licensed under the
 # GNU Affero General Public License version 3 (see the file LICENSE).
 
 import warnings
-warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
+warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)  # noqa
+
+import operator
+import tempfile
+import time
+import yaml
+import subprocess
+
+import six
+if six.PY3:
+    from urllib.request import urlopen
+    from urllib.error import (HTTPError, URLError)
+else:
+    from urllib2 import (urlopen, HTTPError, URLError)
 
 """Helper functions for writing Juju charms in Python."""
 
@@ -28,24 +57,14 @@ __all__ = [
     'wait_for_unit',          # client-side, NOT IMPLEMENTED
 ]
 
-import operator
-import tempfile
-import time
-import yaml
-import subprocess
-
-import six
-if six.PY3:
-    from urllib.request import urlopen
-    from urllib.error import (HTTPError, URLError)
-else:
-    from urllib2 import (urlopen, HTTPError, URLError)
-
 
 SLEEP_AMOUNT = 0.1
+
+
 # We create a juju_status Command here because it makes testing much,
 # much easier.
-juju_status = lambda: subprocess.check_call(['juju', 'status'])
+def juju_status():
+    subprocess.check_call(['juju', 'status'])
 
 # re-implemented as charmhelpers.fetch.configure_sources()
 # def configure_source(update=False):

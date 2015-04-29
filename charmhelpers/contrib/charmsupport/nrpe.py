@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 """Compatibility with the nrpe-external-master charm"""
 # Copyright 2012 Canonical Ltd.
 #
@@ -8,6 +24,8 @@ import subprocess
 import pwd
 import grp
 import os
+import glob
+import shutil
 import re
 import shlex
 import yaml
@@ -18,6 +36,7 @@ from charmhelpers.core.hookenv import (
     log,
     relation_ids,
     relation_set,
+    relations_of_type,
 )
 
 from charmhelpers.core.host import service
@@ -144,7 +163,7 @@ define service {{
         log('Check command not found: {}'.format(parts[0]))
         return ''
 
-    def write(self, nagios_context, hostname, nagios_servicegroups=None):
+    def write(self, nagios_context, hostname, nagios_servicegroups):
         nrpe_check_file = '/etc/nagios/nrpe.d/{}.cfg'.format(
             self.command)
         with open(nrpe_check_file, 'w') as nrpe_check_config:
@@ -160,13 +179,10 @@ define service {{
                                       nagios_servicegroups)
 
     def write_service_config(self, nagios_context, hostname,
-                             nagios_servicegroups=None):
+                             nagios_servicegroups):
         for f in os.listdir(NRPE.nagios_exportdir):
             if re.search('.*{}.cfg'.format(self.command), f):
                 os.remove(os.path.join(NRPE.nagios_exportdir, f))
-
-        if not nagios_servicegroups:
-            nagios_servicegroups = nagios_context
 
         templ_vars = {
             'nagios_hostname': hostname,
@@ -194,10 +210,10 @@ class NRPE(object):
         super(NRPE, self).__init__()
         self.config = config()
         self.nagios_context = self.config['nagios_context']
-        if 'nagios_servicegroups' in self.config:
+        if 'nagios_servicegroups' in self.config and self.config['nagios_servicegroups']:
             self.nagios_servicegroups = self.config['nagios_servicegroups']
         else:
-            self.nagios_servicegroups = 'juju'
+            self.nagios_servicegroups = self.nagios_context
         self.unit_name = local_unit().replace('/', '-')
         if hostname:
             self.hostname = hostname
@@ -231,5 +247,114 @@ class NRPE(object):
 
         service('restart', 'nagios-nrpe-server')
 
-        for rid in relation_ids("local-monitors"):
+        monitor_ids = relation_ids("local-monitors") + \
+            relation_ids("nrpe-external-master")
+        for rid in monitor_ids:
             relation_set(relation_id=rid, monitors=yaml.dump(monitors))
+
+
+def get_nagios_hostcontext(relation_name='nrpe-external-master'):
+    """
+    Query relation with nrpe subordinate, return the nagios_host_context
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    for rel in relations_of_type(relation_name):
+        if 'nagios_hostname' in rel:
+            return rel['nagios_host_context']
+
+
+def get_nagios_hostname(relation_name='nrpe-external-master'):
+    """
+    Query relation with nrpe subordinate, return the nagios_hostname
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    for rel in relations_of_type(relation_name):
+        if 'nagios_hostname' in rel:
+            return rel['nagios_hostname']
+
+
+def get_nagios_unit_name(relation_name='nrpe-external-master'):
+    """
+    Return the nagios unit name prepended with host_context if needed
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    host_context = get_nagios_hostcontext(relation_name)
+    if host_context:
+        unit = "%s:%s" % (host_context, local_unit())
+    else:
+        unit = local_unit()
+    return unit
+
+
+def add_init_service_checks(nrpe, services, unit_name):
+    """
+    Add checks for each service in list
+
+    :param NRPE nrpe: NRPE object to add check to
+    :param list services: List of services to check
+    :param str unit_name: Unit name to use in check description
+    """
+    for svc in services:
+        upstart_init = '/etc/init/%s.conf' % svc
+        sysv_init = '/etc/init.d/%s' % svc
+        if os.path.exists(upstart_init):
+            nrpe.add_check(
+                shortname=svc,
+                description='process check {%s}' % unit_name,
+                check_cmd='check_upstart_job %s' % svc
+            )
+        elif os.path.exists(sysv_init):
+            cronpath = '/etc/cron.d/nagios-service-check-%s' % svc
+            cron_file = ('*/5 * * * * root '
+                         '/usr/local/lib/nagios/plugins/check_exit_status.pl '
+                         '-s /etc/init.d/%s status > '
+                         '/var/lib/nagios/service-check-%s.txt\n' % (svc,
+                                                                     svc)
+                         )
+            f = open(cronpath, 'w')
+            f.write(cron_file)
+            f.close()
+            nrpe.add_check(
+                shortname=svc,
+                description='process check {%s}' % unit_name,
+                check_cmd='check_status_file.py -f '
+                          '/var/lib/nagios/service-check-%s.txt' % svc,
+            )
+
+
+def copy_nrpe_checks():
+    """
+    Copy the nrpe checks into place
+
+    """
+    NAGIOS_PLUGINS = '/usr/local/lib/nagios/plugins'
+    nrpe_files_dir = os.path.join(os.getenv('CHARM_DIR'), 'hooks',
+                                  'charmhelpers', 'contrib', 'openstack',
+                                  'files')
+
+    if not os.path.exists(NAGIOS_PLUGINS):
+        os.makedirs(NAGIOS_PLUGINS)
+    for fname in glob.glob(os.path.join(nrpe_files_dir, "check_*")):
+        if os.path.isfile(fname):
+            shutil.copy2(fname,
+                         os.path.join(NAGIOS_PLUGINS, os.path.basename(fname)))
+
+
+def add_haproxy_checks(nrpe, unit_name):
+    """
+    Add checks for each service in list
+
+    :param NRPE nrpe: NRPE object to add check to
+    :param str unit_name: Unit name to use in check description
+    """
+    nrpe.add_check(
+        shortname='haproxy_servers',
+        description='Check HAProxy {%s}' % unit_name,
+        check_cmd='check_haproxy.sh')
+    nrpe.add_check(
+        shortname='haproxy_queue',
+        description='Check HAProxy queue depth {%s}' % unit_name,
+        check_cmd='check_haproxy_queue_depth.sh')

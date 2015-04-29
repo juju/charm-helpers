@@ -65,6 +65,24 @@ class CephUtilsTests(TestCase):
         self.log.assert_called()
         self.check_call.assert_not_called()
 
+    @patch('os.remove')
+    @patch('os.path.exists')
+    def test_delete_keyring(self, _exists, _remove):
+        '''It deletes a ceph keyring.'''
+        _exists.return_value = True
+        ceph_utils.delete_keyring('cinder')
+        _remove.assert_called_with('/etc/ceph/ceph.client.cinder.keyring')
+        self.log.assert_called()
+
+    @patch('os.remove')
+    @patch('os.path.exists')
+    def test_delete_keyring_not_exists(self, _exists, _remove):
+        '''It creates a new ceph keyring.'''
+        _exists.return_value = False
+        ceph_utils.delete_keyring('cinder')
+        self.log.assert_called()
+        _remove.assert_not_called()
+
     @patch('os.path.exists')
     def test_create_keyfile(self, _exists):
         '''It creates a new ceph keyfile'''
@@ -544,3 +562,20 @@ class CephUtilsTests(TestCase):
         output.return_value = \
             b'ceph version 0.67.4 (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
         self.assertEquals(ceph_utils.ceph_version(), '0.67.4')
+
+    def test_ceph_broker_rq_class(self):
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('pool1', replica_count=1)
+        rq.add_op_create_pool('pool2')
+        expected = json.dumps({'api-version': 1,
+                               'ops': [{'op': 'create-pool', 'name': 'pool1',
+                                        'replicas': 1},
+                                       {'op': 'create-pool', 'name': 'pool2',
+                                        'replicas': 3}]})
+        self.assertEqual(rq.request, expected)
+
+    def test_ceph_broker_rsp_class(self):
+        rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
+                                                   'stderr': "Success"}))
+        self.assertEqual(rsp.exit_code, 0)
+        self.assertEqual(rsp.exit_msg, "Success")
