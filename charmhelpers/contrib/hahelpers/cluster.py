@@ -48,6 +48,9 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.decorators import (
     retry_on_exception,
 )
+from charmhelpers.core.strutils import (
+    bool_from_string,
+)
 
 
 class HAIncompleteConfig(Exception):
@@ -164,7 +167,8 @@ def https():
     .
     returns: boolean
     '''
-    if config_get('use-https') == "yes":
+    use_https = config_get('use-https')
+    if use_https and bool_from_string(use_https):
         return True
     if config_get('ssl_cert') and config_get('ssl_key'):
         return True
@@ -221,19 +225,23 @@ def determine_apache_port(public_port, singlenode_mode=False):
     return public_port - (i * 10)
 
 
-def get_hacluster_config():
+def get_hacluster_config(exclude_keys=None):
     '''
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
         ha-bindiface, ha-mcastport, vip
 
+    param: exclude_keys: list of setting key(s) to be excluded.
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing.
     '''
     settings = ['ha-bindiface', 'ha-mcastport', 'vip']
     conf = {}
     for setting in settings:
+        if exclude_keys and setting in exclude_keys:
+            continue
+
         conf[setting] = config_get(setting)
     missing = []
     [missing.append(s) for s, v in six.iteritems(conf) if v is None]

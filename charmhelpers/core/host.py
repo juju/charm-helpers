@@ -191,11 +191,11 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
-    """Create or overwrite a file with the contents of a string"""
+    """Create or overwrite a file with the contents of a byte string."""
     log("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
-    with open(path, 'w') as target:
+    with open(path, 'wb') as target:
         os.fchown(target.fileno(), uid, gid)
         os.fchmod(target.fileno(), perms)
         target.write(content)
@@ -305,11 +305,11 @@ def restart_on_change(restart_map, stopstart=False):
     ceph_client_changed function.
     """
     def wrap(f):
-        def wrapped_f(*args):
+        def wrapped_f(*args, **kwargs):
             checksums = {}
             for path in restart_map:
                 checksums[path] = file_hash(path)
-            f(*args)
+            f(*args, **kwargs)
             restarts = []
             for path in restart_map:
                 if checksums[path] != file_hash(path):
@@ -339,12 +339,16 @@ def lsb_release():
 def pwgen(length=None):
     """Generate a random pasword."""
     if length is None:
+        # A random length is ok to use a weak PRNG
         length = random.choice(range(35, 45))
     alphanumeric_chars = [
         l for l in (string.ascii_letters + string.digits)
         if l not in 'l0QD1vAEIOUaeiou']
+    # Use a crypto-friendly PRNG (e.g. /dev/urandom) for making the
+    # actual password
+    random_generator = random.SystemRandom()
     random_chars = [
-        random.choice(alphanumeric_chars) for _ in range(length)]
+        random_generator.choice(alphanumeric_chars) for _ in range(length)]
     return(''.join(random_chars))
 
 
@@ -361,7 +365,7 @@ def list_nics(nic_type):
         ip_output = (line for line in ip_output if line)
         for line in ip_output:
             if line.split()[1].startswith(int_type):
-                matched = re.search('.*: (bond[0-9]+\.[0-9]+)@.*', line)
+                matched = re.search('.*: (' + int_type + r'[0-9]+\.[0-9]+)@.*', line)
                 if matched:
                     interface = matched.groups()[0]
                 else:
