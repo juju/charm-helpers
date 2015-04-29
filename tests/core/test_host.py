@@ -31,6 +31,11 @@ IP_LINE_ETH0 = b"""
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """
 
+IP_LINE_ETH0_VLAN = b"""
+6: eth0.10@eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
+"""
+
 IP_LINE_ETH1 = b"""
 3: eth1: <BROADCAST,MULTICAST> mtu 1546 qdisc noop state DOWN qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
@@ -38,7 +43,7 @@ IP_LINE_ETH1 = b"""
 
 IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
-IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
+IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN
 
 IP_LINE_BONDS = b"""
 6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
@@ -438,7 +443,7 @@ class HelpersTest(TestCase):
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.unlink.assert_called_with(realpath)
-        self.assertFalse(os_.makedirs.called)
+        os_.makedirs.assert_called()
         os_.chown.assert_called_with(realpath, uid, gid)
 
     @patch('pwd.getpwnam')
@@ -797,15 +802,22 @@ class HelpersTest(TestCase):
     def test_list_nics(self, check_output):
         check_output.return_value = IP_LINES
         nics = host.list_nics('eth')
-        self.assertEqual(nics, ['eth0', 'eth1'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
         nics = host.list_nics(['eth'])
-        self.assertEqual(nics, ['eth0', 'eth1'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
 
     @patch('subprocess.check_output')
     def test_list_nics_with_bonds(self, check_output):
         check_output.return_value = IP_LINE_BONDS
         nics = host.list_nics('bond')
         self.assertEqual(nics, ['bond0.10', ])
+
+    @patch('subprocess.check_output')
+    def test_get_nic_mtu_with_bonds(self, check_output):
+        check_output.return_value = IP_LINE_BONDS
+        nic = "bond0.10"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
 
     @patch('subprocess.check_call')
     def test_set_nic_mtu(self, mock_call):
@@ -819,6 +831,13 @@ class HelpersTest(TestCase):
     def test_get_nic_mtu(self, check_output):
         check_output.return_value = IP_LINE_ETH0
         nic = "eth0"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
+
+    @patch('subprocess.check_output')
+    def test_get_nic_mtu_vlan(self, check_output):
+        check_output.return_value = IP_LINE_ETH0_VLAN
+        nic = "eth0.10"
         mtu = host.get_nic_mtu(nic)
         self.assertEqual(mtu, '1500')
 

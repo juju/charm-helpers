@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
-
 from unittest import TestCase
 from charmhelpers.contrib.python import packages
 
 import mock
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 TO_PATCH = [
     "apt_install",
@@ -78,6 +78,15 @@ class PipTestCase(TestCase):
         self.pip_execute.assert_called_with(["install",
                                              "--log=output.log",
                                              "--proxy=proxy_addr:8080",
+                                             "mock"])
+
+    def test_pip_install_upgrade(self):
+        """
+        Check if pip_install works correctly with a single package
+        """
+        packages.pip_install("mock", upgrade=True)
+        self.pip_execute.assert_called_with(["install",
+                                             "--upgrade",
                                              "mock"])
 
     def test_pip_install_multiple(self):

@@ -24,6 +24,7 @@ class NRPEBaseTestCase(TestCase):
         'call': {'object': subprocess},
         'relation_ids': {'object': nrpe},
         'relation_set': {'object': nrpe},
+        'relations_of_type': {'object': nrpe},
     }
 
     def setUp(self):
@@ -75,7 +76,7 @@ class NRPETestCase(NRPEBaseTestCase):
         """Test that nagios_servicegroups gets set to the default if omitted"""
         self.patched['config'].return_value = {'nagios_context': 'testctx'}
         checker = nrpe.NRPE()
-        self.assertEqual(checker.nagios_servicegroups, 'juju')
+        self.assertEqual(checker.nagios_servicegroups, 'testctx')
 
     def test_no_nagios_installed_bails(self):
         self.patched['config'].return_value = {'nagios_context': 'test',
@@ -116,7 +117,14 @@ class NRPETestCase(NRPEBaseTestCase):
         self.patched['config'].return_value = {'nagios_context': 'a',
                                                'nagios_servicegroups': ''}
         self.patched['exists'].return_value = True
-        self.patched['relation_ids'].return_value = ['local-monitors:1']
+
+        def _rels(rname):
+            relations = {
+                'local-monitors': 'local-monitors:1',
+                'nrpe-external-master': 'nrpe-external-master:2',
+            }
+            return [relations[rname]]
+        self.patched['relation_ids'].side_effect = _rels
 
         checker = nrpe.NRPE()
         checker.add_check(shortname="myservice",
@@ -158,11 +166,14 @@ define service {
                          {'command': 'check_myservice'}}
         monitors = yaml.dump(
             {"monitors": {"remote": {"nrpe": nrpe_monitors}}})
-        self.patched['relation_set'].assert_called_once_with(
-            relation_id="local-monitors:1", monitors=monitors)
+        relation_set_calls = [
+            call(monitors=monitors, relation_id="local-monitors:1"),
+            call(monitors=monitors, relation_id="nrpe-external-master:2"),
+        ]
+        self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
                                exists=3, open=2, listdir=1,
-                               relation_ids=1, relation_set=1)
+                               relation_ids=2, relation_set=2)
 
 
 class NRPECheckTestCase(NRPEBaseTestCase):
@@ -241,3 +252,65 @@ class NRPECheckTestCase(NRPEBaseTestCase):
 
         self.check_call_counts(exists=1, call=1)
         self.assertEqual(command, self.patched['call'].call_args[0][0])
+
+
+class NRPEMiscTestCase(NRPEBaseTestCase):
+    def test_get_nagios_hostcontext(self):
+        rel_info = {
+            'nagios_hostname': 'bob-openstack-dashboard-0',
+            'private-address': '10.5.3.103',
+            '__unit__': u'dashboard-nrpe/1',
+            '__relid__': u'nrpe-external-master:2',
+            'nagios_host_context': u'bob',
+        }
+        self.patched['relations_of_type'].return_value = [rel_info]
+        self.assertEqual(nrpe.get_nagios_hostcontext(), 'bob')
+
+    def test_get_nagios_hostname(self):
+        rel_info = {
+            'nagios_hostname': 'bob-openstack-dashboard-0',
+            'private-address': '10.5.3.103',
+            '__unit__': u'dashboard-nrpe/1',
+            '__relid__': u'nrpe-external-master:2',
+            'nagios_host_context': u'bob',
+        }
+        self.patched['relations_of_type'].return_value = [rel_info]
+        self.assertEqual(nrpe.get_nagios_hostname(), 'bob-openstack-dashboard-0')
+
+    def test_get_nagios_unit_name(self):
+        rel_info = {
+            'nagios_hostname': 'bob-openstack-dashboard-0',
+            'private-address': '10.5.3.103',
+            '__unit__': u'dashboard-nrpe/1',
+            '__relid__': u'nrpe-external-master:2',
+            'nagios_host_context': u'bob',
+        }
+        self.patched['relations_of_type'].return_value = [rel_info]
+        self.assertEqual(nrpe.get_nagios_unit_name(), 'bob:testunit')
+
+    def test_get_nagios_unit_name_no_hc(self):
+        self.patched['relations_of_type'].return_value = []
+        self.assertEqual(nrpe.get_nagios_unit_name(), 'testunit')
+
+    def test_add_init_service_checks(self):
+        def _exists(init_file):
+            files = ['/etc/init/apache2.conf',
+                     '/usr/lib/nagios/plugins/check_upstart_job',
+                     '/etc/init.d/haproxy',
+                     '/usr/lib/nagios/plugins/check_status_file.py',
+                     ]
+            return init_file in files
+
+        self.patched['exists'].side_effect = _exists
+        bill = nrpe.NRPE()
+        services = ['apache2', 'haproxy']
+        nrpe.add_init_service_checks(bill, services, 'testunit')
+        expect_cmds = {
+            'apache2': '/usr/lib/nagios/plugins/check_upstart_job apache2',
+            'haproxy': '/usr/lib/nagios/plugins/check_status_file.py -f '
+                       '/var/lib/nagios/service-check-haproxy.txt',
+        }
+        self.assertEqual(bill.checks[0].shortname, 'apache2')
+        self.assertEqual(bill.checks[0].check_cmd, expect_cmds['apache2'])
+        self.assertEqual(bill.checks[1].shortname, 'haproxy')
+        self.assertEqual(bill.checks[1].check_cmd, expect_cmds['haproxy'])

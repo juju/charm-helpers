@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright 2013 Canonical Ltd.
 #
 # Authors:
@@ -64,7 +80,7 @@ def update_relations(context, namespace_separator=':'):
 
 
 def juju_state_to_yaml(yaml_path, namespace_separator=':',
-                       allow_hyphens_in_keys=True):
+                       allow_hyphens_in_keys=True, mode=None):
     """Update the juju config and state in a yaml file.
 
     This includes any current relation-get data, and the charm
@@ -106,7 +122,12 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
         with open(yaml_path, "r") as existing_vars_file:
             existing_vars = yaml.load(existing_vars_file.read())
     else:
+        with open(yaml_path, "w+"):
+            pass
         existing_vars = {}
+
+    if mode is not None:
+        os.chmod(yaml_path, mode)
 
     if not allow_hyphens_in_keys:
         config = dict_keys_without_hyphens(config)

@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 """Tools for working with the host system"""
 # Copyright 2012 Canonical Ltd.
 #
@@ -162,13 +178,16 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
     realpath = os.path.abspath(path)
-    if os.path.exists(realpath):
-        if force and not os.path.isdir(realpath):
+    path_exists = os.path.exists(realpath)
+    if path_exists and force:
+        if not os.path.isdir(realpath):
             log("Removing non-directory file {} prior to mkdir()".format(path))
             os.unlink(realpath)
-    else:
+            os.makedirs(realpath, perms)
+    elif not path_exists:
         os.makedirs(realpath, perms)
     os.chown(realpath, uid, gid)
+    os.chmod(realpath, perms)
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
@@ -286,11 +305,11 @@ def restart_on_change(restart_map, stopstart=False):
     ceph_client_changed function.
     """
     def wrap(f):
-        def wrapped_f(*args):
+        def wrapped_f(*args, **kwargs):
             checksums = {}
             for path in restart_map:
                 checksums[path] = file_hash(path)
-            f(*args)
+            f(*args, **kwargs)
             restarts = []
             for path in restart_map:
                 if checksums[path] != file_hash(path):
@@ -320,12 +339,16 @@ def lsb_release():
 def pwgen(length=None):
     """Generate a random pasword."""
     if length is None:
+        # A random length is ok to use a weak PRNG
         length = random.choice(range(35, 45))
     alphanumeric_chars = [
         l for l in (string.ascii_letters + string.digits)
         if l not in 'l0QD1vAEIOUaeiou']
+    # Use a crypto-friendly PRNG (e.g. /dev/urandom) for making the
+    # actual password
+    random_generator = random.SystemRandom()
     random_chars = [
-        random.choice(alphanumeric_chars) for _ in range(length)]
+        random_generator.choice(alphanumeric_chars) for _ in range(length)]
     return(''.join(random_chars))
 
 
@@ -342,7 +365,7 @@ def list_nics(nic_type):
         ip_output = (line for line in ip_output if line)
         for line in ip_output:
             if line.split()[1].startswith(int_type):
-                matched = re.search('.*: (bond[0-9]+\.[0-9]+)@.*', line)
+                matched = re.search('.*: (' + int_type + r'[0-9]+\.[0-9]+)@.*', line)
                 if matched:
                     interface = matched.groups()[0]
                 else:
@@ -386,8 +409,11 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
     *  0 => Installed revno is the same as supplied arg
     * -1 => Installed revno is less than supplied arg
 
+    This function imports apt_cache function from charmhelpers.fetch if
+    the pkgcache argument is None. Be sure to add charmhelpers.fetch if
+    you call this function, or pass an apt_pkg.Cache() instance.
     '''
-    from apt import apt_pkg
+    import apt_pkg
     if not pkgcache:
         from charmhelpers.fetch import apt_cache
         pkgcache = apt_cache()
@@ -404,13 +430,21 @@ def chdir(d):
         os.chdir(cur)
 
 
-def chownr(path, owner, group):
+def chownr(path, owner, group, follow_links=True):
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
+    if follow_links:
+        chown = os.chown
+    else:
+        chown = os.lchown
 
     for root, dirs, files in os.walk(path):
         for name in dirs + files:
             full = os.path.join(root, name)
             broken_symlink = os.path.lexists(full) and not os.path.exists(full)
             if not broken_symlink:
-                os.chown(full, uid, gid)
+                chown(full, uid, gid)
+
+
+def lchownr(path, owner, group):
+    chownr(path, owner, group, follow_links=False)

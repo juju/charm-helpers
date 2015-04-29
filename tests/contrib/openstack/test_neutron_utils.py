@@ -168,3 +168,32 @@ class NeutronTests(unittest.TestCase):
             self.config.return_value = nwmanager
             renamed_manager = neutron.network_manager()
             self.assertEquals(renamed_manager, icehouse_cases[nwmanager])
+
+    def test_parse_bridge_mappings(self):
+        ret = neutron.parse_bridge_mappings(None)
+        self.assertEqual(ret, {})
+        ret = neutron.parse_bridge_mappings("physnet1:br0")
+        self.assertEqual(ret, {'physnet1': 'br0'})
+        ret = neutron.parse_bridge_mappings("physnet1:br0 physnet2:br1")
+        self.assertEqual(ret, {'physnet1': 'br0', 'physnet2': 'br1'})
+
+    def test_parse_data_port_mappings(self):
+        ret = neutron.parse_data_port_mappings(None)
+        self.assertEqual(ret, {})
+        ret = neutron.parse_data_port_mappings('br0:eth0')
+        self.assertEqual(ret, {'br0': 'eth0'})
+        # Back-compat test
+        ret = neutron.parse_data_port_mappings('eth0', default_bridge='br0')
+        self.assertEqual(ret, {'br0': 'eth0'})
+        # Multiple mappings
+        ret = neutron.parse_data_port_mappings('br0:eth0 br1:eth1')
+        self.assertEqual(ret, {'br0': 'eth0', 'br1': 'eth1'})
+
+    def test_parse_vlan_range_mappings(self):
+        ret = neutron.parse_vlan_range_mappings(None)
+        self.assertEqual(ret, {})
+        ret = neutron.parse_vlan_range_mappings('physnet1:1001:2000')
+        self.assertEqual(ret, {'physnet1': ('1001', '2000')})
+        ret = neutron.parse_vlan_range_mappings('physnet1:1001:2000 physnet2:2001:3000')
+        self.assertEqual(ret, {'physnet1': ('1001', '2000'),
+                               'physnet2': ('2001', '3000')})

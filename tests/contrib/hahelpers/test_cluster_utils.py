@@ -1,5 +1,5 @@
 
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 
 from subprocess import CalledProcessError
 from testtools import TestCase
@@ -48,19 +48,36 @@ class ClusterUtilsTests(TestCase):
         check_output.return_value = crm
         self.assertTrue(cluster_utils.is_crm_leader('vip'))
 
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
-    def test_is_not_leader(self, check_output):
+    def test_is_not_leader(self, check_output, mock_time):
         '''It determines its unit is not leader'''
         self.get_unit_hostname.return_value = 'node1'
         crm = b'resource vip is running on: node2'
         check_output.return_value = crm
         self.assertFalse(cluster_utils.is_crm_leader('some_resource'))
+        self.assertFalse(mock_time.called)
 
+    @patch('charmhelpers.core.decorators.log')
+    @patch('charmhelpers.core.decorators.time')
     @patch('subprocess.check_output')
-    def test_is_crm_leader_no_cluster(self, check_output):
+    def test_is_not_leader_resource_not_exists(self, check_output, mock_time,
+                                               mock_log):
+        '''It determines its unit is not leader'''
+        self.get_unit_hostname.return_value = 'node1'
+        check_output.return_value = "resource vip is NOT running"
+        self.assertRaises(cluster_utils.CRMResourceNotFound,
+                          cluster_utils.is_crm_leader, 'vip')
+        mock_time.assert_has_calls([call.sleep(2), call.sleep(4),
+                                    call.sleep(6)])
+
+    @patch('charmhelpers.core.decorators.time')
+    @patch('subprocess.check_output')
+    def test_is_crm_leader_no_cluster(self, check_output, mock_time):
         '''It is not leader if there is no cluster up'''
         check_output.side_effect = CalledProcessError(1, 'crm')
         self.assertFalse(cluster_utils.is_crm_leader('vip'))
+        self.assertFalse(mock_time.called)
 
     def test_peer_units(self):
         '''It lists all peer units for cluster relation'''
@@ -264,6 +281,21 @@ class ClusterUtilsTests(TestCase):
         self.config_get.side_effect = _fake_config_get
         self.assertRaises(cluster_utils.HAIncompleteConfig,
                           cluster_utils.get_hacluster_config)
+
+    def test_get_hacluster_config_with_excludes(self):
+        '''It fetches all hacluster charm config'''
+        conf = {
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '3333',
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        exclude_keys = ['vip']
+        result = cluster_utils.get_hacluster_config(exclude_keys)
+        self.assertEquals(conf, result)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_bare(self, is_clustered):

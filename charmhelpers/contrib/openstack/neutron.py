@@ -1,5 +1,22 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 # Various utilies for dealing with Neutron and the renaming from Quantum.
 
+import six
 from subprocess import check_output
 
 from charmhelpers.core.hookenv import (
@@ -152,10 +169,29 @@ def neutron_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron',
                                         ssl_dir=NEUTRON_CONF_DIR)],
-            'services': ['calico-compute', 'bird', 'neutron-dhcp-agent'],
+            'services': ['calico-felix',
+                         'bird',
+                         'neutron-dhcp-agent',
+                         'nova-api-metadata'],
             'packages': [[headers_package()] + determine_dkms_package(),
-                         ['calico-compute', 'bird', 'neutron-dhcp-agent']],
+                         ['calico-compute',
+                          'bird',
+                          'neutron-dhcp-agent',
+                          'nova-api-metadata']],
             'server_packages': ['neutron-server', 'calico-control'],
+            'server_services': ['neutron-server']
+        },
+        'vsp': {
+            'config': '/etc/neutron/plugins/nuage/nuage_plugin.ini',
+            'driver': 'neutron.plugins.nuage.plugin.NuagePlugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [],
+            'server_packages': ['neutron-server', 'neutron-plugin-nuage'],
             'server_services': ['neutron-server']
         }
     }
@@ -215,3 +251,72 @@ def network_manager():
     else:
         # ensure accurate naming for all releases post-H
         return 'neutron'
+
+
+def parse_mappings(mappings):
+    parsed = {}
+    if mappings:
+        mappings = mappings.split(' ')
+        for m in mappings:
+            p = m.partition(':')
+            if p[1] == ':':
+                parsed[p[0].strip()] = p[2].strip()
+
+    return parsed
+
+
+def parse_bridge_mappings(mappings):
+    """Parse bridge mappings.
+
+    Mappings must be a space-delimited list of provider:bridge mappings.
+
+    Returns dict of the form {provider:bridge}.
+    """
+    return parse_mappings(mappings)
+
+
+def parse_data_port_mappings(mappings, default_bridge='br-data'):
+    """Parse data port mappings.
+
+    Mappings must be a space-delimited list of bridge:port mappings.
+
+    Returns dict of the form {bridge:port}.
+    """
+    _mappings = parse_mappings(mappings)
+    if not _mappings:
+        if not mappings:
+            return {}
+
+        # For backwards-compatibility we need to support port-only provided in
+        # config.
+        _mappings = {default_bridge: mappings.split(' ')[0]}
+
+    bridges = _mappings.keys()
+    ports = _mappings.values()
+    if len(set(bridges)) != len(bridges):
+        raise Exception("It is not allowed to have more than one port "
+                        "configured on the same bridge")
+
+    if len(set(ports)) != len(ports):
+        raise Exception("It is not allowed to have the same port configured "
+                        "on more than one bridge")
+
+    return _mappings
+
+
+def parse_vlan_range_mappings(mappings):
+    """Parse vlan range mappings.
+
+    Mappings must be a space-delimited list of provider:start:end mappings.
+
+    Returns dict of the form {provider: (start, end)}.
+    """
+    _mappings = parse_mappings(mappings)
+    if not _mappings:
+        return {}
+
+    mappings = {}
+    for p, r in six.iteritems(_mappings):
+        mappings[p] = tuple(r.split(':'))
+
+    return mappings

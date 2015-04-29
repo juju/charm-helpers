@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 #
 # Copyright 2012 Canonical Ltd.
 #
@@ -13,6 +29,7 @@ clustering-related helpers.
 
 import subprocess
 import os
+
 from socket import gethostname as get_unit_hostname
 
 import six
@@ -28,9 +45,19 @@ from charmhelpers.core.hookenv import (
     WARNING,
     unit_get,
 )
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
+from charmhelpers.core.strutils import (
+    bool_from_string,
+)
 
 
 class HAIncompleteConfig(Exception):
+    pass
+
+
+class CRMResourceNotFound(Exception):
     pass
 
 
@@ -68,24 +95,30 @@ def is_clustered():
     return False
 
 
-def is_crm_leader(resource):
+@retry_on_exception(5, base_delay=2, exc_type=CRMResourceNotFound)
+def is_crm_leader(resource, retry=False):
     """
     Returns True if the charm calling this is the elected corosync leader,
     as returned by calling the external "crm" command.
+
+    We allow this operation to be retried to avoid the possibility of getting a
+    false negative. See LP #1396246 for more info.
     """
-    cmd = [
-        "crm", "resource",
-        "show", resource
-    ]
+    cmd = ['crm', 'resource', 'show', resource]
     try:
-        status = subprocess.check_output(cmd).decode('UTF-8')
+        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        if not isinstance(status, six.text_type):
+            status = six.text_type(status, "utf-8")
     except subprocess.CalledProcessError:
-        return False
-    else:
-        if get_unit_hostname() in status:
-            return True
-        else:
-            return False
+        status = None
+
+    if status and get_unit_hostname() in status:
+        return True
+
+    if status and "resource %s is NOT running" % (resource) in status:
+        raise CRMResourceNotFound("CRM resource %s not found" % (resource))
+
+    return False
 
 
 def is_leader(resource):
@@ -134,7 +167,8 @@ def https():
     .
     returns: boolean
     '''
-    if config_get('use-https') == "yes":
+    use_https = config_get('use-https')
+    if use_https and bool_from_string(use_https):
         return True
     if config_get('ssl_cert') and config_get('ssl_key'):
         return True
@@ -191,19 +225,23 @@ def determine_apache_port(public_port, singlenode_mode=False):
     return public_port - (i * 10)
 
 
-def get_hacluster_config():
+def get_hacluster_config(exclude_keys=None):
     '''
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
         ha-bindiface, ha-mcastport, vip
 
+    param: exclude_keys: list of setting key(s) to be excluded.
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing.
     '''
     settings = ['ha-bindiface', 'ha-mcastport', 'vip']
     conf = {}
     for setting in settings:
+        if exclude_keys and setting in exclude_keys:
+            continue
+
         conf[setting] = config_get(setting)
     missing = []
     [missing.append(s) for s, v in six.iteritems(conf) if v is None]
