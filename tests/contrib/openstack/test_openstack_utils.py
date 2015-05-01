@@ -691,7 +691,7 @@ class OpenStackHelpersTestCase(TestCase):
              - {name: requirements,
                 repository: 'git://git.openstack.org/openstack/requirements',
                 branch: stable/juno}"""
-        openstack.git_clone_and_install(git_wrong_order_1, 'keystone')
+        openstack.git_clone_and_install(git_wrong_order_1, 'keystone', depth=1)
         error_out.assert_called_with('keystone git repo must be specified last')
 
         git_wrong_order_2 = """
@@ -699,7 +699,7 @@ class OpenStackHelpersTestCase(TestCase):
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
                 branch: stable/juno}"""
-        openstack.git_clone_and_install(git_wrong_order_2, 'keystone')
+        openstack.git_clone_and_install(git_wrong_order_2, 'keystone', depth=1)
         error_out.assert_called_with('requirements git repo must be specified first')
 
     @patch.object(openstack, 'charm_dir')
@@ -712,14 +712,14 @@ class OpenStackHelpersTestCase(TestCase):
         # the following sets the global requirements_dir
         _git_install_single.return_value = '/mnt/openstack-git/requirements'
 
-        openstack.git_clone_and_install(openstack_origin_git, proj)
+        openstack.git_clone_and_install(openstack_origin_git, proj, depth=1)
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
-                 'stable/juno', '/mnt/openstack-git', None,
+                 'stable/juno', 1, '/mnt/openstack-git', None,
                  update_requirements=False),
             call('git://git.openstack.org/openstack/keystone',
-                 'stable/juno', '/mnt/openstack-git', None,
+                 'stable/juno', 1, '/mnt/openstack-git', None,
                  update_requirements=True)
         ]
         self.assertEquals(expected, _git_install_single.call_args_list)
@@ -737,6 +737,7 @@ class OpenStackHelpersTestCase(TestCase):
                                           mkdir, join):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
+        depth = 1
         parent_dir = '/mnt/openstack-git/'
         http_proxy = 'http://squid.internal:3128'
         dest_dir = '/mnt/openstack-git/repo-dir'
@@ -744,10 +745,10 @@ class OpenStackHelpersTestCase(TestCase):
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, parent_dir,
+        openstack._git_clone_and_install_single(repo, branch, depth, parent_dir,
                                                 http_proxy, False)
         mkdir.assert_called_with(parent_dir)
-        install_remote.assert_called_with(repo, dest=parent_dir,
+        install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
         assert not _git_update_reqs.called
         pip_install.assert_called_with(dest_dir,
@@ -766,6 +767,7 @@ class OpenStackHelpersTestCase(TestCase):
                                                       path_exists, mkdir, join):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
+        depth = 1
         parent_dir = '/mnt/openstack-git/'
         http_proxy = 'http://squid.internal:3128'
         dest_dir = '/mnt/openstack-git/repo-dir'
@@ -775,10 +777,10 @@ class OpenStackHelpersTestCase(TestCase):
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, parent_dir,
+        openstack._git_clone_and_install_single(repo, branch, depth, parent_dir,
                                                 http_proxy, True)
         mkdir.assert_called_with(parent_dir)
-        install_remote.assert_called_with(repo, dest=parent_dir,
+        install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
         _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir,
