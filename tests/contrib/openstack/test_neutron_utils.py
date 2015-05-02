@@ -197,3 +197,6 @@ class NeutronTests(unittest.TestCase):
         ret = neutron.parse_vlan_range_mappings('physnet1:1001:2000 physnet2:2001:3000')
         self.assertEqual(ret, {'physnet1': ('1001', '2000'),
                                'physnet2': ('2001', '3000')})
+        ret = neutron.parse_vlan_range_mappings('physnet1 physnet2:2001:3000')
+        self.assertEqual(ret, {'physnet1': ('',),
+                               'physnet2': ('2001', '3000')})
