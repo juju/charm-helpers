@@ -10,8 +10,9 @@ __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 TO_PATCH = [
     "apt_install",
+    "charm_dir",
     "log",
-    "pip_execute"
+    "pip_execute",
 ]
 
 
@@ -141,3 +142,36 @@ class PipTestCase(TestCase):
         """
         packages.pip_list()
         self.pip_execute.assert_called_with(["list"])
+
+    @mock.patch('os.path.join')
+    @mock.patch('subprocess.check_call')
+    @mock.patch.object(packages, 'pip_install')
+    def test_pip_create_virtualenv(self, pip_install, check_call, join):
+        """
+        Checks if pip_create_virtualenv works correctly
+        """
+        join.return_value = 'joined-path'
+        packages.pip_create_virtualenv()
+        pip_install.assert_called_with('virtualenv')
+        expected = [
+            mock.call(['virtualenv', '--no-site-packages', 'joined-path']),
+            mock.call(['.', 'joined-path'], shell=True),
+        ]
+        check_call.assert_has_calls(expected)
+
+    @mock.patch('os.path.join')
+    @mock.patch('subprocess.check_call')
+    @mock.patch.object(packages, 'pip_install')
+    def test_pip_create_virtualenv_proxy(self, pip_install, check_call, join):
+        """
+        Checks if pip_create_virtualenv works correctly with proxy
+        """
+        join.return_value = 'joined-path'
+        http_proxy = 'http://squid.internal:3128'
+        packages.pip_create_virtualenv(proxy=http_proxy)
+        pip_install.assert_called_with('virtualenv', proxy=http_proxy)
+        expected = [
+            mock.call(['virtualenv', '--no-site-packages', 'joined-path']),
+            mock.call(['.', 'joined-path'], shell=True),
+        ]
+        check_call.assert_has_calls(expected)
