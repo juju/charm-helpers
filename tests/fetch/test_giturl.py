@@ -59,7 +59,7 @@ class GitUrlFetchHandlerTest(TestCase):
             self.fh.load_plugins = MagicMock()
             self.fh.clone(url, dest_path, branch, None)
 
-            _clone_from.assert_called_with(url, dest_path)
+            _clone_from.assert_called_with(url, dest_path, branch=branch)
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
