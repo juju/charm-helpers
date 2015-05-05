@@ -644,7 +644,9 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
-    def test_git_clone_and_install_errors(self, git_install_single, error_out):
+    @patch.object(openstack, 'pip_create_virtualenv')
+    def test_git_clone_and_install_errors(self, pip_venv, git_install_single,
+                                          error_out):
         git_missing_repos = """
           repostories:
              - {name: requirements,
@@ -705,7 +707,8 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'charm_dir')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
-    def test_git_clone_and_install_success(self, _git_install_single,
+    @patch.object(openstack, 'pip_create_virtualenv')
+    def test_git_clone_and_install_success(self, pip_venv, _git_install_single,
                                            error_out, charm_dir):
         proj = 'keystone'
         charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
@@ -713,6 +716,7 @@ class OpenStackHelpersTestCase(TestCase):
         _git_install_single.return_value = '/mnt/openstack-git/requirements'
 
         openstack.git_clone_and_install(openstack_origin_git, proj, depth=1)
+        self.assertTrue(pip_venv.called)
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
