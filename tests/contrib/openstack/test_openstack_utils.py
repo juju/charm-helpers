@@ -755,7 +755,7 @@ class OpenStackHelpersTestCase(TestCase):
         install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
         assert not _git_update_reqs.called
-        pip_install.assert_called_with(dest_dir,
+        pip_install.assert_called_with(dest_dir, venv=True,
                                        proxy='http://squid.internal:3128')
 
     @patch('os.path.join')
@@ -787,7 +787,7 @@ class OpenStackHelpersTestCase(TestCase):
         install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
         _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
-        pip_install.assert_called_with(dest_dir,
+        pip_install.assert_called_with(dest_dir, venv=True,
                                        proxy='http://squid.internal:3128')
 
     @patch('os.getcwd')

@@ -98,6 +98,17 @@ class PipTestCase(TestCase):
         self.pip_execute.assert_called_with(["install",
                                              "mock", "nose"])
 
+    @mock.patch('subprocess.check_call')
+    @mock.patch('os.path.join')
+    def test_pip_install_venv(self, join, check_call):
+        """
+        Check if pip_install works correctly with multiple packages
+        """
+        join.return_value = 'joined-path'
+        packages.pip_install(["mock", "nose"], venv=True)
+        check_call.assert_called_with(["joined-path", "install",
+                                       "mock", "nose"])
+
     def test_pip_uninstall(self):
         """
         Check if pip_uninstall works correctly with a single package
@@ -152,26 +163,5 @@ class PipTestCase(TestCase):
         """
         join.return_value = 'joined-path'
         packages.pip_create_virtualenv()
-        pip_install.assert_called_with('virtualenv')
-        expected = [
-            mock.call(['virtualenv', '--no-site-packages', 'joined-path']),
-            mock.call(['.', 'joined-path'], shell=True),
-        ]
-        check_call.assert_has_calls(expected)
-
-    @mock.patch('os.path.join')
-    @mock.patch('subprocess.check_call')
-    @mock.patch.object(packages, 'pip_install')
-    def test_pip_create_virtualenv_proxy(self, pip_install, check_call, join):
-        """
-        Checks if pip_create_virtualenv works correctly with proxy
-        """
-        join.return_value = 'joined-path'
-        http_proxy = 'http://squid.internal:3128'
-        packages.pip_create_virtualenv(proxy=http_proxy)
-        pip_install.assert_called_with('virtualenv', proxy=http_proxy)
-        expected = [
-            mock.call(['virtualenv', '--no-site-packages', 'joined-path']),
-            mock.call(['.', 'joined-path'], shell=True),
-        ]
-        check_call.assert_has_calls(expected)
+        self.apt_install.assert_called_with('python-virtualenv')
+        check_call.assert_called_with(['virtualenv', 'joined-path'])
