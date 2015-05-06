@@ -144,18 +144,11 @@ class MySQLHelper(object):
                 continue
 
             key = os.path.basename(f)
-            match = re.compile("(.*-)?(.+).passwd").search(key)
-            if match:
-                keys = self.passwd_keys(match.group(2))
-            else:
-                keys = [key]
-
             with open(f, 'r') as passwd:
                 _value = passwd.read().strip()
 
             try:
-                for key in keys:
-                    peer_store(key, _value)
+                peer_store(key, _value)
 
                 if self.delete_ondisk_passwd_file:
                     os.unlink(f)
