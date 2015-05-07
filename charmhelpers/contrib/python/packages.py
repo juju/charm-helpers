@@ -121,5 +121,6 @@ def pip_create_virtualenv(path=None):
 
     subprocess.check_call(['virtualenv', pip_venv_path])
 
+
 def pip_get_virtualenv_path():
     return pip_venv_path
