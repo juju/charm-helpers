@@ -365,6 +365,17 @@ def relation_set(relation_id=None, relation_settings=None, **kwargs):
     flush(local_unit())
 
 
+def relation_clear(r_id=None):
+    ''' Clears any relation data already set on relation r_id '''
+    settings = relation_get(rid=r_id,
+                            unit=local_unit())
+    for setting in settings:
+        if setting not in ['public-address', 'private-address']:
+            settings[setting] = None
+    relation_set(relation_id=r_id,
+                 **settings)
+
+
 @cached
 def relation_ids(reltype=None):
     """A list of relation_ids"""
@@ -605,3 +616,63 @@ def action_fail(message):
 
     The results set by action_set are preserved."""
     subprocess.check_call(['action-fail', message])
+
+
+def translate_exc(from_exc, to_exc):
+    def inner_translate_exc1(f):
+        def inner_translate_exc2(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except from_exc:
+                raise to_exc
+
+        return inner_translate_exc2
+
+    return inner_translate_exc1
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def is_leader():
+    """Does the current unit hold the juju leadership
+
+    Uses juju to determine whether the current unit is the leader of its peers
+    """
+    try:
+        leader = json.loads(
+            subprocess.check_output(['is-leader', '--format=json'])
+        )
+        return (leader is True)
+    except ValueError:
+        raise NotImplementedError
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def leader_get(attribute=None):
+    """Juju leader get value(s)"""
+    cmd = ['leader-get', '--format=json'] + [attribute or '-']
+    try:
+        ret = json.loads(subprocess.check_output(cmd).decode('UTF-8'))
+        log("Juju leader-get '%s' = '%s'" % (attribute, ret), level=DEBUG)
+        return ret
+    except ValueError:
+        return None
+    except CalledProcessError as e:
+        if e.returncode == 2:
+            return None
+
+        raise
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def leader_set(settings=None, **kwargs):
+    """Juju leader set value(s)"""
+    log("Juju leader-set '%s'" % (settings), level=DEBUG)
+    cmd = ['leader-set']
+    settings = settings or {}
+    settings.update(kwargs)
+    for k, v in settings.iteritems():
+        if v is None:
+            cmd.append('{}='.format(k))
+        else:
+            cmd.append('{}={}'.format(k, v))
+    subprocess.check_call(cmd)

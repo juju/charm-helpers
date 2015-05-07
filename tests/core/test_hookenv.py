@@ -622,6 +622,27 @@ class HelpersTest(TestCase):
             },
         })
 
+    @patch('charmhelpers.core.hookenv.relation_set')
+    @patch('charmhelpers.core.hookenv.relation_get')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    def test_relation_clear(self, local_unit,
+                            relation_get,
+                            relation_set):
+        local_unit.return_value = 'local-unit'
+        relation_get.return_value = {
+            'private-address': '10.5.0.1',
+            'foo': 'bar',
+            'public-address': '146.192.45.6'
+        }
+        hookenv.relation_clear('relation:1')
+        relation_get.assert_called_with(rid='relation:1',
+                                        unit='local-unit')
+        relation_set.assert_called_with(
+            relation_id='relation:1',
+            **{'private-address': '10.5.0.1',
+               'foo': None,
+               'public-address': '146.192.45.6'})
+
     @patch('charmhelpers.core.hookenv.relation_ids')
     @patch('charmhelpers.core.hookenv.related_units')
     @patch('charmhelpers.core.hookenv.relation_get')
@@ -971,6 +992,20 @@ class HelpersTest(TestCase):
     def test_gets_charm_dir(self):
         with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
             self.assertEqual(hookenv.charm_dir(), '/var/empty')
+
+    @patch('subprocess.check_output')
+    def test_is_leader_unsupported(self, check_output_):
+        check_output_.side_effect = OSError(2, 'is-leader')
+        self.assertRaises(NotImplementedError, hookenv.is_leader)
+        check_output_.side_effect = ValueError
+        self.assertRaises(NotImplementedError, hookenv.is_leader)
+
+    @patch('subprocess.check_output')
+    def test_is_leader(self, check_output_):
+        check_output_.return_value = 'false'
+        self.assertFalse(hookenv.is_leader())
+        check_output_.return_value = 'true'
+        self.assertTrue(hookenv.is_leader())
 
 
 class HooksTest(TestCase):
