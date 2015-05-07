@@ -637,30 +637,15 @@ def is_leader():
 
     Uses juju to determine whether the current unit is the leader of its peers
     """
-    try:
-        leader = json.loads(
-            subprocess.check_output(['is-leader', '--format=json'])
-        )
-        return (leader is True)
-    except ValueError:
-        raise NotImplementedError
+    cmd = ['is-leader', '--format=json']
+    return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
 
 
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def leader_get(attribute=None):
     """Juju leader get value(s)"""
     cmd = ['leader-get', '--format=json'] + [attribute or '-']
-    try:
-        ret = json.loads(subprocess.check_output(cmd).decode('UTF-8'))
-        log("Juju leader-get '%s' = '%s'" % (attribute, ret), level=DEBUG)
-        return ret
-    except ValueError:
-        return None
-    except CalledProcessError as e:
-        if e.returncode == 2:
-            return None
-
-        raise
+    return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
 
 
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
