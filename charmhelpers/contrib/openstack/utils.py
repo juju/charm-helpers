@@ -611,9 +611,11 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy, venv=True)
+        pip_install(repo_dir, proxy=http_proxy,
+                    venv=os.path.join(parent_dir, 'venv'))
     else:
-        pip_install(repo_dir, venv=True)
+        pip_install(repo_dir,
+                    venv=os.path.join(parent_dir, 'venv'))
 
     return repo_dir
 
