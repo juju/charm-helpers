@@ -638,6 +638,23 @@ def _git_update_requirements(package_dir, reqs_dir):
     os.chdir(orig_dir)
 
 
+def git_pip_venv_dir(projects_yaml, project):
+    """
+    Return the pip virtualenv path.
+    """
+    parent_dir = '/mnt/openstack-git'
+
+    if not projects_yaml:
+        return
+
+    projects = yaml.load(projects_yaml)
+
+    if 'directory' in projects.keys():
+        parent_dir = projects['directory']
+
+    return os.path.join(parent_dir, 'venv')
+
+
 def git_src_dir(projects_yaml, project):
     """
     Return the directory where the specified project's source is located.
