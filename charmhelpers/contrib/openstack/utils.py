@@ -638,7 +638,7 @@ def _git_update_requirements(package_dir, reqs_dir):
     os.chdir(orig_dir)
 
 
-def git_pip_venv_dir(projects_yaml, project):
+def git_pip_venv_dir(projects_yaml):
     """
     Return the pip virtualenv path.
     """
