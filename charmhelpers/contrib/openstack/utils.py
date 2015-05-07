@@ -540,7 +540,7 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     if 'directory' in projects.keys():
         parent_dir = projects['directory']
 
-    pip_create_virtualenv(parent_dir)
+    pip_create_virtualenv(os.path.join(parent_dir, 'venv'))
 
     for p in projects['repositories']:
         repo = p['repository']
