@@ -657,16 +657,16 @@ def git_src_dir(projects_yaml, project):
     return None
 
 
-def git_http_proxy(projects_yaml):
+def git_yaml_value(projects_yaml, key):
     """
-    Return the http_proxy value if it is specified in projects_yaml.
+    Return the value in projects_yaml for the specified key.
     """
     if not projects_yaml:
-        return
+        return None
 
     projects = yaml.load(projects_yaml)
 
-    if 'http_proxy' in projects.keys():
-        return projects['http_proxy']
+    if key in projects.keys():
+        return projects[key]
 
     return None
