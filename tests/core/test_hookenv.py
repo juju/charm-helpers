@@ -1144,17 +1144,17 @@ class HooksTest(TestCase):
         check_output.return_value = 'active\n'
         result = hookenv.status_get()
         self.assertEqual(result, 'active')
-        check_output.assert_called_with(['status-get'])
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
 
     @patch('subprocess.check_output')
     def test_status_get_nostatus(self, check_output):
         check_output.side_effect = OSError(2, 'fail')
         result = hookenv.status_get()
         self.assertEqual(result, 'unknown')
-        check_output.assert_called_with(['status-get'])
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
 
     @patch('subprocess.check_output')
     def test_status_get_status_error(self, check_output):
         check_output.side_effect = OSError(3, 'fail')
         self.assertRaises(OSError, hookenv.status_get)
-        check_output.assert_called_with(['status-get'])
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
