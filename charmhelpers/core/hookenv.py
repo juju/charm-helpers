@@ -643,7 +643,7 @@ def status_get():
     """
     cmd = ['status-get']
     try:
-        raw_status = subprocess.check_output(cmd)
+        raw_status = subprocess.check_output(cmd, universal_newlines=True)
         status = raw_status.rstrip()
         return status
     except OSError as e:
