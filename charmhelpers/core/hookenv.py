@@ -21,6 +21,7 @@
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
 from __future__ import print_function
+from functools import wraps
 import os
 import json
 import yaml
@@ -58,15 +59,17 @@ def cached(func):
 
     will cache the result of unit_get + 'test' for future calls.
     """
+    @wraps(func)
     def wrapper(*args, **kwargs):
         global cache
         key = str((func, args, kwargs))
         try:
             return cache[key]
         except KeyError:
-            res = func(*args, **kwargs)
-            cache[key] = res
-            return res
+            pass  # Drop out of the exception handler scope.
+        res = func(*args, **kwargs)
+        cache[key] = res
+        return res
     return wrapper
 
 
@@ -178,7 +181,7 @@ def local_unit():
 
 def remote_unit():
     """The remote unit for the current relation hook"""
-    return os.environ['JUJU_REMOTE_UNIT']
+    return os.environ.get('JUJU_REMOTE_UNIT', None)
 
 
 def service_name():
@@ -249,6 +252,12 @@ class Config(dict):
             return dict.__getitem__(self, key)
         except KeyError:
             return (self._prev_dict or {})[key]
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
     def keys(self):
         prev_keys = []
@@ -507,6 +516,11 @@ def unit_get(attribute):
         return json.loads(subprocess.check_output(_args).decode('UTF-8'))
     except ValueError:
         return None
+
+
+def unit_public_ip():
+    """Get this unit's public IP address"""
+    return unit_get('public-address')
 
 
 def unit_private_ip():
