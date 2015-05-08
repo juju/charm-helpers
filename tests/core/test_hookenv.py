@@ -1115,3 +1115,46 @@ class HooksTest(TestCase):
         message = "Ooops, the action failed"
         hookenv.action_fail(message)
         check_call.assert_called_with(['action-fail', message])
+
+    def test_status_set_invalid_state(self):
+        self.assertRaises(ValueError, hookenv.status_set, 'random', 'message')
+
+    @patch('subprocess.call')
+    def test_status(self, call):
+        call.return_value = 0
+        hookenv.status_set('active', 'Everything is Awesome!')
+        call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
+
+    @patch('subprocess.call')
+    @patch.object(hookenv, 'log')
+    def test_status_enoent(self, log, call):
+        call.side_effect = OSError(2, 'fail')
+        hookenv.status_set('active', 'Everything is Awesome!')
+        log.assert_called_with('status-set failed: active Everything is Awesome!', level='INFO')
+
+    @patch('subprocess.call')
+    @patch.object(hookenv, 'log')
+    def test_status_statuscmd_fail(self, log, call):
+        call.side_effect = OSError(3, 'fail')
+        self.assertRaises(OSError, hookenv.status_set, 'active', 'msg')
+        call.assert_called_with(['status-set', 'active', 'msg'])
+
+    @patch('subprocess.check_output')
+    def test_status_get(self, check_output):
+        check_output.return_value = 'active\n'
+        result = hookenv.status_get()
+        self.assertEqual(result, 'active')
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test_status_get_nostatus(self, check_output):
+        check_output.side_effect = OSError(2, 'fail')
+        result = hookenv.status_get()
+        self.assertEqual(result, 'unknown')
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test_status_get_status_error(self, check_output):
+        check_output.side_effect = OSError(3, 'fail')
+        self.assertRaises(OSError, hookenv.status_get)
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
