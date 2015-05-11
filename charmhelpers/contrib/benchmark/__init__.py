@@ -51,6 +51,16 @@ class Benchmark():
     From inside the benchmark-relation-changed hook, you would
     Benchmark(['memory', 'cpu', 'disk', 'smoke', 'custom'])
 
+    Examples:
+
+        siege = Benchmark(['siege'])
+        siege.start()
+        [... run siege ...]
+        # The higher the score, the better the benchmark
+        siege.set_composite_score(16.70, 'trans/sec', 'desc')
+        siege.finish()
+
+
     """
 
     required_keys = [
@@ -85,7 +95,8 @@ class Benchmark():
                     for key, val in iter(config.items()):
                         f.write("%s=%s\n" % (key, val))
 
-    def start(self):
+    @staticmethod
+    def start():
         action_set('meta.start', time.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
         """
@@ -96,5 +107,18 @@ class Benchmark():
         if os.path.exists(COLLECT_PROFILE_DATA):
             subprocess.check_output([COLLECT_PROFILE_DATA])
 
-    def finish(self):
+    @staticmethod
+    def finish():
         action_set('meta.stop', time.strftime('%Y-%m-%dT%H:%M:%SZ'))
+
+    @staticmethod
+    def set_composite_score(value, units, direction='asc'):
+        """
+        Set the composite score for a benchmark run. This is a single number
+        representative of the benchmark results. This could be the most
+        important metric, or an amalgamation of metric scores.
+        """
+        return action_set(
+            "meta.composite",
+            {'value': value, 'units': units, 'direction': direction}
+        )

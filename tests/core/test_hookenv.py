@@ -3,8 +3,7 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
-from mock import patch, call, mock_open
-from mock import MagicMock
+from mock import call, MagicMock, mock_open, patch, sentinel
 from testtools import TestCase
 import yaml
 
@@ -128,10 +127,46 @@ class ConfigTest(TestCase):
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c['baz'], 'bam')
 
+    def test_get(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(baz='bam'))
+
+        self.assertIsNone(c.get('missing'))
+        self.assertIs(c.get('missing', sentinel.missing), sentinel.missing)
+        self.assertEqual(c.get('foo'), 'bar')
+        self.assertEqual(c.get('baz'), 'bam')
+
     def test_keys(self):
         c = hookenv.Config(dict(foo='bar'))
         c["baz"] = "bar"
         self.assertEqual(sorted([six.u("foo"), "baz"]), sorted(c.keys()))
+
+    def test_in(self):
+        # Test behavior of the in operator.
+
+        # Items that exist in the dict exist. Items that don't don't.
+        c = hookenv.Config(dict(foo='one'))
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' not in c)
+        c.save()
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' not in c)
+
+        # Adding items works as expected.
+        c['foo'] = 'two'
+        c['bar'] = 'two'
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' in c)
+        c.save()
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' in c)
+
+        # Removing items works as expected.
+        del c['foo']
+        self.assertTrue('foo' not in c)
+        c.save()
+        self.assertTrue('foo' not in c)
 
 
 class SerializableTest(TestCase):
@@ -298,10 +333,16 @@ class HelpersTest(TestCase):
         self.assertEqual(hookenv.local_unit(), 'foo')
 
     @patch('charmhelpers.core.hookenv.unit_get')
+    def test_gets_unit_public_ip(self, _unitget):
+        _unitget.return_value = sentinel.public_ip
+        self.assertEqual(sentinel.public_ip, hookenv.unit_public_ip())
+        _unitget.assert_called_once_with('public-address')
+
+    @patch('charmhelpers.core.hookenv.unit_get')
     def test_gets_unit_private_ip(self, _unitget):
-        _unitget.return_value = 'foo'
-        self.assertEqual("foo", hookenv.unit_private_ip())
-        _unitget.assert_called_with('private-address')
+        _unitget.return_value = sentinel.private_ip
+        self.assertEqual(sentinel.private_ip, hookenv.unit_private_ip())
+        _unitget.assert_called_once_with('private-address')
 
     @patch('charmhelpers.core.hookenv.os')
     def test_checks_that_is_running_in_relation_hook(self, os_):
@@ -446,6 +487,11 @@ class HelpersTest(TestCase):
         }
 
         self.assertEqual(hookenv.remote_unit(), 'foo')
+
+    @patch('charmhelpers.core.hookenv.os')
+    def test_no_remote_unit(self, os_):
+        os_.environ = {}
+        self.assertEqual(hookenv.remote_unit(), None)
 
     @patch('charmhelpers.core.hookenv.remote_unit')
     @patch('charmhelpers.core.hookenv.relation_get')
@@ -1150,3 +1196,46 @@ class HooksTest(TestCase):
         message = "Ooops, the action failed"
         hookenv.action_fail(message)
         check_call.assert_called_with(['action-fail', message])
+
+    def test_status_set_invalid_state(self):
+        self.assertRaises(ValueError, hookenv.status_set, 'random', 'message')
+
+    @patch('subprocess.call')
+    def test_status(self, call):
+        call.return_value = 0
+        hookenv.status_set('active', 'Everything is Awesome!')
+        call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
+
+    @patch('subprocess.call')
+    @patch.object(hookenv, 'log')
+    def test_status_enoent(self, log, call):
+        call.side_effect = OSError(2, 'fail')
+        hookenv.status_set('active', 'Everything is Awesome!')
+        log.assert_called_with('status-set failed: active Everything is Awesome!', level='INFO')
+
+    @patch('subprocess.call')
+    @patch.object(hookenv, 'log')
+    def test_status_statuscmd_fail(self, log, call):
+        call.side_effect = OSError(3, 'fail')
+        self.assertRaises(OSError, hookenv.status_set, 'active', 'msg')
+        call.assert_called_with(['status-set', 'active', 'msg'])
+
+    @patch('subprocess.check_output')
+    def test_status_get(self, check_output):
+        check_output.return_value = 'active\n'
+        result = hookenv.status_get()
+        self.assertEqual(result, 'active')
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test_status_get_nostatus(self, check_output):
+        check_output.side_effect = OSError(2, 'fail')
+        result = hookenv.status_get()
+        self.assertEqual(result, 'unknown')
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test_status_get_status_error(self, check_output):
+        check_output.side_effect = OSError(3, 'fail')
+        self.assertRaises(OSError, hookenv.status_get)
+        check_output.assert_called_with(['status-get'], universal_newlines=True)

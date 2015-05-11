@@ -212,6 +212,10 @@ AMQP_CONFIG = {
     'rabbit-vhost': 'foo',
 }
 
+AMQP_OSLO_CONFIG = {
+    'oslo-messaging-flags': "rabbit_max_retries=1,rabbit_retry_backoff=1,rabbit_retry_interval=1"
+}
+
 AMQP_NOVA_CONFIG = {
     'nova-rabbit-user': 'adam',
     'nova-rabbit-vhost': 'foo',
@@ -948,6 +952,28 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
         }
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_oslo_messaging(self):
+        """Test amqp context with oslo-messaging-flags option"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_OSLO_CONFIG.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_OSLO_CONFIG
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'oslo_messaging_flags': {
+                'rabbit_max_retries': '1',
+                'rabbit_retry_backoff': '1',
+                'rabbit_retry_interval': '1'
+            },
+        }
+
         self.assertEquals(result, expected)
 
     def test_ceph_no_relids(self):
@@ -1720,6 +1746,21 @@ class ContextTests(unittest.TestCase):
             'neutron_plugin': 'Calico',
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.calico_ctxt())
+
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_nuage_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'config': 'some.quantum.driver.class',
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'vsp',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.nuage_ctxt())
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')

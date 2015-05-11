@@ -50,7 +50,7 @@ class TestBenchmark(TestCase):
         check_output.return_value = "data"
 
         with patch_open() as (_open, _file):
-            self.assertIsNone(Benchmark().start())
+            self.assertIsNone(Benchmark.start())
             # _open.assert_called_with('/etc/benchmark.conf', 'w')
 
         COLLECT_PROFILE_DATA = '/usr/local/bin/collect-profile-data'
@@ -59,8 +59,13 @@ class TestBenchmark(TestCase):
 
     def test_benchmark_finish(self):
         with patch_open() as (_open, _file):
-            self.assertIsNone(Benchmark().finish())
+            self.assertIsNone(Benchmark.finish())
             # _open.assert_called_with('/etc/benchmark.conf', 'w')
+
+    @mock.patch('charmhelpers.contrib.benchmark.action_set')
+    def test_benchmark_set_composite_score(self, action_set):
+        self.assertTrue(Benchmark.set_composite_score(15.7, 'hits/sec', 'desc'))
+        action_set.assert_called_once_with('meta.composite', {'value': 15.7, 'units': 'hits/sec', 'direction': 'desc'})
 
     @mock.patch('charmhelpers.contrib.benchmark.find_executable')
     @mock.patch('charmhelpers.contrib.benchmark.subprocess.check_call')

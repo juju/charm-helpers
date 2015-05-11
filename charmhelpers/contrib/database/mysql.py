@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     INFO,
+    WARNING,
 )
 from charmhelpers.fetch import (
     apt_install,
@@ -142,12 +143,13 @@ class MySQLHelper(object):
                 log("Excluding %s from peer migration" % (f), level=DEBUG)
                 continue
 
-            _key = os.path.basename(f)
+            key = os.path.basename(f)
             with open(f, 'r') as passwd:
                 _value = passwd.read().strip()
 
             try:
-                peer_store(_key, _value)
+                peer_store(key, _value)
+
                 if self.delete_ondisk_passwd_file:
                     os.unlink(f)
             except ValueError:
@@ -185,19 +187,38 @@ class MySQLHelper(object):
 
         return _password
 
+    def passwd_keys(self, username):
+        """Generator to return keys used to store passwords in peer store.
+
+        NOTE: we support both legacy and new format to support mysql
+        charm prior to refactor. This is necessary to avoid LP 1451890.
+        """
+        keys = []
+        if username == 'mysql':
+            log("Bad username '%s'" % (username), level=WARNING)
+
+        if username:
+            # IMPORTANT: *newer* format must be returned first
+            keys.append('mysql-%s.passwd' % (username))
+            keys.append('%s.passwd' % (username))
+        else:
+            keys.append('mysql.passwd')
+
+        for key in keys:
+            yield key
+
     def get_mysql_password(self, username=None, password=None):
         """Retrieve, generate or store a mysql password for the provided
         username using peer relation cluster."""
         excludes = []
 
-        # First check peer relation
-        if username:
-            _key = 'mysql-{}.passwd'.format(username)
-        else:
-            _key = 'mysql.passwd'
-
+        # First check peer relation.
         try:
-            _password = peer_retrieve(_key)
+            for key in self.passwd_keys(username):
+                _password = peer_retrieve(key)
+                if _password:
+                    break
+
             # If root password available don't update peer relation from local
             if _password and not username:
                 excludes.append(self.root_passwd_file_template)
