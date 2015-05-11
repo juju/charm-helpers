@@ -743,7 +743,7 @@ class OpenStackHelpersTestCase(TestCase):
         branch = 'master'
         depth = 1
         parent_dir = '/mnt/openstack-git/'
-        http_proxy = 'http://squid.internal:3128'
+        http_proxy = 'http://squid-proxy-url'
         dest_dir = '/mnt/openstack-git'
         join.return_value = dest_dir
         path_exists.return_value = False
@@ -756,7 +756,7 @@ class OpenStackHelpersTestCase(TestCase):
                                           branch=branch)
         assert not _git_update_reqs.called
         pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
-                                       proxy='http://squid.internal:3128')
+                                       proxy='http://squid-proxy-url')
 
     @patch('os.path.join')
     @patch('os.mkdir')
@@ -773,7 +773,7 @@ class OpenStackHelpersTestCase(TestCase):
         branch = 'master'
         depth = 1
         parent_dir = '/mnt/openstack-git/'
-        http_proxy = 'http://squid.internal:3128'
+        http_proxy = 'http://squid-proxy-url'
         dest_dir = '/mnt/openstack-git'
         reqs_dir = '/mnt/openstack-git/requirements-dir'
         join.return_value = dest_dir
@@ -788,7 +788,7 @@ class OpenStackHelpersTestCase(TestCase):
                                           branch=branch)
         _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
-                                       proxy='http://squid.internal:3128')
+                                       proxy='http://squid-proxy-url')
 
     @patch('os.getcwd')
     @patch('os.chdir')
