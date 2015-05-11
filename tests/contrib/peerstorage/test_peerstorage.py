@@ -160,6 +160,14 @@ class TestPeerStorage(TestCase):
         self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id), settings)
 
     @patch.object(peerstorage, 'peer_retrieve')
+    def test_peer_retrieve_by_prefix_empty_relation(self, peer_retrieve):
+        # If relation-get returns None, peer_retrieve_by_prefix returns
+        # an empty dictionary.
+        peer_retrieve.return_value = None
+        rel_id = 'db:2'
+        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id), {})
+
+    @patch.object(peerstorage, 'peer_retrieve')
     def test_peer_retrieve_by_prefix_exc_list(self, peer_retrieve):
         rel_id = 'db:2'
         settings = {

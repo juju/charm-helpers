@@ -175,6 +175,8 @@ def peer_retrieve_by_prefix(prefix, relation_name='cluster', delimiter='_',
     exc_list = exc_list if exc_list else []
     peerdb_settings = peer_retrieve('-', relation_name=relation_name)
     matched = {}
+    if peerdb_settings is None:
+        return matched
     for k, v in peerdb_settings.items():
         full_prefix = prefix + delimiter
         if k.startswith(full_prefix):
