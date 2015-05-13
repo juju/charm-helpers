@@ -26,5 +26,6 @@ from . import CommandLine  # noqa
 """
 Import the sub-modules to be included by chlp.
 """
-from . import host  # noqa
-from . import benchmark  # noqa
+import host  # noqa
+import benchmark  # noqa
+import unitdata  # noqa
