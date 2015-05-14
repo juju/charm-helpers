@@ -95,6 +95,24 @@ def is_clustered():
     return False
 
 
+def is_crm_dc():
+    cmd = ['crm', 'status']
+    try:
+        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        if not isinstance(status, six.text_type):
+            status = six.text_type(status, "utf-8")
+    except subprocess.CalledProcessError:
+        status = None
+    current_dc = ''
+    for line in status.split('\n'):
+        if line.startswith('Current DC'):
+            # Current DC: juju-lytrusty-machine-2 (168108163) - partition with quorum
+            current_dc = line.split(':')[1].split()[0]
+    if current_dc == get_unit_hostname():
+        return True
+    return False
+
+
 @retry_on_exception(5, base_delay=2, exc_type=CRMResourceNotFound)
 def is_crm_leader(resource, retry=False):
     """
@@ -104,6 +122,8 @@ def is_crm_leader(resource, retry=False):
     We allow this operation to be retried to avoid the possibility of getting a
     false negative. See LP #1396246 for more info.
     """
+    if resource == 'DC':
+        return is_crm_dc()
     cmd = ['crm', 'resource', 'show', resource]
     try:
         status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
