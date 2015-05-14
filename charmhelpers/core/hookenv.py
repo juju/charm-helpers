@@ -28,6 +28,7 @@ import yaml
 import subprocess
 import sys
 import errno
+import tempfile
 from subprocess import CalledProcessError
 
 import six
@@ -362,14 +363,29 @@ def relation_set(relation_id=None, relation_settings=None, **kwargs):
     """Set relation information for the current unit"""
     relation_settings = relation_settings if relation_settings else {}
     relation_cmd_line = ['relation-set']
+    accepts_file = "--file" in subprocess.check_output(
+        relation_cmd_line + ["--help"])
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
-    for k, v in (list(relation_settings.items()) + list(kwargs.items())):
-        if v is None:
-            relation_cmd_line.append('{}='.format(k))
-        else:
-            relation_cmd_line.append('{}={}'.format(k, v))
-    subprocess.check_call(relation_cmd_line)
+    settings = relation_settings.copy()
+    settings.update(kwargs)
+    if accepts_file:
+        # --file was introduced in Juju 1.23.2. Use it by default if
+        # available, since otherwise we'll break if the relation data is
+        # too big. Ideally we should tell relation-set to read the data from
+        # stdin, but that feature is broken in 1.23.2: Bug #1454678.
+        with tempfile.NamedTemporaryFile(delete=False) as settings_file:
+            settings_file.write(yaml.safe_dump(settings).encode("utf-8"))
+        subprocess.check_call(
+            relation_cmd_line + ["--file", settings_file.name])
+        os.remove(settings_file.name)
+    else:
+        for key, value in settings.items():
+            if value is None:
+                relation_cmd_line.append('{}='.format(key))
+            else:
+                relation_cmd_line.append('{}={}'.format(key, value))
+        subprocess.check_call(relation_cmd_line)
     # Flush cache of any relation-gets for local unit
     flush(local_unit())
 
