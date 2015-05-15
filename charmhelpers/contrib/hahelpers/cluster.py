@@ -52,6 +52,8 @@ from charmhelpers.core.strutils import (
     bool_from_string,
 )
 
+DC_RESOURCE_NAME = 'DC'
+
 
 class HAIncompleteConfig(Exception):
     pass
@@ -96,6 +98,9 @@ def is_clustered():
 
 
 def is_crm_dc():
+    """
+    Determine leadership by querying the pacemaker Designated Controller
+    """
     cmd = ['crm', 'status']
     try:
         status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
@@ -122,7 +127,7 @@ def is_crm_leader(resource, retry=False):
     We allow this operation to be retried to avoid the possibility of getting a
     false negative. See LP #1396246 for more info.
     """
-    if resource == 'DC':
+    if resource == DC_RESOURCE_NAME:
         return is_crm_dc()
     cmd = ['crm', 'resource', 'show', resource]
     try:
