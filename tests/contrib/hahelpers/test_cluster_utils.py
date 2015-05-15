@@ -6,6 +6,24 @@ from testtools import TestCase
 
 import charmhelpers.contrib.hahelpers.cluster as cluster_utils
 
+CRM_STATUS = b'''
+Last updated: Thu May 14 14:46:35 2015
+Last change: Thu May 14 14:43:51 2015 via crmd on juju-trusty-machine-1
+Stack: corosync
+Current DC: juju-trusty-machine-2 (168108171) - partition with quorum
+Version: 1.1.10-42f2063
+3 Nodes configured
+4 Resources configured
+
+
+Online: [ juju-trusty-machine-1 juju-trusty-machine-2 juju-trusty-machine-3 ]
+
+ Resource Group: grp_percona_cluster
+      res_mysql_vip      (ocf::heartbeat:IPaddr2):       Started juju-trusty-machine-1
+       Clone Set: cl_mysql_monitor [res_mysql_monitor]
+            Started: [ juju-trusty-machine-1 juju-trusty-machine-2 juju-trusty-machine-3 ]
+'''
+
 
 class ClusterUtilsTests(TestCase):
     def setUp(self):
@@ -39,6 +57,20 @@ class ClusterUtilsTests(TestCase):
         self.relation_list.return_value = ['ha/0']
         self.relation_get.return_value = None
         self.assertFalse(cluster_utils.is_clustered())
+
+    @patch('subprocess.check_output')
+    def test_is_crm_dc(self, check_output):
+        '''It determines its unit is leader'''
+        self.get_unit_hostname.return_value = 'juju-trusty-machine-2'
+        check_output.return_value = CRM_STATUS
+        self.assertTrue(cluster_utils.is_crm_dc())
+
+    @patch('subprocess.check_output')
+    def test_is_crm_dc_false(self, check_output):
+        '''It determines its unit is leader'''
+        self.get_unit_hostname.return_value = 'juju-trusty-machine-1'
+        check_output.return_value = CRM_STATUS
+        self.assertFalse(cluster_utils.is_crm_dc())
 
     @patch('subprocess.check_output')
     def test_is_crm_leader(self, check_output):
@@ -78,6 +110,12 @@ class ClusterUtilsTests(TestCase):
         check_output.side_effect = CalledProcessError(1, 'crm')
         self.assertFalse(cluster_utils.is_crm_leader('vip'))
         self.assertFalse(mock_time.called)
+
+    @patch.object(cluster_utils, 'is_crm_dc')
+    def test_is_crm_leader_dc_resource(self, _is_crm_dc):
+        '''Call out to is_crm_dc'''
+        cluster_utils.is_crm_leader(cluster_utils.DC_RESOURCE_NAME)
+        _is_crm_dc.assert_called_with()
 
     def test_peer_units(self):
         '''It lists all peer units for cluster relation'''
