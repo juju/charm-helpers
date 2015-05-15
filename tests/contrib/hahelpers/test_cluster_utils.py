@@ -114,7 +114,7 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'is_crm_dc')
     def test_is_crm_leader_dc_resource(self, _is_crm_dc):
         '''Call out to is_crm_dc'''
-        cluster_utils.is_crm_leader('DC')
+        cluster_utils.is_crm_leader(cluster_utils.DC_RESOURCE_NAME)
         _is_crm_dc.assert_called_with()
 
     def test_peer_units(self):
