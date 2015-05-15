@@ -66,6 +66,12 @@ class ClusterUtilsTests(TestCase):
         self.assertTrue(cluster_utils.is_crm_dc())
 
     @patch('subprocess.check_output')
+    def test_is_crm_dc_no_cluster(self, check_output):
+        '''It is not leader if there is no cluster up'''
+        check_output.side_effect = CalledProcessError(1, 'crm')
+        self.assertFalse(cluster_utils.is_crm_dc())
+
+    @patch('subprocess.check_output')
     def test_is_crm_dc_false(self, check_output):
         '''It determines its unit is leader'''
         self.get_unit_hostname.return_value = 'juju-trusty-machine-1'
