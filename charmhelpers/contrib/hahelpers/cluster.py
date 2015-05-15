@@ -107,7 +107,7 @@ def is_crm_dc():
         if not isinstance(status, six.text_type):
             status = six.text_type(status, "utf-8")
     except subprocess.CalledProcessError:
-        status = None
+        return False
     current_dc = ''
     for line in status.split('\n'):
         if line.startswith('Current DC'):
