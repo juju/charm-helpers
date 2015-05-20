@@ -286,7 +286,7 @@ def parse_data_port_mappings(mappings, default_bridge='br-data'):
     Returns dict of the form {bridge:port}.
     """
     _mappings = parse_mappings(mappings)
-    if not _mappings or _mappings.values() == ['']:
+    if not _mappings or list(_mappings.values()) == ['']:
         if not mappings:
             return {}
 
