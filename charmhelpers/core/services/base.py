@@ -163,8 +163,6 @@ class ServiceManager(object):
         for service_name, service in self.services.items():
             service_ready = self.is_ready(service_name)
             for provider in service.get('provided_data', []):
-                if isinstance(provider, type):
-                    provider = provider()
                 for relid in hookenv.relation_ids(provider.name):
                     units = hookenv.related_units(relid)
                     if not units:
