@@ -27,6 +27,18 @@ class TestServiceManager(unittest.TestCase):
                          'qux': 'baz'},
         })
 
+    def test_register_preserves_order(self):
+        service_list = [dict(service='a'), dict(service='b')]
+
+        # Test that the services list order is preserved by checking
+        # both forwards and backwards - only one of these will be
+        # dictionary order, and if both work we know order is being
+        # preserved.
+        manager = services.ServiceManager(service_list)
+        self.assertEqual(list(manager.services.keys()), ['a', 'b'])
+        manager = services.ServiceManager(reversed(service_list))
+        self.assertEqual(list(manager.services.keys()), ['b', 'a'])
+
     @mock.patch.object(services.ServiceManager, 'reconfigure_services')
     @mock.patch.object(services.ServiceManager, 'stop_services')
     @mock.patch.object(hookenv, 'hook_name')

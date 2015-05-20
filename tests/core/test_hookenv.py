@@ -3,8 +3,7 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
-from mock import patch, call, mock_open
-from mock import MagicMock
+from mock import call, MagicMock, mock_open, patch, sentinel
 from testtools import TestCase
 import yaml
 
@@ -128,10 +127,46 @@ class ConfigTest(TestCase):
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c['baz'], 'bam')
 
+    def test_get(self):
+        c = hookenv.Config(dict(foo='bar'))
+        c.save()
+        c = hookenv.Config(dict(baz='bam'))
+
+        self.assertIsNone(c.get('missing'))
+        self.assertIs(c.get('missing', sentinel.missing), sentinel.missing)
+        self.assertEqual(c.get('foo'), 'bar')
+        self.assertEqual(c.get('baz'), 'bam')
+
     def test_keys(self):
         c = hookenv.Config(dict(foo='bar'))
         c["baz"] = "bar"
         self.assertEqual(sorted([six.u("foo"), "baz"]), sorted(c.keys()))
+
+    def test_in(self):
+        # Test behavior of the in operator.
+
+        # Items that exist in the dict exist. Items that don't don't.
+        c = hookenv.Config(dict(foo='one'))
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' not in c)
+        c.save()
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' not in c)
+
+        # Adding items works as expected.
+        c['foo'] = 'two'
+        c['bar'] = 'two'
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' in c)
+        c.save()
+        self.assertTrue('foo' in c)
+        self.assertTrue('bar' in c)
+
+        # Removing items works as expected.
+        del c['foo']
+        self.assertTrue('foo' not in c)
+        c.save()
+        self.assertTrue('foo' not in c)
 
 
 class SerializableTest(TestCase):
@@ -298,10 +333,16 @@ class HelpersTest(TestCase):
         self.assertEqual(hookenv.local_unit(), 'foo')
 
     @patch('charmhelpers.core.hookenv.unit_get')
+    def test_gets_unit_public_ip(self, _unitget):
+        _unitget.return_value = sentinel.public_ip
+        self.assertEqual(sentinel.public_ip, hookenv.unit_public_ip())
+        _unitget.assert_called_once_with('public-address')
+
+    @patch('charmhelpers.core.hookenv.unit_get')
     def test_gets_unit_private_ip(self, _unitget):
-        _unitget.return_value = 'foo'
-        self.assertEqual("foo", hookenv.unit_private_ip())
-        _unitget.assert_called_with('private-address')
+        _unitget.return_value = sentinel.private_ip
+        self.assertEqual(sentinel.private_ip, hookenv.unit_private_ip())
+        _unitget.assert_called_once_with('private-address')
 
     @patch('charmhelpers.core.hookenv.os')
     def test_checks_that_is_running_in_relation_hook(self, os_):
@@ -446,6 +487,11 @@ class HelpersTest(TestCase):
         }
 
         self.assertEqual(hookenv.remote_unit(), 'foo')
+
+    @patch('charmhelpers.core.hookenv.os')
+    def test_no_remote_unit(self, os_):
+        os_.environ = {}
+        self.assertEqual(hookenv.remote_unit(), None)
 
     @patch('charmhelpers.core.hookenv.remote_unit')
     @patch('charmhelpers.core.hookenv.relation_get')
@@ -848,6 +894,7 @@ class HelpersTest(TestCase):
         hookenv.relation_get(attribute='baz_scope', unit='baz_unit')
         hookenv.relation_get(attribute='bar_scope')
         self.assertTrue(len(hookenv.cache) == 2)
+        check_output.return_value = ""
         hookenv.relation_set(baz_scope='hello')
         # relation_set should flush any entries for local_unit
         self.assertTrue(len(hookenv.cache) == 1)
@@ -863,26 +910,57 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_kwargs(self, check_call_):
+    def test_sets_relation_with_kwargs(self, check_call_, check_output):
         hookenv.relation_set(foo="bar")
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_dict(self, check_call_):
+    def test_sets_relation_with_dict(self, check_call_, check_output):
         hookenv.relation_set(relation_settings={"foo": "bar"})
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_relation_id(self, check_call_):
+    def test_sets_relation_with_relation_id(self, check_call_, check_output):
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                         'bar=baz'])
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_missing_value(self, check_call_):
+    def test_sets_relation_with_missing_value(self, check_call_, check_output):
         hookenv.relation_set(foo=None)
         check_call_.assert_called_with(['relation-set', 'foo='])
+
+    @patch('os.remove')
+    @patch('subprocess.check_output')
+    @patch('subprocess.check_call')
+    def test_relation_set_file(self, check_call, check_output, remove):
+        """If relation-set accepts a --file parameter, it's used.
+
+        Juju 1.23.2 introduced a --file parameter, which means you can
+        pass the data through a file. Not using --file would make
+        relation_set break if the relation data is too big.
+        """
+        # check_output(["relation-set", "--help"]) is used to determine
+        # whether we can pass --file to it.
+        check_output.return_value = "--file"
+        hookenv.relation_set(foo="bar")
+        check_output.assert_called_with(["relation-set", "--help"])
+        # relation-set is called with relation-set --file <temp_file>
+        # with data as YAML and the temp_file is then removed.
+        self.assertEqual(1, len(check_call.call_args[0]))
+        command = check_call.call_args[0][0]
+        self.assertEqual(3, len(command))
+        self.assertEqual("relation-set", command[0])
+        self.assertEqual("--file", command[1])
+        temp_file = command[2]
+        with open(temp_file, "r") as f:
+            self.assertEqual("{foo: bar}", f.read().strip())
+        remove.assert_called_with(temp_file)
 
     def test_lists_relation_types(self):
         open_ = mock_open()
@@ -1115,3 +1193,46 @@ class HooksTest(TestCase):
         message = "Ooops, the action failed"
         hookenv.action_fail(message)
         check_call.assert_called_with(['action-fail', message])
+
+    def test_status_set_invalid_state(self):
+        self.assertRaises(ValueError, hookenv.status_set, 'random', 'message')
+
+    @patch('subprocess.call')
+    def test_status(self, call):
+        call.return_value = 0
+        hookenv.status_set('active', 'Everything is Awesome!')
+        call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
+
+    @patch('subprocess.call')
+    @patch.object(hookenv, 'log')
+    def test_status_enoent(self, log, call):
+        call.side_effect = OSError(2, 'fail')
+        hookenv.status_set('active', 'Everything is Awesome!')
+        log.assert_called_with('status-set failed: active Everything is Awesome!', level='INFO')
+
+    @patch('subprocess.call')
+    @patch.object(hookenv, 'log')
+    def test_status_statuscmd_fail(self, log, call):
+        call.side_effect = OSError(3, 'fail')
+        self.assertRaises(OSError, hookenv.status_set, 'active', 'msg')
+        call.assert_called_with(['status-set', 'active', 'msg'])
+
+    @patch('subprocess.check_output')
+    def test_status_get(self, check_output):
+        check_output.return_value = 'active\n'
+        result = hookenv.status_get()
+        self.assertEqual(result, 'active')
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test_status_get_nostatus(self, check_output):
+        check_output.side_effect = OSError(2, 'fail')
+        result = hookenv.status_get()
+        self.assertEqual(result, 'unknown')
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test_status_get_status_error(self, check_output):
+        check_output.side_effect = OSError(3, 'fail')
+        self.assertRaises(OSError, hookenv.status_get)
+        check_output.assert_called_with(['status-get'], universal_newlines=True)
