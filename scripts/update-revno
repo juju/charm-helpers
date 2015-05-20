@@ -6,6 +6,6 @@ if [ $? ]; then
     REVNO="${REVNO}+"
 fi
 cat << EOF > charmhelpers/version.py
-CHARMHELPERS_VERSION='${VERSION}'
-CHARMHELPERS_BZRREVNO='${REVNO}'
+CHARMHELPERS_VERSION = '${VERSION}'
+CHARMHELPERS_BZRREVNO = '${REVNO}'
 EOF
