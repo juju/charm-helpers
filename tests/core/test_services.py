@@ -378,49 +378,56 @@ class TestServiceManager(unittest.TestCase):
         assert not manager.was_ready('bar')
 
     @mock.patch.object(services.base.hookenv, 'relation_set')
-    @mock.patch.object(services.base.hookenv, 'hook_name')
-    def test_provide_data_no_match(self, hook_name, relation_set):
+    @mock.patch.object(services.base.hookenv, 'related_units')
+    @mock.patch.object(services.base.hookenv, 'relation_ids')
+    def test_provide_data_no_match(self, relation_ids, related_units, relation_set):
         provider = mock.Mock()
         provider.name = 'provided'
         manager = services.ServiceManager([
             {'service': 'service', 'provided_data': [provider]}
         ])
-        hook_name.return_value = 'not-provided-relation-joined'
+        relation_ids.return_value = []
         manager.provide_data()
         assert not provider.provide_data.called
-
-        hook_name.return_value = 'provided-relation-broken'
-        manager.provide_data()
-        assert not provider.provide_data.called
+        relation_ids.assert_called_once_with('provided')
 
     @mock.patch.object(services.base.hookenv, 'relation_set')
-    @mock.patch.object(services.base.hookenv, 'hook_name')
-    def test_provide_data_not_ready(self, hook_name, relation_set):
+    @mock.patch.object(services.base.hookenv, 'related_units')
+    @mock.patch.object(services.base.hookenv, 'relation_ids')
+    def test_provide_data_not_ready(self, relation_ids, related_units, relation_set):
         provider = mock.Mock()
         provider.name = 'provided'
-        data = provider.provide_data.return_value = {'data': True}
-        provider._is_ready.return_value = False
+        pd = mock.Mock()
+        data = pd.return_value = {'data': True}
+        provider.provide_data = lambda remote_service, service_ready: pd(remote_service, service_ready)
         manager = services.ServiceManager([
             {'service': 'service', 'provided_data': [provider]}
         ])
-        hook_name.return_value = 'provided-relation-joined'
+        manager.is_ready = mock.Mock(return_value=False)
+        relation_ids.return_value = ['relid']
+        related_units.return_value = ['service/0']
         manager.provide_data()
-        assert not relation_set.called
-        provider._is_ready.assert_called_once_with(data)
+        relation_set.assert_called_once_with('relid', data)
+        pd.assert_called_once_with('service', False)
 
     @mock.patch.object(services.base.hookenv, 'relation_set')
-    @mock.patch.object(services.base.hookenv, 'hook_name')
-    def test_provide_data_ready(self, hook_name, relation_set):
+    @mock.patch.object(services.base.hookenv, 'related_units')
+    @mock.patch.object(services.base.hookenv, 'relation_ids')
+    def test_provide_data_ready(self, relation_ids, related_units, relation_set):
         provider = mock.Mock()
         provider.name = 'provided'
-        data = provider.provide_data.return_value = {'data': True}
-        provider._is_ready.return_value = True
+        pd = mock.Mock()
+        data = pd.return_value = {'data': True}
+        provider.provide_data = lambda remote_service, service_ready: pd(remote_service, service_ready)
         manager = services.ServiceManager([
             {'service': 'service', 'provided_data': [provider]}
         ])
-        hook_name.return_value = 'provided-relation-changed'
+        manager.is_ready = mock.Mock(return_value=True)
+        relation_ids.return_value = ['relid']
+        related_units.return_value = ['service/0']
         manager.provide_data()
-        relation_set.assert_called_once_with(None, data)
+        relation_set.assert_called_once_with('relid', data)
+        pd.assert_called_once_with('service', True)
 
 
 class TestRelationContext(unittest.TestCase):
