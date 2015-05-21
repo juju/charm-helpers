@@ -256,9 +256,10 @@ class TemplateCallback(ManagerCallback):
 
     def __call__(self, manager, service_name, event_name):
         service = manager.get_service(service_name)
-        context = {}
+        context = {'ctx': {}}
         for ctx in service.get('required_data', []):
             context.update(ctx)
+            context['ctx'].update(ctx)
         templating.render(self.source, self.target, context,
                           self.owner, self.group, self.perms)
 
