@@ -728,7 +728,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'root', 'root', 0o444)
 
     @mock.patch.object(services.helpers, 'templating')
@@ -743,7 +743,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'user', 'group', 0o555)
 
 
