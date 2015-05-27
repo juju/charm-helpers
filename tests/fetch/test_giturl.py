@@ -57,14 +57,14 @@ class GitUrlFetchHandlerTest(TestCase):
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()
-            self.fh.clone(url, dest_path, branch)
+            self.fh.clone(url, dest_path, branch, None)
 
-            _clone_from.assert_called_with(url, dest_path)
+            _clone_from.assert_called_with(url, dest_path, branch=branch)
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.clone, url,
-                                  dest_path,
+                                  dest_path, None,
                                   branch)
 
     @unittest.skipIf(six.PY3, 'git does not support Python 3')
