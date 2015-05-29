@@ -35,15 +35,18 @@ ADMIN = 'admin'
 ADDRESS_MAP = {
     PUBLIC: {
         'config': 'os-public-network',
-        'fallback': 'public-address'
+        'fallback': 'public-address',
+        'override': 'public-address',
     },
     INTERNAL: {
         'config': 'os-internal-network',
-        'fallback': 'private-address'
+        'fallback': 'private-address',
+        'override': 'internal-address',
     },
     ADMIN: {
         'config': 'os-admin-network',
-        'fallback': 'private-address'
+        'fallback': 'private-address',
+        'override': 'admin-address',
     }
 }
 
@@ -57,13 +60,26 @@ def canonical_url(configs, endpoint_type=PUBLIC):
     :param endpoint_type: str endpoint type to resolve.
     :param returns: str base URL for services on the current service unit.
     """
-    scheme = 'http'
-    if 'https' in configs.complete_contexts():
-        scheme = 'https'
+    scheme = _get_scheme(configs)
     address = resolve_address(endpoint_type)
     if is_ipv6(address):
         address = "[{}]".format(address)
     return '%s://%s' % (scheme, address)
+
+
+def _get_scheme(configs):
+    """Returns the scheme to use for the url (either http or https)
+    depending upon whether https is in the configs value.
+
+    :param configs: OSTemplateRenderer config templating object to inspect
+                    for a complete https context.
+    :returns: either 'http' or 'https' depending on whether https is
+              configured within the configs context.
+    """
+    scheme = 'http'
+    if 'https' in configs.complete_contexts():
+        scheme = 'https'
+    return scheme
 
 
 def resolve_address(endpoint_type=PUBLIC):
@@ -111,8 +127,7 @@ def resolve_address(endpoint_type=PUBLIC):
     return resolved_address
 
 
-def endpoint_url(configs, url_template, port, endpoint_type=PUBLIC,
-                 override=None):
+def endpoint_url(configs, url_template, port, endpoint_type=PUBLIC):
     """Returns the correct endpoint URL to advertise to Keystone.
 
     This method provides the correct endpoint URL which should be advertised to
@@ -126,17 +141,17 @@ def endpoint_url(configs, url_template, port, endpoint_type=PUBLIC,
                          two values will be passed - the scheme+hostname
                         returned by the canonical_url and the port.
     :param endpoint_type: str endpoint type to resolve.
-    :param override: str the name of the config option which overrides the
-                     endpoint URL defined by the charm itself. None will
-                     disable any overrides (default).
+    :returns: the endpoint to be registered with keystone identity service
     """
-    if override:
-        # Return any user-defined overrides for the keystone endpoint URL.
-        user_value = config(override)
-        if user_value:
-            return user_value.strip()
+    override_key = ADDRESS_MAP[endpoint_type]['override']
+    addr_override = config(override_key)
 
-    return url_template % (canonical_url(configs, endpoint_type), port)
+    if addr_override:
+        scheme_addr = "%s://%s" % (_get_scheme(configs), addr_override)
+    else:
+        scheme_addr = canonical_url(configs, endpoint_type)
+
+    return url_template % (scheme_addr, port)
 
 
 public_endpoint = partial(endpoint_url, endpoint_type=PUBLIC)
