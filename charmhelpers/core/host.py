@@ -270,6 +270,21 @@ def file_hash(path, hash_type='md5'):
         return None
 
 
+def path_hash(path):
+    """
+    Generate a hash checksum of all files matching 'path'. Standard wildcards
+    like '*' and '?' are supported, see documentation for the 'glob' module for
+    more information.
+        
+    :return: dict: A { filename: hash } dictionary for all matched files.
+                   Empty if none found.
+    """
+    return {
+        filename: file_hash(filename)
+            for filename in glob.iglob(path)
+    }
+
+
 def check_hash(path, checksum, hash_type='md5'):
     """
     Validate a file using a cryptographic checksum.
@@ -310,17 +325,11 @@ def restart_on_change(restart_map, stopstart=False):
     """
     def wrap(f):
         def wrapped_f(*args, **kwargs):
-            def hash_path(path):
-                return {
-                    filename: file_hash(filename)
-                        for filename in glob.iglob(path)
-                }
-
-            checksums = { path: hash_path(path) for path in restart_map }
+            checksums = { path: path_hash(path) for path in restart_map }
             f(*args, **kwargs)
             restarts = []
             for path in restart_map:
-                if hash_path(path) != checksums[path]:
+                if path_hash(path) != checksums[path]:
                     restarts += restart_map[path]
             services_list = list(OrderedDict.fromkeys(restarts))
             if not stopstart:
