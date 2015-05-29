@@ -26,8 +26,6 @@ from charmhelpers.contrib.network.ip import (
 )
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
 
-from functools import partial
-
 PUBLIC = 'public'
 INTERNAL = 'int'
 ADMIN = 'admin'
@@ -36,17 +34,17 @@ ADDRESS_MAP = {
     PUBLIC: {
         'config': 'os-public-network',
         'fallback': 'public-address',
-        'override': 'public-address',
+        'override': 'endpoint-public-name',
     },
     INTERNAL: {
         'config': 'os-internal-network',
         'fallback': 'private-address',
-        'override': 'internal-address',
+        'override': 'endpoint-internal-name',
     },
     ADMIN: {
         'config': 'os-admin-network',
         'fallback': 'private-address',
-        'override': 'admin-address',
+        'override': 'endpoint-admin-name',
     }
 }
 
@@ -61,9 +59,18 @@ def canonical_url(configs, endpoint_type=PUBLIC):
     :param returns: str base URL for services on the current service unit.
     """
     scheme = _get_scheme(configs)
-    address = resolve_address(endpoint_type)
-    if is_ipv6(address):
-        address = "[{}]".format(address)
+
+    # Allow the user to override the address which is used. This is
+    # useful for proxy services or exposing a public endpoint url, etc.
+    override_key = ADDRESS_MAP[endpoint_type]['override']
+    addr_override = config(override_key)
+    if addr_override:
+        address = addr_override
+    else:
+        address = resolve_address(endpoint_type)
+        if is_ipv6(address):
+            address = "[{}]".format(address)
+
     return '%s://%s' % (scheme, address)
 
 
@@ -125,37 +132,3 @@ def resolve_address(endpoint_type=PUBLIC):
                          "clustered=%s)" % (net_type, clustered))
 
     return resolved_address
-
-
-def endpoint_url(configs, url_template, port, endpoint_type=PUBLIC):
-    """Returns the correct endpoint URL to advertise to Keystone.
-
-    This method provides the correct endpoint URL which should be advertised to
-    the keystone charm for endpoint creation. This method allows for the url to
-    be overridden to force a keystone endpoint to have specific URL for any of
-    the defined scopes (admin, internal, public).
-
-    :param configs: OSTemplateRenderer config templating object to inspect
-                    for a complete https context.
-    :param url_template: str format string for creating the url template. Only
-                         two values will be passed - the scheme+hostname
-                        returned by the canonical_url and the port.
-    :param endpoint_type: str endpoint type to resolve.
-    :returns: the endpoint to be registered with keystone identity service
-    """
-    override_key = ADDRESS_MAP[endpoint_type]['override']
-    addr_override = config(override_key)
-
-    if addr_override:
-        scheme_addr = "%s://%s" % (_get_scheme(configs), addr_override)
-    else:
-        scheme_addr = canonical_url(configs, endpoint_type)
-
-    return url_template % (scheme_addr, port)
-
-
-public_endpoint = partial(endpoint_url, endpoint_type=PUBLIC)
-
-internal_endpoint = partial(endpoint_url, endpoint_type=INTERNAL)
-
-admin_endpoint = partial(endpoint_url, endpoint_type=ADMIN)
