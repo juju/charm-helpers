@@ -321,7 +321,8 @@ def restart_on_change(restart_map, stopstart=False):
     would be restarted if /etc/ceph/ceph.conf is changed by the
     ceph_client_changed function. The apache2 service would be
     restarted if any file matching the pattern got changed, created
-    or removed.
+    or removed. Standard wildcards are supported, see documentation
+    for the 'glob' module for more information.
     """
     def wrap(f):
         def wrapped_f(*args, **kwargs):
