@@ -369,15 +369,16 @@ def relation_set(relation_id=None, relation_settings=None, **kwargs):
         relation_cmd_line.extend(('-r', relation_id))
     settings = relation_settings.copy()
     settings.update(kwargs)
+    for key, value in settings.items():
+        # Force value to be a string: it always should, but some call
+        # sites pass in things like dicts or numbers.
+        if value is not None:
+            settings[key] = "{}".format(value)
     if accepts_file:
         # --file was introduced in Juju 1.23.2. Use it by default if
         # available, since otherwise we'll break if the relation data is
         # too big. Ideally we should tell relation-set to read the data from
         # stdin, but that feature is broken in 1.23.2: Bug #1454678.
-        for key, value in settings.items():
-            # Force value to be a string: it always should, but some call
-            # sites pass in things like dicts or numbers.
-            settings[key] = "{}".format(value)
         with tempfile.NamedTemporaryFile(delete=False) as settings_file:
             settings_file.write(yaml.safe_dump(settings).encode("utf-8"))
         subprocess.check_call(
