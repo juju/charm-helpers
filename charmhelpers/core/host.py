@@ -24,6 +24,7 @@
 import os
 import re
 import pwd
+import glob
 import grp
 import random
 import string
@@ -296,23 +297,30 @@ def restart_on_change(restart_map, stopstart=False):
 
         @restart_on_change({
             '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
+            '/etc/apache/sites-enabled/*': [ 'apache2' ]
             })
-        def ceph_client_changed():
+        def config_changed():
             pass  # your code here
 
     In this example, the cinder-api and cinder-volume services
     would be restarted if /etc/ceph/ceph.conf is changed by the
-    ceph_client_changed function.
+    ceph_client_changed function. The apache2 service would be
+    restarted if any file matching the pattern got changed, created
+    or removed.
     """
     def wrap(f):
         def wrapped_f(*args, **kwargs):
-            checksums = {}
-            for path in restart_map:
-                checksums[path] = file_hash(path)
+            def hash_path(path):
+                return {
+                    filename: file_hash(filename)
+                        for filename in glob.iglob(path)
+                }
+
+            checksums = { path: hash_path(path) for path in restart_map }
             f(*args, **kwargs)
             restarts = []
             for path in restart_map:
-                if checksums[path] != file_hash(path):
+                if hash_path(path) != checksums[path]:
                     restarts += restart_map[path]
             services_list = list(OrderedDict.fromkeys(restarts))
             if not stopstart:

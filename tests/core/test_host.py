@@ -679,12 +679,13 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_restart_no_changes(self, exists, service):
+    @patch('glob.iglob')
+    def test_restart_no_changes(self, iglob, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
         }
-        exists.side_effect = [False, False]
+        iglob.return_value = []
 
         @host.restart_on_change(restart_map)
         def make_no_changes():
@@ -693,19 +694,18 @@ class HelpersTest(TestCase):
         make_no_changes()
 
         assert not service.called
-
-        exists.assert_has_calls([
-            call(file_name),
-        ])
+        assert not exists.called
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_restart_on_change(self, exists, service):
+    @patch('glob.iglob')
+    def test_restart_on_change(self, iglob, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
         }
-        exists.side_effect = [False, True]
+        iglob.side_effect = [[], [file_name]]
+        exists.return_value = True
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
@@ -723,14 +723,17 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_multiservice_restart_on_change(self, exists, service):
+    @patch('glob.iglob')
+    def test_multiservice_restart_on_change(self, iglob, exists, service):
         file_name_one = '/etc/missing.conf'
         file_name_two = '/etc/exists.conf'
         restart_map = {
             file_name_one: ['test-service'],
             file_name_two: ['test-service', 'test-service2']
         }
-        exists.side_effect = [False, True, True, True]
+        iglob.side_effect = [[], [file_name_two],
+                             [file_name_one], [file_name_two]]
+        exists.return_value = True
 
         @host.restart_on_change(restart_map)
         def make_some_changes():
@@ -752,12 +755,17 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_multiservice_restart_on_change_in_order(self, exists, service):
+    @patch('glob.iglob')
+    def test_multiservice_restart_on_change_in_order(self, iglob, exists, service):
+        file_name_one = '/etc/cinder/cinder.conf'
+        file_name_two = '/etc/haproxy/haproxy.conf'
         restart_map = OrderedDict([
-            ('/etc/cinder/cinder.conf', ['some-api']),
-            ('/etc/haproxy/haproxy.conf', ['haproxy'])
+            (file_name_one, ['some-api']),
+            (file_name_two, ['haproxy'])
         ])
-        exists.side_effect = [False, True, True, True]
+        iglob.side_effect = [[], [file_name_two],
+                             [file_name_one], [file_name_two,]]
+        exists.return_value = True
 
         @host.restart_on_change(restart_map)
         def make_some_changes():
@@ -774,6 +782,106 @@ class HelpersTest(TestCase):
             call('restart', 'haproxy')
         ]
         self.assertEquals(expected, service.call_args_list)
+        
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_no_restart(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/exists2.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one, file_name_two],
+                             [file_name_one, file_name_two]]
+        exists.return_value = True
+        
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+        
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'content', b'content2',
+                                          b'content', b'content2']
+            make_some_changes()
+            
+        self.assertEquals([], service.call_args_list)
+        
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_restart_on_change(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/exists2.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one, file_name_two],
+                             [file_name_one, file_name_two]]
+        exists.return_value = True
+        
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+        
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'content', b'content2',
+                                          b'changed', b'content2']
+            make_some_changes()
+            
+        self.assertEquals([call('restart', 'service')], service.call_args_list)
+         
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_restart_on_create(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/missing.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one],
+                             [file_name_one, file_name_two]]
+        exists.return_value = True
+        
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+        
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'exists',
+                                          b'exists', b'created']
+            make_some_changes()
+            
+        self.assertEquals([call('restart', 'service')], service.call_args_list)       
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_restart_on_delete(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/exists2.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one, file_name_two],
+                             [file_name_two]]
+        exists.return_value = True
+        
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+        
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'exists', b'exists2',
+                                          b'exists2']
+            make_some_changes()
+            
+        self.assertEquals([call('restart', 'service')], service.call_args_list) 
 
     def test_lsb_release(self):
         result = {
