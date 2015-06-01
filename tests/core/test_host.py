@@ -764,7 +764,7 @@ class HelpersTest(TestCase):
             (file_name_two, ['haproxy'])
         ])
         iglob.side_effect = [[], [file_name_two],
-                             [file_name_one], [file_name_two,]]
+                             [file_name_one], [file_name_two]]
         exists.return_value = True
 
         @host.restart_on_change(restart_map)
@@ -782,7 +782,7 @@ class HelpersTest(TestCase):
             call('restart', 'haproxy')
         ]
         self.assertEquals(expected, service.call_args_list)
-        
+
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
@@ -796,18 +796,18 @@ class HelpersTest(TestCase):
         iglob.side_effect = [[file_name_one, file_name_two],
                              [file_name_one, file_name_two]]
         exists.return_value = True
-        
+
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
-        
+
         with patch_open() as (mock_open, mock_file):
             mock_file.read.side_effect = [b'content', b'content2',
                                           b'content', b'content2']
             make_some_changes()
-            
+
         self.assertEquals([], service.call_args_list)
-        
+
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
@@ -821,18 +821,18 @@ class HelpersTest(TestCase):
         iglob.side_effect = [[file_name_one, file_name_two],
                              [file_name_one, file_name_two]]
         exists.return_value = True
-        
+
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
-        
+
         with patch_open() as (mock_open, mock_file):
             mock_file.read.side_effect = [b'content', b'content2',
                                           b'changed', b'content2']
             make_some_changes()
-            
+
         self.assertEquals([call('restart', 'service')], service.call_args_list)
-         
+
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
@@ -846,17 +846,17 @@ class HelpersTest(TestCase):
         iglob.side_effect = [[file_name_one],
                              [file_name_one, file_name_two]]
         exists.return_value = True
-        
+
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
-        
+
         with patch_open() as (mock_open, mock_file):
             mock_file.read.side_effect = [b'exists',
                                           b'exists', b'created']
             make_some_changes()
-            
-        self.assertEquals([call('restart', 'service')], service.call_args_list)       
+
+        self.assertEquals([call('restart', 'service')], service.call_args_list)
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
@@ -871,17 +871,17 @@ class HelpersTest(TestCase):
         iglob.side_effect = [[file_name_one, file_name_two],
                              [file_name_two]]
         exists.return_value = True
-        
+
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
-        
+
         with patch_open() as (mock_open, mock_file):
             mock_file.read.side_effect = [b'exists', b'exists2',
                                           b'exists2']
             make_some_changes()
-            
-        self.assertEquals([call('restart', 'service')], service.call_args_list) 
+
+        self.assertEquals([call('restart', 'service')], service.call_args_list)
 
     def test_lsb_release(self):
         result = {
