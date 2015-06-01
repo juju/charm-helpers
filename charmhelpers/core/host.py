@@ -275,13 +275,13 @@ def path_hash(path):
     Generate a hash checksum of all files matching 'path'. Standard wildcards
     like '*' and '?' are supported, see documentation for the 'glob' module for
     more information.
-        
+
     :return: dict: A { filename: hash } dictionary for all matched files.
                    Empty if none found.
     """
     return {
         filename: file_hash(filename)
-            for filename in glob.iglob(path)
+        for filename in glob.iglob(path)
     }
 
 
@@ -326,7 +326,7 @@ def restart_on_change(restart_map, stopstart=False):
     """
     def wrap(f):
         def wrapped_f(*args, **kwargs):
-            checksums = { path: path_hash(path) for path in restart_map }
+            checksums = {path: path_hash(path) for path in restart_map}
             f(*args, **kwargs)
             restarts = []
             for path in restart_map:
