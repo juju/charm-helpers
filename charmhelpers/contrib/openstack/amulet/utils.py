@@ -258,7 +258,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         # /!\ DEPRECATION WARNING
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
-                      'delete_thing instead of delete_image.')
+                      'delete_resource instead of delete_image.')
         self.log.debug('Deleting glance image ({})...'.format(image))
         num_before = len(list(glance.images.list()))
         glance.images.delete(image)
@@ -306,7 +306,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         # /!\ DEPRECATION WARNING
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
-                      'delete_thing instead of delete_instance.')
+                      'delete_resource instead of delete_instance.')
         self.log.debug('Deleting instance ({})...'.format(instance))
         num_before = len(list(nova.servers.list()))
         nova.servers.delete(instance)
@@ -325,41 +325,30 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         return True
 
-    # NOTE(beisner):
-    # Rather than having a delete_XYZ method for each of the numerous
-    # openstack types/objects/things, use delete_thing and pass a pointer.
-    #
-    # Similarly, instead of having wait/check/timeout/confirm loops
-    # built into numerous methods, use thing_reaches_status + a pointer.
-    #
-    # Not an homage to Dr. Seuss.  "Thing" is used due to conflict with
-    # other more suitable names such as instance or object, both of
-    # which may be confused with nova instance or swift object rather than a
-    # python object or instance.  See heat amulet test for usage examples.
-
-    def delete_thing(self, thing, thing_id, msg="thing", max_wait=120):
-        """Delete one openstack object/thing, such as one instance, keypair,
+    def delete_resource(self, resource, resource_id,
+                        msg="resource", max_wait=120):
+        """Delete one openstack resource, such as one instance, keypair,
         image, volume, stack, etc., and confirm deletion within max wait time.
 
-        :param thing: pointer to openstack object type, ex:glance_client.images
-        :param thing_id: unique name or id for the openstack object/thing
+        :param resource: pointer to os resource type, ex:glance_client.images
+        :param resource_id: unique name or id for the openstack resource
         :param msg: text to identify purpose in logging
         :param max_wait: maximum wait time in seconds
         :returns: True if successful, otherwise False
         """
-        num_before = len(list(thing.list()))
-        thing.delete(thing_id)
+        num_before = len(list(resource.list()))
+        resource.delete(resource_id)
 
         tries = 0
-        num_after = len(list(thing.list()))
-        while num_after != (num_before - 1) and tries < (max_wait/4):
+        num_after = len(list(resource.list()))
+        while num_after != (num_before - 1) and tries < (max_wait / 4):
             self.log.debug('{} delete check: '
                            '{} [{}:{}] {}'.format(msg, tries,
                                                   num_before,
                                                   num_after,
-                                                  thing_id))
+                                                  resource_id))
             time.sleep(4)
-            num_after = len(list(thing.list()))
+            num_after = len(list(resource.list()))
             tries += 1
 
         self.log.debug('{}:  expected, actual count = {}, '
@@ -371,39 +360,40 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.error('{} delete timed out'.format(msg))
             return False
 
-    def thing_reaches_status(self, thing, thing_id, expected_stat='available',
-                             msg='thing', max_wait=120):
-        """Wait for an openstack object/thing's status to reach an
+    def resource_reaches_status(self, resource, resource_id,
+                                expected_stat='available',
+                                msg='resource', max_wait=120):
+        """Wait for an openstack resources status to reach an
            expected status within a specified time.  Useful to confirm that
            nova instances, cinder vols, snapshots, glance images, heat stacks
-           and other objects/things eventually reach the expected status.
+           and other resources eventually reach the expected status.
 
-        :param thing: pointer to openstack object type, ex: heat_client.stacks
-        :param thing_id: unique id for the openstack object/thing
-        :param expected_stat: status to expect object/thing to reach
+        :param resource: pointer to os resource type, ex: heat_client.stacks
+        :param resource_id: unique id for the openstack resource
+        :param expected_stat: status to expect resource to reach
         :param msg: text to identify purpose in logging
         :param max_wait: maximum wait time in seconds
         :returns: True if successful, False if status is not reached
         """
 
         tries = 0
-        thing_stat = thing.get(thing_id).status
-        while thing_stat != expected_stat and tries < (max_wait/4):
+        resource_stat = resource.get(resource_id).status
+        while resource_stat != expected_stat and tries < (max_wait / 4):
             self.log.debug('{} status check: '
                            '{} [{}:{}] {}'.format(msg, tries,
-                                                  thing_stat,
+                                                  resource_stat,
                                                   expected_stat,
-                                                  thing_id))
+                                                  resource_id))
             sleep(4)
-            thing_stat = thing.get(thing_id).status
+            resource_stat = resource.get(resource_id).status
             tries += 1
 
         self.log.debug('{}:  expected, actual status = {}, '
-                       '{}'.format(msg, thing_stat, expected_stat))
+                       '{}'.format(msg, resource_stat, expected_stat))
 
-        if thing_stat == expected_stat:
+        if resource_stat == expected_stat:
             return True
         else:
             self.log.debug('{} never reached expected status: '
-                           '{}'.format(thing_id, expected_stat))
+                           '{}'.format(resource_id, expected_stat))
             return False
