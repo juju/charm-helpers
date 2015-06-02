@@ -77,7 +77,7 @@ def _get_scheme(configs):
               configured within the configs context.
     """
     scheme = 'http'
-    if 'https' in configs.complete_contexts():
+    if configs and 'https' in configs.complete_contexts():
         scheme = 'https'
     return scheme
 
