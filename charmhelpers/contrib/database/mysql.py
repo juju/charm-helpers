@@ -391,11 +391,6 @@ class PerconaClusterHelper(object):
         if innodb_buffer_pool_size:
             innodb_buffer_pool_size = self.human_to_bytes(
                 innodb_buffer_pool_size)
-
-            if innodb_buffer_pool_size > total_memory:
-                log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
-                    innodb_buffer_pool_size,
-                    total_memory), level='WARN')
         elif dataset_bytes:
             log("Option 'dataset-size' has been deprecated, please use"
                 "innodb_buffer_pool_size option instead", level="WARN")
@@ -404,6 +399,11 @@ class PerconaClusterHelper(object):
         else:
             innodb_buffer_pool_size = int(
                 total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR)
+
+        if innodb_buffer_pool_size > total_memory:
+            log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(
+                innodb_buffer_pool_size,
+                total_memory), level='WARN')
 
         mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
         return mysql_config
