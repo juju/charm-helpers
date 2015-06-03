@@ -1,4 +1,5 @@
 import copy
+import json
 
 from tests.helpers import FakeRelation
 from testtools import TestCase
@@ -225,6 +226,16 @@ class TestPeerStorage(TestCase):
 
             l_settings.update(kwargs)
 
+        def check_leader_db(dicta, dictb):
+            _dicta = copy.deepcopy(dicta)
+            _dictb = copy.deepcopy(dictb)
+            miga = json.loads(_dicta[migration_key]).sort()
+            migb = json.loads(_dictb[migration_key]).sort()
+            self.assertEqual(miga, migb)
+            del _dicta[migration_key]
+            del _dictb[migration_key]
+            self.assertEqual(_dicta, _dictb)
+
         migration_key = '__leader_get_migrated_settings__'
         self.relation_get.side_effect = mock_relation_get
         self._leader_get.side_effect = mock_leader_get
@@ -233,21 +244,21 @@ class TestPeerStorage(TestCase):
         self.assertEqual({'s1': 1, 's2': 2}, peerstorage.relation_get())
         self.assertEqual({'s3': 3}, peerstorage._leader_get())
         self.assertEqual({'s1': 1, 's2': 2, 's3': 3}, peerstorage.leader_get())
-        self.assertEqual({'s1': 1, 's2': 2, 's3': 3,
-                          migration_key: '["s2", "s1"]'}, l_settings)
+        check_leader_db({'s1': 1, 's2': 2, 's3': 3,
+                         migration_key: '["s2", "s1"]'}, l_settings)
         self.assertTrue(peerstorage.leader_set.called)
 
         peerstorage.leader_set.reset_mock()
         self.assertEqual({'s1': 1, 's2': 2, 's3': 3}, peerstorage.leader_get())
-        self.assertEqual({'s1': 1, 's2': 2, 's3': 3,
-                          migration_key: '["s2", "s1"]'}, l_settings)
+        check_leader_db({'s1': 1, 's2': 2, 's3': 3,
+                         migration_key: '["s2", "s1"]'}, l_settings)
         self.assertFalse(peerstorage.leader_set.called)
 
         l_settings = {'s3': 3}
         peerstorage.leader_set.reset_mock()
         self.assertEqual(1, peerstorage.leader_get('s1'))
-        self.assertEqual({'s1': 1, 's3': 3,
-                          migration_key: '["s1"]'}, l_settings)
+        check_leader_db({'s1': 1, 's3': 3,
+                         migration_key: '["s1"]'}, l_settings)
         self.assertTrue(peerstorage.leader_set.called)
 
         # Test that leader vals take precedence over non-leader vals
@@ -257,21 +268,21 @@ class TestPeerStorage(TestCase):
 
         peerstorage.leader_set.reset_mock()
         self.assertEqual(4, peerstorage.leader_get('s4'))
-        self.assertEqual({'s1': 1, 's3': 3, 's4': 4,
-                          migration_key: '["s1", "s4"]'}, l_settings)
+        check_leader_db({'s1': 1, 's3': 3, 's4': 4,
+                         migration_key: '["s1", "s4"]'}, l_settings)
         self.assertTrue(peerstorage.leader_set.called)
 
         peerstorage.leader_set.reset_mock()
         self.assertEqual({'s1': 1, 's2': 2, 's3': 2, 's4': 3},
                          peerstorage.relation_get())
-        self.assertEqual({'s1': 1, 's3': 3, 's4': 4,
-                          migration_key: '["s1", "s4"]'},
-                         peerstorage._leader_get())
+        check_leader_db({'s1': 1, 's3': 3, 's4': 4,
+                         migration_key: '["s1", "s4"]'},
+                        peerstorage._leader_get())
         self.assertEqual({'s1': 1, 's2': 2, 's3': 3, 's4': 4},
                          peerstorage.leader_get())
-        self.assertEqual({'s1': 1, 's2': 2, 's3': 3, 's4': 4,
-                          migration_key: '["s3", "s2", "s1", "s4"]'},
-                         l_settings)
+        check_leader_db({'s1': 1, 's2': 2, 's3': 3, 's4': 4,
+                         migration_key: '["s3", "s2", "s1", "s4"]'},
+                        l_settings)
         self.assertTrue(peerstorage.leader_set.called)
 
     def test_leader_get_migration_is_not_leader(self):
