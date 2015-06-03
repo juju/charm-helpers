@@ -68,25 +68,24 @@ def leader_get(attribute=None):
     If a setting is not extant in the leader-get but is on the relation-get
     peer rel, it is migrated and marked as such so that it is not re-migrated.
     """
-    settings = _leader_get(attribute=attribute)
+    migration_key = '__leader_get_migrated_settings__'
     if not is_leader():
-        return settings
+        return _leader_get(attribute=attribute)
+
 
     settings_migrated = False
-    migration_key = '__leader_get_migrated_settings__'
-    if attribute:
-        migrated = _leader_get(attribute=migration_key)
-        if migrated:
-            migrated = set(json.loads(migrated))
-        else:
-            migrated = set([])
-    elif migration_key in settings:
-        migrated = set(json.loads(settings[migration_key]))
-        # Remove from returned settings
-        del settings[migration_key]
+    settings = _leader_get(attribute=attribute)
+    previously_migrated = _leader_get(attribute=migration_key)
+         
+    if previously_migrated:
+        migrated = set(json.loads(previously_migrated))
     else:
         migrated = set([])
 
+    if migration_key in settings:
+        del settings[migration_key]
+
+    print migrated
     if attribute:
         if attribute in migrated:
             return settings
