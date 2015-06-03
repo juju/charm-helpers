@@ -274,7 +274,6 @@ class TestPeerStorage(TestCase):
                          l_settings)
         self.assertTrue(peerstorage.leader_set.called)
 
-
     def test_leader_get_migration_is_not_leader(self):
         self.is_leader.return_value = False
         l_settings = {'s3': 3}
@@ -303,8 +302,6 @@ class TestPeerStorage(TestCase):
                 l_settings.update(settings)
 
             l_settings.update(kwargs)
-
-        migration_key = '__leader_get_migrated_settings__'
 
         self.relation_get.side_effect = mock_relation_get
         self._leader_get.side_effect = mock_leader_get
