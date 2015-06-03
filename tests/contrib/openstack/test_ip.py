@@ -113,7 +113,7 @@ class IPTestCase(TestCase):
     def test_canonical_url_override(self):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['https']
-        self.test_config.set('endpoint-public-name', 'public.example.com')
+        self.test_config.set('os-public-hostname', 'public.example.com')
         endpoint = ip.canonical_url(configs)
         self.assertEqual('https://public.example.com',
                          endpoint)
