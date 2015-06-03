@@ -72,18 +72,20 @@ def leader_get(attribute=None):
     if not is_leader():
         return _leader_get(attribute=attribute)
 
-
     settings_migrated = False
     leader_settings = _leader_get(attribute=attribute)
     previously_migrated = _leader_get(attribute=migration_key)
-         
+
     if previously_migrated:
         migrated = set(json.loads(previously_migrated))
     else:
         migrated = set([])
 
-    if migration_key in leader_settings:
-        del leader_settings[migration_key]
+    try:
+        if migration_key in leader_settings:
+            del leader_settings[migration_key]
+    except TypeError:
+        pass
 
     if attribute:
         if attribute in migrated:
@@ -95,8 +97,9 @@ def leader_get(attribute=None):
             peer_setting = relation_get(attribute=attribute, unit=local_unit())
             if peer_setting:
                 leader_set(settings={attribute: peer_setting})
+                leader_settings = peer_setting
 
-        if leader_settings or peer_setting:
+        if leader_settings:
             settings_migrated = True
             migrated.add(attribute)
     else:
@@ -117,7 +120,7 @@ def leader_get(attribute=None):
         migrated = json.dumps(list(migrated))
         leader_set(settings={migration_key: migrated})
 
-    return settings
+    return leader_settings
 
 
 def relation_set(relation_id=None, relation_settings=None, **kwargs):
