@@ -1237,3 +1237,30 @@ class HooksTest(TestCase):
         check_output.side_effect = OSError(3, 'fail')
         self.assertRaises(OSError, hookenv.status_get)
         check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    @patch('glob.glob')
+    def test_juju_version(self, glob, check_output):
+        glob.return_value = [sentinel.jujud]
+        check_output.return_value = '1.23.3.1-trusty-amd64\n'
+        self.assertEqual(hookenv.juju_version(), '1.23.3.1-trusty-amd64')
+        # Per https://bugs.launchpad.net/juju-core/+bug/1455368/comments/1
+        glob.assert_called_once_with('/var/lib/juju/tools/machine-*/jujud')
+        check_output.assert_called_once_with([sentinel.jujud, 'version'],
+                                             universal_newlines=True)
+
+    @patch('charmhelpers.core.hookenv.juju_version')
+    def test_has_juju_version(self, juju_version):
+        juju_version.return_value = '1.23.1.2.3.4.5-with-a-cherry-on-top.amd64'
+        self.assertTrue(hookenv.has_juju_version('1.23'))
+        self.assertTrue(hookenv.has_juju_version('1.23.1'))
+        self.assertTrue(hookenv.has_juju_version('1.23.1.1'))
+        self.assertFalse(hookenv.has_juju_version('1.23.2.1'))
+        self.assertFalse(hookenv.has_juju_version('1.24'))
+
+        juju_version.return_value = '1.24-beta5.1-trusty-amd64'
+        self.assertTrue(hookenv.has_juju_version('1.23'))
+        self.assertFalse(hookenv.has_juju_version('1.24'))
+        self.assertTrue(hookenv.has_juju_version('1.24-beta5'))
+        self.assertTrue(hookenv.has_juju_version('1.24-beta5.1'))
+        self.assertTrue(hookenv.has_juju_version('1.18-backport6'))

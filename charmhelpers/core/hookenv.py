@@ -21,7 +21,9 @@
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
 from __future__ import print_function
+from distutils.version import LooseVersion
 from functools import wraps
+import glob
 import os
 import json
 import yaml
@@ -724,6 +726,21 @@ def leader_set(settings=None, **kwargs):
         else:
             cmd.append('{}={}'.format(k, v))
     subprocess.check_call(cmd)
+
+
+@cached
+def juju_version():
+    """Full version string (eg. '1.23.3.1-trusty-amd64')"""
+    # Per https://bugs.launchpad.net/juju-core/+bug/1455368/comments/1
+    jujud = glob.glob('/var/lib/juju/tools/machine-*/jujud')[0]
+    return subprocess.check_output([jujud, 'version'],
+                                   universal_newlines=True).strip()
+
+
+@cached
+def has_juju_version(minimum_version):
+    """Return True if the Juju version is at least the provided version"""
+    return LooseVersion(juju_version()) >= LooseVersion(minimum_version)
 
 
 _atexit = []
