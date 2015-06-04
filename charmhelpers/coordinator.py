@@ -165,7 +165,7 @@ the peer relation-changed hook, potentially any hook).
 Whenever a charm needs to perform a coordinated action it will acquire()
 the lock and perform the action immediately if acquisition is
 successful. It will also need to perform the same action in every other
-hook if the permission has been granted.
+hook if the lock has been granted.
 
 
 Grubby Details
@@ -225,8 +225,8 @@ class BaseCoordinator(object):
     relid = None  # Peer relation-id, set by __init__
     relname = None
 
-    grants = None  # self.grants[unit][permission] == timestamp
-    requests = None  # self.requests[unit][permission] == timestamp
+    grants = None  # self.grants[unit][lock] == timestamp
+    requests = None  # self.requests[unit][lock] == timestamp
 
     def __init__(self, relation_key='coordinator', peer_relation_name=None):
         '''Instatiate a Coordinator.
@@ -333,11 +333,10 @@ class BaseCoordinator(object):
         # Set of units already granted the lock.
         granted = set()
         for u in self.grants:
-            for l in self.grants[u]:
-                if l == lock:
-                    if u == unit:
-                        return True  # Already granted.
-                    granted.add(u)
+            if lock in self.grants[u]:
+                granted.add(u)
+        if unit in granted:
+            return True  # Already granted.
 
         # Ordered list of units waiting for the lock.
         reqs = set()
@@ -363,11 +362,9 @@ class BaseCoordinator(object):
     def require(self, lock, guard_func, *guard_args, **guard_kw):
         """Decorate a function to be run only when a lock is acquired.
 
-        The decorated function is only invoked if:
-                - The lock has already been requested (now or previous hook)
-                - The guard function returns True
+        The lock is requested if the guard function returns True.
 
-        None is returned if the decorated function is not invoked.
+        The decorated function is called if the lock has been granted.
         """
         def decorator(f):
             @wraps(f)
@@ -458,7 +455,7 @@ class BaseCoordinator(object):
                 self.requests[local_unit] = self._load_local_state()
 
     def _save_state(self):
-        self.msg('Saving coordinator.{} state'.format(self._name()))
+        self.msg('Publishing coordinator.{} state'.format(self._name()))
         if hookenv.is_leader():
             # sort_keys to ensure stability.
             raw = json.dumps(self.grants, sort_keys=True)
@@ -466,6 +463,7 @@ class BaseCoordinator(object):
 
         if self.relid is None:
             # No peer relation yet. Fallback to local state.
+            self.msg('No peer relation. Saving local state')
             self._save_local_state()
         else:
             local_unit = hookenv.local_unit()
