@@ -752,7 +752,7 @@ _atexit = []
 _atstart = []
 
 
-def atstart(callback, args, kwargs):
+def atstart(callback, *args, **kwargs):
     '''Schedule a callback to run before the main hook.
 
     Callbacks are run in the order they were added.
@@ -774,7 +774,7 @@ def atstart(callback, args, kwargs):
     _atstart.append((callback, args, kwargs))
 
 
-def atexit(callback, args, kwargs):
+def atexit(callback, *args, **kwargs):
     '''Schedule a callback to run on successful hook completion.
 
     Callbacks are run in the reverse order that they were added.'''
