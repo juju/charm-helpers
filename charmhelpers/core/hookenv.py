@@ -590,7 +590,7 @@ class Hooks(object):
             try:
                 self._hooks[hook_name]()
             except SystemExit as x:
-                if x.code == 0:
+                if x.code is None or x.code == 0:
                     _run_atexit()
                 raise
             _run_atexit()
