@@ -102,7 +102,7 @@ class IPTestCase(TestCase):
 
     def test_resolve_address_override_template(self):
         self.test_config.set('os-public-hostname',
-                             '{{service_name}}.example.com')
+                             '{service_name}.example.com')
         self.service_name.return_value = 'foo'
         addr = ip.resolve_address()
         self.assertEqual('foo.example.com', addr)
