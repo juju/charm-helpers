@@ -286,6 +286,8 @@ class BaseCoordinator(object):
         if hookenv.is_leader():
             return self.grant(lock, unit)
 
+        return False  # Can't acquire lock, yet. Maybe next hook.
+
     def granted(self, lock):
         '''Return True if a previously requested lock has been granted'''
         unit = hookenv.local_unit()
@@ -467,7 +469,7 @@ class BaseCoordinator(object):
         if self.relid is None:
             # No peer relation yet. Fallback to local state.
             self.msg('No peer relation. Saving local state')
-            self._save_local_state()
+            self._save_local_state(self.requests[local_unit])
         else:
             local_unit = hookenv.local_unit()
             # sort_keys to ensure stability.
@@ -539,4 +541,4 @@ def _implicit_peer_relation_name():
 
 def _timestamp():
     '''A human readable yet sortable timestamp'''
-    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')
+    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%fZ')
