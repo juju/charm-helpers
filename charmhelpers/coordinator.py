@@ -304,7 +304,7 @@ class BaseCoordinator(object):
 
         # Clear our grants that have been released.
         for unit in self.grants.keys():
-            for lock, grant_ts in self.grants[unit].items():
+            for lock, grant_ts in list(self.grants[unit].items()):
                 req_ts = self.requests.get(unit, {}).get(lock)
                 if req_ts != grant_ts:
                     # The request timestamp does not match the granted
