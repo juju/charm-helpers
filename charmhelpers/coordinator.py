@@ -94,6 +94,7 @@ called at the start of all your hooks.
 
 For example::
 
+    import sys
     from charmhelpers.core import hookenv
     from charmhelpers import coordinator
 
@@ -124,7 +125,7 @@ For example::
 
     if __name__ == '__main__':
         _ = coordinator.Serial()  # Must instantiate before execute()
-        hooks.execute()
+        hooks.execute(sys.argv)
 
 
 You can also use the require decorator. If the lock has not been granted,
@@ -140,7 +141,8 @@ If the lock has been granted, the decorated function is run as normal::
     def maybe_restart():
         hookenv.service_restart('myservice')
 
-    @hooks.hook
+    @hooks.hook('install', 'config-changed', 'cluster-relation-changed',
+                'upgrade-charm')
     def default_hook():
         [...]
         maybe_restart()
@@ -500,7 +502,7 @@ class BaseCoordinator(object):
         # if the unit is standalone there may be no future triggers
         # called to do a manual release.
         unit = hookenv.local_unit()
-        for lock in self.requests[unit].keys():
+        for lock in list(self.requests[unit].keys()):
             if self.granted(lock):
                 self.msg('Released local {} lock'.format(lock))
                 del self.requests[unit][lock]
