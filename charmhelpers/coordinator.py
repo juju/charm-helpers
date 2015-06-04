@@ -466,12 +466,13 @@ class BaseCoordinator(object):
             raw = json.dumps(self.grants, sort_keys=True)
             hookenv.leader_set({self.key: raw})
 
+        local_unit = hookenv.local_unit()
+
         if self.relid is None:
             # No peer relation yet. Fallback to local state.
             self.msg('No peer relation. Saving local state')
             self._save_local_state(self.requests[local_unit])
         else:
-            local_unit = hookenv.local_unit()
             # sort_keys to ensure stability.
             raw = json.dumps(self.requests[local_unit], sort_keys=True)
             hookenv.relation_set(self.relid, relation_settings={self.key: raw})
