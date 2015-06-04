@@ -587,7 +587,12 @@ class Hooks(object):
         _run_atstart()
         hook_name = os.path.basename(args[0])
         if hook_name in self._hooks:
-            self._hooks[hook_name]()
+            try:
+                self._hooks[hook_name]()
+            except SystemExit as x:
+                if x.code == 0:
+                    _run_atexit()
+                raise
             _run_atexit()
         else:
             raise UnregisteredHookError(hook_name)

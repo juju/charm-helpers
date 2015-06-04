@@ -17,6 +17,12 @@
 The coordinator module allows you to use Juju's leadership feature to
 coordinate operations between units of a service.
 
+Behavior is defined in subclasses of coordinator.BaseCoordinator.
+One implementation is provided (coordinator.Serial), which allows an
+operation to be run on a single unit at a time, on a first come, first
+served basis. You can trivially define more complex behavior by
+subclassing BaseCoordinator or Serial.
+
 :author: Stuart Bishop <stuart.bishop@canonical.com>
 
 
@@ -26,18 +32,45 @@ Services Framework Usage
 Ensure a peer relation is defined in metadata.yaml. Instantiate a
 BaseCoordinator before invoking ServiceManager.manage().
 
+Ensure calls to acquire() are guarded, so that locks are only requested
+when they are really needed (and thus hooks only triggered when necessary).
+Failing to do this and calling acquire() unconditionally will put your unit
+into a hook loop. Calls to granted() do not need to be guarded.
+
 For example::
 
-    from charmhelpers.core import services
+    from charmhelpers.core import hookenv, services
     from charmhelpers import coordinator
 
-    serial = coordinator.Serial()
-
     def maybe_restart(servicename):
-        # Lazy evaluation means the restart permission request
-        # will only be made if necessary, avoiding hook storms.
-        if needs_restart() and serial.aquire('restart'):
+        serial = coordinator.Serial()
+        if needs_restart():
+            serial.acquire('restart')
+        if serial.granted('restart'):
             hookenv.service_restart(servicename)
+
+    services = [dict(service='servicename',
+                     data_ready=[maybe_restart])]
+
+    if __name__ == '__main__':
+        _ = coordinator.Serial()  # Must instantiate before manager.manage()
+        manager = services.ServiceManager(services)
+        manager.manage()
+
+
+You can implement a similar pattern using a decorator. If the lock has
+not been granted, an attempt to aquire() it will be made if the guard
+function returns True. If the lock has been granted, the decorated function
+is run as normal::
+
+    from charmhelpers.core import hookenv, services
+    from charmhelpers import coordinator
+
+    serial = coordinator.Serial()  # Global, instatiated on module import.
+
+    @serial.require('restart', needs_restart)
+    def maybe_restart(servicename):
+        hookenv.service_restart(servicename)
 
     services = [dict(service='servicename',
                      data_ready=[maybe_restart])]
@@ -45,7 +78,6 @@ For example::
     if __name__ == '__main__':
         manager = services.ServiceManager(services)
         manager.manage()
-
 
 
 Traditional Usage
@@ -58,8 +90,7 @@ BaseCoordinator is instantiated before calling Hooks.execute.
 
 If you are not using charmhelpers.core.hookenv.Hooks, ensure
 that a BaseCoordinator is instantiated and its handle() method
-invoked at the start of your leader-elected, leader-settings-changed
-and peer relation-changed hooks.
+called at the start of all your hooks.
 
 For example::
 
@@ -76,68 +107,99 @@ For example::
     def config_changed():
         update_config()
         serial = coordinator.Serial()
-        # Lazy evaluation means the restart permission request
-        # will only be made if necessary, avoiding hook storms.
-        if needs_restart() and serial.aquire('restart'):
+        if needs_restart():
+            serial.acquire('restart'):
             maybe_restart()
 
     @hooks.hook
     def cluster_relation_changed():
-        serial = coordinator.Serial()
-        serial.handle() # MUST ALWAYS be called from peer relation-changed
         maybe_restart()
 
     @hooks.hook
     def leader_settings_changed():
-        serial = coordinator.Serial()
-        serial.handle() # MUST ALWAYS be called from leader_settings_changed
+        maybe_restart()
+
+    [ ... repeat for *all* hooks ...]
+
+    if __name__ == '__main__':
+        _ = coordinator.Serial()  # Must instantiate before execute()
+        hooks.execute()
+
+
+You can also use the require decorator. If the lock has not been granted,
+an attempt to aquire() it will be made if the guard function returns True.
+If the lock has been granted, the decorated function is run as normal::
+
+    from charmhelpers.core import hookenv
+
+    hooks = hookenv.Hooks()
+    serial = coordinator.Serial()  # Must instantiate before execute()
+
+    @require('restart', needs_restart)
+    def maybe_restart():
+        hookenv.service_restart('myservice')
+
+    @hooks.hook
+    def default_hook():
+        [...]
         maybe_restart()
 
     if __name__ == '__main__':
         hooks.execute()
 
 
-API
-===
+Details
+=======
 
-A simple API is provided similar to traditional locking APIs. A
-permission may be requested using the aquire() method, and the
-granted() method may be used do to check if a permission previously
-aquired has been granted. It doesn't matter how many times aquire()
-is called in a hook.
+A simple API is provided similar to traditional locking APIs. A lock
+may be requested using the acquire() method, and the granted() method
+may be used do to check if a lock previously requested by acquire() has
+been granted. It doesn't matter how many times acquire() is called in a
+hook.
 
-Permissions are released at the end of the hook if the requests
-could be aquired immediately. All granted permissions are released
-by the leader-settings-changed hook.
+Locks are released at the end of the hook they are acquired in. This may
+be the current hook if the unit is leader and the lock is free. It is
+more likely a future hook (probably leader-settings-changed, possibly
+the peer relation-changed hook, potentially any hook).
 
-Whenever a charm needs to perform a coordinated action it will aquire()
-the permission and perform the action immediately if aquisition is
-successful. It will also need to perform the same action in both the
-leader-settings-changed hook and peer relation-changed hooks if the
-permission has been granted.
+Whenever a charm needs to perform a coordinated action it will acquire()
+the lock and perform the action immediately if acquisition is
+successful. It will also need to perform the same action in every other
+hook if the permission has been granted.
 
 
 Grubby Details
 --------------
 
-Why do you need to be able to perform the same action in three places?
+Why do you need to be able to perform the same action in every hook?
 If the unit is the leader, then it may be able to grant its own lock
 and perform the action immediately in the source hook. If the unit is
-not the leader, then the leader will not be aware of the request until
-after the source hook as completed and the lock will never be granted
-immediately, so the only opportunity the unit has has to perform the
-action is in the leader-settings-changed hook. If the unit is the leader
-and cannot grant its own lock, then the only opportunity for it to
-perform the action is when a peer releases a lock, which triggers the
-peer relation-changed on all units including the leader. This would be
-simpler if leader-settings-changed was invoked on the leader, but that
-not the case with Juju 1.23 leadership. I chose not to implement a
-callback model, where a callback was passed to aquire() to be executed
-as soon as the lock is granted, because the callback may become invalid
-between making the request and being granted the lock due to a
-'juju upgrade-charm' being run in the interim.
+the leader and cannot immediately grant the lock, then its only
+guaranteed chance of acquiring the lock is in the peer relation-changed
+hook when another unit has released it (the only channel to communicate
+to the leader is the peer relation). If the unit is not the leader,
+then it is unlikely the lock is granted in the source hook (a previous
+hook must have also made the request for this to happen). A non-leader
+is notified about the lock via leader settings. These changes may
+be visible in any hook, even before the leader-settings-changed hook
+has been invoked. Or the requesting unit may be promoted to leader after
+making a request, in which case the lock may be granted in leader-elected
+or in a future peer relation-changed hook.
+
+This could be simpler if leader-settings-changed was invoked on the
+leader. We could then never grant locks except in
+leader-settings-changed hooks giving one place for the operation to be
+performed. Unfortunately this is not the case with Juju 1.23 leadership.
+
+I chose not to implement a callback model, where a callback was passed
+to acquire to be executed when the lock is granted, because the callback
+may become invalid between making the request and the lock being granted
+due to a 'juju upgrade-charm' being run in the interim. Perhaps this is
+not worth worrying about, and the callback mechanism implemented on top
+of the basics provided here.
 '''
 from datetime import datetime
+from functools import wraps
 import json
 import os.path
 
@@ -155,9 +217,9 @@ class Singleton(type):
 
 
 class BaseCoordinator(object):
-    # We make this a singleton so that if we need to spill to local
-    # storage then only a single instance does so, rather than having
-    # multiple instances stomp over each other.
+    # We make BaseCoordinator and subclasses singletons, so that if we
+    # need to spill to local storage then only a single instance does so,
+    # rather than having multiple instances stomp over each other.
     __metaclass__ = Singleton
 
     relid = None  # Peer relation-id, set by __init__
@@ -187,7 +249,7 @@ class BaseCoordinator(object):
         hookenv.atstart(self.handle)
 
     def acquire(self, lock):
-        '''Aquire the named lock, non-blocking.
+        '''Acquire the named lock, non-blocking.
 
         The lock may be granted immediately, or in a future hook.
 
@@ -195,11 +257,10 @@ class BaseCoordinator(object):
         automatically released at the end of the hook in which it is
         granted.
 
-        Do not mindlessly call this method, as it causes hooks to be
-        triggered. It should almost always be guarded by some condition.
-        For example, if you call aquire() every time in your peer
-        relation-changed hook you will end up with an infinite loop of
-        hooks.
+        Do not mindlessly call this method, as it triggers a cascade of
+        hooks. For example, if you call acquire() every time in your
+        peer relation-changed hook you will end up with an infinite loop
+        of hooks. It should almost always be guarded by some condition.
         '''
         unit = hookenv.local_unit()
         ts = self.requests[unit].get(lock)
@@ -208,9 +269,11 @@ class BaseCoordinator(object):
             # create one.
             self.requests.setdefault(lock, {})
             self.requests[unit][lock] = _timestamp()
+            self.msg('Requested {}'.format(lock))
 
         # If the leader has granted the lock, yay.
         if self.granted(lock):
+            self.msg('Aquired {}'.format(lock))
             return True
 
         # If the unit making the request also happens to be the
@@ -234,21 +297,24 @@ class BaseCoordinator(object):
         if not hookenv.is_leader():
             return  # Only the leader can grant requests.
 
+        self.msg('Leader handling coordinator requests')
+
         # Clear our grants that have been released.
         for unit in self.grants.keys():
-            for permission, grant_ts in self.grants[unit].items():
-                req_ts = self.requests.get(unit, {}).get(permission)
+            for lock, grant_ts in self.grants[unit].items():
+                req_ts = self.requests.get(unit, {}).get(lock)
                 if req_ts != grant_ts:
                     # The request timestamp does not match the granted
                     # timestamp. Several hooks on 'unit' may have run
                     # before the leader got a chance to make a decision,
                     # and 'unit' may have released its lock and attempted
-                    # to reaquire it. This will change the timestamp,
+                    # to reacquire it. This will change the timestamp,
                     # and we correctly revoke the old grant putting it
                     # to the end of the queue.
-                    del self.grants[unit][permission]
+                    self.msg('Leader releases {} from {}'.format(lock, unit))
+                    del self.grants[unit][lock]
 
-        # Grant permissions
+        # Grant locks
         for unit in self.requests.keys():
             for lock in self.requests[unit]:
                 self.grant(lock, unit)
@@ -288,10 +354,43 @@ class BaseCoordinator(object):
 
         if grant_func(unit, granted, queue):
             # Grant the lock.
+            self.msg('Leader grants {} to {}'.format(lock, unit))
             self.grants.setdefault(unit, {})[lock] = self.requests[unit][lock]
             return True
 
         return False
+
+    def require(self, lock, guard_func, *guard_args, **guard_kw):
+        """Decorate a function to be run only when a lock is acquired.
+
+        The decorated function is only invoked if:
+                - The lock has already been requested (now or previous hook)
+                - The guard function returns True
+
+        None is returned if the decorated function is not invoked.
+        """
+        def decorator(f):
+            @wraps(f)
+            def wrapper(*args, **kw):
+                if self.granted(lock):
+                    self.msg('Granted {}'.format(lock))
+                    return f(*args, **kw)
+                if guard_func(*guard_args, **guard_kw):
+                    if self.aquire(lock):
+                        self.msg('Acquired {}'.format(lock))
+                        return f(*args, **kw)
+                    else:
+                        self.msg('Requested {}'.format(lock))
+                return None
+            return wrapper
+        return decorator
+
+    def msg(self, msg):
+        '''Emit a message. Override to customize log spam.'''
+        hookenv.log(msg, level=hookenv.INFO)
+
+    def _name(self):
+        return self.__class__.__name__
 
     def _initialize(self):
         if self.requests is not None:
@@ -300,7 +399,7 @@ class BaseCoordinator(object):
         if not hookenv.has_juju_version('1.23'):
             hookenv.status_set('blocked',
                                'charmhelpers.coordinator requires Juju 1.23+')
-            raise SystemExit(99)
+            raise SystemExit(0)
 
         if self.relname is None:
             self.relname = _implicit_peer_relation_name()
@@ -323,6 +422,8 @@ class BaseCoordinator(object):
         hookenv.atexit(self._release_granted)
 
     def _load_state(self):
+        self.msg('Loading coordinator.{} state'.format(self._name()))
+
         # All responses must be stored in the leadership settings.
         # The leader cannot use local state, as a different unit may
         # be leader next time. Which is fine, as the leadership
@@ -339,8 +440,9 @@ class BaseCoordinator(object):
         self.requests = {}
         if self.relid is None:
             # The peer relation is not available. Maybe we are early in
-            # the leader's lifecycle. Maybe this unit is standalone.
+            # the units's lifecycle. Maybe this unit is standalone.
             # Fallback to using local state.
+            self.msg('No peer relation. Loading local state')
             self.requests[local_unit] = self._load_local_state()
         else:
             units = set(hookenv.related_units(self.relid))
@@ -352,9 +454,11 @@ class BaseCoordinator(object):
             if local_unit not in self.requests:
                 # The peer relation has just been joined. Update any state
                 # loaded from our peers with our local state.
+                self.msg('New peer relation. Merging local state')
                 self.requests[local_unit] = self._load_local_state()
 
     def _save_state(self):
+        self.msg('Saving coordinator.{} state'.format(self._name()))
         if hookenv.is_leader():
             # sort_keys to ensure stability.
             raw = json.dumps(self.grants, sort_keys=True)
@@ -399,6 +503,7 @@ class BaseCoordinator(object):
         unit = hookenv.local_unit()
         for lock in self.requests[unit].keys():
             if self.granted(lock):
+                self.msg('Released local {} lock'.format(lock))
                 del self.requests[unit][lock]
 
 
