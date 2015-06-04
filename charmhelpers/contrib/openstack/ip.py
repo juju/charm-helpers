@@ -17,6 +17,7 @@
 from charmhelpers.core.hookenv import (
     config,
     unit_get,
+    service_name,
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
@@ -25,6 +26,7 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
 )
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
+from jinja2 import Template
 
 PUBLIC = 'public'
 INTERNAL = 'int'
@@ -100,7 +102,8 @@ def resolve_address(endpoint_type=PUBLIC):
     override_key = ADDRESS_MAP[endpoint_type]['override']
     addr_override = config(override_key)
     if addr_override:
-        return addr_override
+        tmpl = Template(addr_override)
+        return tmpl.render(service_name=service_name())
 
     vips = config('vip')
     if vips:
