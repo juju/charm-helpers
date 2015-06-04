@@ -241,6 +241,7 @@ class Config(dict):
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
         if os.path.exists(self.path):
             self.load_previous()
+        atexit(self._implicit_save)
 
     def __getitem__(self, key):
         """For regular dict lookups, check the current juju config first,
@@ -319,6 +320,10 @@ class Config(dict):
                     self[k] = v
         with open(self.path, 'w') as f:
             json.dump(self, f)
+
+    def _implicit_save(self):
+        if self.implicit_save:
+            self.save()
 
 
 @cached
@@ -569,7 +574,7 @@ class Hooks(object):
     def __init__(self, config_save=True):
         super(Hooks, self).__init__()
         self._hooks = {}
-        self._config_save = config_save
+        config().implicit_save = config_save
 
     def register(self, name, function):
         """Register a hook"""
@@ -577,13 +582,11 @@ class Hooks(object):
 
     def execute(self, args):
         """Execute a registered hook based on args[0]"""
+        _run_atstart()
         hook_name = os.path.basename(args[0])
         if hook_name in self._hooks:
             self._hooks[hook_name]()
-            if self._config_save:
-                cfg = config()
-                if cfg.implicit_save:
-                    cfg.save()
+            _run_atexit()
         else:
             raise UnregisteredHookError(hook_name)
 
@@ -721,3 +724,53 @@ def leader_set(settings=None, **kwargs):
         else:
             cmd.append('{}={}'.format(k, v))
     subprocess.check_call(cmd)
+
+
+_atexit = []
+_atstart = []
+
+
+def atstart(callback, args, kwargs):
+    '''Schedule a callback to run before the main hook.
+
+    Callbacks are run in the order they were added.
+
+    This is useful for modules and classes to perform initialization
+    and inject behavior. In particular:
+        - Run common code before all of your hooks, such as logging
+          the hook name or interesting relation data.
+        - Defer object or module initialization that requires a hook
+          context until we know there actually is a hook context,
+          making testing easier.
+        - Rather than requiring charm authors to include boilerplate to
+          invoke your helper's behavior, have it run automatically if
+          your object is instantiated or module imported.
+
+    This is not at all useful after your hook framework as been launched.
+    '''
+    global _atstart
+    _atstart.append((callback, args, kwargs))
+
+
+def atexit(callback, args, kwargs):
+    '''Schedule a callback to run on successful hook completion.
+
+    Callbacks are run in the reverse order that they were added.'''
+    _atexit.append((callback, args, kwargs))
+
+
+def _run_atstart():
+    '''Hook frameworks must invoke this before running the main hook body.'''
+    global _atstart
+    for callback, args, kwargs in _atstart:
+        callback(*args, **kwargs)
+    del _atstart[:]
+
+
+def _run_atexit():
+    '''Hook frameworks must invoke this after the main hook body has
+    successfully completed. Do not invoke it if the hook fails.'''
+    global _atexit
+    for callback, args, kwargs in reversed(_atexit):
+        callback(*args, **kwargs)
+    del _atexit[:]
