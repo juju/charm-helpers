@@ -556,7 +556,7 @@ class Hooks(object):
 
     Example::
 
-        hooks = Hooks()
+)        hooks = Hooks()
 
         # register a hook, taking its name from the function name
         @hooks.hook()
@@ -725,7 +725,7 @@ def leader_set(settings=None, **kwargs):
     cmd = ['leader-set']
     settings = settings or {}
     settings.update(kwargs)
-    for k, v in settings.iteritems():
+    for k, v in settings.items():
         if v is None:
             cmd.append('{}='.format(k))
         else:
