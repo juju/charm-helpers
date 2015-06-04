@@ -95,6 +95,7 @@ called at the start of all your hooks.
 For example::
 
     from charmhelpers.core import hookenv
+    from charmhelpers import coordinator
 
     hooks = hookenv.Hooks()
 
