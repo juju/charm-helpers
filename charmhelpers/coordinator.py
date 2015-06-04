@@ -297,6 +297,11 @@ class BaseCoordinator(object):
         if self.requests is not None:
             return  # Already initialized.
 
+        if not hookenv.has_juju_version('1.23'):
+            hookenv.status_set('blocked',
+                               'charmhelpers.coordinator requires Juju 1.23+')
+            raise SystemExit(99)
+
         if self.relname is None:
             self.relname = _implicit_peer_relation_name()
 
