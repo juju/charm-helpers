@@ -573,10 +573,14 @@ class Hooks(object):
             hooks.execute(sys.argv)
     """
 
-    def __init__(self, config_save=True):
+    def __init__(self, config_save=None):
         super(Hooks, self).__init__()
         self._hooks = {}
-        config().implicit_save = config_save
+
+        # For unknown reasons, we allow the Hooks constructor to override
+        # config().implicit_save.
+        if config_save is not None:
+            config().implicit_save = config_save
 
     def register(self, name, function):
         """Register a hook"""

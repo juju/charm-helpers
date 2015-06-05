@@ -32,10 +32,18 @@ peers:
         interface: mock
 """
 
+def _clean_globals():
+    hookenv.cache.clear()
+    del hookenv._atstart[:]
+    del hookenv._atexit[:]
+
 
 class ConfigTest(TestCase):
     def setUp(self):
         super(ConfigTest, self).setUp()
+
+        _clean_globals()
+        self.addCleanup(_clean_globals)
 
         self.charm_dir = tempfile.mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(self.charm_dir))
@@ -260,8 +268,8 @@ class SerializableTest(TestCase):
 class HelpersTest(TestCase):
     def setUp(self):
         super(HelpersTest, self).setUp()
-        # Reset hookenv cache for each test
-        hookenv.cache = {}
+        _clean_globals()
+        self.addCleanup(_clean_globals)
 
     @patch('subprocess.call')
     def test_logs_messages_to_juju_with_default_level(self, mock_call):
@@ -930,24 +938,28 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_kwargs(self, check_call_):
+    def test_sets_relation_with_kwargs(self, check_call_, local_unit):
         hookenv.relation_set(foo="bar")
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_dict(self, check_call_):
+    def test_sets_relation_with_dict(self, check_call_, local_unit):
         hookenv.relation_set(relation_settings={"foo": "bar"})
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_relation_id(self, check_call_):
+    def test_sets_relation_with_relation_id(self, check_call_, local_unit):
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                         'bar=baz'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_missing_value(self, check_call_):
+    def test_sets_relation_with_missing_value(self, check_call_, local_unit):
         hookenv.relation_set(foo=None)
         check_call_.assert_called_with(['relation-set', 'foo='])
 
@@ -1055,12 +1067,22 @@ class HelpersTest(TestCase):
 class HooksTest(TestCase):
     def setUp(self):
         super(HooksTest, self).setUp()
-        self.config = patch.object(hookenv, 'config')
-        self.config.start()
 
-    def tearDown(self):
-        super(HooksTest, self).tearDown()
-        self.config.stop()
+        _clean_globals()
+        self.addCleanup(_clean_globals)
+
+        charm_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(charm_dir))
+        patcher = patch.object(hookenv, 'charm_dir', lambda: charm_dir)
+        self.addCleanup(patcher.stop)
+        patcher.start()
+       
+        config = hookenv.Config({})
+        def _mock_config(scope=None):
+            return config if scope is None else config[scope]
+        patcher = patch.object(hookenv, 'config', _mock_config)
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
     def test_config_saved_after_execute(self):
         config = hookenv.config()
@@ -1070,8 +1092,7 @@ class HooksTest(TestCase):
         hooks = hookenv.Hooks()
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
-
-        self.assertTrue(config.save.called)
+        self.assertTrue(os.path.exists(config.path))
 
     def test_config_not_saved_after_execute(self):
         config = hookenv.config()
@@ -1081,8 +1102,7 @@ class HooksTest(TestCase):
         hooks = hookenv.Hooks()
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
-
-        self.assertFalse(config.save.called)
+        self.assertFalse(os.path.exists(config.path))
 
     def test_config_save_disabled(self):
         config = hookenv.config()
@@ -1092,8 +1112,7 @@ class HooksTest(TestCase):
         hooks = hookenv.Hooks(config_save=False)
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
-
-        self.assertFalse(config.save.called)
+        self.assertFalse(os.path.exists(config.path))
 
     def test_runs_a_registered_function(self):
         foo = MagicMock()
