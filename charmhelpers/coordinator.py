@@ -30,7 +30,10 @@ Services Framework Usage
 ========================
 
 Ensure a peer relation is defined in metadata.yaml. Instantiate a
-BaseCoordinator before invoking ServiceManager.manage().
+BaseCoordinator subclass before invoking ServiceManager.manage().
+Ensure that ServiceManager.manage() is wired up to the leader-elected,
+leader-settings-changed and peer relation-changed hooks in addition to
+any other hooks you need, or your service will deadlock.
 
 Ensure calls to acquire() are guarded, so that locks are only requested
 when they are really needed (and thus hooks only triggered when necessary).
