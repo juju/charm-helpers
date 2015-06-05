@@ -556,7 +556,7 @@ class Hooks(object):
 
     Example::
 
-)        hooks = Hooks()
+        hooks = Hooks()
 
         # register a hook, taking its name from the function name
         @hooks.hook()

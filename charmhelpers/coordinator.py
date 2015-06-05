@@ -329,8 +329,8 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
         # If the unit making the request also happens to be the
         # leader, it must handle the request now. Even though the
-        # request has been stored on the peer relation, that does
-        # cause the the peer relation-changed hook to be triggered.
+        # request has been stored on the peer relation, the peer
+        # relation-changed hook will not be triggered.
         if hookenv.is_leader():
             return self.grant(lock, unit)
 
@@ -569,7 +569,6 @@ class Serial(BaseCoordinator):
 
 def _implicit_peer_relation_name():
     md = hookenv.metadata()
-    assert 'peers' in md, str(md.keys())
     assert 'peers' in md, 'No peer relations in metadata.yaml'
     return sorted(md['peers'].keys())[0]
 
