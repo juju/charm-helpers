@@ -400,7 +400,7 @@ class BaseCoordinator(object):
 
     def msg(self, msg):
         '''Emit a message. Override to customize log spam.'''
-        hookenv.log('coordinator.{} {}'.format(self._name, msg),
+        hookenv.log('coordinator.{} {}'.format(self._name(), msg),
                     level=hookenv.INFO)
 
     def _name(self):
