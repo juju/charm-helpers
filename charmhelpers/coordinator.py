@@ -71,6 +71,9 @@ is run as normal::
 
     serial = coordinator.Serial()  # Global, instatiated on module import.
 
+    def needs_restart():
+        [ ... Introspect state. Return True if restart is needed ... ]
+
     @serial.require('restart', needs_restart)
     def maybe_restart(servicename):
         hookenv.service_restart(servicename)
@@ -89,11 +92,11 @@ Traditional Usage
 Ensure a peer relationis defined in metadata.yaml.
 
 If you are using charmhelpers.core.hookenv.Hooks, ensure that a
-BaseCoordinator is instantiated before calling Hooks.execute.
+BaseCoordinator subclass is instantiated before calling Hooks.execute.
 
 If you are not using charmhelpers.core.hookenv.Hooks, ensure
-that a BaseCoordinator is instantiated and its handle() method
-called at the start of all your hooks.
+that a BaseCoordinator subclass is instantiated and its handle()
+method called at the start of all your hooks.
 
 For example::
 
@@ -197,12 +200,21 @@ leader. We could then never grant locks except in
 leader-settings-changed hooks giving one place for the operation to be
 performed. Unfortunately this is not the case with Juju 1.23 leadership.
 
+But of course, this doesn't really matter to most people as most people
+seem to prefer the Services Framework or similar reset-the-world
+approaches, rather than the twisty maze of attempting to deduce what
+should be done based on what hook happens to be running (which always
+seems to evolve into reset-the-world anyway when the charm grows beyond
+the trivial).
+
 I chose not to implement a callback model, where a callback was passed
 to acquire to be executed when the lock is granted, because the callback
 may become invalid between making the request and the lock being granted
-due to a 'juju upgrade-charm' being run in the interim. Perhaps this is
-not worth worrying about, and the callback mechanism implemented on top
-of the basics provided here.
+due to an upgrade-charm being run in the interim. And it would create
+restrictions, such no lambdas, callback defined at the top level of a
+module, etc. Still, we could implement it on top of what is here, eg.
+by adding a defer decorator that stores a pickle of itself to disk and
+have BaseCoordinator unpickle and execute them when the locks are granted.
 '''
 from datetime import datetime
 from functools import wraps
@@ -380,19 +392,16 @@ class BaseCoordinator(object):
                 if self.granted(lock):
                     self.msg('Granted {}'.format(lock))
                     return f(*args, **kw)
-                if guard_func(*guard_args, **guard_kw):
-                    if self.acquire(lock):
-                        self.msg('Acquired {}'.format(lock))
-                        return f(*args, **kw)
-                    else:
-                        self.msg('Requested {}'.format(lock))
+                if guard_func(*guard_args, **guard_kw) and self.acquire(lock):
+                    return f(*args, **kw)
                 return None
             return wrapper
         return decorator
 
     def msg(self, msg):
         '''Emit a message. Override to customize log spam.'''
-        hookenv.log(msg, level=hookenv.INFO)
+        hookenv.log('coordinator.{} {}'.format(self._name, msg),
+                    level=hookenv.INFO)
 
     def _name(self):
         return self.__class__.__name__
@@ -427,7 +436,7 @@ class BaseCoordinator(object):
         hookenv.atexit(self._release_granted)
 
     def _load_state(self):
-        self.msg('Loading coordinator.{} state'.format(self._name()))
+        self.msg('Loading state'.format(self._name()))
 
         # All responses must be stored in the leadership settings.
         # The leader cannot use local state, as a different unit may
@@ -463,7 +472,7 @@ class BaseCoordinator(object):
                 self.requests[local_unit] = self._load_local_state()
 
     def _save_state(self):
-        self.msg('Publishing coordinator.{} state'.format(self._name()))
+        self.msg('Publishing state'.format(self._name()))
         if hookenv.is_leader():
             # sort_keys to ensure stability.
             raw = json.dumps(self.grants, sort_keys=True)
@@ -486,7 +495,7 @@ class BaseCoordinator(object):
         # this avoids conflicts (unless someone creates and uses two
         # BaseCoordinator subclasses with the same class name, so don't
         # do that).
-        return '.charmhelpers.coordinator.{}'.format(self.__class__.__name__)
+        return '.charmhelpers.coordinator.{}'.format(self._name())
 
     def _load_local_state(self):
         fn = self._local_state_filename()
