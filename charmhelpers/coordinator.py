@@ -32,8 +32,9 @@ Services Framework Usage
 Ensure a peer relation is defined in metadata.yaml. Instantiate a
 BaseCoordinator subclass before invoking ServiceManager.manage().
 Ensure that ServiceManager.manage() is wired up to the leader-elected,
-leader-settings-changed and peer relation-changed hooks in addition to
-any other hooks you need, or your service will deadlock.
+leader-settings-changed, peer relation-changed and peer
+relation-departed hooks in addition to any other hooks you need, or your
+service will deadlock.
 
 Ensure calls to acquire() are guarded, so that locks are only requested
 when they are really needed (and thus hooks only triggered when necessary).
@@ -119,15 +120,17 @@ For example::
             serial.acquire('restart'):
             maybe_restart()
 
-    @hooks.hook
+    # Cluster hooks must be wired up.
+    @hooks.hook('cluster-relation-changed', 'cluster-relation-departed')
     def cluster_relation_changed():
         maybe_restart()
 
-    @hooks.hook
+    # Leader hooks must be wired up.
+    @hooks.hook('leader-elected', 'leader-settings-changed')
     def leader_settings_changed():
         maybe_restart()
 
-    [ ... repeat for *all* hooks ...]
+    [ ... repeat for *all* other hooks you are using ... ]
 
     if __name__ == '__main__':
         _ = coordinator.Serial()  # Must instantiate before execute()
@@ -147,8 +150,10 @@ If the lock has been granted, the decorated function is run as normal::
     def maybe_restart():
         hookenv.service_restart('myservice')
 
-    @hooks.hook('install', 'config-changed', 'cluster-relation-changed',
-                'upgrade-charm')
+    @hooks.hook('install', 'config-changed', 'upgrade-charm',
+                # Peer and leader hooks must be wired up.
+                'cluster-relation-changed', 'cluster-relation-departed',
+                'leader-elected', 'leader-settings-changed')
     def default_hook():
         [...]
         maybe_restart()
@@ -169,7 +174,7 @@ hook.
 Locks are released at the end of the hook they are acquired in. This may
 be the current hook if the unit is leader and the lock is free. It is
 more likely a future hook (probably leader-settings-changed, possibly
-the peer relation-changed hook, potentially any hook).
+the peer relation-changed or departed hook, potentially any hook).
 
 Whenever a charm needs to perform a coordinated action it will acquire()
 the lock and perform the action immediately if acquisition is
@@ -184,16 +189,17 @@ Why do you need to be able to perform the same action in every hook?
 If the unit is the leader, then it may be able to grant its own lock
 and perform the action immediately in the source hook. If the unit is
 the leader and cannot immediately grant the lock, then its only
-guaranteed chance of acquiring the lock is in the peer relation-changed
-hook when another unit has released it (the only channel to communicate
-to the leader is the peer relation). If the unit is not the leader,
-then it is unlikely the lock is granted in the source hook (a previous
-hook must have also made the request for this to happen). A non-leader
-is notified about the lock via leader settings. These changes may
-be visible in any hook, even before the leader-settings-changed hook
-has been invoked. Or the requesting unit may be promoted to leader after
-making a request, in which case the lock may be granted in leader-elected
-or in a future peer relation-changed hook.
+guaranteed chance of acquiring the lock is in the peer relation-joined,
+relation-changed or peer relation-departed hooks when another unit has
+released it (the only channel to communicate to the leader is the peer
+relation). If the unit is not the leader, then it is unlikely the lock
+is granted in the source hook (a previous hook must have also made the
+request for this to happen). A non-leader is notified about the lock via
+leader settings. These changes may be visible in any hook, even before
+the leader-settings-changed hook has been invoked. Or the requesting
+unit may be promoted to leader after making a request, in which case the
+lock may be granted in leader-elected or in a future peer
+relation-changed or relation-departed hook.
 
 This could be simpler if leader-settings-changed was invoked on the
 leader. We could then never grant locks except in
@@ -399,6 +405,8 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         # Ordered list of units waiting for the lock.
         reqs = set()
         for u in self.requests:
+            if u in granted:
+                continue  # In the granted set. Not wanted in the req list.
             for l, ts in self.requests[u].items():
                 if l == lock:
                     reqs.add((ts, u))
@@ -460,25 +468,29 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         # Even the leader needs to store its requests here, as a
         # different unit may be leader by the time the request can be
         # granted.
-        self.requests = {}
         if self.relid is None:
             # The peer relation is not available. Maybe we are early in
             # the units's lifecycle. Maybe this unit is standalone.
             # Fallback to using local state.
             self.msg('No peer relation. Loading local state')
-            self.requests[local_unit] = self._load_local_state()
+            self.requests = {local_unit: self._load_local_state()}
         else:
-            units = set(hookenv.related_units(self.relid))
-            units.add(local_unit)
-            for unit in units:
-                raw = hookenv.relation_get(self.key, unit, self.relid)
-                if raw:
-                    self.requests[unit] = json.loads(raw)
+            self.requests = self._load_peer_state()
             if local_unit not in self.requests:
                 # The peer relation has just been joined. Update any state
                 # loaded from our peers with our local state.
                 self.msg('New peer relation. Merging local state')
                 self.requests[local_unit] = self._load_local_state()
+
+    def _load_peer_state(self):
+        requests = {}
+        units = set(hookenv.related_units(self.relid))
+        units.add(hookenv.local_unit())
+        for unit in units:
+            raw = hookenv.relation_get(self.key, unit, self.relid)
+            if raw:
+                requests[unit] = json.loads(raw)
+        return requests
 
     def _save_state(self):
         self.msg('Publishing state'.format(self._name()))
