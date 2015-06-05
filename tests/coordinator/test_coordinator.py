@@ -202,7 +202,6 @@ class TestCoordinator(unittest.TestCase):
         self.assertTrue(c.requested(lock))
 
     def test_request_timestamp(self):
-        # 
         c = coordinator.BaseCoordinator()
         lock = 'mylock'
         unit = hookenv.local_unit()
@@ -213,7 +212,7 @@ class TestCoordinator(unittest.TestCase):
 
         now = datetime.utcnow()
         fmt = coordinator._timestamp_format
-        c.requests = {hookenv.local_unit(): { lock: now.strftime(fmt)}}
+        c.requests = {hookenv.local_unit(): {lock: now.strftime(fmt)}}
 
         self.assertEqual(c.request_timestamp(lock), now)
 
@@ -306,10 +305,8 @@ class TestCoordinator(unittest.TestCase):
         c.grant_other.return_value = True
         self.assertFalse(c.grant('other', 'foo/2'))
 
-
     def test_require(self):
         c = coordinator.BaseCoordinator()
-        unit = hookenv.local_unit()
         c.acquire = MagicMock()
         c.granted = MagicMock()
         guard = MagicMock()

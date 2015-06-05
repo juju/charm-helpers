@@ -350,7 +350,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
     def request_timestamp(self, lock):
         '''Return the timestamp of our outstanding request for lock, or None.
-        
+
         Returns a datetime.datetime() UTC timestamp, with no tzinfo attribute.
         '''
         ts = self.requests[hookenv.local_unit()].get(lock, None)
@@ -574,7 +574,7 @@ def _implicit_peer_relation_name():
 
 
 # A human readable, sortable UTC timestamp format.
-_timestamp_format ='%Y-%m-%d %H:%M:%S.%fZ'
+_timestamp_format = '%Y-%m-%d %H:%M:%S.%fZ'
 
 
 def _timestamp(now=datetime.utcnow):

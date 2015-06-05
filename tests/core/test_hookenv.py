@@ -32,6 +32,7 @@ peers:
         interface: mock
 """
 
+
 def _clean_globals():
     hookenv.cache.clear()
     del hookenv._atstart[:]
@@ -944,7 +945,6 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_call')
     def test_sets_relation_with_kwargs(self, check_call_, check_output,
                                        local_unit):
-    def test_sets_relation_with_kwargs(self, check_call_, check_output):
         hookenv.relation_set(foo="bar")
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
@@ -961,7 +961,6 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_call')
     def test_sets_relation_with_relation_id(self, check_call_, check_output,
                                             local_unit):
-    def test_sets_relation_with_relation_id(self, check_call_, check_output):
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                         'bar=baz'])
@@ -1142,8 +1141,9 @@ class HooksTest(TestCase):
         patcher = patch.object(hookenv, 'charm_dir', lambda: charm_dir)
         self.addCleanup(patcher.stop)
         patcher.start()
-       
+
         config = hookenv.Config({})
+
         def _mock_config(scope=None):
             return config if scope is None else config[scope]
         patcher = patch.object(hookenv, 'config', _mock_config)
