@@ -14,8 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 from datetime import datetime, timedelta
+import json
 import unittest
-from unittest.mock import call, patch
+from unittest.mock import call, MagicMock, patch, sentinel
 
 from charmhelpers import coordinator
 from charmhelpers.core import hookenv
@@ -96,7 +97,6 @@ class TestCoordinator(unittest.TestCase):
         with patch.object(c, '_load_state'):
             c.initialize()
         self.assertEqual(c.relid, 'cluster:1')
-
 
     def test_acquire(self):
         c = coordinator.BaseCoordinator()
@@ -205,6 +205,211 @@ class TestCoordinator(unittest.TestCase):
 
         self.assertEqual(c.request_timestamp(lock), now)
 
+    def test_handle_not_leader(self):
+        c = coordinator.BaseCoordinator()
+        # If we are not the leader, handle does nothing. We know this,
+        # because without mocks or initialization it would otherwise crash.
+        c.handle()
+
+    def test_handle(self):
+        hookenv.is_leader.return_value = True
+        lock = 'mylock'
+        c = coordinator.BaseCoordinator()
+        c.relid = 'cluster:1'
+
+        ts = coordinator._timestamp
+        ts1, ts2, ts3 = ts(), ts(), ts()
+
+        # Grant one of these requests.
+        requests = {'foo/1': {lock: ts1},
+                    'foo/2': {lock: ts2},
+                    'foo/3': {lock: ts3}}
+        c.requests = requests.copy()
+        # Because the existing grant should be released.
+        c.grants = {'foo/2': {lock: ts()}}  # No request, release.
+
+        with patch.object(c, 'grant') as grant:
+            c.handle()
+
+            # The requests are unchanged. This is normally state on the
+            # peer relation, and only the units themselves can change it.
+            self.assertDictEqual(requests, c.requests)
+
+            # The grant without a corresponding requests was released.
+            self.assertDictEqual({'foo/2': {}}, c.grants)
+
+            # A potential grant was made for each of the outstanding requests.
+            grant.assert_has_calls([call(lock, 'foo/1'),
+                                    call(lock, 'foo/2'),
+                                    call(lock, 'foo/3')], any_order=True)
+
+    def test_grant_not_leader(self):
+        c = coordinator.BaseCoordinator()
+        c.grant(sentinel.whatever, sentinel.whatever)  # Nothing happens.
+
+    def test_grant(self):
+        hookenv.is_leader.return_value = True
+        c = coordinator.BaseCoordinator()
+        c.default_grant = MagicMock()
+        c.grant_other = MagicMock()
+
+        ts = coordinator._timestamp
+        ts1, ts2 = ts(), ts()
+
+        c.requests = {'foo/1': {'mylock': ts1, 'other': ts()},
+                      'foo/2': {'mylock': ts2},
+                      'foo/3': {'mylock': ts()}}
+        grants = {'foo/1': {'mylock': ts1}}
+        c.grants = grants.copy()
+
+        # foo/1 already has a granted mylock, so returns True.
+        self.assertTrue(c.grant('mylock', 'foo/1'))
+
+        # foo/2 does not have a granted mylock. default_grant will
+        # be called to make a decision (no)
+        c.default_grant.return_value = False
+        self.assertFalse(c.grant('mylock', 'foo/2'))
+        self.assertDictEqual(grants, c.grants)
+        c.default_grant.assert_called_once_with('foo/2',
+                                                set(['foo/1']),
+                                                ['foo/2', 'foo/3'])
+        c.default_grant.reset_mock()
+
+        # Lets say yes.
+        c.default_grant.return_value = True
+        self.assertTrue(c.grant('mylock', 'foo/2'))
+        grants = {'foo/1': {'mylock': ts1}, 'foo/2': {'mylock': ts2}}
+        self.assertDictEqual(grants, c.grants)
+        c.default_grant.assert_called_once_with('foo/2',
+                                                set(['foo/1']),
+                                                ['foo/2', 'foo/3'])
+
+        # The other lock has custom logic, in the form of the overridden
+        # grant_other method.
+        c.grant_other.return_value = False
+        self.assertFalse(c.grant('other', 'foo/1'))
+        c.grant_other.assert_called_once_with('foo/1', set(), ['foo/1'])
+
+    def test_require(self):
+        c = coordinator.BaseCoordinator()
+        unit = hookenv.local_unit()
+        c.acquire = MagicMock()
+        c.granted = MagicMock()
+        guard = MagicMock()
+
+        wrapped = MagicMock()
+
+        @c.require('mylock', guard)
+        def func(*args, **kw):
+            wrapped(*args, **kw)
+
+        # If the lock is granted, the wrapped function is called.
+        c.granted.return_value = True
+        func(arg=True)
+        wrapped.assert_called_once_with(arg=True)
+        wrapped.reset_mock()
+
+        # If the lock is not granted, and the guard returns False,
+        # the lock is not acquired.
+        c.acquire.return_value = False
+        c.granted.return_value = False
+        guard.return_value = False
+        func()
+        self.assertFalse(wrapped.called)
+        self.assertFalse(c.acquire.called)
+
+        # If the lock is not granted, and the guard returns True,
+        # the lock is acquired. But the function still isn't called if
+        # it cannot be acquired immediately.
+        guard.return_value = True
+        func()
+        self.assertFalse(wrapped.called)
+        c.acquire.assert_called_once_with('mylock')
+
+        # Finally, if the lock is not granted, and the guard returns True,
+        # and the lock acquired immediately, the function is called.
+        c.acquire.return_value = True
+        func(sentinel.arg)
+        wrapped.assert_called_once_with(sentinel.arg)
+
+    def test_msg(self):
+        c = coordinator.BaseCoordinator()
+        # Just a wrapper around hookenv.log
+        c.msg('hi')
+        hookenv.log.assert_called_once_with('coordinator.BaseCoordinator hi',
+                                            level=hookenv.INFO)
+
+    def test_name(self):
+        # We use the class name in a few places to avoid conflicts.
+        # We assume we won't be using multiple BaseCoordinator subclasses
+        # with the same name at the same time.
+        c = coordinator.BaseCoordinator()
+        self.assertEqual(c._name(), 'BaseCoordinator')
+        c = coordinator.Serial()
+        self.assertEqual(c._name(), 'Serial')
+
+    @patch.object(hookenv, 'leader_get')
+    def test_load_state(self, leader_get):
+        c = coordinator.BaseCoordinator()
+        unit = hookenv.local_unit()
+
+        # c.granted is just the leader_get decoded.
+        leader_get.return_value = '{"json": true}'
+        c._load_state()
+        self.assertDictEqual(c.grants, {'json': True})
+
+        # With no relid, there is no peer relation so request state
+        # is pulled from a local stash.
+        with patch.object(c, '_load_local_state') as loc_state:
+            loc_state.return_value = {'local': True}
+            c._load_state()
+            self.assertDictEqual(c.requests, {unit: {'local': True}})
+
+        # With a relid, request details are pulled from the peer relation.
+        # If there is no data in the peer relation from the local unit,
+        # we still pull it from the local stash as it means this is the
+        # first time we have joined.
+        c.relid = 'cluster:1'
+        with patch.object(c, '_load_local_state') as loc_state, \
+                patch.object(c, '_load_peer_state') as peer_state:
+            loc_state.return_value = {'local': True}
+            peer_state.return_value = {'foo/2': {'mylock': 'whatever'}}
+            c._load_state()
+            self.assertDictEqual(c.requests, {unit: {'local': True},
+                                              'foo/2': {'mylock': 'whatever'}})
+
+        # If there are local details in the peer relation, the local
+        # stash is ignored.
+        with patch.object(c, '_load_local_state') as loc_state, \
+                patch.object(c, '_load_peer_state') as peer_state:
+            loc_state.return_value = {'local': True}
+            peer_state.return_value = {unit: {},
+                                       'foo/2': {'mylock': 'whatever'}}
+            c._load_state()
+            self.assertDictEqual(c.requests, {unit: {},
+                                              'foo/2': {'mylock': 'whatever'}})
+
+    @patch.object(hookenv, 'relation_get')
+    @patch.object(hookenv, 'related_units')
+    def test_load_peer_state(self, related_units, relation_get):
+        # Standard relation-get loops, decoding results from JSON.
+        c = coordinator.BaseCoordinator()
+        c.key = sentinel.key
+        c.relid = sentinel.relid
+        related_units.return_value = ['foo/2', 'foo/3']
+        d = {'foo/1': {'foo/1': True},
+             'foo/2': {'foo/2': True},
+             'foo/3': {'foo/3': True}}
+
+        def _get(key, unit, relid):
+            assert key == sentinel.key
+            assert relid == sentinel.relid
+            return json.dumps(d[unit])
+        relation_get.side_effect = _get
+
+        self.assertDictEqual(c._load_peer_state(), d)
+
+        
     def test_implicit_peer_relation_name(self):
         self.assertEqual(coordinator._implicit_peer_relation_name(),
                          'cluster')
