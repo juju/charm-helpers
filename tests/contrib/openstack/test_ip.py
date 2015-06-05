@@ -7,7 +7,8 @@ TO_PATCH = [
     'config',
     'unit_get',
     'get_address_in_network',
-    'is_clustered'
+    'is_clustered',
+    'service_name',
 ]
 
 
@@ -94,6 +95,25 @@ class IPTestCase(TestCase):
         self.test_config.set('vip', '10.5.3.1')
         self.assertRaises(ValueError, ip.resolve_address)
 
+    def test_resolve_address_override(self):
+        self.test_config.set('os-public-hostname', 'public.example.com')
+        addr = ip.resolve_address()
+        self.assertEqual('public.example.com', addr)
+
+    def test_resolve_address_override_template(self):
+        self.test_config.set('os-public-hostname',
+                             '{service_name}.example.com')
+        self.service_name.return_value = 'foo'
+        addr = ip.resolve_address()
+        self.assertEqual('foo.example.com', addr)
+
+    @patch.object(ip, 'get_ipv6_addr', lambda *args, **kwargs: ['::1'])
+    def test_resolve_address_ipv6_fallback(self):
+        self.test_config.set('prefer-ipv6', True)
+        self.is_clustered.return_value = False
+        ip.resolve_address()
+        self.get_address_in_network.assert_called_with(None, '::1')
+
     @patch.object(ip, 'resolve_address')
     def test_canonical_url_http(self, resolve_address):
         resolve_address.return_value = 'unit1'
@@ -110,31 +130,8 @@ class IPTestCase(TestCase):
         self.assertTrue(ip.canonical_url(configs),
                         'https://unit1')
 
-    def test_endpoint_url(self):
-        exp_url = 'https://public.example.com'
-        self.test_config.set('public-url', exp_url)
-        configs = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        endpoint = ip.endpoint_url(configs, '%s:%s', 443, ip.PUBLIC,
-                                   'public-url')
-        self.assertEqual(exp_url, endpoint)
-
+    @patch.object(ip, 'is_ipv6', lambda *args: True)
     @patch.object(ip, 'resolve_address')
-    def test_endpoint_url_no_override(self, resolve_address):
+    def test_canonical_url_ipv6(self, resolve_address):
         resolve_address.return_value = 'unit1'
-        configs = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        endpoint = ip.endpoint_url(configs, '%s:%s/v1/AUTH_$(tenant_id)s', 443,
-                                   ip.INTERNAL, 'internal-url')
-        self.assertEqual('https://unit1:443/v1/AUTH_$(tenant_id)s', endpoint)
-
-    @patch.object(ip, 'resolve_address')
-    @patch.object(ip, 'is_ipv6')
-    def test_endpoint_url_no_override_ipv6(self, is_ipv6, resolve_address):
-        resolve_address.return_value = 'unit1'
-        is_ipv6.return_value = True
-        configs = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        endpoint = ip.endpoint_url(configs, '%s:%s', 443,
-                                   ip.ADMIN, 'admin-url')
-        self.assertEquals('https://[unit1]:443', endpoint)
+        self.assertTrue(ip.canonical_url(None), 'http://[unit1]')

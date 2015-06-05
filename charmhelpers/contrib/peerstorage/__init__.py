@@ -14,14 +14,19 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import six
+
 from charmhelpers.core.hookenv import relation_id as current_relation_id
 from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
-    relation_get,
+    relation_get as _relation_get,
     local_unit,
-    relation_set,
+    relation_set as _relation_set,
+    leader_get as _leader_get,
+    leader_set,
+    is_leader,
 )
 
 
@@ -52,6 +57,105 @@ def some_hook():
     else:
         print "No peers joind the relation, cannot share key/values :("
 """
+
+
+def leader_get(attribute=None):
+    """Wrapper to ensure that settings are migrated from the peer relation.
+
+    This is to support upgrading an environment that does not support
+    Juju leadership election to one that does.
+
+    If a setting is not extant in the leader-get but is on the relation-get
+    peer rel, it is migrated and marked as such so that it is not re-migrated.
+    """
+    migration_key = '__leader_get_migrated_settings__'
+    if not is_leader():
+        return _leader_get(attribute=attribute)
+
+    settings_migrated = False
+    leader_settings = _leader_get(attribute=attribute)
+    previously_migrated = _leader_get(attribute=migration_key)
+
+    if previously_migrated:
+        migrated = set(json.loads(previously_migrated))
+    else:
+        migrated = set([])
+
+    try:
+        if migration_key in leader_settings:
+            del leader_settings[migration_key]
+    except TypeError:
+        pass
+
+    if attribute:
+        if attribute in migrated:
+            return leader_settings
+
+        # If attribute not present in leader db, check if this unit has set
+        # the attribute in the peer relation
+        if not leader_settings:
+            peer_setting = relation_get(attribute=attribute, unit=local_unit())
+            if peer_setting:
+                leader_set(settings={attribute: peer_setting})
+                leader_settings = peer_setting
+
+        if leader_settings:
+            settings_migrated = True
+            migrated.add(attribute)
+    else:
+        r_settings = relation_get(unit=local_unit())
+        if r_settings:
+            for key in set(r_settings.keys()).difference(migrated):
+                # Leader setting wins
+                if not leader_settings.get(key):
+                    leader_settings[key] = r_settings[key]
+
+                settings_migrated = True
+                migrated.add(key)
+
+            if settings_migrated:
+                leader_set(**leader_settings)
+
+    if migrated and settings_migrated:
+        migrated = json.dumps(list(migrated))
+        leader_set(settings={migration_key: migrated})
+
+    return leader_settings
+
+
+def relation_set(relation_id=None, relation_settings=None, **kwargs):
+    """Attempt to use leader-set if supported in the current version of Juju,
+    otherwise falls back on relation-set.
+
+    Note that we only attempt to use leader-set if the provided relation_id is
+    a peer relation id or no relation id is provided (in which case we assume
+    we are within the peer relation context).
+    """
+    try:
+        if relation_id in relation_ids('cluster'):
+            return leader_set(settings=relation_settings, **kwargs)
+        else:
+            raise NotImplementedError
+    except NotImplementedError:
+        return _relation_set(relation_id=relation_id,
+                             relation_settings=relation_settings, **kwargs)
+
+
+def relation_get(attribute=None, unit=None, rid=None):
+    """Attempt to use leader-get if supported in the current version of Juju,
+    otherwise falls back on relation-get.
+
+    Note that we only attempt to use leader-get if the provided rid is a peer
+    relation id or no relation id is provided (in which case we assume we are
+    within the peer relation context).
+    """
+    try:
+        if rid in relation_ids('cluster'):
+            return leader_get(attribute)
+        else:
+            raise NotImplementedError
+    except NotImplementedError:
+        return _relation_get(attribute=attribute, rid=rid, unit=unit)
 
 
 def peer_retrieve(key, relation_name='cluster'):
@@ -98,12 +202,26 @@ def peer_store(key, value, relation_name='cluster'):
                          'peer relation {}'.format(relation_name))
 
 
-def peer_echo(includes=None):
+def peer_echo(includes=None, force=False):
     """Echo filtered attributes back onto the same relation for storage.
 
     This is a requirement to use the peerstorage module - it needs to be called
     from the peer relation's changed hook.
+
+    If Juju leader support exists this will be a noop unless force is True.
     """
+    try:
+        is_leader()
+    except NotImplementedError:
+        pass
+    else:
+        if not force:
+            return  # NOOP if leader-election is supported
+
+    # Use original non-leader calls
+    relation_get = _relation_get
+    relation_set = _relation_set
+
     rdata = relation_get()
     echo_data = {}
     if includes is None:
