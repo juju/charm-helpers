@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import json
 import tempfile
 import unittest
-from unittest.mock import call, MagicMock, patch, sentinel
+from mock import call, MagicMock, patch, sentinel
 
 from charmhelpers import coordinator
 from charmhelpers.core import hookenv
