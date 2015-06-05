@@ -45,6 +45,12 @@ class TestCoordinator(unittest.TestCase):
         install(patch.object(coordinator, '_timestamp',
                              side_effect=self._timestamp))
 
+    _last_utcnow = datetime.utcnow()
+
+    def _timestamp(self, ts=coordinator._timestamp):
+        self._last_utcnow += timedelta(hours=1)
+        return ts(lambda: self._last_utcnow)
+
     def test_is_singleton(self):
         # BaseCoordinator and subclasses are singletons. Placing this
         # burden on charm authors is impractical, particularly if
@@ -57,7 +63,7 @@ class TestCoordinator(unittest.TestCase):
         self.assertTrue(coordinator.Serial() is coordinator.Serial())
         self.assertFalse(coordinator.BaseCoordinator() is coordinator.Serial())
 
-    @patch('charmhelpers.core.hookenv.atstart')
+    @patch.object(hookenv, 'atstart')
     def test_implicit_initialize_and_handle(self, atstart):
         # When you construct a BaseCoordinator(), its initialize() and
         # handle() method are invoked automatically every hook. This
@@ -504,9 +510,3 @@ class TestCoordinator(unittest.TestCase):
         # Lock already granted
         self.assertFalse(c.default_grant(sentinel.u1, set([sentinel.u2]),
                                          [sentinel.u1]))
-
-    _last_utcnow = datetime.utcnow()
-
-    def _timestamp(self, ts=coordinator._timestamp):
-        self._last_utcnow += timedelta(hours=1)
-        return ts(lambda: self._last_utcnow)
