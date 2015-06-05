@@ -62,7 +62,7 @@ For example::
 
 
 You can implement a similar pattern using a decorator. If the lock has
-not been granted, an attempt to aquire() it will be made if the guard
+not been granted, an attempt to acquire() it will be made if the guard
 function returns True. If the lock has been granted, the decorated function
 is run as normal::
 
@@ -132,7 +132,7 @@ For example::
 
 
 You can also use the require decorator. If the lock has not been granted,
-an attempt to aquire() it will be made if the guard function returns True.
+an attempt to acquire() it will be made if the guard function returns True.
 If the lock has been granted, the decorated function is run as normal::
 
     from charmhelpers.core import hookenv
@@ -279,7 +279,7 @@ class BaseCoordinator(object):
 
         # If the leader has granted the lock, yay.
         if self.granted(lock):
-            self.msg('Aquired {}'.format(lock))
+            self.msg('Acquired {}'.format(lock))
             return True
 
         # If the unit making the request also happens to be the
@@ -381,7 +381,7 @@ class BaseCoordinator(object):
                     self.msg('Granted {}'.format(lock))
                     return f(*args, **kw)
                 if guard_func(*guard_args, **guard_kw):
-                    if self.aquire(lock):
+                    if self.acquire(lock):
                         self.msg('Acquired {}'.format(lock))
                         return f(*args, **kw)
                     else:
