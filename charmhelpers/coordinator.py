@@ -221,9 +221,14 @@ from functools import wraps
 import json
 import os.path
 
+from six import with_metaclass
+
 from charmhelpers.core import hookenv
 
 
+# We make BaseCoordinator and subclasses singletons, so that if we
+# need to spill to local storage then only a single instance does so,
+# rather than having multiple instances stomp over each other.
 class Singleton(type):
     _instances = {}
 
@@ -234,12 +239,7 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class BaseCoordinator(object):
-    # We make BaseCoordinator and subclasses singletons, so that if we
-    # need to spill to local storage then only a single instance does so,
-    # rather than having multiple instances stomp over each other.
-    __metaclass__ = Singleton
-
+class BaseCoordinator(with_metaclass(Singleton, object)):
     relid = None  # Peer relation-id, set by __init__
     relname = None
 
@@ -259,12 +259,39 @@ class BaseCoordinator(object):
         # the constructor makes testing hard.
         self.key = relation_key
         self.relname = peer_relation_name
+        hookenv.atstart(self.initialize)
 
         # Ensure that handle() is called, without placing that burden on
         # the charm author. They still need to do this manually if they
         # are not using a hook framework. Handle also invokes all the
         # deferred initialization.
         hookenv.atstart(self.handle)
+
+    def initialize(self):
+        if self.requests is not None:
+            return  # Already initialized.
+
+        assert hookenv.has_juju_version('1.23'), 'Needs Juju 1.23+'
+
+        if self.relname is None:
+            self.relname = _implicit_peer_relation_name()
+
+        relids = hookenv.relation_ids(self.relname)
+        if relids:
+            self.relid = sorted(relids)[0]
+
+        # Load our state, from leadership, the peer relationship, and maybe
+        # local state as a fallback. Populates self.requests and self.grants.
+        self._load_state()
+
+        # Save our state if the hook completes successfully.
+        hookenv.atexit(self._save_state)
+
+        # Schedule release of granted locks for the end of the hook.
+        # This needs to be the last of our atexit callbacks to ensure
+        # it will be run first when the hook is complete, because there
+        # is no point mutating our state after it has been saved.
+        hookenv.atexit(self._release_granted)
 
     def acquire(self, lock):
         '''Acquire the named lock, non-blocking.
@@ -311,9 +338,20 @@ class BaseCoordinator(object):
             return True
         return False
 
-    def handle(self):
-        self._initialize()
+    def requested(self, lock):
+        '''Return True if we are in the queue for the lock'''
+        return lock in self.requests[hookenv.local_unit()]
 
+    def request_timestamp(self, lock):
+        '''Return the timestamp of our outstanding request for lock, or None.
+        
+        Returns a datetime.datetime() UTC timestamp, with no tzinfo attribute.
+        '''
+        ts = self.requests[hookenv.local_unit()].get(lock, None)
+        if ts is not None:
+            return datetime.strptime(ts, _timestamp_format)
+
+    def handle(self):
         if not hookenv.is_leader():
             return  # Only the leader can grant requests.
 
@@ -405,35 +443,6 @@ class BaseCoordinator(object):
 
     def _name(self):
         return self.__class__.__name__
-
-    def _initialize(self):
-        if self.requests is not None:
-            return  # Already initialized.
-
-        if not hookenv.has_juju_version('1.23'):
-            hookenv.status_set('blocked',
-                               'charmhelpers.coordinator requires Juju 1.23+')
-            raise SystemExit(0)
-
-        if self.relname is None:
-            self.relname = _implicit_peer_relation_name()
-
-        relids = hookenv.relation_ids(self.relname)
-        if relids:
-            self.relid = sorted(relids)[0]
-
-        # Load our state, from leadership, the peer relationship, and maybe
-        # local state as a fallback. Populates self.requests and self.grants.
-        self._load_state()
-
-        # Save our state if the hook completes successfully.
-        hookenv.atexit(self._save_state)
-
-        # Schedule release of granted locks for the end of the hook.
-        # This needs to be the last of our atexit callbacks to ensure
-        # it will be run first when the hook is complete, because there
-        # is no point mutating our state after it has been saved.
-        hookenv.atexit(self._release_granted)
 
     def _load_state(self):
         self.msg('Loading state'.format(self._name()))
@@ -548,10 +557,14 @@ class Serial(BaseCoordinator):
 
 def _implicit_peer_relation_name():
     md = hookenv.metadata()
+    assert 'peers' in md, str(md.keys())
     assert 'peers' in md, 'No peer relations in metadata.yaml'
     return sorted(md['peers'].keys())[0]
 
 
-def _timestamp():
-    '''A human readable yet sortable timestamp'''
-    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%fZ')
+# A human readable, sortable UTC timestamp format.
+_timestamp_format ='%Y-%m-%d %H:%M:%S.%fZ'
+
+
+def _timestamp(now=datetime.utcnow):
+    return now().strftime(_timestamp_format)
