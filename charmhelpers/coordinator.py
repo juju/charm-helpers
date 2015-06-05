@@ -482,16 +482,6 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
                 self.msg('New peer relation. Merging local state')
                 self.requests[local_unit] = self._load_local_state()
 
-    def _load_peer_state(self):
-        requests = {}
-        units = set(hookenv.related_units(self.relid))
-        units.add(hookenv.local_unit())
-        for unit in units:
-            raw = hookenv.relation_get(self.key, unit, self.relid)
-            if raw:
-                requests[unit] = json.loads(raw)
-        return requests
-
     def _save_state(self):
         self.msg('Publishing state'.format(self._name()))
         if hookenv.is_leader():
@@ -509,6 +499,16 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
             # sort_keys to ensure stability.
             raw = json.dumps(self.requests[local_unit], sort_keys=True)
             hookenv.relation_set(self.relid, relation_settings={self.key: raw})
+
+    def _load_peer_state(self):
+        requests = {}
+        units = set(hookenv.related_units(self.relid))
+        units.add(hookenv.local_unit())
+        for unit in units:
+            raw = hookenv.relation_get(self.key, unit, self.relid)
+            if raw:
+                requests[unit] = json.loads(raw)
+        return requests
 
     def _local_state_filename(self):
         # Include the class name. We allow multiple BaseCoordinator

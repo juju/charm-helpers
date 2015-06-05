@@ -15,6 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 from datetime import datetime, timedelta
 import json
+import tempfile
 import unittest
 from unittest.mock import call, MagicMock, patch, sentinel
 
@@ -97,6 +98,11 @@ class TestCoordinator(unittest.TestCase):
         with patch.object(c, '_load_state'):
             c.initialize()
         self.assertEqual(c.relid, 'cluster:1')
+
+        # If we are already initialized, nothing happens.
+        c.grants = {}
+        c.requests = {}
+        c.initialize()
 
     def test_acquire(self):
         c = coordinator.BaseCoordinator()
@@ -290,6 +296,11 @@ class TestCoordinator(unittest.TestCase):
         self.assertFalse(c.grant('other', 'foo/1'))
         c.grant_other.assert_called_once_with('foo/1', set(), ['foo/1'])
 
+        # If there is no request, grant returns False
+        c.grant_other.return_value = True
+        self.assertFalse(c.grant('other', 'foo/2'))
+
+
     def test_require(self):
         c = coordinator.BaseCoordinator()
         unit = hookenv.local_unit()
@@ -389,6 +400,37 @@ class TestCoordinator(unittest.TestCase):
             self.assertDictEqual(c.requests, {unit: {},
                                               'foo/2': {'mylock': 'whatever'}})
 
+    @patch.object(hookenv, 'relation_set')
+    @patch.object(hookenv, 'leader_set')
+    def test_save_state(self, leader_set, relation_set):
+        c = coordinator.BaseCoordinator()
+        unit = hookenv.local_unit()
+        c.grants = {'directdump': True}
+        c.requests = {unit: 'data1', 'foo/2': 'data2'}
+
+        # grants is dumped to leadership settings, if the unit is leader.
+        with patch.object(c, '_save_local_state') as save_loc:
+            c._save_state()
+            self.assertFalse(leader_set.called)
+            hookenv.is_leader.return_value = True
+            c._save_state()
+            leader_set.assert_called_once_with({c.key: '{"directdump": true}'})
+
+        # If there is no relation id, the local units requests is dumped
+        # to a local stash.
+        with patch.object(c, '_save_local_state') as save_loc:
+            c._save_state()
+            save_loc.assert_called_once_with('data1')
+
+        # If there is a relation id, the local units requests is dumped
+        # to the peer relation.
+        with patch.object(c, '_save_local_state') as save_loc:
+            c.relid = 'cluster:1'
+            c._save_state()
+            self.assertFalse(save_loc.called)
+            relation_set.assert_called_once_with(
+                c.relid, relation_settings={c.key: '"data1"'})  # JSON encoded
+
     @patch.object(hookenv, 'relation_get')
     @patch.object(hookenv, 'related_units')
     def test_load_peer_state(self, related_units, relation_get):
@@ -409,10 +451,59 @@ class TestCoordinator(unittest.TestCase):
 
         self.assertDictEqual(c._load_peer_state(), d)
 
-        
+    def test_local_state_filename(self):
+        c = coordinator.BaseCoordinator()
+        self.assertEqual(c._local_state_filename(),
+                         '.charmhelpers.coordinator.BaseCoordinator')
+
+    def test_load_local_state(self):
+        c = coordinator.BaseCoordinator()
+        with tempfile.NamedTemporaryFile(mode='w') as f:
+            with patch.object(c, '_local_state_filename') as fn:
+                fn.return_value = f.name
+                d = 'some data'
+                json.dump(d, f)
+                f.flush()
+                d2 = c._load_local_state()
+                self.assertEqual(d, d2)
+
+    def test_save_local_state(self):
+        c = coordinator.BaseCoordinator()
+        with tempfile.NamedTemporaryFile(mode='r') as f:
+            with patch.object(c, '_local_state_filename') as fn:
+                fn.return_value = f.name
+                c._save_local_state('some data')
+                self.assertEqual(json.load(f), 'some data')
+
+    def test_release_granted(self):
+        c = coordinator.BaseCoordinator()
+        unit = hookenv.local_unit()
+        c.requests = {unit: {'lock1': sentinel.ts, 'lock2': sentinel.ts},
+                      'foo/2': {'lock1': sentinel.ts}}
+        c.grants = {unit: {'lock1': sentinel.ts},
+                    'foo/2': {'lock1': sentinel.ts}}
+        # The granted lock for the local unit is released.
+        c._release_granted()
+        self.assertDictEqual(c.requests, {unit: {'lock2': sentinel.ts},
+                                          'foo/2': {'lock1': sentinel.ts}})
+
     def test_implicit_peer_relation_name(self):
         self.assertEqual(coordinator._implicit_peer_relation_name(),
                          'cluster')
+
+    def test_default_grant(self):
+        c = coordinator.Serial()
+        # Lock not granted. First in the queue.
+        self.assertTrue(c.default_grant(sentinel.u1, set(),
+                                        [sentinel.u1, sentinel.u2]))
+
+        # Lock not granted. Later in the queue.
+        self.assertFalse(c.default_grant(sentinel.u1, set(),
+                                         [sentinel.u2, sentinel.u1]))
+
+        # Lock already granted
+        self.assertFalse(c.default_grant(sentinel.u1, set([sentinel.u2]),
+                                         [sentinel.u1]))
 
     _last_utcnow = datetime.utcnow()
 
