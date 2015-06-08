@@ -42,14 +42,14 @@ class TestCoordinator(unittest.TestCase):
         install(patch.object(hookenv, 'log'))
 
         # Ensure _timestamp always increases.
-        install(patch.object(coordinator, '_timestamp',
-                             side_effect=self._timestamp))
+        install(patch.object(coordinator, '_utcnow',
+                             side_effect=self._utcnow))
 
-    _last_utcnow = datetime.utcnow()
+    _last_utcnow = datetime(2015, 1, 1, 00, 00)
 
-    def _timestamp(self, ts=coordinator._timestamp):
-        self._last_utcnow += timedelta(hours=1)
-        return ts(lambda: self._last_utcnow)
+    def _utcnow(self, ts=coordinator._timestamp):
+        self._last_utcnow += timedelta(minutes=1)
+        return self._last_utcnow
 
     def test_is_singleton(self):
         # BaseCoordinator and subclasses are singletons. Placing this
@@ -304,6 +304,13 @@ class TestCoordinator(unittest.TestCase):
         # If there is no request, grant returns False
         c.grant_other.return_value = True
         self.assertFalse(c.grant('other', 'foo/2'))
+
+    def test_released(self):
+        c = coordinator.BaseCoordinator()
+        with patch.object(c, 'msg') as msg:
+            c.released('foo/2', 'mylock', coordinator._utcnow())
+            expected = 'Leader released mylock from foo/2, held 0:01:00'
+            msg.assert_called_once_with(expected)
 
     def test_require(self):
         c = coordinator.BaseCoordinator()
