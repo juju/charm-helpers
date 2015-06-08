@@ -269,8 +269,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
         # Ensure that handle() is called, without placing that burden on
         # the charm author. They still need to do this manually if they
-        # are not using a hook framework. Handle also invokes all the
-        # deferred initialization.
+        # are not using a hook framework.
         hookenv.atstart(self.handle)
 
     def initialize(self):
@@ -375,8 +374,10 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
                     # to reacquire it. This will change the timestamp,
                     # and we correctly revoke the old grant putting it
                     # to the end of the queue.
-                    self.msg('Leader releases {} from {}'.format(lock, unit))
+                    ts = datetime.strptime(self.grants[unit][lock],
+                                           _timestamp_format)
                     del self.grants[unit][lock]
+                    self.released(unit, lock, ts)
 
         # Grant locks
         for unit in self.requests.keys():
@@ -424,6 +425,17 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
             return True
 
         return False
+
+    def released(self, unit, lock, timestamp):
+        '''Called on the leader when it has released a lock.
+
+        By default, does nothing but log messages. Override if you
+        need to perform additional housekeeping when a lock is released,
+        for example recording timestamps.
+        '''
+        interval = _utcnow() - timestamp
+        self.msg('Leader released {} from {}, held {}'.format(lock, unit,
+                                                              interval))
 
     def require(self, lock, guard_func, *guard_args, **guard_kw):
         """Decorate a function to be run only when a lock is acquired.
@@ -577,5 +589,10 @@ def _implicit_peer_relation_name():
 _timestamp_format = '%Y-%m-%d %H:%M:%S.%fZ'
 
 
-def _timestamp(now=datetime.utcnow):
-    return now().strftime(_timestamp_format)
+def _utcnow():
+    # This wrapper exists as mocking datetime methods is problematic.
+    return datetime.utcnow()
+
+
+def _timestamp():
+    return _utcnow().strftime(_timestamp_format)
