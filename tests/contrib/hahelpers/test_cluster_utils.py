@@ -1,4 +1,3 @@
-
 from mock import patch, MagicMock, call
 
 from subprocess import CalledProcessError
@@ -22,6 +21,18 @@ Online: [ juju-trusty-machine-1 juju-trusty-machine-2 juju-trusty-machine-3 ]
       res_mysql_vip      (ocf::heartbeat:IPaddr2):       Started juju-trusty-machine-1
        Clone Set: cl_mysql_monitor [res_mysql_monitor]
             Started: [ juju-trusty-machine-1 juju-trusty-machine-2 juju-trusty-machine-3 ]
+'''
+
+CRM_DC_NONE = b'''
+Last updated: Thu May 14 14:46:35 2015
+Last change: Thu May 14 14:43:51 2015 via crmd on juju-trusty-machine-1
+Stack: corosync
+Current DC: NONE
+1 Nodes configured, 2 expected votes
+0 Resources configured
+
+
+Node node1: UNCLEAN (offline)
 '''
 
 
@@ -68,8 +79,11 @@ class ClusterUtilsTests(TestCase):
     @patch('subprocess.check_output')
     def test_is_crm_dc_no_cluster(self, check_output):
         '''It is not leader if there is no cluster up'''
-        check_output.side_effect = CalledProcessError(1, 'crm')
-        self.assertFalse(cluster_utils.is_crm_dc())
+        def r(*args, **kwargs):
+            raise CalledProcessError(1, 'crm')
+
+        check_output.side_effect = r
+        self.assertRaises(cluster_utils.CRMDCNotFound, cluster_utils.is_crm_dc)
 
     @patch('subprocess.check_output')
     def test_is_crm_dc_false(self, check_output):
@@ -77,6 +91,13 @@ class ClusterUtilsTests(TestCase):
         self.get_unit_hostname.return_value = 'juju-trusty-machine-1'
         check_output.return_value = CRM_STATUS
         self.assertFalse(cluster_utils.is_crm_dc())
+
+    @patch('subprocess.check_output')
+    def test_is_crm_dc_current_none(self, check_output):
+        '''It determines its unit is leader'''
+        self.get_unit_hostname.return_value = 'juju-trusty-machine-1'
+        check_output.return_value = CRM_DC_NONE
+        self.assertRaises(cluster_utils.CRMDCNotFound, cluster_utils.is_crm_dc)
 
     @patch('subprocess.check_output')
     def test_is_crm_leader(self, check_output):
