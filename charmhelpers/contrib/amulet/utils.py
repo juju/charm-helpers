@@ -15,13 +15,13 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import ConfigParser
+import distro_info
 import io
 import logging
 import re
+import six
 import sys
 import time
-
-import six
 
 
 class AmuletUtils(object):
@@ -33,6 +33,7 @@ class AmuletUtils(object):
 
     def __init__(self, log_level=logging.ERROR):
         self.log = self.get_logger(level=log_level)
+        self.ubuntu_releases = self.get_ubuntu_releases()
 
     def get_logger(self, name="amulet-logger", level=logging.DEBUG):
         """Get a logger object that will log to stdout."""
@@ -70,17 +71,126 @@ class AmuletUtils(object):
         else:
             return False
 
+    def get_ubuntu_release_from_sentry(self, sentry_unit):
+        """Get Ubuntu release codename from sentry unit"""
+        msg = None
+        cmd = 'lsb_release -cs'
+        release, code = sentry_unit.run(cmd)
+        if code == 0:
+            self.log.debug('{} lsb_release: {}'.format(
+                sentry_unit.info['unit_name'], release))
+        else:
+            msg = ('{} `{}` returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, release, code))
+        if release not in self.ubuntu_releases:
+            msg = ("Release ({}) not found in Ubuntu releases "
+                   "({})".format(release, self.ubuntu_releases))
+        return release, msg
+
+    def normalize_service_check_command(self, series, cmd):
+        """Normalize a service check command with init system logic,
+           providing backward compatibility for tests which presume
+           a specific init system is present.
+        """
+        # NOTE(beisner): this work-around is intended to be a temporary
+        # unblocker of vivid, wily and later tests.  See deprecation
+        # warning on validate_services().
+        systemd_switch = self.ubuntu_releases.index('vivid')
+
+        # Preserve sudo usage and strip it out if present
+        if cmd.startswith('sudo '):
+            sudo_if_sudo, cmd = cmd[:5], cmd[5:]
+        else:
+            sudo_if_sudo = ''
+
+        # Guess the service name
+        cmd_words = list(set(cmd.split()))
+        for remove_items in ['status', 'service']:
+            if remove_items in cmd_words:
+                cmd_words.remove(remove_items)
+        service_name = cmd_words[0]
+        self.log.debug('Service name: {}'.format(service_name))
+
+        if (cmd.startswith('status') and
+                self.ubuntu_releases.index(series) >= systemd_switch):
+            # systemd init expected, but upstart command found
+            self.log.debug('Correcting for an upstart command '
+                           'on a systemd release')
+            return '{}{} {} {}'.format(sudo_if_sudo, 'service',
+                                       service_name, 'status')
+        elif (cmd.startswith('service') and
+                self.ubuntu_releases.index(series) < systemd_switch):
+            # upstart init expected, but systemd command found
+            self.log.debug('Correcting for a systemd command on '
+                           'an upstart release')
+            return '{}{} {}'.format(sudo_if_sudo, 'status', service_name)
+        return cmd
+
     def validate_services(self, commands):
         """Validate services.
 
            Verify the specified services are running on the corresponding
            service units.
            """
+        self.log.debug('Checking status of system services...')
+
+        # /!\ DEPRECATION WARNING (beisner):
+        # This method is present to preserve functionality
+        # of older tests which presume upstart init system, until they are
+        # rewritten to use validate_services_by_name().
+        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+                      'validate_services_by_name instead of validate_services '
+                      'due to init system differences.')
+
         for k, v in six.iteritems(commands):
             for cmd in v:
-                output, code = k.run(cmd)
+
+                # Ask unit for its Ubuntu release codename
+                release, ret = self.get_ubuntu_release_from_sentry(k)
+                if ret:
+                    return ret
+
+                # Conditionally correct for init system assumptions
+                cmd_normalized = self.normalize_service_check_command(release,
+                                                                      cmd)
+                self.log.debug('Command, normalized with init logic: '
+                               '{}'.format(cmd_normalized))
+
+                output, code = k.run(cmd_normalized)
                 self.log.debug('{} `{}` returned '
                                '{}'.format(k.info['unit_name'],
+                                           cmd_normalized, code))
+                if code != 0:
+                    return "command `{}` returned {}".format(cmd, str(code))
+        return None
+
+    def validate_services_by_name(self, sentry_services):
+        """Validate system service status by service name, automatically
+           detecting init system based on Ubuntu release codename."""
+        self.log.debug('Checking status of system services...')
+
+        # Point at which systemd became a thing
+        systemd_switch = self.ubuntu_releases.index('vivid')
+
+        for sentry_unit, services_list in six.iteritems(sentry_services):
+            # Get lsb_release codename from unit
+            release, ret = self.get_ubuntu_release_from_sentry(sentry_unit)
+            if ret:
+                return ret
+
+            for service_name in services_list:
+                if (self.ubuntu_releases.index(release) >= systemd_switch or
+                        service_name == "rabbitmq-server"):
+                    # init is systemd
+                    cmd = 'sudo service {} status'.format(service_name)
+                elif self.ubuntu_releases.index(release) < systemd_switch:
+                    # init is upstart
+                    cmd = 'sudo status {}'.format(service_name)
+
+                output, code = sentry_unit.run(cmd)
+                self.log.debug('{} `{}` returned '
+                               '{}'.format(sentry_unit.info['unit_name'],
                                            cmd, code))
                 if code != 0:
                     return "command `{}` returned {}".format(cmd, str(code))
@@ -104,6 +214,9 @@ class AmuletUtils(object):
            Verify that the specified section of the config file contains
            the expected option key:value pairs.
            """
+        self.log.debug('Validating config file data ({} in {} on {})'
+                       '...'.format(section, config_file,
+                                    sentry_unit.info['unit_name']))
         config = self._get_config(sentry_unit, config_file)
 
         if section != 'DEFAULT' and not config.has_section(section):
@@ -321,3 +434,10 @@ class AmuletUtils(object):
 
     def endpoint_error(self, name, data):
         return 'unexpected endpoint data in {} - {}'.format(name, data)
+
+    def get_ubuntu_releases(self):
+        """Return a list of all Ubuntu releases in order of release."""
+        _d = distro_info.UbuntuDistroInfo()
+        _release_list = _d.all
+        self.log.debug('Ubuntu release list: {}'.format(_release_list))
+        return _release_list

@@ -25,7 +25,6 @@ import heatclient.v1.client as heat_client
 import keystoneclient.v2_0 as keystone_client
 import novaclient.v1_1.client as nova_client
 
-from time import sleep
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
@@ -53,6 +52,7 @@ class OpenStackAmuletUtils(AmuletUtils):
            are used to find the matching endpoint.
            """
         self.log.debug('Validating endpoint data...')
+        self.log.debug('actual: {}'.format(repr(endpoints)))
         found = False
         for ep in endpoints:
             self.log.debug('endpoint: {}'.format(repr(ep)))
@@ -384,7 +384,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                                                   resource_stat,
                                                   expected_stat,
                                                   resource_id))
-            sleep(4)
+            time.sleep(4)
             resource_stat = resource.get(resource_id).status
             tries += 1
 
