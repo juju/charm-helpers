@@ -79,6 +79,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('trusty', 'icehouse'),
     ('utopic', 'juno'),
     ('vivid', 'kilo'),
+    ('wily', 'liberty'),
 ])
 
 
@@ -91,6 +92,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2014.1', 'icehouse'),
     ('2014.2', 'juno'),
     ('2015.1', 'kilo'),
+    ('2015.2', 'liberty'),
 ])
 
 # The ugly duckling
@@ -113,6 +115,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.2.0', 'juno'),
     ('2.2.1', 'kilo'),
     ('2.2.2', 'kilo'),
+    ('2.3.0', 'liberty'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -321,6 +324,9 @@ def configure_installation_source(rel):
             'kilo': 'trusty-updates/kilo',
             'kilo/updates': 'trusty-updates/kilo',
             'kilo/proposed': 'trusty-proposed/kilo',
+            'liberty': 'trusty-updates/liberty',
+            'liberty/updates': 'trusty-updates/liberty',
+            'liberty/proposed': 'trusty-proposed/liberty',
         }
 
         try:
@@ -641,7 +647,8 @@ def _git_update_requirements(package_dir, reqs_dir):
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError:
         package = os.path.basename(package_dir)
-        error_out("Error updating {} from global-requirements.txt".format(package))
+        error_out("Error updating {} from "
+                  "global-requirements.txt".format(package))
     os.chdir(orig_dir)
 
 
