@@ -18,10 +18,12 @@ import ConfigParser
 import distro_info
 import io
 import logging
+import os
 import re
 import six
 import sys
 import time
+import urlparse
 
 
 class AmuletUtils(object):
@@ -399,3 +401,8 @@ class AmuletUtils(object):
         _release_list = _d.all
         self.log.debug('Ubuntu release list: {}'.format(_release_list))
         return _release_list
+
+    def file_to_url(self, file_rel_path):
+        """Convert a relative file path to a file URL."""
+        _abs_path = os.path.abspath(file_rel_path)
+        return urlparse.urlparse(_abs_path, scheme='file').geturl()
