@@ -72,7 +72,11 @@ class AmuletUtils(object):
             return False
 
     def get_ubuntu_release_from_sentry(self, sentry_unit):
-        """Get Ubuntu release codename from sentry unit"""
+        """Get Ubuntu release codename from sentry unit.
+
+        :param sentry_unit: amulet sentry/service unit pointer
+        :returns: list of strings - release codename, failure message
+        """
         msg = None
         cmd = 'lsb_release -cs'
         release, code = sentry_unit.run(cmd)
@@ -88,86 +92,40 @@ class AmuletUtils(object):
                    "({})".format(release, self.ubuntu_releases))
         return release, msg
 
-    def normalize_service_check_command(self, series, cmd):
-        """Normalize a service check command with init system logic,
-           providing backward compatibility for tests which presume
-           a specific init system is present.
-        """
-        # NOTE(beisner): this work-around is intended to be a temporary
-        # unblocker of vivid, wily and later tests.  See deprecation
-        # warning on validate_services().
-        systemd_switch = self.ubuntu_releases.index('vivid')
-
-        # Preserve sudo usage and strip it out if present
-        if cmd.startswith('sudo '):
-            sudo_if_sudo, cmd = cmd[:5], cmd[5:]
-        else:
-            sudo_if_sudo = ''
-
-        # Guess the service name
-        cmd_words = list(set(cmd.split()))
-        for remove_items in ['status', 'service']:
-            if remove_items in cmd_words:
-                cmd_words.remove(remove_items)
-        service_name = cmd_words[0]
-        self.log.debug('Service name: {}'.format(service_name))
-
-        if (cmd.startswith('status') and
-                self.ubuntu_releases.index(series) >= systemd_switch):
-            # systemd init expected, but upstart command found
-            self.log.debug('Correcting for an upstart command '
-                           'on a systemd release')
-            return '{}{} {} {}'.format(sudo_if_sudo, 'service',
-                                       service_name, 'status')
-        elif (cmd.startswith('service') and
-                self.ubuntu_releases.index(series) < systemd_switch):
-            # upstart init expected, but systemd command found
-            self.log.debug('Correcting for a systemd command on '
-                           'an upstart release')
-            return '{}{} {}'.format(sudo_if_sudo, 'status', service_name)
-        return cmd
-
     def validate_services(self, commands):
-        """Validate services.
-
-           Verify the specified services are running on the corresponding
+        """Validate that lists of commands succeed on service units.  Can be
+           used to verify system services are running on the corresponding
            service units.
-           """
+
+        :param command: dict with sentry keys and arbitrary command list values
+        :returns: None if successful, Failure string message otherwise
+        """
         self.log.debug('Checking status of system services...')
 
         # /!\ DEPRECATION WARNING (beisner):
-        # This method is present to preserve functionality
-        # of older tests which presume upstart init system, until they are
-        # rewritten to use validate_services_by_name().
+        # New and existing tests should be rewritten to use
+        # validate_services_by_name() as it is aware of init systems.
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
                       'validate_services_by_name instead of validate_services '
                       'due to init system differences.')
 
         for k, v in six.iteritems(commands):
             for cmd in v:
-
-                # Ask unit for its Ubuntu release codename
-                release, ret = self.get_ubuntu_release_from_sentry(k)
-                if ret:
-                    return ret
-
-                # Conditionally correct for init system assumptions
-                cmd_normalized = self.normalize_service_check_command(release,
-                                                                      cmd)
-                self.log.debug('Command, normalized with init logic: '
-                               '{}'.format(cmd_normalized))
-
-                output, code = k.run(cmd_normalized)
+                output, code = k.run(cmd)
                 self.log.debug('{} `{}` returned '
                                '{}'.format(k.info['unit_name'],
-                                           cmd_normalized, code))
+                                           cmd, code))
                 if code != 0:
                     return "command `{}` returned {}".format(cmd, str(code))
         return None
 
     def validate_services_by_name(self, sentry_services):
         """Validate system service status by service name, automatically
-           detecting init system based on Ubuntu release codename."""
+           detecting init system based on Ubuntu release codename.
+
+        :param sentry_resources: dict with sentry keys and svc list values
+        :returns: None if successful, Failure string message otherwise
+        """
         self.log.debug('Checking status of system services...')
 
         # Point at which systemd became a thing

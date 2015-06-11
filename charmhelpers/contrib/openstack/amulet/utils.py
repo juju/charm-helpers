@@ -325,6 +325,20 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         return True
 
+    def create_or_get_keypair(self, nova, keypair_name="testkey"):
+        """Create a new keypair, or return pointer if it already exists."""
+        try:
+            _keypair = nova.keypairs.get(keypair_name)
+            self.log.debug('Keypair ({}) already exists, '
+                           'using it.'.format(keypair_name))
+            return _keypair
+        except:
+            self.log.debug('Keypair ({}) does not exist, '
+                           'creating it.'.format(keypair_name))
+
+        _keypair = nova.keypairs.create(name=keypair_name)
+        return _keypair
+
     def delete_resource(self, resource, resource_id,
                         msg="resource", max_wait=120):
         """Delete one openstack resource, such as one instance, keypair,
