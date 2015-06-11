@@ -126,7 +126,6 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('utopic', None): self.utopic_juno,
             ('vivid', None): self.vivid_kilo,
             ('wily', None): self.wily_liberty}
-
         return releases[(self.series, self.openstack)]
 
     def _get_openstack_release_string(self):
