@@ -589,7 +589,7 @@ def _implicit_peer_relation_name():
 _timestamp_format = '%Y-%m-%d %H:%M:%S.%fZ'
 
 
-def _utcnow():
+def _utcnow():  # pragma: no cover
     # This wrapper exists as mocking datetime methods is problematic.
     return datetime.utcnow()
 
