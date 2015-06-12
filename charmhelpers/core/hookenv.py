@@ -746,7 +746,8 @@ def leader_get(attribute=None):
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def leader_set(settings=None, **kwargs):
     """Juju leader set value(s)"""
-    log("Juju leader-set '%s'" % (settings), level=DEBUG)
+    # Don't log secrets.
+    # log("Juju leader-set '%s'" % (settings), level=DEBUG)
     cmd = ['leader-set']
     settings = settings or {}
     settings.update(kwargs)
