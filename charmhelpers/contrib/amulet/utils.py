@@ -99,7 +99,7 @@ class AmuletUtils(object):
            used to verify system services are running on the corresponding
            service units.
 
-        :param commands: dict with sentry keys and arbitrary command list values
+        :param commands: dict with sentry keys and arbitrary command list vals
         :returns: None if successful, Failure string message otherwise
         """
         self.log.debug('Checking status of system services...')
