@@ -20,6 +20,7 @@ import six
 import time
 import urllib
 
+import cinderclient.v1.client as cinder_client
 import glanceclient.v1.client as glance_client
 import heatclient.v1.client as heat_client
 import keystoneclient.v2_0 as keystone_client
@@ -170,6 +171,15 @@ class OpenStackAmuletUtils(AmuletUtils):
         """Return True if tenant exists."""
         self.log.debug('Checking if tenant exists ({})...'.format(tenant))
         return tenant in [t.name for t in keystone.tenants.list()]
+
+    def authenticate_cinder_admin(self, keystone_sentry, username,
+                                  password, tenant):
+        """Authenticates admin user with cinder."""
+        service_ip = \
+            keystone_sentry.relation('shared-db',
+                                     'mysql:shared-db')['private-address']
+        ept = "http://{}:5000/v2.0".format(service_ip.strip().decode('utf-8'))
+        return cinder_client.Client(username, password, tenant, ept)
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
                                     tenant):
@@ -339,6 +349,20 @@ class OpenStackAmuletUtils(AmuletUtils):
         _keypair = nova.keypairs.create(name=keypair_name)
         return _keypair
 
+    def create_cinder_volume(self, cinder, vol_name="demo-vol", vol_size=1):
+        """Add and confirm a new volume, 1GB by default."""
+        self.log.debug('Creating volume ({}|{}GB)'.format(vol_name, vol_size))
+        vol_new = cinder.volumes.create(display_name=vol_name, size=1)
+        vol_id = vol_new.id
+        ret = self.resource_reaches_status(cinder.volumes, vol_id,
+                                           expected_stat="available",
+                                           msg="Create volume status wait")
+        if ret:
+            return vol_new
+        else:
+            self.log.error('Failed to create volume.')
+            return None
+
     def delete_resource(self, resource, resource_id,
                         msg="resource", max_wait=120):
         """Delete one openstack resource, such as one instance, keypair,
@@ -350,6 +374,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         :param max_wait: maximum wait time in seconds
         :returns: True if successful, otherwise False
         """
+        self.log.debug('Deleting OpenStack resource '
+                       '{} ({})'.format(resource_id, msg))
         num_before = len(list(resource.list()))
         resource.delete(resource_id)
 
