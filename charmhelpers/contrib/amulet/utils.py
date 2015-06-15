@@ -185,10 +185,23 @@ class AmuletUtils(object):
         for k in expected.keys():
             if not config.has_option(section, k):
                 return "section [{}] is missing option {}".format(section, k)
-            if config.get(section, k) != expected[k]:
-                return "section [{}] {}:{} != expected {}:{}".format(
-                       section, k, config.get(section, k), k, expected[k])
-        return None
+
+            actual = config.get(section, k)
+            v = expected[k]
+            if (isinstance(v, six.string_types) or
+                    isinstance(v, bool) or
+                    isinstance(v, six.integer_types)):
+                # handle explicit values
+                if actual != v:
+                    return "section [{}] {}:{} != expected {}:{}".format(
+                           section, k, actual, k, expected[k])
+            else:
+                # handle not_null, valid_ip boolean comparison methods, etc.
+                if v(actual):
+                    return None
+                else:
+                    return "section [{}] {}:{} != expected {}:{}".format(
+                           section, k, actual, k, expected[k])
 
     def _validate_dict_data(self, expected, actual):
         """Validate dictionary data.
@@ -406,3 +419,29 @@ class AmuletUtils(object):
         """Convert a relative file path to a file URL."""
         _abs_path = os.path.abspath(file_rel_path)
         return urlparse.urlparse(_abs_path, scheme='file').geturl()
+
+    def check_commands_on_units(self, commands, sentry_units):
+        """Check that all commands in a list exit zero on all
+        sentry units in a list.
+        
+        :param commands:  list of bash commands
+        :param sentry_units:  list of sentry unit pointers
+        :returns: None if successful; Failure message otherwise
+        """
+        self.log.debug('Checking exit codes for {} commands on {} '
+                       'sentry units...'.format(len(commands),
+                                                len(sentry_units)))
+        for sentry_unit in sentry_units:
+            for cmd in commands:
+                output, code = sentry_unit.run(cmd)
+                if code == 0:
+                    msg = ('{} `{}` returned {} '
+                           '(OK)'.format(sentry_unit.info['unit_name'],
+                                         cmd, code))
+                    self.log.debug(msg)
+                else:
+                    msg = ('{} `{}` returned {} '
+                           '{}'.format(sentry_unit.info['unit_name'],
+                                       cmd, code, output))
+                    return msg
+        return None
