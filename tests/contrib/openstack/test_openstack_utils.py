@@ -784,6 +784,7 @@ class OpenStackHelpersTestCase(TestCase):
         parent_dir = '/mnt/openstack-git/'
         http_proxy = 'http://squid-proxy-url'
         dest_dir = '/mnt/openstack-git'
+        venv_dir = '/mnt/openstack-git'
         reqs_dir = '/mnt/openstack-git/requirements-dir'
         join.return_value = dest_dir
         openstack.requirements_dir = reqs_dir
@@ -795,23 +796,27 @@ class OpenStackHelpersTestCase(TestCase):
         mkdir.assert_called_with(parent_dir)
         install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
-        _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
+        _git_update_reqs.assert_called_with(venv_dir, dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
                                        proxy='http://squid-proxy-url')
 
+    @patch('os.path.join')
     @patch('os.getcwd')
     @patch('os.chdir')
     @patch('subprocess.check_call')
-    def test_git_update_requirements(self, check_call, chdir, getcwd):
+    def test_git_update_requirements(self, check_call, chdir, getcwd, join):
         pkg_dir = '/mnt/openstack-git/repo-dir'
         reqs_dir = '/mnt/openstack-git/reqs-dir'
         orig_dir = '/var/lib/juju/units/testing-foo-0/charm'
+        venv_dir = '/mnt/openstack-git/venv'
         getcwd.return_value = orig_dir
+        join.return_value = '/mnt/openstack-git/venv/python'
 
-        openstack._git_update_requirements(pkg_dir, reqs_dir)
+        openstack._git_update_requirements(venv_dir, pkg_dir, reqs_dir)
         expected = [call(reqs_dir), call(orig_dir)]
         self.assertEquals(expected, chdir.call_args_list)
-        check_call.assert_called_with(['python', 'update.py', pkg_dir])
+        check_call.assert_called_with(['/mnt/openstack-git/venv/python',
+                                      'update.py', pkg_dir])
 
     @patch('os.path.join')
     @patch('subprocess.check_call')
