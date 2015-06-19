@@ -85,9 +85,12 @@ class TestCoordinator(unittest.TestCase):
         # First initialization are done before there is a peer relation.
         relation_ids.return_value = []
         c = coordinator.BaseCoordinator()
-        with patch.object(c, '_load_state') as _load_state:
+
+        with patch.object(c, '_load_state') as _load_state, \
+                patch.object(c, '_emit_state') as _emit_state:  # IGNORE: E127
             c.initialize()
             _load_state.assert_called_once_with()
+            _emit_state.assert_called_once_with()
 
         self.assertEqual(c.relname, 'cluster')
         self.assertIsNone(c.relid)
@@ -101,7 +104,7 @@ class TestCoordinator(unittest.TestCase):
         # If we have a peer relation, the id is stored.
         relation_ids.return_value = ['cluster:1']
         c = coordinator.BaseCoordinator()
-        with patch.object(c, '_load_state'):
+        with patch.object(c, '_load_state'), patch.object(c, '_emit_state'):
             c.initialize()
         self.assertEqual(c.relid, 'cluster:1')
 
@@ -281,7 +284,7 @@ class TestCoordinator(unittest.TestCase):
         c.default_grant.return_value = False
         self.assertFalse(c.grant('mylock', 'foo/2'))
         self.assertDictEqual(grants, c.grants)
-        c.default_grant.assert_called_once_with('foo/2',
+        c.default_grant.assert_called_once_with('mylock', 'foo/2',
                                                 set(['foo/1']),
                                                 ['foo/2', 'foo/3'])
         c.default_grant.reset_mock()
@@ -291,7 +294,7 @@ class TestCoordinator(unittest.TestCase):
         self.assertTrue(c.grant('mylock', 'foo/2'))
         grants = {'foo/1': {'mylock': ts1}, 'foo/2': {'mylock': ts2}}
         self.assertDictEqual(grants, c.grants)
-        c.default_grant.assert_called_once_with('foo/2',
+        c.default_grant.assert_called_once_with('mylock', 'foo/2',
                                                 set(['foo/1']),
                                                 ['foo/2', 'foo/3'])
 
@@ -299,7 +302,8 @@ class TestCoordinator(unittest.TestCase):
         # grant_other method.
         c.grant_other.return_value = False
         self.assertFalse(c.grant('other', 'foo/1'))
-        c.grant_other.assert_called_once_with('foo/1', set(), ['foo/1'])
+        c.grant_other.assert_called_once_with('other', 'foo/1',
+                                              set(), ['foo/1'])
 
         # If there is no request, grant returns False
         c.grant_other.return_value = True
@@ -410,6 +414,21 @@ class TestCoordinator(unittest.TestCase):
             self.assertDictEqual(c.requests, {unit: {},
                                               'foo/2': {'mylock': 'whatever'}})
 
+    def test_emit_state(self):
+        c = coordinator.BaseCoordinator()
+        unit = hookenv.local_unit()
+        c.requests = {unit: {'lock_a': sentinel.ts,
+                             'lock_b': sentinel.ts,
+                             'lock_c': sentinel.ts}}
+        c.grants = {unit: {'lock_a': sentinel.ts,
+                           'lock_b': sentinel.ts2}}
+        with patch.object(c, 'msg') as msg:
+            c._emit_state()
+            msg.assert_has_calls([call('Granted lock_a'),
+                                  call('Waiting on lock_b'),
+                                  call('Waiting on lock_c')],
+                                 any_order=True)
+
     @patch.object(hookenv, 'relation_set')
     @patch.object(hookenv, 'leader_set')
     def test_save_state(self, leader_set, relation_set):
@@ -504,13 +523,13 @@ class TestCoordinator(unittest.TestCase):
     def test_default_grant(self):
         c = coordinator.Serial()
         # Lock not granted. First in the queue.
-        self.assertTrue(c.default_grant(sentinel.u1, set(),
-                                        [sentinel.u1, sentinel.u2]))
+        self.assertTrue(c.default_grant(sentinel.lock, sentinel.u1,
+                                        set(), [sentinel.u1, sentinel.u2]))
 
         # Lock not granted. Later in the queue.
-        self.assertFalse(c.default_grant(sentinel.u1, set(),
-                                         [sentinel.u2, sentinel.u1]))
+        self.assertFalse(c.default_grant(sentinel.lock, sentinel.u1,
+                                         set(), [sentinel.u2, sentinel.u1]))
 
         # Lock already granted
-        self.assertFalse(c.default_grant(sentinel.u1, set([sentinel.u2]),
-                                         [sentinel.u1]))
+        self.assertFalse(c.default_grant(sentinel.lock, sentinel.u1,
+                                         set([sentinel.u2]), [sentinel.u1]))

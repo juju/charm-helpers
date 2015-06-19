@@ -288,6 +288,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         # Load our state, from leadership, the peer relationship, and maybe
         # local state as a fallback. Populates self.requests and self.grants.
         self._load_state()
+        self._emit_state()
 
         # Save our state if the hook completes successfully.
         hookenv.atexit(self._save_state)
@@ -418,7 +419,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         # Locate custom logic, or fallback to the default.
         grant_func = getattr(self, 'grant_{}'.format(lock), self.default_grant)
 
-        if grant_func(unit, granted, queue):
+        if grant_func(lock, unit, granted, queue):
             # Grant the lock.
             self.msg('Leader grants {} to {}'.format(lock, unit))
             self.grants.setdefault(unit, {})[lock] = self.requests[unit][lock]
@@ -494,6 +495,14 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
                 self.msg('New peer relation. Merging local state')
                 self.requests[local_unit] = self._load_local_state()
 
+    def _emit_state(self):
+        # Emit this units lock status.
+        for lock in sorted(self.requests[hookenv.local_unit()].keys()):
+            if self.granted(lock):
+                self.msg('Granted {}'.format(lock))
+            else:
+                self.msg('Waiting on {}'.format(lock))
+
     def _save_state(self):
         self.msg('Publishing state'.format(self._name()))
         if hookenv.is_leader():
@@ -557,7 +566,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
 
 class Serial(BaseCoordinator):
-    def default_grant(self, unit, granted, queue):
+    def default_grant(self, lock, unit, granted, queue):
         '''Default logic to grant a lock to a unit. Unless overridden,
         only one unit may hold the lock and it will be granted to the
         earliest queued request.
