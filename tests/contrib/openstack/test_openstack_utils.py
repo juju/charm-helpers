@@ -642,11 +642,13 @@ class OpenStackHelpersTestCase(TestCase):
         error_out.assert_called_with(
             'openstack-origin-git key \'%s\' is missing' % key)
 
+    @patch('os.path.join')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
+    @patch.object(openstack, 'pip_install')
     @patch.object(openstack, 'pip_create_virtualenv')
-    def test_git_clone_and_install_errors(self, pip_venv, git_install_single,
-                                          error_out):
+    def test_git_clone_and_install_errors(self, pip_venv, pip_install,
+                                          git_install_single, error_out, join):
         git_missing_repos = """
           repostories:
              - {name: requirements,
@@ -704,19 +706,26 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.git_clone_and_install(git_wrong_order_2, 'keystone', depth=1)
         error_out.assert_called_with('requirements git repo must be specified first')
 
+    @patch('os.path.join')
     @patch.object(openstack, 'charm_dir')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
+    @patch.object(openstack, 'pip_install')
     @patch.object(openstack, 'pip_create_virtualenv')
-    def test_git_clone_and_install_success(self, pip_venv, _git_install_single,
-                                           error_out, charm_dir):
+    def test_git_clone_and_install_success(self, pip_venv, pip_install,
+                                           _git_install_single, error_out,
+                                           charm_dir, join):
         proj = 'keystone'
         charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
         # the following sets the global requirements_dir
         _git_install_single.return_value = '/mnt/openstack-git/requirements'
+        join.return_value = '/mnt/openstack-git/venv'
 
         openstack.git_clone_and_install(openstack_origin_git, proj, depth=1)
         self.assertTrue(pip_venv.called)
+        pip_install.assert_called_with('setuptools', upgrade=True,
+                                       proxy=None,
+                                       venv='/mnt/openstack-git/venv')
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',

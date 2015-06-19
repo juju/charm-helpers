@@ -555,6 +555,11 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
 
     pip_create_virtualenv(os.path.join(parent_dir, 'venv'))
 
+    # Upgrade setuptools from default virtualenv version. The default version
+    # in trusty breaks update.py in global requirements master branch.
+    pip_install('setuptools', upgrade=True, proxy=http_proxy,
+                venv=os.path.join(parent_dir, 'venv'))
+
     for p in projects['repositories']:
         repo = p['repository']
         branch = p['branch']
