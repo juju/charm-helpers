@@ -148,3 +148,23 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             return os_origin.split('%s-' % self.series)[1].split('/')[0]
         else:
             return releases[self.series]
+
+    def get_ceph_expected_pools(self):
+        """Return a dict of expected ceph pools based on
+        Ubuntu-OpenStack release"""
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Kilo or later
+            return {
+                'rbd': 0,
+                'cinder': 1,
+                'glance': 2
+            }
+        else:
+            # Juno or earlier
+            return {
+                'data': 0,
+                'metadata': 1,
+                'rbd': 2,
+                'cinder': 3,
+                'glance': 4
+            }
