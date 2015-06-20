@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import logging
 import os
 import six
@@ -437,3 +438,66 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug('{} never reached expected status: '
                            '{}'.format(resource_id, expected_stat))
             return False
+
+    def get_ceph_osd_id_cmd(self, index):
+        """Produce a shell command that will return a ceph-osd id."""
+        cmd = ("`initctl list | grep 'ceph-osd ' | awk 'NR=={} {{ print $2 }}'"
+               " | grep -o '[0-9]*'`".format(index + 1))
+        return cmd
+
+    def get_ceph_df(self, sentry_unit):
+        """Return dict of ceph df json output, including ceph pool state.
+
+        :param sentry_unit: Pointer to amulet sentry instance (juju unit)
+        :returns: Dict of ceph df output
+        """
+        cmd = 'sudo ceph df --format=json'
+        output, code = sentry_unit.run(cmd)
+        if code != 0:
+            msg = ('{} `{}` returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, code, output))
+            raise RuntimeError(msg)
+        return json.loads(output)
+
+    def get_ceph_pool_sample(self, sentry_unit, pool_id=0):
+        """Take a sample of attributes of a ceph pool, returning ceph
+        pool name, object count and disk space used for the specified
+        pool ID number.
+
+        :param sentry_unit: Pointer to amulet sentry instance (juju unit)
+        :param pool_id: Ceph pool ID
+        :returns: List of pool name, object count, kb disk space used
+        """
+        df = self.get_ceph_df(sentry_unit)
+        pool_name = df['pools'][pool_id]['name']
+        obj_count = df['pools'][pool_id]['stats']['objects']
+        kb_used = df['pools'][pool_id]['stats']['kb_used']
+        self.log.debug('Ceph {} pool (ID {}): {} objects, '
+                       '{} kb used'.format(pool_name,
+                                           pool_id,
+                                           obj_count,
+                                           kb_used))
+        return pool_name, obj_count, kb_used
+
+    def validate_ceph_pool_samples(self, samples, sample_type="resource pool"):
+        """Validate ceph pool samples taken over time, such as pool
+        object counts or pool kb used, before adding, after adding, and
+        after deleting items which affect those pool attributes.  The
+        2nd element is expected to be greater than the 1st; 3rd is expected
+        to be less than the 2nd.
+
+        :param samples: List containing 3 data samples
+        :param sample_type: String for logging and usage context
+        :returns: None if successful, Failure message otherwise
+        """
+        original, created, deleted = range(3)
+        if samples[created] <= samples[original] or \
+                samples[deleted] >= samples[created]:
+            msg = ('Ceph {} samples ({}) '
+                   'unexpected.'.format(sample_type, samples))
+            return msg
+        else:
+            self.log.debug('Ceph {} samples (OK): '
+                           '{}'.format(sample_type, samples))
+            return None
