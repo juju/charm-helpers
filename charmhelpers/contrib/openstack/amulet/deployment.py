@@ -149,22 +149,34 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         else:
             return releases[self.series]
 
-    def get_ceph_expected_pools(self):
-        """Return a dict of expected ceph pools based on
-        Ubuntu-OpenStack release"""
+    def get_ceph_expected_pools(self, radosgw=False):
+        """Return a list of expected ceph pools based on Ubuntu-OpenStack
+        release and whether ceph radosgw is flagged as present or not."""
+
         if self._get_openstack_release() >= self.trusty_kilo:
             # Kilo or later
-            return {
-                'rbd': 0,
-                'cinder': 1,
-                'glance': 2
-            }
+            pools = [
+                'rbd',
+                'cinder',
+                'glance'
+            ]
         else:
             # Juno or earlier
-            return {
-                'data': 0,
-                'metadata': 1,
-                'rbd': 2,
-                'cinder': 3,
-                'glance': 4
-            }
+            pools = [
+                'data',
+                'metadata',
+                'rbd',
+                'cinder',
+                'glance'
+            ]
+
+        if radosgw:
+            pools.extend([
+                '.rgw.root',
+                '.rgw.control',
+                '.rgw',
+                '.rgw.gc',
+                '.users.uid'
+            ])
+
+        return pools
