@@ -445,6 +445,30 @@ class OpenStackAmuletUtils(AmuletUtils):
                " | grep -o '[0-9]*'`".format(index + 1))
         return cmd
 
+    def get_ceph_pools(self, sentry_unit):
+        """Return a dict of ceph pools from a single ceph unit, with
+        pool name as keys, pool id as vals."""
+        pools = {}
+        cmd = 'sudo ceph osd lspools'
+        output, code = sentry_unit.run(cmd)
+        if code != 0:
+            msg = ('{} `{}` returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, code, output))
+            raise RuntimeError(msg)
+
+        # Example output: 0 data,1 metadata,2 rbd,3 cinder,4 glance,
+        for pool in str(output).split(','):
+            pool_id_name = pool.split(' ')
+            if len(pool_id_name) == 2:
+                pool_id = pool_id_name[0]
+                pool_name = pool_id_name[1]
+                pools[pool_name] = int(pool_id)
+
+        self.log.debug('Pools on {}: {}'.format(sentry_unit.info['unit_name'],
+                                                pools))
+        return pools
+
     def get_ceph_df(self, sentry_unit):
         """Return dict of ceph df json output, including ceph pool state.
 

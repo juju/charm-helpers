@@ -523,3 +523,19 @@ class AmuletUtils(object):
                                        a_pids))
                     self.log.debug(msg)
         return None
+
+    def validate_list_of_identical_dicts(self, list_of_dicts):
+        """Check that all dicts within a list are identical."""
+        hashes = []
+        for _dict in list_of_dicts:
+            hashes.append(hash(frozenset(_dict.items())))
+
+        self.log.debug('Hashes: {}'.format(hashes))
+        if len(set(hashes)) == 1:
+            msg = 'Dicts within list are identical'
+            self.log.debug(msg)
+        else:
+            msg = 'Dicts within list are not identical'
+            return msg
+
+        return None
