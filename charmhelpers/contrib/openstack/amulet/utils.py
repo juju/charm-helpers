@@ -26,6 +26,7 @@ import glanceclient.v1.client as glance_client
 import heatclient.v1.client as heat_client
 import keystoneclient.v2_0 as keystone_client
 import novaclient.v1_1.client as nova_client
+import swiftclient
 
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
@@ -222,6 +223,17 @@ class OpenStackAmuletUtils(AmuletUtils):
                                               endpoint_type='publicURL')
         return nova_client.Client(username=user, api_key=password,
                                   project_id=tenant, auth_url=ep)
+
+    def authenticate_swift_user(self, keystone, user, password, tenant):
+        """Authenticates a regular user with swift api."""
+        self.log.debug('Authenticating swift user ({})...'.format(user))
+        ep = keystone.service_catalog.url_for(service_type='identity',
+                                              endpoint_type='publicURL')
+        return swiftclient.Connection(authurl=ep,
+                                      user=user,
+                                      key=password,
+                                      tenant_name=tenant,
+                                      auth_version='2.0')
 
     def create_cirros_image(self, glance, image_name):
         """Download the latest cirros image and upload it to glance."""
