@@ -236,8 +236,17 @@ class OpenStackAmuletUtils(AmuletUtils):
                                       auth_version='2.0')
 
     def create_cirros_image(self, glance, image_name):
-        """Download the latest cirros image and upload it to glance."""
-        self.log.debug('Creating glance image ({})...'.format(image_name))
+        """Download the latest cirros image and upload it to glance,
+        validate and return a resource pointer.
+
+        :param glance: pointer to authenticated glance connection
+        :param image_name: display name for new image
+        :returns: glance image pointer
+        """
+        self.log.debug('Creating glance cirros image '
+                       '({})...'.format(image_name))
+
+        # Download cirros image
         http_proxy = os.getenv('AMULET_HTTP_PROXY')
         self.log.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
         if http_proxy:
@@ -246,33 +255,51 @@ class OpenStackAmuletUtils(AmuletUtils):
         else:
             opener = urllib.FancyURLopener()
 
-        f = opener.open("http://download.cirros-cloud.net/version/released")
+        f = opener.open('http://download.cirros-cloud.net/version/released')
         version = f.read().strip()
-        cirros_img = "cirros-{}-x86_64-disk.img".format(version)
+        cirros_img = 'cirros-{}-x86_64-disk.img'.format(version)
         local_path = os.path.join('tests', cirros_img)
 
         if not os.path.exists(local_path):
-            cirros_url = "http://{}/{}/{}".format("download.cirros-cloud.net",
+            cirros_url = 'http://{}/{}/{}'.format('download.cirros-cloud.net',
                                                   version, cirros_img)
             opener.retrieve(cirros_url, local_path)
         f.close()
 
+        # Create glance image
         with open(local_path) as f:
             image = glance.images.create(name=image_name, is_public=True,
                                          disk_format='qcow2',
                                          container_format='bare', data=f)
-        count = 1
-        status = image.status
-        while status != 'active' and count < 10:
-            time.sleep(3)
-            image = glance.images.get(image.id)
-            status = image.status
-            self.log.debug('image status: {}'.format(status))
-            count += 1
 
-        if status != 'active':
-            self.log.error('image creation timed out')
-            return None
+        # Wait for image to reach active status
+        img_id = image.id
+        ret = self.resource_reaches_status(glance.images, img_id,
+                                           expected_stat='active',
+                                           msg='Image status wait')
+        if not ret:
+            msg = 'Glance image failed to reach expected state.'
+            raise RuntimeError(msg)
+
+        # Re-validate new image
+        self.log.debug('Validating image attributes...')
+        val_img_name = glance.images.get(img_id).name
+        val_img_stat = glance.images.get(img_id).status
+        val_img_pub = glance.images.get(img_id).is_public
+        val_img_cfmt = glance.images.get(img_id).container_format
+        val_img_dfmt = glance.images.get(img_id).disk_format
+        msg_attr = ('Image attributes - name:{} public:{} id:{} stat:{} '
+                    'container fmt:{} disk fmt:{}'.format(
+                        val_img_name, val_img_pub, img_id,
+                        val_img_stat, val_img_cfmt, val_img_dfmt))
+
+        if val_img_name == image_name and val_img_stat == 'active' \
+                and val_img_pub is True and val_img_cfmt == 'bare' \
+                and val_img_dfmt == 'qcow2':
+            self.log.debug(msg_attr)
+        else:
+            msg = ('Volume validation failed, {}'.format(msg_attr))
+            raise RuntimeError(msg)
 
         return image
 
@@ -283,22 +310,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
                       'delete_resource instead of delete_image.')
         self.log.debug('Deleting glance image ({})...'.format(image))
-        num_before = len(list(glance.images.list()))
-        glance.images.delete(image)
-
-        count = 1
-        num_after = len(list(glance.images.list()))
-        while num_after != (num_before - 1) and count < 10:
-            time.sleep(3)
-            num_after = len(list(glance.images.list()))
-            self.log.debug('number of images: {}'.format(num_after))
-            count += 1
-
-        if num_after != (num_before - 1):
-            self.log.error('image deletion timed out')
-            return False
-
-        return True
+        return self.delete_resource(glance.images, image, msg='glance image')
 
     def create_instance(self, nova, image_name, instance_name, flavor):
         """Create the specified instance."""
@@ -331,22 +343,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
                       'delete_resource instead of delete_instance.')
         self.log.debug('Deleting instance ({})...'.format(instance))
-        num_before = len(list(nova.servers.list()))
-        nova.servers.delete(instance)
-
-        count = 1
-        num_after = len(list(nova.servers.list()))
-        while num_after != (num_before - 1) and count < 10:
-            time.sleep(3)
-            num_after = len(list(nova.servers.list()))
-            self.log.debug('number of instances: {}'.format(num_after))
-            count += 1
-
-        if num_after != (num_before - 1):
-            self.log.error('instance deletion timed out')
-            return False
-
-        return True
+        return self.delete_resource(nova.servers, instance, msg='nova instance')
 
     def create_or_get_keypair(self, nova, keypair_name="testkey"):
         """Create a new keypair, or return pointer if it already exists."""
@@ -362,19 +359,83 @@ class OpenStackAmuletUtils(AmuletUtils):
         _keypair = nova.keypairs.create(name=keypair_name)
         return _keypair
 
-    def create_cinder_volume(self, cinder, vol_name="demo-vol", vol_size=1):
-        """Add and confirm a new volume, 1GB by default."""
-        self.log.debug('Creating volume ({}|{}GB)'.format(vol_name, vol_size))
-        vol_new = cinder.volumes.create(display_name=vol_name, size=1)
-        vol_id = vol_new.id
+    def create_cinder_volume(self, cinder, vol_name="demo-vol", vol_size=1,
+                             img_id=None, src_vol_id=None, snap_id=None):
+        """Create cinder volume, optionally from a glance image, or
+        optionally as a clone of an existing volume, or optionally
+        from a snapshot.  Wait for the new volume status to reach
+        the expected status, validate and return a resource pointer.
+
+        :param vol_name: cinder volume display name
+        :param vol_size: size in gigabytes
+        :param img_id: optional glance image id
+        :param src_vol_id: optional source volume id to clone
+        :param snap_id: optional snapshot id to use
+        :returns: cinder volume pointer
+        """
+        # Handle parameter input
+        if img_id and not src_vol_id and not snap_id:
+            self.log.debug('Creating cinder volume from glance image '
+                           '({})...'.format(img_id))
+            bootable = 'true'
+        elif src_vol_id and not img_id and not snap_id:
+            self.log.debug('Cloning cinder volume...')
+            bootable = cinder.volumes.get(src_vol_id).bootable
+        elif snap_id and not src_vol_id and not img_id:
+            self.log.debug('Creating cinder volume from snapshot...')
+            snap = cinder.volume_snapshots.find(id=snap_id)
+            vol_size = snap.size
+            snap_vol_id = cinder.volume_snapshots.get(snap_id).volume_id
+            bootable = cinder.volumes.get(snap_vol_id).bootable
+        elif not img_id and not src_vol_id and not snap_id:
+            self.log.debug('Creating cinder volume...')
+            bootable = 'false'
+        else:
+            msg = ('Invalid method use - name:{} size:{} img_id:{} '
+                   'src_vol_id:{} snap_id:{}'.format(vol_name, vol_size,
+                                                     img_id, src_vol_id,
+                                                     snap_id))
+            raise RuntimeError(msg)
+
+        # Create new volume
+        try:
+            vol_new = cinder.volumes.create(display_name=vol_name,
+                                            imageRef=img_id,
+                                            size=vol_size,
+                                            source_volid=src_vol_id,
+                                            snapshot_id=snap_id)
+            vol_id = vol_new.id
+        except Exception as e:
+            msg = 'Failed to create volume: {}'.format(e)
+            raise RuntimeError(msg)
+
+        # Wait for volume to reach available status
         ret = self.resource_reaches_status(cinder.volumes, vol_id,
                                            expected_stat="available",
-                                           msg="Create volume status wait")
-        if ret:
-            return vol_new
+                                           msg="Volume status wait")
+        if not ret:
+            msg = 'Cinder volume failed to reach expected state.'
+            raise RuntimeError(msg)
+
+        # Re-validate new volume
+        self.log.debug('Validating volume attributes...')
+        val_vol_name = cinder.volumes.get(vol_id).display_name
+        val_vol_boot = cinder.volumes.get(vol_id).bootable
+        val_vol_stat = cinder.volumes.get(vol_id).status
+        val_vol_size = cinder.volumes.get(vol_id).size
+        msg_attr = ('Volume attributes - name:{} id:{} stat:{} boot:'
+                    '{} size:{}'.format(val_vol_name, vol_id,
+                                        val_vol_stat, val_vol_boot,
+                                        val_vol_size))
+
+        if val_vol_boot == bootable and val_vol_stat == 'available' \
+                and val_vol_name == vol_name and val_vol_size == vol_size:
+            self.log.debug(msg_attr)
         else:
-            self.log.error('Failed to create volume.')
-            return None
+            msg = ('Volume validation failed, {}'.format(msg_attr))
+            raise RuntimeError(msg)
+
+        return vol_new
 
     def delete_resource(self, resource, resource_id,
                         msg="resource", max_wait=120):
