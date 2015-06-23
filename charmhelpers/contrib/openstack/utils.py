@@ -555,6 +555,11 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
 
     pip_create_virtualenv(os.path.join(parent_dir, 'venv'))
 
+    # Upgrade setuptools from default virtualenv version. The default version
+    # in trusty breaks update.py in global requirements master branch.
+    pip_install('setuptools', upgrade=True, proxy=http_proxy,
+                venv=os.path.join(parent_dir, 'venv'))
+
     for p in projects['repositories']:
         repo = p['repository']
         branch = p['branch']
@@ -616,24 +621,24 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
     else:
         repo_dir = dest_dir
 
+    venv = os.path.join(parent_dir, 'venv')
+
     if update_requirements:
         if not requirements_dir:
             error_out('requirements repo must be cloned before '
                       'updating from global requirements.')
-        _git_update_requirements(repo_dir, requirements_dir)
+        _git_update_requirements(venv, repo_dir, requirements_dir)
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy,
-                    venv=os.path.join(parent_dir, 'venv'))
+        pip_install(repo_dir, proxy=http_proxy, venv=venv)
     else:
-        pip_install(repo_dir,
-                    venv=os.path.join(parent_dir, 'venv'))
+        pip_install(repo_dir, venv=venv)
 
     return repo_dir
 
 
-def _git_update_requirements(package_dir, reqs_dir):
+def _git_update_requirements(venv, package_dir, reqs_dir):
     """
     Update from global requirements.
 
@@ -642,7 +647,8 @@ def _git_update_requirements(package_dir, reqs_dir):
     """
     orig_dir = os.getcwd()
     os.chdir(reqs_dir)
-    cmd = ['python', 'update.py', package_dir]
+    python = os.path.join(venv, 'bin/python')
+    cmd = [python, 'update.py', package_dir]
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError:

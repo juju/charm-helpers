@@ -642,11 +642,13 @@ class OpenStackHelpersTestCase(TestCase):
         error_out.assert_called_with(
             'openstack-origin-git key \'%s\' is missing' % key)
 
+    @patch('os.path.join')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
+    @patch.object(openstack, 'pip_install')
     @patch.object(openstack, 'pip_create_virtualenv')
-    def test_git_clone_and_install_errors(self, pip_venv, git_install_single,
-                                          error_out):
+    def test_git_clone_and_install_errors(self, pip_venv, pip_install,
+                                          git_install_single, error_out, join):
         git_missing_repos = """
           repostories:
              - {name: requirements,
@@ -704,19 +706,26 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.git_clone_and_install(git_wrong_order_2, 'keystone', depth=1)
         error_out.assert_called_with('requirements git repo must be specified first')
 
+    @patch('os.path.join')
     @patch.object(openstack, 'charm_dir')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
+    @patch.object(openstack, 'pip_install')
     @patch.object(openstack, 'pip_create_virtualenv')
-    def test_git_clone_and_install_success(self, pip_venv, _git_install_single,
-                                           error_out, charm_dir):
+    def test_git_clone_and_install_success(self, pip_venv, pip_install,
+                                           _git_install_single, error_out,
+                                           charm_dir, join):
         proj = 'keystone'
         charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
         # the following sets the global requirements_dir
         _git_install_single.return_value = '/mnt/openstack-git/requirements'
+        join.return_value = '/mnt/openstack-git/venv'
 
         openstack.git_clone_and_install(openstack_origin_git, proj, depth=1)
         self.assertTrue(pip_venv.called)
+        pip_install.assert_called_with('setuptools', upgrade=True,
+                                       proxy=None,
+                                       venv='/mnt/openstack-git/venv')
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
@@ -775,6 +784,7 @@ class OpenStackHelpersTestCase(TestCase):
         parent_dir = '/mnt/openstack-git/'
         http_proxy = 'http://squid-proxy-url'
         dest_dir = '/mnt/openstack-git'
+        venv_dir = '/mnt/openstack-git'
         reqs_dir = '/mnt/openstack-git/requirements-dir'
         join.return_value = dest_dir
         openstack.requirements_dir = reqs_dir
@@ -786,23 +796,27 @@ class OpenStackHelpersTestCase(TestCase):
         mkdir.assert_called_with(parent_dir)
         install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
-        _git_update_reqs.assert_called_with(dest_dir, reqs_dir)
+        _git_update_reqs.assert_called_with(venv_dir, dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
                                        proxy='http://squid-proxy-url')
 
+    @patch('os.path.join')
     @patch('os.getcwd')
     @patch('os.chdir')
     @patch('subprocess.check_call')
-    def test_git_update_requirements(self, check_call, chdir, getcwd):
+    def test_git_update_requirements(self, check_call, chdir, getcwd, join):
         pkg_dir = '/mnt/openstack-git/repo-dir'
         reqs_dir = '/mnt/openstack-git/reqs-dir'
         orig_dir = '/var/lib/juju/units/testing-foo-0/charm'
+        venv_dir = '/mnt/openstack-git/venv'
         getcwd.return_value = orig_dir
+        join.return_value = '/mnt/openstack-git/venv/python'
 
-        openstack._git_update_requirements(pkg_dir, reqs_dir)
+        openstack._git_update_requirements(venv_dir, pkg_dir, reqs_dir)
         expected = [call(reqs_dir), call(orig_dir)]
         self.assertEquals(expected, chdir.call_args_list)
-        check_call.assert_called_with(['python', 'update.py', pkg_dir])
+        check_call.assert_called_with(['/mnt/openstack-git/venv/python',
+                                      'update.py', pkg_dir])
 
     @patch('os.path.join')
     @patch('subprocess.check_call')
