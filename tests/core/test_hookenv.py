@@ -145,28 +145,37 @@ class ConfigTest(TestCase):
     def test_in(self):
         # Test behavior of the in operator.
 
+        prev_path = os.path.join(hookenv.charm_dir(),
+                                 hookenv.Config.CONFIG_FILE_NAME)
+        with open(prev_path, 'w') as f:
+            json.dump(dict(old='one'), f)
+        c = hookenv.Config(dict(new='one'))
+
         # Items that exist in the dict exist. Items that don't don't.
-        c = hookenv.Config(dict(foo='one'))
-        self.assertTrue('foo' in c)
-        self.assertTrue('bar' not in c)
-        c.save()
-        self.assertTrue('foo' in c)
-        self.assertTrue('bar' not in c)
+        self.assertTrue('old' in c)
+        self.assertTrue('new' in c)
+        self.assertFalse('bar' in c)
 
         # Adding items works as expected.
-        c['foo'] = 'two'
+        c['old'] = 'two'
+        c['new'] = 'two'
         c['bar'] = 'two'
-        self.assertTrue('foo' in c)
+        self.assertTrue('old' in c)
+        self.assertTrue('new' in c)
         self.assertTrue('bar' in c)
         c.save()
-        self.assertTrue('foo' in c)
+        self.assertTrue('old' in c)
+        self.assertTrue('new' in c)
         self.assertTrue('bar' in c)
 
         # Removing items works as expected.
-        del c['foo']
-        self.assertTrue('foo' not in c)
+        del c['old']
+        del c['new']
+        self.assertTrue('old' not in c)
+        self.assertTrue('new' not in c)
         c.save()
-        self.assertTrue('foo' not in c)
+        self.assertTrue('old' not in c)
+        self.assertTrue('new' not in c)
 
 
 class SerializableTest(TestCase):
