@@ -81,7 +81,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                       'ceph-osd', 'ceph-radosgw']
         # Openstack subordinate charms do not expose an origin option as that
         # is controlled by the principle
-        ignore = ['neutron-openvswitch']
+        ignore = ['cinder-ceph', 'ceilometer-agent', 'hacluster',
+                  'neutron-openvswitch']
 
         if self.openstack:
             for svc in services:
