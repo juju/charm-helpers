@@ -148,34 +148,34 @@ class ConfigTest(TestCase):
         prev_path = os.path.join(hookenv.charm_dir(),
                                  hookenv.Config.CONFIG_FILE_NAME)
         with open(prev_path, 'w') as f:
-            json.dump(dict(old='one'), f)
-        c = hookenv.Config(dict(new='one'))
+            json.dump(dict(user='one'), f)
+        c = hookenv.Config(dict(charm='one'))
 
         # Items that exist in the dict exist. Items that don't don't.
-        self.assertTrue('old' in c)
-        self.assertTrue('new' in c)
+        self.assertTrue('user' in c)
+        self.assertTrue('charm' in c)
         self.assertFalse('bar' in c)
 
         # Adding items works as expected.
-        c['old'] = 'two'
-        c['new'] = 'two'
+        c['user'] = 'two'
+        c['charm'] = 'two'
         c['bar'] = 'two'
-        self.assertTrue('old' in c)
-        self.assertTrue('new' in c)
+        self.assertTrue('user' in c)
+        self.assertTrue('charm' in c)
         self.assertTrue('bar' in c)
         c.save()
-        self.assertTrue('old' in c)
-        self.assertTrue('new' in c)
+        self.assertTrue('user' in c)
+        self.assertTrue('charm' in c)
         self.assertTrue('bar' in c)
 
         # Removing items works as expected.
-        del c['old']
-        del c['new']
-        self.assertTrue('old' not in c)
-        self.assertTrue('new' not in c)
+        del c['user']
+        del c['charm']
+        self.assertTrue('user' not in c)
+        self.assertTrue('charm' not in c)
         c.save()
-        self.assertTrue('old' not in c)
-        self.assertTrue('new' not in c)
+        self.assertTrue('user' not in c)
+        self.assertTrue('charm' not in c)
 
 
 class SerializableTest(TestCase):
