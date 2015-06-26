@@ -63,13 +63,19 @@ class TestServiceManager(unittest.TestCase):
         reconfigure_services.assert_called_once_with()
         provide_data.assert_called_once_with()
 
-    @mock.patch.object(hookenv, 'config')
-    def test_manage_config_saved(self, config):
-        config = config.return_value
-        config.implicit_save = True
+    def test_manage_calls_atstart(self):
+        cb = mock.MagicMock()
+        hookenv.atstart(cb)
         manager = services.ServiceManager()
         manager.manage()
-        self.assertTrue(config.save.called)
+        self.assertTrue(cb.called)
+
+    def test_manage_calls_atexit(self):
+        cb = mock.MagicMock()
+        hookenv.atexit(cb)
+        manager = services.ServiceManager()
+        manager.manage()
+        self.assertTrue(cb.called)
 
     @mock.patch.object(hookenv, 'config')
     def test_manage_config_not_saved(self, config):
