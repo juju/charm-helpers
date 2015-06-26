@@ -343,7 +343,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
                       'delete_resource instead of delete_instance.')
         self.log.debug('Deleting instance ({})...'.format(instance))
-        return self.delete_resource(nova.servers, instance, msg='nova instance')
+        return self.delete_resource(nova.servers, instance,
+                                    msg='nova instance')
 
     def create_or_get_keypair(self, nova, keypair_name="testkey"):
         """Create a new keypair, or return pointer if it already exists."""
