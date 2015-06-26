@@ -177,6 +177,7 @@ class OpenStackAmuletUtils(AmuletUtils):
     def authenticate_cinder_admin(self, keystone_sentry, username,
                                   password, tenant):
         """Authenticates admin user with cinder."""
+        # NOTE(beisner): cinder python client doesn't accept tokens.
         service_ip = \
             keystone_sentry.relation('shared-db',
                                      'mysql:shared-db')['private-address']
@@ -572,10 +573,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         obj_count = df['pools'][pool_id]['stats']['objects']
         kb_used = df['pools'][pool_id]['stats']['kb_used']
         self.log.debug('Ceph {} pool (ID {}): {} objects, '
-                       '{} kb used'.format(pool_name,
-                                           pool_id,
-                                           obj_count,
-                                           kb_used))
+                       '{} kb used'.format(pool_name, pool_id,
+                                           obj_count, kb_used))
         return pool_name, obj_count, kb_used
 
     def validate_ceph_pool_samples(self, samples, sample_type="resource pool"):
