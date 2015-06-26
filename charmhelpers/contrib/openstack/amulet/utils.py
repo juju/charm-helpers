@@ -363,8 +363,8 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def create_cinder_volume(self, cinder, vol_name="demo-vol", vol_size=1,
                              img_id=None, src_vol_id=None, snap_id=None):
-        """Create cinder volume, optionally from a glance image, or
-        optionally as a clone of an existing volume, or optionally
+        """Create cinder volume, optionally from a glance image, OR
+        optionally as a clone of an existing volume, OR optionally
         from a snapshot.  Wait for the new volume status to reach
         the expected status, validate and return a resource pointer.
 
@@ -375,24 +375,28 @@ class OpenStackAmuletUtils(AmuletUtils):
         :param snap_id: optional snapshot id to use
         :returns: cinder volume pointer
         """
-        # Handle parameter input
+        # Handle parameter input and avoid impossible combinations
         if img_id and not src_vol_id and not snap_id:
-            self.log.debug('Creating cinder volume from glance image '
-                           '({})...'.format(img_id))
+            # Create volume from image
+            self.log.debug('Creating cinder volume from glance image...'
             bootable = 'true'
         elif src_vol_id and not img_id and not snap_id:
+            # Clone an existing volume
             self.log.debug('Cloning cinder volume...')
             bootable = cinder.volumes.get(src_vol_id).bootable
         elif snap_id and not src_vol_id and not img_id:
+            # Create volume from snapshot
             self.log.debug('Creating cinder volume from snapshot...')
             snap = cinder.volume_snapshots.find(id=snap_id)
             vol_size = snap.size
             snap_vol_id = cinder.volume_snapshots.get(snap_id).volume_id
             bootable = cinder.volumes.get(snap_vol_id).bootable
         elif not img_id and not src_vol_id and not snap_id:
+            # Create volume
             self.log.debug('Creating cinder volume...')
             bootable = 'false'
         else:
+            # Impossible combination of parameters
             msg = ('Invalid method use - name:{} size:{} img_id:{} '
                    'src_vol_id:{} snap_id:{}'.format(vol_name, vol_size,
                                                      img_id, src_vol_id,
