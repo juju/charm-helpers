@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import amulet
 import json
 import logging
 import os
@@ -280,7 +281,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                                            msg='Image status wait')
         if not ret:
             msg = 'Glance image failed to reach expected state.'
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Re-validate new image
         self.log.debug('Validating image attributes...')
@@ -300,7 +301,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug(msg_attr)
         else:
             msg = ('Volume validation failed, {}'.format(msg_attr))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         return image
 
@@ -378,7 +379,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         # Handle parameter input and avoid impossible combinations
         if img_id and not src_vol_id and not snap_id:
             # Create volume from image
-            self.log.debug('Creating cinder volume from glance image...'
+            self.log.debug('Creating cinder volume from glance image...')
             bootable = 'true'
         elif src_vol_id and not img_id and not snap_id:
             # Clone an existing volume
@@ -401,7 +402,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                    'src_vol_id:{} snap_id:{}'.format(vol_name, vol_size,
                                                      img_id, src_vol_id,
                                                      snap_id))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Create new volume
         try:
@@ -413,7 +414,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             vol_id = vol_new.id
         except Exception as e:
             msg = 'Failed to create volume: {}'.format(e)
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Wait for volume to reach available status
         ret = self.resource_reaches_status(cinder.volumes, vol_id,
@@ -421,7 +422,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                                            msg="Volume status wait")
         if not ret:
             msg = 'Cinder volume failed to reach expected state.'
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Re-validate new volume
         self.log.debug('Validating volume attributes...')
@@ -439,7 +440,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug(msg_attr)
         else:
             msg = ('Volume validation failed, {}'.format(msg_attr))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         return vol_new
 
@@ -534,7 +535,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             msg = ('{} `{}` returned {} '
                    '{}'.format(sentry_unit.info['unit_name'],
                                cmd, code, output))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Example output: 0 data,1 metadata,2 rbd,3 cinder,4 glance,
         for pool in str(output).split(','):
@@ -560,7 +561,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             msg = ('{} `{}` returned {} '
                    '{}'.format(sentry_unit.info['unit_name'],
                                cmd, code, output))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
         return json.loads(output)
 
     def get_ceph_pool_sample(self, sentry_unit, pool_id=0):

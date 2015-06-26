@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import amulet
 import ConfigParser
 import distro_info
 import io
@@ -465,7 +466,7 @@ class AmuletUtils(object):
             msg = ('{} `{}` returned {} '
                    '{}'.format(sentry_unit.info['unit_name'],
                                cmd, code, output))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
         return str(output).split()
 
     def get_unit_process_ids(self, unit_processes):
