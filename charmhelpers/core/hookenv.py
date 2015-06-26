@@ -246,29 +246,6 @@ class Config(dict):
             self.load_previous()
         atexit(self._implicit_save)
 
-    def __getitem__(self, key):
-        """For regular dict lookups, check the current juju config first,
-        then the previous (saved) copy. This ensures that user-saved values
-        will be returned by a dict lookup.
-
-        """
-        try:
-            return dict.__getitem__(self, key)
-        except KeyError:
-            return (self._prev_dict or {})[key]
-
-    def get(self, key, default=None):
-        try:
-            return self[key]
-        except KeyError:
-            return default
-
-    def keys(self):
-        prev_keys = []
-        if self._prev_dict is not None:
-            prev_keys = self._prev_dict.keys()
-        return list(set(prev_keys + list(dict.keys(self))))
-
     def load_previous(self, path=None):
         """Load previous copy of config from disk.
 
@@ -286,6 +263,9 @@ class Config(dict):
         self.path = path or self.path
         with open(self.path) as f:
             self._prev_dict = json.load(f)
+        for k, v in self._prev_dict.items():
+            if k not in self:
+                self[k] = v
 
     def changed(self, key):
         """Return True if the current value for this key is different from
@@ -317,10 +297,6 @@ class Config(dict):
         instance.
 
         """
-        if self._prev_dict:
-            for k, v in six.iteritems(self._prev_dict):
-                if k not in self:
-                    self[k] = v
         with open(self.path, 'w') as f:
             json.dump(self, f)
 
