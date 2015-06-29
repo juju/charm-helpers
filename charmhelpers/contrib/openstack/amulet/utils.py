@@ -521,9 +521,9 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def get_ceph_osd_id_cmd(self, index):
         """Produce a shell command that will return a ceph-osd id."""
-        cmd = ("`initctl list | grep 'ceph-osd ' | awk 'NR=={} {{ print $2 }}'"
-               " | grep -o '[0-9]*'`".format(index + 1))
-        return cmd
+        return ("`initctl list | grep 'ceph-osd ' | "
+                "awk 'NR=={} {{ print $2 }}' | "
+                "grep -o '[0-9]*'`".format(index + 1))
 
     def get_ceph_pools(self, sentry_unit):
         """Return a dict of ceph pools from a single ceph unit, with
@@ -596,9 +596,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         original, created, deleted = range(3)
         if samples[created] <= samples[original] or \
                 samples[deleted] >= samples[created]:
-            msg = ('Ceph {} samples ({}) '
-                   'unexpected.'.format(sample_type, samples))
-            return msg
+            return ('Ceph {} samples ({}) '
+                    'unexpected.'.format(sample_type, samples))
         else:
             self.log.debug('Ceph {} samples (OK): '
                            '{}'.format(sample_type, samples))

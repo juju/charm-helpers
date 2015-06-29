@@ -441,15 +441,13 @@ class AmuletUtils(object):
             for cmd in commands:
                 output, code = sentry_unit.run(cmd)
                 if code == 0:
-                    msg = ('{} `{}` returned {} '
-                           '(OK)'.format(sentry_unit.info['unit_name'],
-                                         cmd, code))
-                    self.log.debug(msg)
+                    self.log.debug('{} `{}` returned {} '
+                                   '(OK)'.format(sentry_unit.info['unit_name'],
+                                                 cmd, code))
                 else:
-                    msg = ('{} `{}` returned {} '
-                           '{}'.format(sentry_unit.info['unit_name'],
-                                       cmd, code, output))
-                    return msg
+                    return ('{} `{}` returned {} '
+                            '{}'.format(sentry_unit.info['unit_name'],
+                                        cmd, code, output))
         return None
 
     def get_process_id_list(self, sentry_unit, process_name):
@@ -528,10 +526,8 @@ class AmuletUtils(object):
 
         self.log.debug('Hashes: {}'.format(hashes))
         if len(set(hashes)) == 1:
-            msg = 'Dicts within list are identical'
-            self.log.debug(msg)
+            self.log.debug('Dicts within list are identical')
         else:
-            msg = 'Dicts within list are not identical'
-            return msg
+            return 'Dicts within list are not identical'
 
         return None
