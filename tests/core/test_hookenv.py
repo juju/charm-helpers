@@ -33,9 +33,18 @@ peers:
 """
 
 
+def _clean_globals():
+    hookenv.cache.clear()
+    del hookenv._atstart[:]
+    del hookenv._atexit[:]
+
+
 class ConfigTest(TestCase):
     def setUp(self):
         super(ConfigTest, self).setUp()
+
+        _clean_globals()
+        self.addCleanup(_clean_globals)
 
         self.charm_dir = tempfile.mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(self.charm_dir))
@@ -145,28 +154,37 @@ class ConfigTest(TestCase):
     def test_in(self):
         # Test behavior of the in operator.
 
+        prev_path = os.path.join(hookenv.charm_dir(),
+                                 hookenv.Config.CONFIG_FILE_NAME)
+        with open(prev_path, 'w') as f:
+            json.dump(dict(user='one'), f)
+        c = hookenv.Config(dict(charm='one'))
+
         # Items that exist in the dict exist. Items that don't don't.
-        c = hookenv.Config(dict(foo='one'))
-        self.assertTrue('foo' in c)
-        self.assertTrue('bar' not in c)
-        c.save()
-        self.assertTrue('foo' in c)
-        self.assertTrue('bar' not in c)
+        self.assertTrue('user' in c)
+        self.assertTrue('charm' in c)
+        self.assertFalse('bar' in c)
 
         # Adding items works as expected.
-        c['foo'] = 'two'
+        c['user'] = 'two'
+        c['charm'] = 'two'
         c['bar'] = 'two'
-        self.assertTrue('foo' in c)
+        self.assertTrue('user' in c)
+        self.assertTrue('charm' in c)
         self.assertTrue('bar' in c)
         c.save()
-        self.assertTrue('foo' in c)
+        self.assertTrue('user' in c)
+        self.assertTrue('charm' in c)
         self.assertTrue('bar' in c)
 
         # Removing items works as expected.
-        del c['foo']
-        self.assertTrue('foo' not in c)
+        del c['user']
+        del c['charm']
+        self.assertTrue('user' not in c)
+        self.assertTrue('charm' not in c)
         c.save()
-        self.assertTrue('foo' not in c)
+        self.assertTrue('user' not in c)
+        self.assertTrue('charm' not in c)
 
 
 class SerializableTest(TestCase):
@@ -260,8 +278,8 @@ class SerializableTest(TestCase):
 class HelpersTest(TestCase):
     def setUp(self):
         super(HelpersTest, self).setUp()
-        # Reset hookenv cache for each test
-        hookenv.cache = {}
+        _clean_globals()
+        self.addCleanup(_clean_globals)
 
     @patch('subprocess.call')
     def test_logs_messages_to_juju_with_default_level(self, mock_call):
@@ -931,28 +949,36 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_kwargs(self, check_call_, check_output):
+    def test_sets_relation_with_kwargs(self, check_call_, check_output,
+                                       local_unit):
         hookenv.relation_set(foo="bar")
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_dict(self, check_call_, check_output):
+    def test_sets_relation_with_dict(self, check_call_, check_output,
+                                     local_unit):
         hookenv.relation_set(relation_settings={"foo": "bar"})
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_relation_id(self, check_call_, check_output):
+    def test_sets_relation_with_relation_id(self, check_call_, check_output,
+                                            local_unit):
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                         'bar=baz'])
 
+    @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_missing_value(self, check_call_, check_output):
+    def test_sets_relation_with_missing_value(self, check_call_, check_output,
+                                              local_unit):
         hookenv.relation_set(foo=None)
         check_call_.assert_called_with(['relation-set', 'foo='])
 
@@ -1115,12 +1141,23 @@ class HelpersTest(TestCase):
 class HooksTest(TestCase):
     def setUp(self):
         super(HooksTest, self).setUp()
-        self.config = patch.object(hookenv, 'config')
-        self.config.start()
 
-    def tearDown(self):
-        super(HooksTest, self).tearDown()
-        self.config.stop()
+        _clean_globals()
+        self.addCleanup(_clean_globals)
+
+        charm_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(charm_dir))
+        patcher = patch.object(hookenv, 'charm_dir', lambda: charm_dir)
+        self.addCleanup(patcher.stop)
+        patcher.start()
+
+        config = hookenv.Config({})
+
+        def _mock_config(scope=None):
+            return config if scope is None else config[scope]
+        patcher = patch.object(hookenv, 'config', _mock_config)
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
     def test_config_saved_after_execute(self):
         config = hookenv.config()
@@ -1130,8 +1167,7 @@ class HooksTest(TestCase):
         hooks = hookenv.Hooks()
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
-
-        self.assertTrue(config.save.called)
+        self.assertTrue(os.path.exists(config.path))
 
     def test_config_not_saved_after_execute(self):
         config = hookenv.config()
@@ -1141,8 +1177,7 @@ class HooksTest(TestCase):
         hooks = hookenv.Hooks()
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
-
-        self.assertFalse(config.save.called)
+        self.assertFalse(os.path.exists(config.path))
 
     def test_config_save_disabled(self):
         config = hookenv.config()
@@ -1152,8 +1187,7 @@ class HooksTest(TestCase):
         hooks = hookenv.Hooks(config_save=False)
         hooks.register('foo', foo)
         hooks.execute(['foo', 'some', 'other', 'args'])
-
-        self.assertFalse(config.save.called)
+        self.assertFalse(os.path.exists(config.path))
 
     def test_runs_a_registered_function(self):
         foo = MagicMock()
@@ -1297,3 +1331,30 @@ class HooksTest(TestCase):
         check_output.side_effect = OSError(3, 'fail')
         self.assertRaises(OSError, hookenv.status_get)
         check_output.assert_called_with(['status-get'], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    @patch('glob.glob')
+    def test_juju_version(self, glob, check_output):
+        glob.return_value = [sentinel.jujud]
+        check_output.return_value = '1.23.3.1-trusty-amd64\n'
+        self.assertEqual(hookenv.juju_version(), '1.23.3.1-trusty-amd64')
+        # Per https://bugs.launchpad.net/juju-core/+bug/1455368/comments/1
+        glob.assert_called_once_with('/var/lib/juju/tools/machine-*/jujud')
+        check_output.assert_called_once_with([sentinel.jujud, 'version'],
+                                             universal_newlines=True)
+
+    @patch('charmhelpers.core.hookenv.juju_version')
+    def test_has_juju_version(self, juju_version):
+        juju_version.return_value = '1.23.1.2.3.4.5-with-a-cherry-on-top.amd64'
+        self.assertTrue(hookenv.has_juju_version('1.23'))
+        self.assertTrue(hookenv.has_juju_version('1.23.1'))
+        self.assertTrue(hookenv.has_juju_version('1.23.1.1'))
+        self.assertFalse(hookenv.has_juju_version('1.23.2.1'))
+        self.assertFalse(hookenv.has_juju_version('1.24'))
+
+        juju_version.return_value = '1.24-beta5.1-trusty-amd64'
+        self.assertTrue(hookenv.has_juju_version('1.23'))
+        self.assertFalse(hookenv.has_juju_version('1.24'))
+        self.assertTrue(hookenv.has_juju_version('1.24-beta5'))
+        self.assertTrue(hookenv.has_juju_version('1.24-beta5.1'))
+        self.assertTrue(hookenv.has_juju_version('1.18-backport6'))
