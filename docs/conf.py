@@ -19,6 +19,7 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../'))
+sys.path.append(os.path.abspath('_extensions/'))
 
 # -- General configuration ------------------------------------------------
 
@@ -30,6 +31,8 @@ sys.path.insert(0, os.path.abspath('../'))
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'automembersummary',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -72,7 +75,7 @@ release = VERSION
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = ['_build', '_extensions']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

@@ -2,12 +2,14 @@ API Documentation
 =================
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
-    charmhelpers.contrib
     charmhelpers.core
+    charmhelpers.contrib
     charmhelpers.fetch
     charmhelpers.payload
+    charmhelpers.cli
+    charmhelpers.coordinator
 
 .. automodule:: charmhelpers
     :members:
