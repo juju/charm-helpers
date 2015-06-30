@@ -31,6 +31,12 @@ xt_recent              18457  0
 xt_LOG                 17702  0
 xt_limit               12711  0
 """
+DEFAULT_POLICY_OUTPUT = """Default incoming policy changed to 'deny'
+(be sure to update your rules accordingly)
+"""
+DEFAULT_POLICY_OUTPUT_OUTGOING = """Default outgoing policy changed to 'allow'
+(be sure to update your rules accordingly)
+"""
 
 
 class TestUFW(unittest.TestCase):
@@ -366,3 +372,33 @@ class TestUFW(unittest.TestCase):
         is_enabled.return_value = False
         isdir.return_value = True
         ufw.enable()
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    def test_change_default_policy(self, check_output, log):
+        check_output.return_value = DEFAULT_POLICY_OUTPUT
+        self.assertTrue(ufw.default_policy())
+        check_output.asser_any_call(['ufw', 'default', 'deny', 'incoming'])
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    def test_change_default_policy_allow_outgoing(self, check_output, log):
+        check_output.return_value = DEFAULT_POLICY_OUTPUT_OUTGOING
+        self.assertTrue(ufw.default_policy('allow', 'outgoing'))
+        check_output.asser_any_call(['ufw', 'default', 'allow', 'outgoing'])
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    def test_change_default_policy_unexpected_output(self, check_output, log):
+        check_output.return_value = "asdf"
+        self.assertFalse(ufw.default_policy())
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    def test_change_default_policy_wrong_policy(self, check_output, log):
+        self.assertRaises(ufw.UFWError, ufw.default_policy, 'asdf')
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    def test_change_default_policy_wrong_direction(self, check_output, log):
+        self.assertRaises(ufw.UFWError, ufw.default_policy, 'allow', 'asdf')
