@@ -381,6 +381,9 @@ class PerconaClusterHelper(object):
         if 'wait-timeout' in config:
             mysql_config['wait_timeout'] = config['wait-timeout']
 
+        if 'innodb-flush-log-at-trx-commit' in config:
+            mysql_config['innodb_flush_log_at_trx_commit'] = config['innodb-flush-log-at-trx-commit']
+
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
         total_memory = self.human_to_bytes(self.get_mem_total())
