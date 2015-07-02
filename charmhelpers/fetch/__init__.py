@@ -215,9 +215,9 @@ def apt_purge(packages, fatal=False):
     _run_apt_command(cmd, fatal)
 
 
-def apt_hold(packages, fatal=False):
-    """Hold one or more packages"""
-    cmd = ['apt-mark', 'hold']
+def apt_mark(packages, mark, fatal=False):
+    """Flag one or more packages using apt-mark"""
+    cmd = ['apt-mark', mark]
     if isinstance(packages, six.string_types):
         cmd.append(packages)
     else:
@@ -225,9 +225,17 @@ def apt_hold(packages, fatal=False):
     log("Holding {}".format(packages))
 
     if fatal:
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, universal_newlines=True)
     else:
-        subprocess.call(cmd)
+        subprocess.call(cmd, universal_newlines=True)
+
+
+def apt_hold(packages, fatal=False):
+    return apt_mark(packages, 'hold', fatal=fatal)
+
+
+def apt_unhold(packages, fatal=False):
+    return apt_mark(packages, 'unhold', fatal=fatal)
 
 
 def add_source(source, key=None):
