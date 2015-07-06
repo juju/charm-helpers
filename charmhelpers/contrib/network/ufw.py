@@ -215,7 +215,8 @@ def default_policy(policy='deny', direction='incoming'):
         return True
 
 
-def modify_access(src, dst='any', port=None, proto=None, action='allow'):
+def modify_access(src, dst='any', port=None, proto=None, action='allow',
+                  index=None):
     """
     Grant access to an address or subnet
 
@@ -227,6 +228,8 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow'):
     :param port: destiny port
     :param proto: protocol (tcp or udp)
     :param action: `allow` or `delete`
+    :param index: if different from None the rule is inserted at the given
+                  `index`.
     """
     if not is_enabled():
         hookenv.log('ufw is disabled, skipping modify_access()', level='WARN')
@@ -234,6 +237,8 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow'):
 
     if action == 'delete':
         cmd = ['ufw', 'delete', 'allow']
+    elif index is not None:
+        cmd = ['ufw', 'insert', str(index), action]
     else:
         cmd = ['ufw', action]
 
@@ -262,7 +267,7 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow'):
                     level='ERROR')
 
 
-def grant_access(src, dst='any', port=None, proto=None):
+def grant_access(src, dst='any', port=None, proto=None, index=None):
     """
     Grant access to an address or subnet
 
@@ -273,8 +278,11 @@ def grant_access(src, dst='any', port=None, proto=None):
                 field has to be set.
     :param port: destiny port
     :param proto: protocol (tcp or udp)
+    :param index: if different from None the rule is inserted at the given
+                  `index`.
     """
-    return modify_access(src, dst=dst, port=port, proto=proto, action='allow')
+    return modify_access(src, dst=dst, port=port, proto=proto, action='allow',
+                         index=index)
 
 
 def revoke_access(src, dst='any', port=None, proto=None):
