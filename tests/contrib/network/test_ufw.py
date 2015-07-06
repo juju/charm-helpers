@@ -200,6 +200,24 @@ class TestUFW(unittest.TestCase):
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.Popen')
+    def test_modify_access_with_index(self, popen, log, is_enabled):
+        is_enabled.return_value = True
+        p = mock.Mock()
+        p.configure_mock(**{'communicate.return_value': ('stdout', 'stderr'),
+                            'returncode': 0})
+        popen.return_value = p
+
+        ufw.modify_access('127.0.0.1', dst='127.0.0.1', port='80', index=1)
+        popen.assert_any_call(['ufw', 'insert', '1', 'allow', 'from',
+                               '127.0.0.1', 'to', '127.0.0.1', 'port', '80'],
+                              stdout=subprocess.PIPE)
+        log.assert_any_call(('ufw allow: ufw insert 1 allow from 127.0.0.1 '
+                             'to 127.0.0.1 port 80'), level='DEBUG')
+        log.assert_any_call('stdout', level='INFO')
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.Popen')
     def test_grant_access(self, popen, log, is_enabled):
         is_enabled.return_value = True
         p = mock.Mock()
@@ -212,6 +230,24 @@ class TestUFW(unittest.TestCase):
                                '127.0.0.1', 'port', '80'],
                               stdout=subprocess.PIPE)
         log.assert_any_call(('ufw allow: ufw allow from 127.0.0.1 '
+                             'to 127.0.0.1 port 80'), level='DEBUG')
+        log.assert_any_call('stdout', level='INFO')
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.Popen')
+    def test_grant_access_with_index(self, popen, log, is_enabled):
+        is_enabled.return_value = True
+        p = mock.Mock()
+        p.configure_mock(**{'communicate.return_value': ('stdout', 'stderr'),
+                            'returncode': 0})
+        popen.return_value = p
+
+        ufw.grant_access('127.0.0.1', dst='127.0.0.1', port='80', index=1)
+        popen.assert_any_call(['ufw', 'insert', '1', 'allow', 'from',
+                               '127.0.0.1', 'to', '127.0.0.1', 'port', '80'],
+                              stdout=subprocess.PIPE)
+        log.assert_any_call(('ufw allow: ufw insert 1 allow from 127.0.0.1 '
                              'to 127.0.0.1 port 80'), level='DEBUG')
         log.assert_any_call('stdout', level='INFO')
 
