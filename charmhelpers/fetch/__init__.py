@@ -217,12 +217,12 @@ def apt_purge(packages, fatal=False):
 
 def apt_mark(packages, mark, fatal=False):
     """Flag one or more packages using apt-mark"""
+    log("Marking {} as {}".format(packages, mark))
     cmd = ['apt-mark', mark]
     if isinstance(packages, six.string_types):
         cmd.append(packages)
     else:
         cmd.extend(packages)
-    log("Holding {}".format(packages))
 
     if fatal:
         subprocess.check_call(cmd, universal_newlines=True)
