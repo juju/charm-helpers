@@ -824,5 +824,48 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.git_src_dir(openstack_origin_git, 'keystone')
         join.assert_called_with('/mnt/openstack-git', 'keystone')
 
+    def test_incomplete_contexts(self):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['pgsql-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+        expected_result = ['identity']
+
+        self.assertEquals(openstack.incomplete_contexts(configs,
+                                                        required_interfaces),
+                          expected_result)
+
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_context_status_complete(self, status_set):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_context_status(configs, required_interfaces)
+        status_set.assert_called_with('active',
+                                      'Contexts are present and complete')
+
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_context_status_incomplete(self, status_set):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_context_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      'message, identity contexts are absent '
+                                      'or incomplete')
+
+
 if __name__ == '__main__':
     unittest.main()

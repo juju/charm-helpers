@@ -40,7 +40,8 @@ from charmhelpers.core.hookenv import (
     charm_dir,
     INFO,
     relation_ids,
-    relation_set
+    relation_set,
+    status_set
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
@@ -703,3 +704,62 @@ def git_yaml_value(projects_yaml, key):
         return projects[key]
 
     return None
+
+
+def context_status(configs, required_interfaces):
+    """
+    Decorator to set workload status based on complete contexts
+    after contexts have been acted on
+    """
+    def wrap(f):
+        def wrapped_f(*args, **kwargs):
+            # Run the original function first
+            f()
+            # Set workload status now that contexts have been
+            # acted on
+            set_context_status(configs, required_interfaces)
+        return wrapped_f
+    return wrap
+
+
+def set_context_status(configs, required_interfaces):
+    """
+    Set workload status based on complete contexts
+    Left outside of the decorator, context_status,
+    to allow manual use
+    """
+    incomplete_ctxts = incomplete_contexts(configs, required_interfaces)
+    if incomplete_ctxts:
+        status_set(
+            'blocked',
+            '{} contexts are absent or incomplete'
+            ''.format(', '.join(incomplete_ctxts))
+        )
+    else:
+        status_set('active', 'Contexts are present and complete')
+
+
+def incomplete_contexts(configs, required_interfaces):
+    """
+    Check complete contexts against required_interfaces
+    Return list of incomplete contexts
+
+    configs is an OSConfigRenderer object with configs registered
+
+    required_interfaces is a dictionary of required general interfaces
+    with list values of possible specific interfaces.
+    The interface is said to be satisfied if anyone of the interfaces in the
+    list has a complete context.
+    Example:
+    required_interfaces = {'database': ['shared-db', 'pgsql-db']}
+    """
+    complete_ctxts = configs.complete_contexts()
+    incomplete_contexts = []
+    for svc_type in required_interfaces.keys():
+        found_ctxt = False
+        for interface in required_interfaces[svc_type]:
+            if interface in complete_ctxts:
+                found_ctxt = True
+        if not found_ctxt:
+            incomplete_contexts.append(svc_type)
+    return incomplete_contexts
