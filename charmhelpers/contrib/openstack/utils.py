@@ -712,9 +712,10 @@ def context_status(configs, required_interfaces):
     after contexts have been acted on
     """
     def wrap(f):
+        @wraps(f)
         def wrapped_f(*args, **kwargs):
             # Run the original function first
-            f()
+            f(*args, **kwargs)
             # Set workload status now that contexts have been
             # acted on
             set_context_status(configs, required_interfaces)
