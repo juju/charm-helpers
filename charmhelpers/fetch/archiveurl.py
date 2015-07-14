@@ -155,7 +155,10 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
             else:
                 algorithms = hashlib.algorithms_available
             if key in algorithms:
-                check_hash(dld_file, value, key)
+                if len(value) != 1:
+                    raise TypeError()
+                expected = value[0]
+                check_hash(dld_file, expected, key)
         if checksum:
             check_hash(dld_file, checksum, hash_type)
         return extract(dld_file, dest)

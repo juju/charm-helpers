@@ -51,4 +51,4 @@ class DebugTestCase(TestCase):
         """
         self.set_trace()
         self.Rpdb.set_trace.side_effect = Exception()
-        self._error.assert_called_once()
+        self._error.assert_called_once_with()

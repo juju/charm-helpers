@@ -86,9 +86,10 @@ class ArchiveUrlFetchHandlerTest(TestCase):
                 where = self.fh.install(url, checksum='deadbeef')
             self.fh.download.assert_called_with(url, dest)
             _extract.assert_called_with(dest, None)
-            _check_hash.assert_called_with(dest, 'deadbeef', 'sha1')
             if 'sha512' in url:
-                _check_hash.assert_has_call(dest, 'beefdead', 'sha512')
+                _check_hash.assert_any_call(dest, 'beefdead', 'sha512')
+            else:
+                _check_hash.assert_called_with(dest, 'deadbeef', 'sha1')
             self.assertEqual(where, dest)
             _check_hash.reset_mock()
 
