@@ -989,9 +989,14 @@ class ContextTests(unittest.TestCase):
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir,
-                                    config):
+                                    mock_config):
         '''Test ceph context with all relation data'''
-        config.return_value = True
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
         isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -1031,11 +1036,16 @@ class ContextTests(unittest.TestCase):
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_public_addr(
-            self, ensure_packages, mkdir, isdir, config):
+            self, ensure_packages, mkdir, isdir, mock_config):
         '''Test ceph context in host with multiple networks with all
         relation data'''
         isdir.return_value = False
-        config.return_value = True
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
         relation = FakeRelation(relation_data=CEPH_RELATION_WITH_PUBLIC_ADDR)
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
@@ -1049,6 +1059,56 @@ class ContextTests(unittest.TestCase):
             'use_syslog': 'true',
         }
         self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_rbd_cache(self, ensure_packages, mkdir, isdir,
+                                         mock_config):
+        isdir.return_value = False
+        config_dict = {'rbd-client-cache': 'enabled',
+                       'use-syslog': False}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_RELATION_WITH_PUBLIC_ADDR)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+
+        class CephContextWithRBDCache(context.CephContext):
+            def __call__(self):
+                ctxt = super(CephContextWithRBDCache, self).__call__()
+
+                rbd_cache = fake_config('rbd-client-cache') or ""
+                if rbd_cache.lower() == "enabled":
+                    ctxt['rbd_client_cache_settings'] = \
+                                {'rbd cache': 'true',
+                                 'rbd cache writethrough until flush': 'true'}
+                elif rbd_cache.lower() == "disabled":
+                    ctxt['rbd_client_cache_settings'] = \
+                                    {'rbd cache': 'false'}
+
+                return ctxt
+
+        ceph = CephContextWithRBDCache()
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.10 192.168.1.11',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'false',
+        }
+        expected['rbd_client_cache_settings'] = \
+            {'rbd cache': 'true',
+             'rbd cache writethrough until flush': 'true'}
+
+        self.assertDictEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -1080,11 +1140,16 @@ class ContextTests(unittest.TestCase):
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_missing_public_addr(
-            self, ensure_packages, mkdir, isdir, config):
+            self, ensure_packages, mkdir, isdir, mock_config):
         '''Test ceph context in host with multiple networks with no
         ceph-public-addr in relation data'''
         isdir.return_value = False
-        config.return_value = True
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
         relation = deepcopy(CEPH_RELATION_WITH_PUBLIC_ADDR)
         del relation['ceph:0']['ceph/0']['ceph-public-address']
         relation = FakeRelation(relation_data=relation)
