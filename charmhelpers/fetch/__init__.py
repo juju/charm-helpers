@@ -378,8 +378,9 @@ def install_remote(source, *args, **kwargs):
     for handler in handlers:
         try:
             installed_to = handler.install(source, *args, **kwargs)
-        except UnhandledSource:
-            pass
+        except UnhandledSource as e:
+            log('Install source attempt unsuccessful: {}'.format(e),
+                level='WARNING')
     if not installed_to:
         raise UnhandledSource("No handler found for source {}".format(source))
     return installed_to
