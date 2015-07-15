@@ -63,6 +63,32 @@ def service_reload(service_name, restart_on_failure=False):
     return service_result
 
 
+def service_pause(service_name, init_dir="/etc/init"):
+    """Pause a system service.
+
+    Stop it, and prevent it from starting again at boot."""
+    stopped = service_stop(service_name)
+    # XXX: Support systemd too
+    override_path = os.path.join(
+        init_dir, '{}.conf.override'.format(service_name))
+    with open(override_path, 'w') as fh:
+        fh.write("manual\n")
+    return stopped
+
+
+def service_resume(service_name, init_dir="/etc/init"):
+    """Resume a system service.
+
+    Reenable starting again at boot. Start the service"""
+    # XXX: Support systemd too
+    override_path = os.path.join(
+        init_dir, '{}.conf.override'.format(service_name))
+    if os.path.exists(override_path):
+        os.unlink(override_path)
+    started = service_start(service_name)
+    return started
+
+
 def service(action, service_name):
     """Control a system service"""
     cmd = ['service', service_name, action]
