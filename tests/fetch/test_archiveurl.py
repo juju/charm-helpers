@@ -6,6 +6,7 @@ from mock import (
     patch,
     mock_open,
     Mock,
+    ANY
 )
 from charmhelpers.fetch import (
     archiveurl,
@@ -35,7 +36,6 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             "ftp://example.com/foo.tar.gz",
             "https://example.com/foo.tgz",
             "file://example.com/foo.tar.bz2",
-            "file://example.com/foo.tar.bz2#sha512=beefdead",
         )
         self.invalid_urls = (
             "git://example.com/foo.tar.gz",
@@ -86,10 +86,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
                 where = self.fh.install(url, checksum='deadbeef')
             self.fh.download.assert_called_with(url, dest)
             _extract.assert_called_with(dest, None)
-            if 'sha512' in url:
-                _check_hash.assert_any_call(dest, 'beefdead', 'sha512')
-            else:
-                _check_hash.assert_called_with(dest, 'deadbeef', 'sha1')
+            _check_hash.assert_called_with(dest, 'deadbeef', 'sha1')
             self.assertEqual(where, dest)
             _check_hash.reset_mock()
 
@@ -102,6 +99,26 @@ class ArchiveUrlFetchHandlerTest(TestCase):
         self.fh.download.side_effect = OSError('fail')
         with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
             self.assertRaises(UnhandledSource, self.fh.install, url)
+
+    @patch('charmhelpers.fetch.archiveurl.check_hash')
+    @patch('charmhelpers.fetch.archiveurl.mkdir')
+    @patch('charmhelpers.fetch.archiveurl.extract')
+    def test_install_with_hash_in_url(self, _extract, _mkdir, _check_hash):
+        self.fh.download = MagicMock()
+        url = "file://example.com/foo.tar.bz2#sha512=beefdead"
+        with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+            self.fh.install(url)
+        _check_hash.assert_called_with(ANY, 'beefdead', 'sha512')
+
+    @patch('charmhelpers.fetch.archiveurl.mkdir')
+    @patch('charmhelpers.fetch.archiveurl.extract')
+    def test_install_with_duplicate_hash_in_url(self, _extract, _mkdir):
+        self.fh.download = MagicMock()
+        url = "file://example.com/foo.tar.bz2#sha512=a&sha512=b"
+        with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+            with self.assertRaisesRegexp(
+                    TypeError, "Expected 1 hash value, not 2"):
+                self.fh.install(url)
 
     @patch('charmhelpers.fetch.archiveurl.urlretrieve')
     @patch('charmhelpers.fetch.archiveurl.check_hash')
