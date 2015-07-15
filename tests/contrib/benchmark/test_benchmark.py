@@ -1,3 +1,8 @@
+from functools import partial
+from os.path import join
+from tempfile import mkdtemp
+from shutil import rmtree
+
 import mock
 from testtools import TestCase
 # import unittest
@@ -33,7 +38,8 @@ class TestBenchmark(TestCase):
         self.fake_relation = FakeRelation(FAKE_RELATION)
         # self.hook_name.return_value = 'benchmark-relation-changed'
 
-        self.relation_get.side_effect = self.fake_relation.get
+        self.relation_get.side_effect = partial(
+            self.fake_relation.get, rid="benchmark:0", unit="benchmark/0")
         self.relation_ids.side_effect = self.fake_relation.relation_ids
 
     def _patch(self, method):
@@ -87,34 +93,32 @@ class TestBenchmark(TestCase):
         check_call.assert_any_call(['action-set', 'baz.foo=1'])
         check_call.assert_any_call(['action-set', 'baz.bar=2'])
 
-    @mock.patch('charmhelpers.contrib.benchmark.relation_get')
-    @mock.patch('charmhelpers.contrib.benchmark.relation_set')
     @mock.patch('charmhelpers.contrib.benchmark.relation_ids')
     @mock.patch('charmhelpers.contrib.benchmark.in_relation_hook')
-    def test_benchmark_init(self, in_relation_hook, relation_ids, relation_set, relation_get):
+    def test_benchmark_init(self, in_relation_hook, relation_ids):
 
         in_relation_hook.return_value = True
         relation_ids.return_value = ['benchmark:0']
         actions = ['asdf', 'foobar']
 
-        with patch_open() as (_open, _file):
+        tempdir = mkdtemp(prefix=self.__class__.__name__)
+        self.addCleanup(rmtree, tempdir)
+        conf_path = join(tempdir, "benchmark.conf")
+        with mock.patch.object(Benchmark, "BENCHMARK_CONF", conf_path):
             b = Benchmark(actions)
 
             self.assertIsInstance(b, Benchmark)
 
-            self.assertTrue(relation_get.called)
-            self.assertTrue(relation_set.called)
+            self.assertTrue(self.relation_get.called)
+            self.assertTrue(self.relation_set.called)
 
             relation_ids.assert_called_once_with('benchmark')
 
-            for key in b.required_keys:
-                relation_get.assert_any_call(key)
-
-            relation_set.assert_called_once_with(
+            self.relation_set.assert_called_once_with(
                 relation_id='benchmark:0',
                 relation_settings={'benchmarks': ",".join(actions)}
             )
 
-            _open.assert_called_with('/etc/benchmark.conf', 'w')
+            conf_contents = open(conf_path).readlines()
             for key, val in iter(FAKE_RELATION['benchmark:0']['benchmark/0'].items()):
-                _file.write.assert_any_called("%s=%s\n" % (key, val))
+                self.assertIn("%s=%s\n" % (key, val), conf_contents)

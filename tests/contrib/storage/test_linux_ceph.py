@@ -62,7 +62,7 @@ class CephUtilsTests(TestCase):
         '''It creates a new ceph keyring'''
         _exists.return_value = True
         ceph_utils.create_keyring('cinder', 'cephkey')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.check_call.assert_not_called()
 
     @patch('os.remove')
@@ -72,7 +72,7 @@ class CephUtilsTests(TestCase):
         _exists.return_value = True
         ceph_utils.delete_keyring('cinder')
         _remove.assert_called_with('/etc/ceph/ceph.client.cinder.keyring')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
 
     @patch('os.remove')
     @patch('os.path.exists')
@@ -80,7 +80,7 @@ class CephUtilsTests(TestCase):
         '''It creates a new ceph keyring.'''
         _exists.return_value = False
         ceph_utils.delete_keyring('cinder')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         _remove.assert_not_called()
 
     @patch('os.path.exists')
@@ -90,14 +90,14 @@ class CephUtilsTests(TestCase):
         with patch_open() as (_open, _file):
             ceph_utils.create_key_file('cinder', 'cephkey')
             _file.write.assert_called_with('cephkey')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
 
     @patch('os.path.exists')
     def test_create_key_file_already_exists(self, _exists):
         '''It creates a new ceph keyring'''
         _exists.return_value = True
         ceph_utils.create_key_file('cinder', 'cephkey')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
 
     @patch('os.mkdir')
     @patch.object(ceph_utils, 'apt_install')
@@ -171,7 +171,7 @@ class CephUtilsTests(TestCase):
         self._patch('pool_exists')
         self.pool_exists.return_value = True
         ceph_utils.create_pool(service='cinder', name='foo')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.check_call.assert_not_called()
 
     def test_keyring_path(self):
@@ -202,14 +202,14 @@ class CephUtilsTests(TestCase):
     def test_rbd_exists(self):
         self.check_output.return_value = LS_RBDS
         self.assertTrue(ceph_utils.rbd_exists('service', 'pool', 'rbd1'))
-        self.check_output.assert_call_with(
+        self.check_output.assert_called_with(
             ['rbd', 'list', '--id', 'service', '--pool', 'pool']
         )
 
     def test_rbd_does_not_exist(self):
         self.check_output.return_value = LS_RBDS
         self.assertFalse(ceph_utils.rbd_exists('service', 'pool', 'rbd4'))
-        self.check_output.assert_call_with(
+        self.check_output.assert_called_with(
             ['rbd', 'list', '--id', 'service', '--pool', 'pool']
         )
 
@@ -304,7 +304,7 @@ class CephUtilsTests(TestCase):
             _file.read.return_value = 'anothermod\n'
             ceph_utils.modprobe('mymod')
             _open.assert_called_with('/etc/modules', 'r+')
-            _file.read.assert_called()
+            _file.read.assert_called_with()
             _file.write.assert_called_with('mymod')
         self.check_call.assert_called_with(['modprobe', 'mymod'])
 
@@ -318,14 +318,14 @@ class CephUtilsTests(TestCase):
     def test_make_filesystem(self, _exists):
         _exists.return_value = True
         ceph_utils.make_filesystem('/dev/sdd')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.check_call.assert_called_with(['mkfs', '-t', 'ext4', '/dev/sdd'])
 
     @patch('os.path.exists')
     def test_make_filesystem_xfs(self, _exists):
         _exists.return_value = True
         ceph_utils.make_filesystem('/dev/sdd', 'xfs')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.check_call.assert_called_with(['mkfs', '-t', 'xfs', '/dev/sdd'])
 
     @patch('os.chown')
