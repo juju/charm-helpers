@@ -140,11 +140,7 @@ def add_group(group_name, system_group=False):
 
 def add_user_to_group(username, group):
     """Add a user to a group"""
-    cmd = [
-        'gpasswd', '-a',
-        username,
-        group
-    ]
+    cmd = ['gpasswd', '-a', username, group]
     log("Adding user {} to group {}".format(username, group))
     subprocess.check_call(cmd)
 
