@@ -489,8 +489,8 @@ class OpenStackHelpersTestCase(TestCase):
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
         _open.assert_called_with(expected_f, 'wb')
         _mkdir.assert_called_with(os.path.dirname(expected_f))
-        for line in scriptrc:
-            _file.__enter__().write.assert_has_calls(call(line))
+        _file.__enter__().write.assert_has_calls(
+            list(call(line) for line in scriptrc))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
