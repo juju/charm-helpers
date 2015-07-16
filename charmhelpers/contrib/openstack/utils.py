@@ -69,8 +69,6 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
 
-CHARM_PACKAGE_VERSIONMAP = 'conf/os-pkg-versionmap.yaml'
-
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('oneiric', 'diablo'),
     ('precise', 'essex'),
