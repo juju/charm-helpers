@@ -69,6 +69,7 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
 
+CHARM_PACKAGE_VERSIONMAP = 'conf/os-pkg-versionmap.yaml'
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('oneiric', 'diablo'),
@@ -117,6 +118,34 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.2.2', 'kilo'),
     ('2.3.0', 'liberty'),
 ])
+
+# >= Liberty version->codename mapping
+PACKAGE_CODENAMES = {
+    'nova-common': OrderedDict([
+        ('12.0.0', 'liberty'),
+    ]),
+    'neutron-common': OrderedDict([
+        ('7.0.0', 'liberty'),
+    ]),
+    'cinder-common': OrderedDict([
+        ('7.0.0', 'liberty'),
+    ]),
+    'keystone-common': OrderedDict([
+        ('8.0.0', 'liberty'),
+    ]),
+    'horizon-common': OrderedDict([
+        ('8.0.0', 'liberty'),
+    ]),
+    'ceilometer-common': OrderedDict([
+        ('5.0.0', 'liberty'),
+    ]),
+    'heat-common': OrderedDict([
+        ('5.0.0', 'liberty'),
+    ]),
+    'glance-common': OrderedDict([
+        ('11.0.0', 'liberty'),
+    ]),
+}
 
 DEFAULT_LOOPBACK_SIZE = '5G'
 
@@ -202,19 +231,25 @@ def get_os_codename_package(package, fatal=True):
 
     vers = apt.upstream_version(pkg.current_ver.ver_str)
 
-    try:
-        if 'swift' in pkg.name:
-            swift_vers = vers[:5]
-            if swift_vers not in SWIFT_CODENAMES:
-                # Deal with 1.10.0 upward
-                swift_vers = vers[:6]
-            return SWIFT_CODENAMES[swift_vers]
-        else:
-            vers = vers[:6]
-            return OPENSTACK_CODENAMES[vers]
-    except KeyError:
-        e = 'Could not determine OpenStack codename for version %s' % vers
-        error_out(e)
+    # >= Liberty independent project versions
+    if (package in PACKAGE_CODENAMES and
+            vers in PACKAGE_CODENAMES[package]):
+        return PACKAGE_CODENAMES[package][vers]
+    else:
+        # < Liberty co-ordinated project versions
+        try:
+            if 'swift' in pkg.name:
+                swift_vers = vers[:5]
+                if swift_vers not in SWIFT_CODENAMES:
+                    # Deal with 1.10.0 upward
+                    swift_vers = vers[:6]
+                return SWIFT_CODENAMES[swift_vers]
+            else:
+                vers = vers[:6]
+                return OPENSTACK_CODENAMES[vers]
+        except KeyError:
+            e = 'Could not determine OpenStack codename for version %s' % vers
+            error_out(e)
 
 
 def get_os_version_package(pkg, fatal=True):

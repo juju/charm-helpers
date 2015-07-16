@@ -26,6 +26,11 @@ FAKE_RELEASE = {
 }
 
 FAKE_REPO = {
+    'neutron-common': {
+        'pkg_vers': '2:7.0.0-0ubuntu1',
+        'os_release': 'liberty',
+        'os_version': '2015.2'
+    },
     'nova-common': {
         'pkg_vers': '2012.2.3-0ubuntu2.1',
         'os_release': 'folsom',
