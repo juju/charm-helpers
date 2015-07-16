@@ -1,5 +1,9 @@
+import os.path
 from collections import OrderedDict
 import subprocess
+from tempfile import mkdtemp
+from shutil import rmtree
+
 import apt_pkg
 
 from mock import patch, call
@@ -97,6 +101,34 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_restart(service_name))
 
         service.assert_called_with('restart', service_name)
+
+    @patch.object(host, 'service')
+    def test_pauses_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_a_service")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(service_name, init_dir=tempdir))
+
+        service.assert_called_with('stop', service_name)
+        override_path = os.path.join(
+            tempdir, "{}.conf.override".format(service_name))
+        with open(override_path, "r") as fh:
+            override_contents = fh.read()
+        self.assertEqual("manual\n", override_contents)
+
+    @patch.object(host, 'service')
+    def test_resumes_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_a_service")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(service_name, init_dir=tempdir))
+
+        service.assert_called_with('start', service_name)
+        override_path = os.path.join(
+            tempdir, "{}.conf.override".format(service_name))
+        self.assertFalse(os.path.exists(override_path))
 
     @patch.object(host, 'service')
     def test_reloads_a_service(self, service):
