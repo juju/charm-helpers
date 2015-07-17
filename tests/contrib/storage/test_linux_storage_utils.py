@@ -16,8 +16,9 @@ class MiscStorageUtilsTests(unittest.TestCase):
         '''It calls sgdisk correctly to zap disk'''
         check_output.return_value = b'200\n'
         storage_utils.zap_disk('/dev/foo')
-        call.assert_any_call(['sgdisk', '--zap-all', '--mbrtogpt',
-                              '--clear', '/dev/foo'])
+        call.assert_any_call(['sgdisk', '--zap-all', '--', '/dev/foo'])
+        call.assert_any_call(['sgdisk', '--clear', '--mbrtogpt',
+                              '--', '/dev/foo'])
         check_output.assert_any_call(['blockdev', '--getsz', '/dev/foo'])
         check_call.assert_any_call(['dd', 'if=/dev/zero', 'of=/dev/foo',
                                     'bs=1M', 'count=1'])
