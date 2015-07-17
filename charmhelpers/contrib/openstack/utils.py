@@ -24,6 +24,7 @@ import subprocess
 import json
 import os
 import sys
+import re
 
 import six
 import yaml
@@ -228,6 +229,9 @@ def get_os_codename_package(package, fatal=True):
         error_out(e)
 
     vers = apt.upstream_version(pkg.current_ver.ver_str)
+    match = re.match('^(\d)\.(\d)\.(\d)', vers)
+    if match:
+        vers = match.group(0)
 
     # >= Liberty independent project versions
     if (package in PACKAGE_CODENAMES and
