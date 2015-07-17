@@ -192,9 +192,41 @@ def config_flags_parser(config_flags):
 class OSContextGenerator(object):
     """Base class for all context generators."""
     interfaces = []
+    related = False
+    complete = False
+    missing_data = []
 
     def __call__(self):
         raise NotImplementedError
+
+    def context_complete(self, ctxt):
+        # Fresh start
+        self.complete = False
+        self.missing_data = []
+        for k, v in six.iteritems(ctxt):
+            if v is None or v == '':
+                if k not in self.missing_data:
+                    self.missing_data.append(k)
+
+        print "MSSING:", self.missing_data
+        if self.missing_data:
+            self.complete = False
+            log('Missing required data: %s' % ' '.join(self.missing_data), level=INFO)
+        else:
+            self.complete = True
+        return self.complete
+
+    def get_related(self):
+        related = False
+        try:
+            for interface in self.interfaces:
+                if relation_ids(interface):
+                    related = True
+            return related
+        except AttributeError as e:
+            log("{} {}"
+                "".format(self, e), 'INFO')
+            return False
 
 
 class SharedDBContext(OSContextGenerator):
@@ -211,6 +243,7 @@ class SharedDBContext(OSContextGenerator):
         self.database = database
         self.user = user
         self.ssl_dir = ssl_dir
+        self.rel_name = self.interfaces[0]
 
     def __call__(self):
         self.database = self.database or config('database')
@@ -244,6 +277,7 @@ class SharedDBContext(OSContextGenerator):
             password_setting = self.relation_prefix + '_password'
 
         for rid in relation_ids(self.interfaces[0]):
+            self.related = True
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 host = rdata.get('db_host')
@@ -255,7 +289,7 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql'
                 }
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
         return {}
@@ -276,6 +310,7 @@ class PostgresqlDBContext(OSContextGenerator):
 
         ctxt = {}
         for rid in relation_ids(self.interfaces[0]):
+            self.related = True
             for unit in related_units(rid):
                 rel_host = relation_get('host', rid=rid, unit=unit)
                 rel_user = relation_get('user', rid=rid, unit=unit)
@@ -285,7 +320,7 @@ class PostgresqlDBContext(OSContextGenerator):
                         'database_user': rel_user,
                         'database_password': rel_passwd,
                         'database_type': 'postgresql'}
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     return ctxt
 
         return {}
@@ -346,6 +381,7 @@ class IdentityServiceContext(OSContextGenerator):
             ctxt['signing_dir'] = cachedir
 
         for rid in relation_ids(self.rel_name):
+            self.related = True
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 serv_host = rdata.get('service_host')
@@ -364,7 +400,7 @@ class IdentityServiceContext(OSContextGenerator):
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol})
 
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
@@ -403,6 +439,7 @@ class AMQPContext(OSContextGenerator):
         ctxt = {}
         for rid in relation_ids(self.rel_name):
             ha_vip_only = False
+            self.related = True
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
@@ -435,7 +472,7 @@ class AMQPContext(OSContextGenerator):
                 ha_vip_only = relation_get('ha-vip-only',
                                            rid=rid, unit=unit) is not None
 
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     if 'rabbit_ssl_ca' in ctxt:
                         if not self.ssl_dir:
                             log("Charm not setup for ssl support but ssl ca "
@@ -467,7 +504,7 @@ class AMQPContext(OSContextGenerator):
             ctxt['oslo_messaging_flags'] = config_flags_parser(
                 oslo_messaging_flags)
 
-        if not context_complete(ctxt):
+        if not self.complete:
             return {}
 
         return ctxt
@@ -506,7 +543,7 @@ class CephContext(OSContextGenerator):
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
 
-        if not context_complete(ctxt):
+        if self.context_complete:
             return {}
 
         ensure_packages(['ceph-common'])
@@ -1326,6 +1363,6 @@ class NetworkServiceContext(OSContextGenerator):
                     'auth_protocol':
                     rdata.get('auth_protocol') or 'http',
                 }
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     return ctxt
         return {}
