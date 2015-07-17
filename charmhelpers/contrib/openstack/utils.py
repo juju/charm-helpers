@@ -129,7 +129,7 @@ PACKAGE_CODENAMES = {
     'cinder-common': OrderedDict([
         ('7.0.0', 'liberty'),
     ]),
-    'keystone-common': OrderedDict([
+    'keystone': OrderedDict([
         ('8.0.0', 'liberty'),
     ]),
     'horizon-common': OrderedDict([
