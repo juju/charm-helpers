@@ -855,16 +855,16 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.status_set')
     def test_set_context_status_incomplete(self, status_set):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db']
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
             'database': ['shared-db', 'pgsql-db'],
             'message': ['amqp', 'zeromq-configuration'],
             'identity': ['identity-service']}
 
         openstack.set_context_status(configs, required_interfaces)
-        status_set.assert_called_with('blocked',
-                                      'message, identity contexts are absent '
-                                      'or incomplete')
+        status_set.assert_called_with('waiting',
+                                      'identity contexts are absent '
+                                      'or incomplete.')
 
 
 if __name__ == '__main__':
