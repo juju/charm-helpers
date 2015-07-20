@@ -741,25 +741,25 @@ def set_context_status(configs, required_interfaces):
                 missing_data = incomplete_ctxts[context][interface].get('missing_data')
         if not related_interface:
             message += "{} context is missing and must be related for " \
-                       "functionality. ".format(context)
+                       "functionality.".format(context)
             state = 'blocked'
 
         elif not missing_data:
             message += "{} context's interface, {}, has joined but has not " \
-                       "yet exchanged data on the relation. " \
+                       "yet exchanged data on the relation." \
                        "".format(context, related_interface)
             if state != 'blocked':
                 state = 'waiting'
         else:
             message += "{} context's interface, {}, is related awaiting the " \
-                       "following data from the relationship: {}. " \
+                       "following data from the relationship: {}." \
                        "".format(context, related_interface,
                                  ", ".join(missing_data))
             if state != 'blocked':
                 state = 'waiting'
 
     if state == 'active':
-        message = "All required contexts are present and complete"
+        message = "All required contexts are present and complete."
 
     status_set(state, message)
 

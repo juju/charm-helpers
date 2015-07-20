@@ -208,7 +208,6 @@ class OSContextGenerator(object):
                 if k not in self.missing_data:
                     self.missing_data.append(k)
 
-        print "MSSING:", self.missing_data
         if self.missing_data:
             self.complete = False
             log('Missing required data: %s' % ' '.join(self.missing_data), level=INFO)
@@ -222,6 +221,7 @@ class OSContextGenerator(object):
             for interface in self.interfaces:
                 if relation_ids(interface):
                     related = True
+            self.related = related
             return related
         except AttributeError as e:
             log("{} {}"
@@ -543,7 +543,7 @@ class CephContext(OSContextGenerator):
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
 
-        if self.context_complete:
+        if not self.context_complete(ctxt):
             return {}
 
         ensure_packages(['ceph-common'])

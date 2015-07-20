@@ -831,11 +831,10 @@ class OpenStackHelpersTestCase(TestCase):
             'database': ['shared-db', 'pgsql-db'],
             'message': ['amqp', 'zeromq-configuration'],
             'identity': ['identity-service']}
-        expected_result = ['identity']
+        expected_result = 'identity'
 
-        self.assertEquals(openstack.incomplete_contexts(configs,
-                                                        required_interfaces),
-                          expected_result)
+        result = openstack.incomplete_contexts(configs, required_interfaces)
+        self.assertTrue(expected_result in result.keys())
 
     @patch('charmhelpers.contrib.openstack.utils.status_set')
     def test_set_context_status_complete(self, status_set):
@@ -850,10 +849,14 @@ class OpenStackHelpersTestCase(TestCase):
 
         openstack.set_context_status(configs, required_interfaces)
         status_set.assert_called_with('active',
-                                      'Contexts are present and complete')
+                                      'All required contexts are present and '
+                                      'complete.')
 
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_contexts',
+           return_value={'identity': {'identity-service': {'related': True}}})
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_context_status_incomplete(self, status_set):
+    def test_set_context_status_related_incomplete(self, status_set,
+                                                   incomplete_contexts):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -863,8 +866,27 @@ class OpenStackHelpersTestCase(TestCase):
 
         openstack.set_context_status(configs, required_interfaces)
         status_set.assert_called_with('waiting',
-                                      'identity contexts are absent '
-                                      'or incomplete.')
+                                      "identity context's interface, "
+                                      "identity-service, has joined but has "
+                                      "not yet exchanged data on the "
+                                      "relation.")
+
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_contexts',
+           return_value={'identity': {'identity-service': {'related': False}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_context_status_absent_incomplete(self, status_set,
+                                                  incomplete_contexts):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_context_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      'identity context is missing and must '
+                                      'be related for functionality.')
 
 
 if __name__ == '__main__':
