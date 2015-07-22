@@ -468,6 +468,19 @@ def relation_types():
 
 
 @cached
+def peer_relation_id():
+    '''Get a peer relation id if a peer relation has been joined, else None.'''
+    md = hookenv.metadata()
+    section = md.get('peers')
+    if section:
+        for key in section:
+            relids = hookenv.relation_ids(key)
+            if relids:
+                return relids[0]
+    return None
+
+
+@cached
 def charm_name():
     """Get the name of the current charm as is specified on metadata.yaml"""
     return metadata().get('name')
@@ -691,6 +704,7 @@ def status_get():
 
 def translate_exc(from_exc, to_exc):
     def inner_translate_exc1(f):
+        @wraps(f)
         def inner_translate_exc2(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
@@ -702,6 +716,7 @@ def translate_exc(from_exc, to_exc):
     return inner_translate_exc1
 
 
+@cached
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def is_leader():
     """Does the current unit hold the juju leadership
