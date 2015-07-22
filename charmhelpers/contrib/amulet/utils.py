@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import amulet
 import ConfigParser
 import distro_info
 import io
@@ -173,6 +174,11 @@ class AmuletUtils(object):
 
            Verify that the specified section of the config file contains
            the expected option key:value pairs.
+
+           Compare expected dictionary data vs actual dictionary data.
+           The values in the 'expected' dictionary can be strings, bools, ints,
+           longs, or can be a function that evaluates a variable and returns a
+           bool.
            """
         self.log.debug('Validating config file data ({} in {} on {})'
                        '...'.format(section, config_file,
@@ -185,9 +191,20 @@ class AmuletUtils(object):
         for k in expected.keys():
             if not config.has_option(section, k):
                 return "section [{}] is missing option {}".format(section, k)
-            if config.get(section, k) != expected[k]:
+
+            actual = config.get(section, k)
+            v = expected[k]
+            if (isinstance(v, six.string_types) or
+                    isinstance(v, bool) or
+                    isinstance(v, six.integer_types)):
+                # handle explicit values
+                if actual != v:
+                    return "section [{}] {}:{} != expected {}:{}".format(
+                           section, k, actual, k, expected[k])
+            # handle function pointers, such as not_null or valid_ip
+            elif not v(actual):
                 return "section [{}] {}:{} != expected {}:{}".format(
-                       section, k, config.get(section, k), k, expected[k])
+                       section, k, actual, k, expected[k])
         return None
 
     def _validate_dict_data(self, expected, actual):
@@ -195,7 +212,7 @@ class AmuletUtils(object):
 
            Compare expected dictionary data vs actual dictionary data.
            The values in the 'expected' dictionary can be strings, bools, ints,
-           longs, or can be a function that evaluate a variable and returns a
+           longs, or can be a function that evaluates a variable and returns a
            bool.
            """
         self.log.debug('actual: {}'.format(repr(actual)))
@@ -206,8 +223,10 @@ class AmuletUtils(object):
                 if (isinstance(v, six.string_types) or
                         isinstance(v, bool) or
                         isinstance(v, six.integer_types)):
+                    # handle explicit values
                     if v != actual[k]:
                         return "{}:{}".format(k, actual[k])
+                # handle function pointers, such as not_null or valid_ip
                 elif not v(actual[k]):
                     return "{}:{}".format(k, actual[k])
             else:
@@ -406,3 +425,109 @@ class AmuletUtils(object):
         """Convert a relative file path to a file URL."""
         _abs_path = os.path.abspath(file_rel_path)
         return urlparse.urlparse(_abs_path, scheme='file').geturl()
+
+    def check_commands_on_units(self, commands, sentry_units):
+        """Check that all commands in a list exit zero on all
+        sentry units in a list.
+
+        :param commands:  list of bash commands
+        :param sentry_units:  list of sentry unit pointers
+        :returns: None if successful; Failure message otherwise
+        """
+        self.log.debug('Checking exit codes for {} commands on {} '
+                       'sentry units...'.format(len(commands),
+                                                len(sentry_units)))
+        for sentry_unit in sentry_units:
+            for cmd in commands:
+                output, code = sentry_unit.run(cmd)
+                if code == 0:
+                    self.log.debug('{} `{}` returned {} '
+                                   '(OK)'.format(sentry_unit.info['unit_name'],
+                                                 cmd, code))
+                else:
+                    return ('{} `{}` returned {} '
+                            '{}'.format(sentry_unit.info['unit_name'],
+                                        cmd, code, output))
+        return None
+
+    def get_process_id_list(self, sentry_unit, process_name):
+        """Get a list of process ID(s) from a single sentry juju unit
+        for a single process name.
+
+        :param sentry_unit: Pointer to amulet sentry instance (juju unit)
+        :param process_name: Process name
+        :returns: List of process IDs
+        """
+        cmd = 'pidof {}'.format(process_name)
+        output, code = sentry_unit.run(cmd)
+        if code != 0:
+            msg = ('{} `{}` returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, code, output))
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        return str(output).split()
+
+    def get_unit_process_ids(self, unit_processes):
+        """Construct a dict containing unit sentries, process names, and
+        process IDs."""
+        pid_dict = {}
+        for sentry_unit, process_list in unit_processes.iteritems():
+            pid_dict[sentry_unit] = {}
+            for process in process_list:
+                pids = self.get_process_id_list(sentry_unit, process)
+                pid_dict[sentry_unit].update({process: pids})
+        return pid_dict
+
+    def validate_unit_process_ids(self, expected, actual):
+        """Validate process id quantities for services on units."""
+        self.log.debug('Checking units for running processes...')
+        self.log.debug('Expected PIDs: {}'.format(expected))
+        self.log.debug('Actual PIDs: {}'.format(actual))
+
+        if len(actual) != len(expected):
+            return ('Unit count mismatch.  expected, actual: {}, '
+                    '{} '.format(len(expected), len(actual)))
+
+        for (e_sentry, e_proc_names) in expected.iteritems():
+            e_sentry_name = e_sentry.info['unit_name']
+            if e_sentry in actual.keys():
+                a_proc_names = actual[e_sentry]
+            else:
+                return ('Expected sentry ({}) not found in actual dict data.'
+                        '{}'.format(e_sentry_name, e_sentry))
+
+            if len(e_proc_names.keys()) != len(a_proc_names.keys()):
+                return ('Process name count mismatch.  expected, actual: {}, '
+                        '{}'.format(len(expected), len(actual)))
+
+            for (e_proc_name, e_pids_length), (a_proc_name, a_pids) in \
+                    zip(e_proc_names.items(), a_proc_names.items()):
+                if e_proc_name != a_proc_name:
+                    return ('Process name mismatch.  expected, actual: {}, '
+                            '{}'.format(e_proc_name, a_proc_name))
+
+                a_pids_length = len(a_pids)
+                if e_pids_length != a_pids_length:
+                    return ('PID count mismatch. {} ({}) expected, actual: '
+                            '{}, {} ({})'.format(e_sentry_name, e_proc_name,
+                                                 e_pids_length, a_pids_length,
+                                                 a_pids))
+                else:
+                    self.log.debug('PID check OK: {} {} {}: '
+                                   '{}'.format(e_sentry_name, e_proc_name,
+                                               e_pids_length, a_pids))
+        return None
+
+    def validate_list_of_identical_dicts(self, list_of_dicts):
+        """Check that all dicts within a list are identical."""
+        hashes = []
+        for _dict in list_of_dicts:
+            hashes.append(hash(frozenset(_dict.items())))
+
+        self.log.debug('Hashes: {}'.format(hashes))
+        if len(set(hashes)) == 1:
+            self.log.debug('Dicts within list are identical')
+        else:
+            return 'Dicts within list are not identical'
+
+        return None

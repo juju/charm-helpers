@@ -63,6 +63,8 @@ class Benchmark():
 
     """
 
+    BENCHMARK_CONF = '/etc/benchmark.conf'  # Replaced in testing
+
     required_keys = [
         'hostname',
         'port',
@@ -91,7 +93,7 @@ class Benchmark():
                     break
 
             if len(config):
-                with open('/etc/benchmark.conf', 'w') as f:
+                with open(self.BENCHMARK_CONF, 'w') as f:
                     for key, val in iter(config.items()):
                         f.write("%s=%s\n" % (key, val))
 
