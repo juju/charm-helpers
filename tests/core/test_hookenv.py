@@ -1056,6 +1056,14 @@ class HelpersTest(TestCase):
                 metadata = hookenv.metadata()
         self.assertEqual(metadata, yaml.safe_load(CHARM_METADATA))
 
+    @patch('charmhelpers.core.hookenv.relation_ids')
+    @patch('charmhelpers.core.hookenv.metadata')
+    def test_peer_relation_id(self, metadata, relation_ids):
+        metadata.return_value = {'peers': {sentinel.peer_relname: {}}}
+        relation_ids.return_value = [sentinel.pid1, sentinel.pid2]
+        self.assertEqual(hookenv.peer_relation_id(), sentinel.pid1)
+        relation_ids.assert_called_once_with(sentinel.peer_relname)
+
     def test_charm_name(self):
         open_ = mock_open()
         open_.return_value = io.BytesIO(CHARM_METADATA)
