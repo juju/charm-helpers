@@ -25,9 +25,9 @@ from charmhelpers.core import hookenv
 
 from collections import OrderedDict
 if six.PY3:
-    from collections import UserDict
+    from collections import UserDict  # pragma: nocover
 else:
-    from UserDict import IterableUserDict as UserDict
+    from UserDict import IterableUserDict as UserDict  # pragma: nocover
 
 
 class Relations(OrderedDict):
@@ -173,6 +173,9 @@ class RelationInfo(UserDict):
 
 
 class Leader(UserDict):
+    def __init__(self):
+        pass  # Don't call superclass initializer, as it will nuke self.data
+
     @property
     def data(self):
         return hookenv.leader_get()
@@ -184,7 +187,7 @@ class Leader(UserDict):
             # We don't do implicit casting. This would cause simple
             # types like integers to be read back as strings in subsequent
             # hooks, and mutable types would require a lot of wrapping
-            # to ensure relation-set gets called when they are mutated.
+            # to ensure leader-set gets called when they are mutated.
             raise ValueError('Only string values allowed')
         hookenv.leader_set({key: value})
 
