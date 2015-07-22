@@ -23,7 +23,7 @@ import os
 import subprocess
 
 
-def sed(filename, before, after, limit='', flags=''):
+def sed(filename, before, after, flags='g'):
     """
     Search and replaces the given pattern on filename.
 
@@ -37,11 +37,8 @@ def sed(filename, before, after, limit='', flags=''):
     :returns: If the sed command exit code was zero then return,
     otherwise raise CalledProcessError.
     """
-    if limit:
-        limit = r'/%s/ ' % limit
-
-    expression = r'{0}s/{1}/{2}/{3}g'.format(limit, before,
-                                             after, flags)
+    expression = r's/{0}/{1}/{2}'.format(before,
+                                         after, flags)
 
     return subprocess.check_call(["sed", "-i", "-r", "-e",
                                   expression,
