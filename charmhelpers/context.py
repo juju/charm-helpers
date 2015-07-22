@@ -20,9 +20,8 @@ A Pythonic API to interact with the charm hook environment.
 '''
 
 from collections import OrderedDict, UserDict
-from functools import wraps
 
-from charmhelpers.core import hookenv, host
+from charmhelpers.core import hookenv
 
 
 class Relations(OrderedDict):
@@ -53,7 +52,7 @@ class Relation(OrderedDict):
 
     Also provides access to the local RelationInfo, and peer RelationInfo
     instances by the 'local' and 'peers' attributes.
-    
+
     >>> r = Relation('sprog:12')
     >>> r.keys()
     ['client/9', 'client/10']     # Ordered numerically
@@ -74,10 +73,13 @@ class Relation(OrderedDict):
         super(Relation, self).__init__((unit, RelationInfo(relid, unit))
                                        for unit in remote_units)
 
-        self.service = data[0][1].service if data else None
         self.relname = relid.split(':', 1)[0]
         self.relid = relid
         self.local = RelationInfo(relid, hookenv.local_unit())
+
+        for relinfo in self:
+            self.service = relinfo.service
+            break
 
         # If we have peers, and they have joined both the provided peer
         # relation and this relation, we can peek at their data too.
@@ -121,6 +123,10 @@ class RelationInfo(UserDict):
     >>> relinfo['user'] = None
     >>> 'fred' in relinfo
     False
+
+    This class wraps hookenv.relation_get and hookenv.relation_set.
+    All caching is left up to these two methods to avoid synchronization
+    issues. Data is only loaded on demand.
     '''
     relid = None    # The relation id.
     relname = None  # The relation name (also know as the relation type).
@@ -147,10 +153,11 @@ class RelationInfo(UserDict):
             raise TypeError('Attempting to set {} on remote unit {}'
                             ''.format(key, self.unit))
         if value is not None and not isinstance(value, str):
-            # We don't do implicit casting. A mechanism to allow
-            # automatic serialization to JSON may be useful for
-            # non-strings, but should it be the default or always on?
-            raise ValueError('Only string values supported')
+            # We don't do implicit casting. This would cause simple
+            # types like integers to be read back as strings in subsequent
+            # hooks, and mutable types would require a lot of wrapping
+            # to ensure relation-set gets called when they are mutated.
+            raise ValueError('Only string values allowed')
         hookenv.relation_set(self.relid, {key: value})
 
     def __delitem__(self, key):
@@ -168,7 +175,14 @@ class Leader(UserDict):
         if not hookenv.is_leader():
             raise TypeError('Not the leader. Cannot change leader settings.')
         if value is not None and not isinstance(value, str):
-            # We don't do implicit casting. A mechanism to allow
-            # automatic serialization to JSON may be useful for
-            # non-strings, but should it be the default or always on?
-            raise ValueError('Only string values supported')
+            # We don't do implicit casting. This would cause simple
+            # types like integers to be read back as strings in subsequent
+            # hooks, and mutable types would require a lot of wrapping
+            # to ensure relation-set gets called when they are mutated.
+            raise ValueError('Only string values allowed')
+        hookenv.leader_set({key: value})
+
+    def __delitem__(self, key):
+        # Deleting a key and setting it to null is the same thing in
+        # Juju leadership settings.
+        self[key] = None
