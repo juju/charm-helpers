@@ -6,6 +6,7 @@ from mock import (
     patch,
     MagicMock,
     call,
+    sentinel,
 )
 from charmhelpers import fetch
 import os
@@ -303,7 +304,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         config.side_effect = ['source', 'key']
         fetch.configure_sources(update=True)
         add_source.assert_called_with('source', 'key')
-        apt_update.assertCalled()
+        self.assertTrue(apt_update.called)
 
 
 class InstallTest(TestCase):
@@ -543,8 +544,8 @@ class AptTests(TestCase):
         packages = 'irrelevant names'
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
-        log.assert_called()
+        self.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
+        self.assertTrue(log.called)
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
@@ -552,8 +553,8 @@ class AptTests(TestCase):
         packages = ['irrelevant', 'names']
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
-        log.assert_called()
+        self.assertRaises(OSError, fetch.apt_purge, packages, fatal=True)
+        self.assertTrue(log.called)
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -562,7 +563,7 @@ class AptTests(TestCase):
 
         fetch.apt_purge(packages)
 
-        log.assert_called()
+        self.assertTrue(log.called)
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes', 'purge', 'foo bar'], env=getenv(
                 {'DEBIAN_FRONTEND': 'noninteractive'}))
@@ -574,58 +575,87 @@ class AptTests(TestCase):
 
         fetch.apt_purge(packages)
 
-        log.assert_called()
+        self.assertTrue(log.called)
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes', 'purge', 'foo', 'bar'], env=getenv(
                 {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_as_string_fatal(self, log, mock_call):
+    def test_mark_apt_packages_as_string_fatal(self, log, mock_call):
         packages = 'irrelevant names'
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
-        log.assert_called()
+        self.assertRaises(OSError, fetch.apt_mark, packages, sentinel.mark,
+                          fatal=True)
+        self.assertTrue(log.called)
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_fatal(self, log, mock_call):
+    def test_mark_apt_packages_fatal(self, log, mock_call):
         packages = ['irrelevant', 'names']
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
-        log.assert_called()
+        self.assertRaises(OSError, fetch.apt_mark, packages, sentinel.mark,
+                          fatal=True)
+        self.assertTrue(log.called)
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_as_string_nofatal(self, log, mock_call):
+    def test_mark_apt_packages_as_string_nofatal(self, log, mock_call):
         packages = 'foo bar'
 
-        fetch.apt_hold(packages)
+        fetch.apt_mark(packages, sentinel.mark)
 
-        log.assert_called()
-        mock_call.assert_called_with(['apt-mark', 'hold', 'foo bar'])
+        self.assertTrue(log.called)
+        mock_call.assert_called_with(['apt-mark', sentinel.mark, 'foo bar'],
+                                     universal_newlines=True)
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_nofatal(self, log, mock_call):
+    def test_mark_apt_packages_nofatal(self, log, mock_call):
         packages = ['foo', 'bar']
 
-        fetch.apt_hold(packages)
+        fetch.apt_mark(packages, sentinel.mark)
 
-        log.assert_called()
-        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+        self.assertTrue(log.called)
+        mock_call.assert_called_with(['apt-mark', sentinel.mark, 'foo', 'bar'],
+                                     universal_newlines=True)
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_nofatal_abortonfatal(self, log, mock_call):
+    def test_mark_apt_packages_nofatal_abortonfatal(self, log, mock_call):
         packages = ['foo', 'bar']
 
-        fetch.apt_hold(packages, fatal=True)
+        fetch.apt_mark(packages, sentinel.mark, fatal=True)
 
-        log.assert_called()
-        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+        self.assertTrue(log.called)
+        mock_call.assert_called_with(['apt-mark', sentinel.mark, 'foo', 'bar'],
+                                     universal_newlines=True)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_hold(self, apt_mark):
+        fetch.apt_hold(sentinel.packages)
+        apt_mark.assert_called_once_with(sentinel.packages, 'hold',
+                                         fatal=False)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_hold_fatal(self, apt_mark):
+        fetch.apt_hold(sentinel.packages, fatal=sentinel.fatal)
+        apt_mark.assert_called_once_with(sentinel.packages, 'hold',
+                                         fatal=sentinel.fatal)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_unhold(self, apt_mark):
+        fetch.apt_unhold(sentinel.packages)
+        apt_mark.assert_called_once_with(sentinel.packages, 'unhold',
+                                         fatal=False)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_unhold_fatal(self, apt_mark):
+        fetch.apt_unhold(sentinel.packages, fatal=sentinel.fatal)
+        apt_mark.assert_called_once_with(sentinel.packages, 'unhold',
+                                         fatal=sentinel.fatal)
 
     @patch('subprocess.check_call')
     def test_apt_update_fatal(self, check_call):
@@ -643,7 +673,7 @@ class AptTests(TestCase):
 
     @patch('subprocess.check_call')
     @patch('time.sleep')
-    def test_run_apt_command_reties_if_fatal(self, check_call, sleep):
+    def test_run_apt_command_retries_if_fatal(self, check_call, sleep):
         """The _run_apt_command function retries the command if it can't get
         the APT lock."""
         self.called = False
@@ -664,4 +694,4 @@ class AptTests(TestCase):
         check_call.return_value = 0
 
         fetch._run_apt_command(["some", "command"], fatal=True)
-        sleep.assert_called()
+        self.assertTrue(sleep.called)
