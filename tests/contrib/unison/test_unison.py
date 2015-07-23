@@ -74,7 +74,7 @@ class UnisonHelperTests(TestCase):
             self.assertIn(call(_call), self.check_call.call_args_list)
 
     @patch('os.path.isfile')
-    def test_create_private_key(self, isfile):
+    def test_create_private_key_rsa(self, isfile):
         create_cmd = [
             'ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
             '-f', '/home/foo/.ssh/id_rsa']
@@ -96,6 +96,36 @@ class UnisonHelperTests(TestCase):
         isfile.return_value = True
         unison.create_private_key(
             user='foo', priv_key_path='/home/foo/.ssh/id_rsa')
+        self.assertNotIn(call(create_cmd), self.check_call.call_args_list)
+        _ensure_perms()
+
+    @patch('os.path.isfile')
+    def test_create_private_key_ecdsa(self, isfile):
+        create_cmd = [
+            'ssh-keygen', '-q', '-N', '', '-t', 'ecdsa', '-b', '521',
+            '-f', '/home/foo/.ssh/id_ecdsa']
+
+        def _ensure_perms():
+            cmds = [
+                ['chown', 'foo', '/home/foo/.ssh/id_ecdsa'],
+                ['chmod', '0600', '/home/foo/.ssh/id_ecdsa'],
+            ]
+            self._ensure_calls_in(cmds)
+
+        isfile.return_value = False
+        unison.create_private_key(
+            user='foo',
+            priv_key_path='/home/foo/.ssh/id_ecdsa',
+            key_type='ecdsa')
+        self.assertIn(call(create_cmd), self.check_call.call_args_list)
+        _ensure_perms()
+        self.check_call.call_args_list = []
+
+        isfile.return_value = True
+        unison.create_private_key(
+            user='foo',
+            priv_key_path='/home/foo/.ssh/id_ecdsa',
+            key_type='ecdsa')
         self.assertNotIn(call(create_cmd), self.check_call.call_args_list)
         _ensure_perms()
 
@@ -255,6 +285,33 @@ class UnisonHelperTests(TestCase):
         get_keypair.return_value = ('privkey', 'pubkey')
 
         self.hook_name.return_value = 'cluster-relation-changed'
+
+        self.relation_get.side_effect = [
+            'key1',
+            'host1',
+            'key2',
+            'host2',
+            '', ''
+        ]
+        unison.ssh_authorized_peers(peer_interface='cluster',
+                                    user='foo', group='foo',
+                                    ensure_local_user=True)
+
+        ensure_user.assert_called_with('foo', 'foo')
+        get_keypair.assert_called_with('foo')
+        write_keys.assert_called_with('foo', ['key1', 'key2'])
+        write_hosts.assert_called_with('foo', ['host1', 'host2'])
+        self.relation_set.assert_called_with(ssh_authorized_hosts='host1:host2')
+
+    @patch.object(unison, 'write_known_hosts')
+    @patch.object(unison, 'write_authorized_keys')
+    @patch.object(unison, 'get_keypair')
+    @patch.object(unison, 'ensure_user')
+    def test_ssh_auth_peer_departed(self, ensure_user, get_keypair,
+                                    write_keys, write_hosts):
+        get_keypair.return_value = ('privkey', 'pubkey')
+
+        self.hook_name.return_value = 'cluster-relation-departed'
 
         self.relation_get.side_effect = [
             'key1',
