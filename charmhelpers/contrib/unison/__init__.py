@@ -16,7 +16,7 @@
 
 # Easy file synchronization among peer units using ssh + unison.
 #
-# From *both* peer relation -joined and -changed, add a call to
+# For the -joined, -changed, and -departed peer relations, add a call to
 # ssh_authorized_peers() describing the peer relation and the desired
 # user + group.  After all peer relations have settled, all hosts should
 # be able to connect to on another via key auth'd ssh as the specified user.
@@ -30,14 +30,21 @@
 # ...
 # ssh_authorized_peers(peer_interface='cluster',
 #                      user='juju_ssh', group='juju_ssh',
-#                      ensure_user=True)
+#                      ensure_local_user=True)
 # ...
 #
 # cluster-relation-changed:
 # ...
 # ssh_authorized_peers(peer_interface='cluster',
 #                      user='juju_ssh', group='juju_ssh',
-#                      ensure_user=True)
+#                      ensure_local_user=True)
+# ...
+#
+# cluster-relation-departed:
+# ...
+# ssh_authorized_peers(peer_interface='cluster',
+#                      user='juju_ssh', group='juju_ssh',
+#                      ensure_local_user=True)
 # ...
 #
 # Hooks are now free to sync files as easily as:
@@ -179,7 +186,8 @@ def ssh_authorized_peers(peer_interface, user, group=None,
     hook = hook_name()
     if hook == '%s-relation-joined' % peer_interface:
         relation_set(ssh_pub_key=pub_key)
-    elif hook == '%s-relation-changed' % peer_interface:
+    elif hook == '%s-relation-changed' % peer_interface or \
+            hook == '%s-relation-departed' % peer_interface:
         hosts = []
         keys = []
 

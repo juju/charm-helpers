@@ -273,6 +273,33 @@ class UnisonHelperTests(TestCase):
         write_hosts.assert_called_with('foo', ['host1', 'host2'])
         self.relation_set.assert_called_with(ssh_authorized_hosts='host1:host2')
 
+    @patch.object(unison, 'write_known_hosts')
+    @patch.object(unison, 'write_authorized_keys')
+    @patch.object(unison, 'get_keypair')
+    @patch.object(unison, 'ensure_user')
+    def test_ssh_auth_peer_departed(self, ensure_user, get_keypair,
+                                    write_keys, write_hosts):
+        get_keypair.return_value = ('privkey', 'pubkey')
+
+        self.hook_name.return_value = 'cluster-relation-departed'
+
+        self.relation_get.side_effect = [
+            'key1',
+            'host1',
+            'key2',
+            'host2',
+            '', ''
+        ]
+        unison.ssh_authorized_peers(peer_interface='cluster',
+                                    user='foo', group='foo',
+                                    ensure_local_user=True)
+
+        ensure_user.assert_called_with('foo', 'foo')
+        get_keypair.assert_called_with('foo')
+        write_keys.assert_called_with('foo', ['key1', 'key2'])
+        write_hosts.assert_called_with('foo', ['host1', 'host2'])
+        self.relation_set.assert_called_with(ssh_authorized_hosts='host1:host2')
+
     def test_collect_authed_hosts(self):
         # only one of the hosts in fake environment has auth'd
         # the local peer
