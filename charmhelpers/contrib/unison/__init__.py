@@ -99,11 +99,18 @@ def get_homedir(user):
         raise Exception
 
 
-def create_private_key(user, priv_key_path):
+def create_private_key(user, priv_key_path, key_type='rsa'):
+    types_bits = {
+        'rsa': '2048',
+        'ecdsa': '521',
+    }
+    if key_type not in types_bits:
+        log('Unknown ssh key type {}, using rsa'.format(key_type), ERROR)
+        key_type = 'rsa'
     if not os.path.isfile(priv_key_path):
         log('Generating new SSH key for user %s.' % user)
-        cmd = ['ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
-               '-f', priv_key_path]
+        cmd = ['ssh-keygen', '-q', '-N', '', '-t', key_type,
+               '-b', types_bits[key_type], '-f', priv_key_path]
         check_call(cmd)
     else:
         log('SSH key already exists at %s.' % priv_key_path)
