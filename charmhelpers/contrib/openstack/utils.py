@@ -41,7 +41,8 @@ from charmhelpers.core.hookenv import (
     INFO,
     relation_ids,
     relation_set,
-    status_set
+    status_set,
+    hook_name
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
@@ -523,7 +524,6 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     Clone/install all specified OpenStack repositories.
 
     The expected format of projects_yaml is:
-
         repositories:
           - {name: keystone,
              repository: 'git://git.openstack.org/openstack/keystone.git',
@@ -531,13 +531,11 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
           - {name: requirements,
              repository: 'git://git.openstack.org/openstack/requirements.git',
              branch: 'stable/icehouse'}
-
         directory: /mnt/openstack-git
         http_proxy: squid-proxy-url
         https_proxy: squid-proxy-url
 
-    The directory, http_proxy, and https_proxy keys are optional.
-
+        The directory, http_proxy, and https_proxy keys are optional.
     """
     global requirements_dir
     parent_dir = '/mnt/openstack-git'
@@ -725,42 +723,73 @@ def context_status(configs, required_interfaces):
 
 def set_context_status(configs, required_interfaces):
     """
-    Set workload status based on complete contexts
-    Left outside of the decorator, context_status,
-    to allow manual use
+    Set workload status based on complete contexts.
+    status-set overview which can be viewed with status-history
+    and juju-log specifics
     """
     incomplete_ctxts = incomplete_contexts(configs, required_interfaces)
-    message = ''
     state = 'active'
+    missing_relations = []
+    incomplete_relations = []
     for context in incomplete_ctxts.keys():
-        missing_data = {}
         related_interface = None
+        missing_data = {}
+        # Related or not?
         for interface in incomplete_ctxts[context]:
             if incomplete_ctxts[context][interface].get('related'):
                 related_interface = interface
                 missing_data = incomplete_ctxts[context][interface].get('missing_data')
+        # No relation ID for the context
         if not related_interface:
-            message += "{} context is missing and must be related for " \
-                       "functionality.".format(context)
+            juju_log("{} context is missing and must be related for "
+                     "functionality. ".format(context), 'WARN')
             state = 'blocked'
-
-        elif not missing_data:
-            message += "{} context's interface, {}, has joined but has not " \
-                       "yet exchanged data on the relation." \
-                       "".format(context, related_interface)
-            if state != 'blocked':
-                state = 'waiting'
+            if context not in missing_relations:
+                missing_relations.append(context)
         else:
-            message += "{} context's interface, {}, is related awaiting the " \
-                       "following data from the relationship: {}." \
-                       "".format(context, related_interface,
-                                 ", ".join(missing_data))
+            # Relation ID exists but no related unit
+            if not missing_data:
+                # Edge case relation ID exists but departing
+                if ('departed' in hook_name() or 'broken' in hook_name()) \
+                        and related_interface in hook_name():
+                    state = 'blocked'
+                    if context not in missing_relations:
+                        missing_relations.append(context)
+                    juju_log("{} context's interface, {}, "
+                             "relationship is departed or broken "
+                             "and is required for functionality."
+                             "".format(context, related_interface), "WARN")
+                # Normal case relation ID exists but no related unit
+                # (joining)
+                else:
+                    juju_log("{} context's interface, {}, is related but has "
+                             "no units in the relation."
+                             "".format(context, related_interface), "INFO")
+            # Related unit exists and data missing on the relation
+            else:
+                juju_log("{} context's interface, {}, is related awaiting "
+                         "the following data from the relationship: {}. "
+                         "".format(context, related_interface,
+                                   ", ".join(missing_data)), "INFO")
             if state != 'blocked':
                 state = 'waiting'
+            if context not in incomplete_relations \
+                    and context not in missing_relations:
+                incomplete_relations.append(context)
 
+    if missing_relations:
+        message = "Missing relations: {}".format(", ".join(missing_relations))
+        if incomplete_relations:
+            message += "; incomplete relations: {}" \
+                       "".format(", ".join(incomplete_relations))
+        state = 'blocked'
+    elif incomplete_relations:
+        message = "Incomplete relations: {}" \
+                  "".format(", ".join(incomplete_relations))
+        state = 'waiting'
     if state == 'active':
-        message = "All required contexts are present and complete."
-
+        message = "All required contexts are present and complete"
+        juju_log(message, "INFO")
     status_set(state, message)
 
 
@@ -772,11 +801,23 @@ def incomplete_contexts(configs, required_interfaces):
     configs is an OSConfigRenderer object with configs registered
 
     required_interfaces is a dictionary of required general interfaces
-    with list values of possible specific interfaces.
-    The interface is said to be satisfied if anyone of the interfaces in the
-    list has a complete context.
+    with dictionary values of possible specific interfaces.
     Example:
     required_interfaces = {'database': ['shared-db', 'pgsql-db']}
+
+    The interface is said to be satisfied if anyone of the interfaces in the
+    list has a complete context.
+
+    Return dictionary of incomplete or missing required contexts with relation
+    status of interfaces and any missing data points. Example:
+        {'message':
+             {'amqp': {'missing_data': ['rabbitmq_password'], 'related': True},
+              'zeromq-configuration': {'related': False}},
+         'identity':
+             {'identity-service': {'related': False}},
+         'database':
+             {'pgsql-db': {'related': False},
+              'shared-db': {'related': True}}}
     """
     complete_ctxts = configs.complete_contexts()
     incomplete_contexts = []
