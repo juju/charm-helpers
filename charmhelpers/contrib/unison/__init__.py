@@ -159,7 +159,7 @@ def write_known_hosts(user, hosts):
     known_hosts = os.path.join(ssh_dir, 'known_hosts')
     khosts = []
     for host in hosts:
-        cmd = ['ssh-keyscan', '-H', '-t', 'rsa', host]
+        cmd = ['ssh-keyscan', host]
         remote_key = check_output(cmd, universal_newlines=True).strip()
         khosts.append(remote_key)
     log('Syncing known_hosts @ %s.' % known_hosts)
