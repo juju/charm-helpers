@@ -20,7 +20,7 @@ class FileTests(unittest.TestCase):
         )
 
     def test_sed_file(self):
-        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
         tmp.write("IPV6=yes")
         tmp.close()
 
