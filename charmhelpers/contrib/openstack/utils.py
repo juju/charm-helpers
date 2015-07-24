@@ -524,6 +524,7 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     Clone/install all specified OpenStack repositories.
 
     The expected format of projects_yaml is:
+
         repositories:
           - {name: keystone,
              repository: 'git://git.openstack.org/openstack/keystone.git',
@@ -531,11 +532,13 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
           - {name: requirements,
              repository: 'git://git.openstack.org/openstack/requirements.git',
              branch: 'stable/icehouse'}
+
         directory: /mnt/openstack-git
         http_proxy: squid-proxy-url
         https_proxy: squid-proxy-url
 
-        The directory, http_proxy, and https_proxy keys are optional.
+    The directory, http_proxy, and https_proxy keys are optional.
+
     """
     global requirements_dir
     parent_dir = '/mnt/openstack-git'
@@ -707,7 +710,6 @@ def git_yaml_value(projects_yaml, key):
 def context_status(configs, required_interfaces):
     """
     Decorator to set workload status based on complete contexts
-    after contexts have been acted on
     """
     def wrap(f):
         @wraps(f)
@@ -724,8 +726,8 @@ def context_status(configs, required_interfaces):
 def set_context_status(configs, required_interfaces):
     """
     Set workload status based on complete contexts.
-    status-set overview which can be viewed with status-history
-    and juju-log specifics
+    status-set missing or incomplete contexts
+    and juju-log details of missing required data.
     """
     incomplete_ctxts = incomplete_contexts(configs, required_interfaces)
     state = 'active'

@@ -295,6 +295,12 @@ class OSConfigRenderer(object):
         return interfaces
 
     def get_incomplete_context_data(self, interfaces):
+        '''
+        Return dictionary of relation status of interfaces and any missing
+        required context data. Example:
+            {'amqp': {'missing_data': ['rabbitmq_password'], 'related': True},
+             'zeromq-configuration': {'related': False}}
+        '''
         incomplete_context_data = {}
 
         for i in six.itervalues(self.templates):

@@ -200,6 +200,10 @@ class OSContextGenerator(object):
         raise NotImplementedError
 
     def context_complete(self, ctxt):
+        """Check for missing data for the required context data.
+        Set self.missing_data if it exists and return False.
+        Set self.complete if no missing data and return True.
+        """ 
         # Fresh start
         self.complete = False
         self.missing_data = []
@@ -216,17 +220,21 @@ class OSContextGenerator(object):
         return self.complete
 
     def get_related(self):
-        related = False
+        """Check if any of the context interfaces have relation ids.
+        Set self.related and return True if one of the interfaces
+        has relation ids.
+        """
+        # Fresh start
+        self.related = False
         try:
             for interface in self.interfaces:
                 if relation_ids(interface):
-                    related = True
-            self.related = related
-            return related
+                    self.related = True
+            return self.related
         except AttributeError as e:
             log("{} {}"
                 "".format(self, e), 'INFO')
-            return False
+            return self.related
 
 
 class SharedDBContext(OSContextGenerator):
