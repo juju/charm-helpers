@@ -54,6 +54,14 @@ class TestRelations(unittest.TestCase):
         self.assertGreaterEqual(hookenv.relation_ids.call_count, 2)
         self.assertGreaterEqual(hookenv.related_units.call_count, 2)
 
+    def test_relations_peer(self):
+        # The Relations instance has a short cut to the peer relation.
+        # If the charm has managed to get multiple peer relations,
+        # it returns the 'primary' one used here and returned by
+        # hookenv.peer_relation_id()
+        rels = context.Relations()
+        self.assertIs(rels.peer, rels['pear']['pear:9'])
+
     def test_relation(self):
         rel = context.Relations()['rel']['rel:9']
         self.assertEqual(rel.relid, 'rel:9')
@@ -80,6 +88,12 @@ class TestRelations(unittest.TestCase):
         hookenv.related_units.return_value = []
         rel = context.Relation('rel:10')
         self.assertDictEqual(rel.peers, {})
+
+    def test_peer_relation(self):
+        peer_rel = context.Relations().peer
+        # The peer relation does not have a 'peers' properly. We
+        # could give it one for symmetry, but it seems somewhat silly.
+        self.assertTrue(peer_rel.peers is None)
 
     def test_relationinfo(self):
         hookenv.relation_get.return_value = {sentinel.key: 'value'}
