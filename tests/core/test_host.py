@@ -7,7 +7,7 @@ from textwrap import dedent
 
 import apt_pkg
 
-from mock import patch, call, mock_open
+from mock import patch, call
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
@@ -1008,10 +1008,11 @@ class HelpersTest(TestCase):
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
 
     def test_get_total_ram(self):
-        m = mock_open(read_data=dedent('''\
-                                       MemFree:          183868 kB
-                                       MemTotal:        8096108 kB
-                                       MemAvailable:    5645240 kB
-                                       '''))
-        with patch('__main__.open', m, create=True):
-            self.assertEqual(host.get_total_ram(), 8290414592)
+        raw = dedent('''\
+                     MemFree:          183868 kB
+                     MemTotal:        7096108 kB
+                     MemAvailable:    5645240 kB
+                     ''').strip()
+        with patch_open() as (mock_open, mock_file):
+            mock_file.readlines.return_value = raw.splitlines()
+            self.assertEqual(host.get_total_ram(), 7266414592)  # 7GB
