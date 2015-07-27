@@ -39,6 +39,8 @@ class Relations(OrderedDict):
     >>> rels['sprog']['sprog:12'].local['widget'] = 'local widget'
     >>> rels['sprog']['sprog:12'].local['widget']
     'local widget'
+    >>> rels.peer.local['widget']
+    'local widget on the peer relation'
     '''
     def __init__(self):
         super(Relations, self).__init__()
@@ -48,6 +50,13 @@ class Relations(OrderedDict):
             relids.sort(key=lambda x: int(x.split(':', 1)[-1]))
             for relid in relids:
                 self[relname][relid] = Relation(relid)
+
+    @property
+    def peer(self):
+        peer_relid = hookenv.peer_relation_id()
+        for rels in self.values():
+            if peer_relid in rels:
+                return rels[peer_relid]
 
 
 class Relation(OrderedDict):
@@ -91,7 +100,7 @@ class Relation(OrderedDict):
         # relation and this relation, we can peek at their data too.
         # This is useful for creating consensus without leadership.
         peer_relid = hookenv.peer_relation_id()
-        if peer_relid:
+        if peer_relid and peer_relid != relid:
             peers = hookenv.related_units(peer_relid)
             if peers:
                 peers.sort(key=lambda u: int(u.split('/', 1)[-1]))
