@@ -490,7 +490,7 @@ class OpenStackHelpersTestCase(TestCase):
         _open.assert_called_with(expected_f, 'wb')
         _mkdir.assert_called_with(os.path.dirname(expected_f))
         _file.__enter__().write.assert_has_calls(
-            list(call(line) for line in scriptrc))
+            list(call(line) for line in scriptrc), any_order=True)
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')

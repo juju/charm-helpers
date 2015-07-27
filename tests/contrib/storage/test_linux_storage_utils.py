@@ -88,6 +88,14 @@ class MiscStorageUtilsTests(unittest.TestCase):
         self.assertFalse(result)
 
     @patch(STORAGE_LINUX_UTILS + '.check_output')
+    def test_is_device_mounted_full_disks(self, check_output):
+        '''It detects mounted full disks as mounted.'''
+        check_output.return_value = (
+            b"/dev/sda on / type ext4 (rw,errors=remount-ro)\n")
+        result = storage_utils.is_device_mounted('/dev/sda')
+        self.assertTrue(result)
+
+    @patch(STORAGE_LINUX_UTILS + '.check_output')
     def test_is_device_mounted_cciss(self, check_output):
         '''It detects mounted cciss partitions as mounted.'''
         check_output.return_value = (
