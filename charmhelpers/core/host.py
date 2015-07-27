@@ -506,5 +506,3 @@ def get_total_ram():
             if key == 'MemTotal:':
                 assert unit == 'kB', 'Unknown unit'
                 return int(value) * 1024  # Classic, not KiB.
-            else:
-                print(key)
