@@ -127,6 +127,17 @@ class ConfigTest(TestCase):
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
 
+    def test_deep_change(self):
+        # After loading stored data into our previous dictionary,
+        # it gets copied into our current dictionary. If this is not
+        # a deep copy, then mappings and lists will be shared instances
+        # and changes will not be detected.
+        c = hookenv.Config(dict(l=[]))
+        c.save()
+        c = hookenv.Config()
+        c['l'].append(42)
+        self.assertTrue(c.changed('l'), 'load_previous() did not deepcopy')
+
     def test_getitem(self):
         c = hookenv.Config(dict(foo='bar'))
         c.save()

@@ -336,8 +336,9 @@ class InstallTest(TestCase):
             "garbage",
         )
 
+    @patch('charmhelpers.fetch.log')
     @patch('charmhelpers.fetch.plugins')
-    def test_installs_remote(self, _plugins):
+    def test_installs_remote(self, _plugins, _log):
         h1 = MagicMock(name="h1")
         h1.can_handle.return_value = "Nope"
 

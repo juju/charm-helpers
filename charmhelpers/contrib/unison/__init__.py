@@ -16,7 +16,7 @@
 
 # Easy file synchronization among peer units using ssh + unison.
 #
-# From *both* peer relation -joined and -changed, add a call to
+# For the -joined, -changed, and -departed peer relations, add a call to
 # ssh_authorized_peers() describing the peer relation and the desired
 # user + group.  After all peer relations have settled, all hosts should
 # be able to connect to on another via key auth'd ssh as the specified user.
@@ -30,14 +30,21 @@
 # ...
 # ssh_authorized_peers(peer_interface='cluster',
 #                      user='juju_ssh', group='juju_ssh',
-#                      ensure_user=True)
+#                      ensure_local_user=True)
 # ...
 #
 # cluster-relation-changed:
 # ...
 # ssh_authorized_peers(peer_interface='cluster',
 #                      user='juju_ssh', group='juju_ssh',
-#                      ensure_user=True)
+#                      ensure_local_user=True)
+# ...
+#
+# cluster-relation-departed:
+# ...
+# ssh_authorized_peers(peer_interface='cluster',
+#                      user='juju_ssh', group='juju_ssh',
+#                      ensure_local_user=True)
 # ...
 #
 # Hooks are now free to sync files as easily as:
@@ -92,11 +99,18 @@ def get_homedir(user):
         raise Exception
 
 
-def create_private_key(user, priv_key_path):
+def create_private_key(user, priv_key_path, key_type='rsa'):
+    types_bits = {
+        'rsa': '2048',
+        'ecdsa': '521',
+    }
+    if key_type not in types_bits:
+        log('Unknown ssh key type {}, using rsa'.format(key_type), ERROR)
+        key_type = 'rsa'
     if not os.path.isfile(priv_key_path):
         log('Generating new SSH key for user %s.' % user)
-        cmd = ['ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
-               '-f', priv_key_path]
+        cmd = ['ssh-keygen', '-q', '-N', '', '-t', key_type,
+               '-b', types_bits[key_type], '-f', priv_key_path]
         check_call(cmd)
     else:
         log('SSH key already exists at %s.' % priv_key_path)
@@ -152,7 +166,7 @@ def write_known_hosts(user, hosts):
     known_hosts = os.path.join(ssh_dir, 'known_hosts')
     khosts = []
     for host in hosts:
-        cmd = ['ssh-keyscan', '-H', '-t', 'rsa', host]
+        cmd = ['ssh-keyscan', host]
         remote_key = check_output(cmd, universal_newlines=True).strip()
         khosts.append(remote_key)
     log('Syncing known_hosts @ %s.' % known_hosts)
@@ -179,7 +193,8 @@ def ssh_authorized_peers(peer_interface, user, group=None,
     hook = hook_name()
     if hook == '%s-relation-joined' % peer_interface:
         relation_set(ssh_pub_key=pub_key)
-    elif hook == '%s-relation-changed' % peer_interface:
+    elif hook == '%s-relation-changed' % peer_interface or \
+            hook == '%s-relation-departed' % peer_interface:
         hosts = []
         keys = []
 
