@@ -3,10 +3,11 @@ from collections import OrderedDict
 import subprocess
 from tempfile import mkdtemp
 from shutil import rmtree
+from textwrap import dedent
 
 import apt_pkg
 
-from mock import patch, call
+from mock import patch, call, mock_open
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
@@ -1005,3 +1006,12 @@ class HelpersTest(TestCase):
         self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
+
+    def test_get_total_ram(self):
+        m = mock_open(read_data=dedent('''\
+                                       MemFree:          183868 kB
+                                       MemTotal:        8096108 kB
+                                       MemAvailable:    5645240 kB
+                                       '''))
+        with patch('__main__.open', m, create=True):
+            self.assertEqual(host.get_total_ram(), 8290414592)
