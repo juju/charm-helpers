@@ -73,7 +73,11 @@ class FakeRelation(object):
             return None
 
     def relation_ids(self, relation):
-        return self.relation_data.keys()
+        rids = []
+        for rid in self.relation_data.keys():
+            if relation + ':' in rid:
+                rids.append(rid)
+        return rids
 
     def relation_units(self, relation_id):
         if relation_id not in self.relation_data:
@@ -325,6 +329,25 @@ glance:
                 - [glance-key2, value2]
 """
 
+NOVA_SUB_CONFIG1 = """
+nova:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key1, value1]
+                - [nova-key2, value2]
+"""
+
+
+NOVA_SUB_CONFIG2 = """
+nova:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key3, value3]
+                - [nova-key4, value4]
+"""
+
 CINDER_SUB_CONFIG1 = """
 cinder:
     /etc/cinder/cinder.conf:
@@ -374,6 +397,21 @@ SUB_CONFIG_RELATION = {
             'subordinate_configuration': json.dumps(yaml.load(CINDER_SUB_CONFIG2)),
         },
     },
+}
+
+SUB_CONFIG_RELATION2 = {
+    'nova-ceilometer:6': {
+        'ceilometer-agent/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG1)),
+        },
+    },
+    'neutron-plugin:3': {
+        'neutron-ovs-plugin/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG2)),
+        },
+    }
 }
 
 NONET_CONFIG = {
@@ -2052,6 +2090,27 @@ class ContextTests(unittest.TestCase):
 
         # subordinate supplies bad input
         self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+
+    def test_os_subordinate_config_context_multiple(self):
+        relation = FakeRelation(relation_data=SUB_CONFIG_RELATION2)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        nova_sub_ctxt = context.SubordinateConfigContext(
+            service='nova',
+            config_file='/etc/nova/nova.conf',
+            interface=['nova-ceilometer', 'neutron-plugin'],
+        )
+        self.assertEquals(
+            nova_sub_ctxt(),
+            {'sections': {
+                'DEFAULT': [
+                    ['nova-key1', 'value1'],
+                    ['nova-key2', 'value2'],
+                    ['nova-key3', 'value3'],
+                    ['nova-key4', 'value4']]
+            }}
+        )
 
     def test_syslog_context(self):
         self.config.side_effect = fake_config({'use-syslog': 'foo'})
