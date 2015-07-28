@@ -53,6 +53,42 @@ class TestTemplating(unittest.TestCase):
             contents = open(fn2.name).read()
             self.assertRegexpMatches(contents, 'listen 80')
             self.assertEqual(fchown.call_count, 2)
+            # Not called, because the target directory exists. Calling
+            # it would make the target directory world readable and
+            # expose your secrets (!).
+            self.assertEqual(mkdir.call_count, 0)
+
+    @mock.patch.object(templating.os.path, 'exists')
+    @mock.patch.object(templating.host.os, 'fchown')
+    @mock.patch.object(templating.host, 'mkdir')
+    @mock.patch.object(templating.host, 'log')
+    def test_render_no_dir(self, log, mkdir, fchown, exists):
+        exists.return_value = False
+        with tempfile.NamedTemporaryFile() as fn1, \
+                tempfile.NamedTemporaryFile() as fn2:
+            context = {
+                'nats': {
+                    'port': '1234',
+                    'host': 'example.com',
+                },
+                'router': {
+                    'domain': 'api.foo.com'
+                },
+                'nginx_port': 80,
+            }
+            templating.render('fake_cc.yml', fn1.name,
+                              context, templates_dir=TEMPLATES_DIR)
+            contents = open(fn1.name).read()
+            self.assertRegexpMatches(contents, 'port: 1234')
+            self.assertRegexpMatches(contents, 'host: example.com')
+            self.assertRegexpMatches(contents, 'domain: api.foo.com')
+
+            templating.render('test.conf', fn2.name, context,
+                              templates_dir=TEMPLATES_DIR)
+            contents = open(fn2.name).read()
+            self.assertRegexpMatches(contents, 'listen 80')
+            self.assertEqual(fchown.call_count, 2)
+            # Target directory was created, world readable (!).
             self.assertEqual(mkdir.call_count, 2)
 
     @mock.patch.object(templating.host.os, 'fchown')
