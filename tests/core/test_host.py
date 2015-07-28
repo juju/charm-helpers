@@ -1016,3 +1016,4 @@ class HelpersTest(TestCase):
         with patch_open() as (mock_open, mock_file):
             mock_file.readlines.return_value = raw.splitlines()
             self.assertEqual(host.get_total_ram(), 7266414592)  # 7GB
+            mock_open.assert_called_once_with('/proc/meminfo', 'r')
