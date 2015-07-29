@@ -195,7 +195,7 @@ def service_name():
 
 def hook_name():
     """The name of the currently executing hook"""
-    return os.path.basename(sys.argv[0])
+    return os.environ.get('JUJU_HOOK_NAME', os.path.basename(sys.argv[0]))
 
 
 class Config(dict):
@@ -642,6 +642,21 @@ def action_fail(message):
 
     The results set by action_set are preserved."""
     subprocess.check_call(['action-fail', message])
+
+
+def action_name():
+    """Get the name of the currently executing action."""
+    return os.environ.get('JUJU_ACTION_NAME')
+
+
+def action_uuid():
+    """Get the UUID of the currently executing action."""
+    return os.environ.get('JUJU_ACTION_UUID')
+
+
+def action_tag():
+    """Get the tag for the currently executing action."""
+    return os.environ.get('JUJU_ACTION_TAG')
 
 
 def status_set(workload_state, message):
