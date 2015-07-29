@@ -854,13 +854,26 @@ class HelpersTest(TestCase):
             'env': 'some-environment',
         })
 
+    @patch('charmhelpers.core.hookenv.remote_service_name')
+    @patch('charmhelpers.core.hookenv.relation_ids')
     @patch('charmhelpers.core.hookenv.os')
-    def test_gets_the_relation_id(self, os_):
+    def test_gets_the_relation_id(self, os_, relation_ids, remote_service_name):
         os_.environ = {
             'JUJU_RELATION_ID': 'foo',
         }
 
         self.assertEqual(hookenv.relation_id(), 'foo')
+
+        relation_ids.return_value = ['r:1', 'r:2']
+        remote_service_name.side_effect = ['other', 'service']
+        self.assertEqual(hookenv.relation_id('rel', 'service/0'), 'r:2')
+        relation_ids.assert_called_once_with('rel')
+        self.assertEqual(remote_service_name.call_args_list, [
+            call('r:1'),
+            call('r:2'),
+        ])
+        remote_service_name.side_effect = ['other', 'service']
+        self.assertEqual(hookenv.relation_id('rel', 'service'), 'r:2')
 
     @patch('charmhelpers.core.hookenv.os')
     def test_relation_id_none_if_no_env(self, os_):
@@ -993,6 +1006,7 @@ class HelpersTest(TestCase):
         hookenv.relation_set(foo=None)
         check_call_.assert_called_with(['relation-set', 'foo='])
 
+    @patch('charmhelpers.core.hookenv.local_unit', MagicMock())
     @patch('os.remove')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
@@ -1021,6 +1035,7 @@ class HelpersTest(TestCase):
             self.assertEqual("{foo: bar}", f.read().strip())
         remove.assert_called_with(temp_file)
 
+    @patch('charmhelpers.core.hookenv.local_unit', MagicMock())
     @patch('os.remove')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
@@ -1265,6 +1280,20 @@ class HooksTest(TestCase):
         _unit.return_value = 'mysql/3'
         self.assertEqual(hookenv.service_name(), 'mysql')
 
+    @patch('charmhelpers.core.hookenv.related_units')
+    @patch('charmhelpers.core.hookenv.remote_unit')
+    def test_gets_remote_service_name(self, remote_unit, related_units):
+        remote_unit.return_value = 'mysql/3'
+        related_units.return_value = ['pgsql/0', 'pgsql/1']
+        self.assertEqual(hookenv.remote_service_name(), 'mysql')
+        self.assertEqual(hookenv.remote_service_name('pgsql:1'), 'pgsql')
+
+    def test_gets_hook_name(self):
+        with patch.dict(os.environ, JUJU_HOOK_NAME='hook'):
+            self.assertEqual(hookenv.hook_name(), 'hook')
+        with patch('sys.argv', ['other-hook']):
+            self.assertEqual(hookenv.hook_name(), 'other-hook')
+
     @patch('subprocess.check_output')
     def test_action_get_with_key(self, check_output):
         action_data = 'bar'
@@ -1369,3 +1398,103 @@ class HooksTest(TestCase):
         self.assertTrue(hookenv.has_juju_version('1.24-beta5'))
         self.assertTrue(hookenv.has_juju_version('1.24-beta5.1'))
         self.assertTrue(hookenv.has_juju_version('1.18-backport6'))
+
+    @patch.object(hookenv, 'relation_to_role_and_interface')
+    def test_relation_to_interface(self, rtri):
+        rtri.return_value = (None, 'foo')
+        self.assertEqual(hookenv.relation_to_interface('rel'), 'foo')
+
+    @patch.object(hookenv, 'metadata')
+    def test_relation_to_role_and_interface(self, metadata):
+        metadata.return_value = {
+            'provides': {
+                'pro-rel': {
+                    'interface': 'pro-int',
+                },
+                'pro-rel2': {
+                    'interface': 'pro-int',
+                },
+            },
+            'requires': {
+                'req-rel': {
+                    'interface': 'req-int',
+                },
+            },
+            'peer': {
+                'pee-rel': {
+                    'interface': 'pee-int',
+                },
+            },
+        }
+        rtri = hookenv.relation_to_role_and_interface
+        self.assertEqual(rtri('pro-rel'), ('provides', 'pro-int'))
+        self.assertEqual(rtri('req-rel'), ('requires', 'req-int'))
+        self.assertEqual(rtri('pee-rel'), ('peer', 'pee-int'))
+
+    @patch.object(hookenv, 'metadata')
+    def test_role_and_interface_to_relations(self, metadata):
+        metadata.return_value = {
+            'provides': {
+                'pro-rel': {
+                    'interface': 'pro-int',
+                },
+                'pro-rel2': {
+                    'interface': 'pro-int',
+                },
+            },
+            'requires': {
+                'req-rel': {
+                    'interface': 'int',
+                },
+            },
+            'peer': {
+                'pee-rel': {
+                    'interface': 'int',
+                },
+            },
+        }
+        ritr = hookenv.role_and_interface_to_relations
+        assertItemsEqual = getattr(self, 'assertItemsEqual', getattr(self, 'assertCountEqual', None))
+        assertItemsEqual(ritr('provides', 'pro-int'), ['pro-rel', 'pro-rel2'])
+        assertItemsEqual(ritr('requires', 'int'), ['req-rel'])
+        assertItemsEqual(ritr('peer', 'int'), ['pee-rel'])
+
+    @patch.object(hookenv, 'metadata')
+    def test_interface_to_relations(self, metadata):
+        metadata.return_value = {
+            'provides': {
+                'pro-rel': {
+                    'interface': 'pro-int',
+                },
+                'pro-rel2': {
+                    'interface': 'pro-int',
+                },
+            },
+            'requires': {
+                'req-rel': {
+                    'interface': 'req-int',
+                },
+            },
+            'peer': {
+                'pee-rel': {
+                    'interface': 'pee-int',
+                },
+            },
+        }
+        itr = hookenv.interface_to_relations
+        assertItemsEqual = getattr(self, 'assertItemsEqual', getattr(self, 'assertCountEqual', None))
+        assertItemsEqual(itr('pro-int'), ['pro-rel', 'pro-rel2'])
+        assertItemsEqual(itr('req-int'), ['req-rel'])
+        assertItemsEqual(itr('pee-int'), ['pee-rel'])
+
+    def test_action_name(self):
+        with patch.dict('os.environ', JUJU_ACTION_NAME='action-jack'):
+            self.assertEqual(hookenv.action_name(), 'action-jack')
+
+    def test_action_uuid(self):
+        with patch.dict('os.environ', JUJU_ACTION_UUID='action-jack'):
+            self.assertEqual(hookenv.action_uuid(), 'action-jack')
+
+    def test_action_tag(self):
+        with patch.dict('os.environ', JUJU_ACTION_TAG='action-jack'):
+            self.assertEqual(hookenv.action_tag(), 'action-jack')

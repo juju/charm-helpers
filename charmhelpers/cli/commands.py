@@ -24,8 +24,9 @@ so that the warning is suppressed.
 from . import CommandLine  # noqa
 
 """
-Import the sub-modules to be included by chlp.
+Import the sub-modules which have decorated subcommands to register with chlp.
 """
 import host  # noqa
 import benchmark  # noqa
 import unitdata  # noqa
+from charmhelpers.core import hookenv  # noqa

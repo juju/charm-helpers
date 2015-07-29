@@ -5,6 +5,7 @@ from unittest import TestCase
 from mock import (
     patch,
     MagicMock,
+    ANY,
 )
 import json
 from pprint import pformat
@@ -87,6 +88,28 @@ class SubCommandTest(TestCase):
         @self.cl.subcommand()
         def bar(x, y=None, *vargs):
             "A function that does work."
+            self.assertEqual(x, 'baz')
+            self.assertEqual(y, 'why')
+            self.assertEqual(vargs, ('mux', 'zob'))
+            self.bar_called = True
+            return "qux"
+
+        args = ['chlp', 'bar', '--y', 'why', 'baz', 'mux', 'zob']
+        self.cl.formatter = MagicMock()
+        with patch("sys.argv", args):
+            with patch("charmhelpers.core.unitdata._KV") as _KV:
+                self.cl.run()
+                assert _KV.flush.called
+        self.assertTrue(self.bar_called)
+        self.cl.formatter.format_output.assert_called_once_with('qux', ANY)
+
+    def test_no_output(self):
+        self.bar_called = False
+
+        @self.cl.subcommand()
+        @self.cl.no_output
+        def bar(x, y=None, *vargs):
+            "A function that does work."
             self.bar_called = True
             return "qux"
 
@@ -95,7 +118,31 @@ class SubCommandTest(TestCase):
         with patch("sys.argv", args):
             self.cl.run()
         self.assertTrue(self.bar_called)
-        self.assertTrue(self.cl.formatter.format_output.called)
+        self.cl.formatter.format_output.assert_called_once_with('', ANY)
+
+    def test_test_command(self):
+        self.bar_called = False
+        self.bar_result = True
+
+        @self.cl.subcommand()
+        @self.cl.test_command
+        def bar(x, y=None, *vargs):
+            "A function that does work."
+            self.bar_called = True
+            return self.bar_result
+
+        args = ['foo', 'bar', 'baz']
+        self.cl.formatter = MagicMock()
+        with patch("sys.argv", args):
+            self.cl.run()
+        self.assertTrue(self.bar_called)
+        self.assertEqual(self.cl.exit_code, 0)
+        self.cl.formatter.format_output.assert_called_once_with('', ANY)
+
+        self.bar_result = False
+        with patch("sys.argv", args):
+            self.cl.run()
+        self.assertEqual(self.cl.exit_code, 1)
 
 
 class OutputFormatterTest(TestCase):
