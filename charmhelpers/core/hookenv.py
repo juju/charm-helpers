@@ -34,6 +34,8 @@ import errno
 import tempfile
 from subprocess import CalledProcessError
 
+from charmhelpers.cli import cmdline
+
 import six
 if not six.PY3:
     from UserDict import UserDict
@@ -173,9 +175,20 @@ def relation_type():
     return os.environ.get('JUJU_RELATION', None)
 
 
-def relation_id():
-    """The relation ID for the current relation hook"""
-    return os.environ.get('JUJU_RELATION_ID', None)
+@cmdline.subcommand()
+@cached
+def relation_id(relation_name=None, service_or_unit=None):
+    """The relation ID for the current or a specified relation"""
+    if not relation_name and not service_or_unit:
+        return os.environ.get('JUJU_RELATION_ID', None)
+    elif relation_name and service_or_unit:
+        service_name = service_or_unit.split('/')[0]
+        for relid in relation_ids(relation_name):
+            remote_service = remote_service_name(relid)
+            if remote_service == service_name:
+                return relid
+    else:
+        raise ValueError('Must specify neither or both of relation_name and service_or_unit')
 
 
 def local_unit():
@@ -188,9 +201,22 @@ def remote_unit():
     return os.environ.get('JUJU_REMOTE_UNIT', None)
 
 
+@cmdline.subcommand()
 def service_name():
     """The name service group this unit belongs to"""
     return local_unit().split('/')[0]
+
+
+@cmdline.subcommand()
+@cached
+def remote_service_name(relid=None):
+    """The remote service name for a given relation-id (or the current relation)"""
+    if relid is None:
+        unit = remote_unit()
+    else:
+        units = related_units(relid)
+        unit = units[0] if units else None
+    return unit.split('/')[0] if unit else None
 
 
 def hook_name():
@@ -466,6 +492,63 @@ def relation_types():
         if section:
             rel_types.extend(section.keys())
     return rel_types
+
+
+@cached
+def relation_to_interface(relation_name):
+    """
+    Given the name of a relation, return the interface that relation uses.
+
+    :returns: The interface name, or ``None``.
+    """
+    return relation_to_role_and_interface(relation_name)[1]
+
+
+@cached
+def relation_to_role_and_interface(relation_name):
+    """
+    Given the name of a relation, return the role and the name of the interface
+    that relation uses (where role is one of ``provides``, ``requires``, or ``peer``).
+
+    :returns: A tuple containing ``(role, interface)``, or ``(None, None)``.
+    """
+    _metadata = metadata()
+    for role in ('provides', 'requires', 'peer'):
+        interface = _metadata.get(role, {}).get(relation_name, {}).get('interface')
+        if interface:
+            return role, interface
+    return None, None
+
+
+@cached
+def role_and_interface_to_relations(role, interface_name):
+    """
+    Given a role and interface name, return a list of relation names for the
+    current charm that use that interface under that role (where role is one
+    of ``provides``, ``requires``, or ``peer``).
+
+    :returns: A list of relation names.
+    """
+    _metadata = metadata()
+    results = []
+    for relation_name, relation in _metadata.get(role, {}).items():
+        if relation['interface'] == interface_name:
+            results.append(relation_name)
+    return results
+
+
+@cached
+def interface_to_relations(interface_name):
+    """
+    Given an interface, return a list of relation names for the current
+    charm that use that interface.
+
+    :returns: A list of relation names.
+    """
+    results = []
+    for role in ('provides', 'requires', 'peer'):
+        results.extend(role_and_interface_to_relations(role, interface_name))
+    return results
 
 
 @cached
