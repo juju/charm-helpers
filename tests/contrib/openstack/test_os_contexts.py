@@ -340,7 +340,7 @@ nova:
 
 
 NOVA_SUB_CONFIG2 = """
-nova:
+nova-compute:
     /etc/nova/nova.conf:
         sections:
             DEFAULT:
@@ -2097,7 +2097,7 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.relation_units
         nova_sub_ctxt = context.SubordinateConfigContext(
-            service='nova',
+            service=['nova', 'nova-compute'],
             config_file='/etc/nova/nova.conf',
             interface=['nova-ceilometer', 'neutron-plugin'],
         )
