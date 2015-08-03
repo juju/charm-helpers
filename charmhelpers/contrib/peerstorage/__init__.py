@@ -59,7 +59,7 @@ def some_hook():
 """
 
 
-def leader_get(attribute=None):
+def leader_get(attribute=None, rid=None):
     """Wrapper to ensure that settings are migrated from the peer relation.
 
     This is to support upgrading an environment that does not support
@@ -94,7 +94,8 @@ def leader_get(attribute=None):
         # If attribute not present in leader db, check if this unit has set
         # the attribute in the peer relation
         if not leader_settings:
-            peer_setting = relation_get(attribute=attribute, unit=local_unit())
+            peer_setting = _relation_get(attribute=attribute, unit=local_unit(),
+                                         rid=rid)
             if peer_setting:
                 leader_set(settings={attribute: peer_setting})
                 leader_settings = peer_setting
@@ -103,7 +104,7 @@ def leader_get(attribute=None):
             settings_migrated = True
             migrated.add(attribute)
     else:
-        r_settings = relation_get(unit=local_unit())
+        r_settings = _relation_get(unit=local_unit(), rid=rid)
         if r_settings:
             for key in set(r_settings.keys()).difference(migrated):
                 # Leader setting wins
@@ -151,7 +152,7 @@ def relation_get(attribute=None, unit=None, rid=None):
     """
     try:
         if rid in relation_ids('cluster'):
-            return leader_get(attribute)
+            return leader_get(attribute, rid)
         else:
             raise NotImplementedError
     except NotImplementedError:
