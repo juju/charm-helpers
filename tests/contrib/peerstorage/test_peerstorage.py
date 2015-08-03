@@ -202,7 +202,7 @@ class TestPeerStorage(TestCase):
         l_settings = {'s3': 3}
         r_settings = {'s1': 1, 's2': 2}
 
-        def mock_relation_get(attribute=None, unit=None):
+        def mock_relation_get(attribute=None, unit=None, rid=None):
             if attribute:
                 if attribute in r_settings:
                     return r_settings.get(attribute)
@@ -237,11 +237,11 @@ class TestPeerStorage(TestCase):
             self.assertEqual(_dicta, _dictb)
 
         migration_key = '__leader_get_migrated_settings__'
-        self.relation_get.side_effect = mock_relation_get
+        self._relation_get.side_effect = mock_relation_get
         self._leader_get.side_effect = mock_leader_get
         self.leader_set.side_effect = mock_leader_set
 
-        self.assertEqual({'s1': 1, 's2': 2}, peerstorage.relation_get())
+        self.assertEqual({'s1': 1, 's2': 2}, peerstorage._relation_get())
         self.assertEqual({'s3': 3}, peerstorage._leader_get())
         self.assertEqual({'s1': 1, 's2': 2, 's3': 3}, peerstorage.leader_get())
         check_leader_db({'s1': 1, 's2': 2, 's3': 3,
@@ -274,7 +274,7 @@ class TestPeerStorage(TestCase):
 
         peerstorage.leader_set.reset_mock()
         self.assertEqual({'s1': 1, 's2': 2, 's3': 2, 's4': 3},
-                         peerstorage.relation_get())
+                         peerstorage._relation_get())
         check_leader_db({'s1': 1, 's3': 3, 's4': 4,
                          migration_key: '["s1", "s4"]'},
                         peerstorage._leader_get())
@@ -290,7 +290,7 @@ class TestPeerStorage(TestCase):
         l_settings = {'s3': 3}
         r_settings = {'s1': 1, 's2': 2}
 
-        def mock_relation_get(attribute=None, unit=None):
+        def mock_relation_get(attribute=None, unit=None, rid=None):
             if attribute:
                 if attribute in r_settings:
                     return r_settings.get(attribute)
@@ -314,10 +314,10 @@ class TestPeerStorage(TestCase):
 
             l_settings.update(kwargs)
 
-        self.relation_get.side_effect = mock_relation_get
+        self._relation_get.side_effect = mock_relation_get
         self._leader_get.side_effect = mock_leader_get
         self.leader_set.side_effect = mock_leader_set
-        self.assertEqual({'s1': 1, 's2': 2}, peerstorage.relation_get())
+        self.assertEqual({'s1': 1, 's2': 2}, peerstorage._relation_get())
         self.assertEqual({'s3': 3}, peerstorage._leader_get())
         self.assertEqual({'s3': 3}, peerstorage.leader_get())
         self.assertEqual({'s3': 3}, l_settings)
