@@ -72,7 +72,7 @@ def service_pause(service_name, init_dir=None):
     stopped = service_stop(service_name)
     # XXX: Support systemd too
     override_path = os.path.join(
-        init_dir, '{}.conf.override'.format(service_name))
+        init_dir, '{}.override'.format(service_name))
     with open(override_path, 'w') as fh:
         fh.write("manual\n")
     return stopped
@@ -86,7 +86,7 @@ def service_resume(service_name, init_dir=None):
     if init_dir is None:
         init_dir = "/etc/init"
     override_path = os.path.join(
-        init_dir, '{}.conf.override'.format(service_name))
+        init_dir, '{}.override'.format(service_name))
     if os.path.exists(override_path):
         os.unlink(override_path)
     started = service_start(service_name)
