@@ -112,7 +112,7 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('stop', service_name)
         override_path = os.path.join(
-            tempdir, "{}.conf.override".format(service_name))
+            tempdir, "{}.override".format(service_name))
         with open(override_path, "r") as fh:
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
@@ -127,7 +127,7 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('start', service_name)
         override_path = os.path.join(
-            tempdir, "{}.conf.override".format(service_name))
+            tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
 
     @patch.object(host, 'service')
