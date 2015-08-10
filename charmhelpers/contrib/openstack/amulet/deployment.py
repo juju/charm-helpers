@@ -44,7 +44,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
-        base_charms = ['mysql', 'mongodb']
+        base_charms = ['mysql', 'mongodb', 'nrpe']
 
         if self.series in ['precise', 'trusty']:
             base_series = self.series
