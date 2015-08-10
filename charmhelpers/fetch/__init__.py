@@ -94,7 +94,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'liberty': 'trusty-updates/liberty',
     'trusty-liberty': 'trusty-updates/liberty',
     'trusty-liberty/updates': 'trusty-updates/liberty',
-    'trusty-updates/liberty': 'trusty-updates/liberty', 
+    'trusty-updates/liberty': 'trusty-updates/liberty',
     'liberty/proposed': 'trusty-proposed/liberty',
     'trusty-liberty/proposed': 'trusty-proposed/liberty',
     'trusty-proposed/liberty': 'trusty-proposed/liberty',
