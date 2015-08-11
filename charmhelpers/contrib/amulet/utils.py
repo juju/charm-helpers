@@ -142,7 +142,7 @@ class AmuletUtils(object):
 
             for service_name in services_list:
                 if (self.ubuntu_releases.index(release) >= systemd_switch or
-                        service_name == "rabbitmq-server"):
+                        service_name in ['rabbitmq-server', 'apache2']):
                     # init is systemd
                     cmd = 'sudo service {} status'.format(service_name)
                 elif self.ubuntu_releases.index(release) < systemd_switch:
@@ -507,11 +507,23 @@ class AmuletUtils(object):
                             '{}'.format(e_proc_name, a_proc_name))
 
                 a_pids_length = len(a_pids)
-                if e_pids_length != a_pids_length:
-                    return ('PID count mismatch. {} ({}) expected, actual: '
+                fail_msg = ('PID count mismatch. {} ({}) expected, actual: '
                             '{}, {} ({})'.format(e_sentry_name, e_proc_name,
                                                  e_pids_length, a_pids_length,
                                                  a_pids))
+
+                # If expected is not bool, ensure PID quantities match
+                if not isinstance(e_pids_length, bool) and \
+                        a_pids_length != e_pids_length:
+                    return fail_msg
+                # If expected is bool True, ensure 1 or more PIDs exist
+                elif isinstance(e_pids_length, bool) and \
+                        e_pids_length is True and a_pids_length < 1:
+                    return fail_msg
+                # If expected is bool False, ensure 0 PIDs exist
+                elif isinstance(e_pids_length, bool) and \
+                        e_pids_length is False and a_pids_length != 0:
+                    return fail_msg
                 else:
                     self.log.debug('PID check OK: {} {} {}: '
                                    '{}'.format(e_sentry_name, e_proc_name,
