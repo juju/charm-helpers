@@ -36,7 +36,7 @@ userinstall:
 	scripts/update-revno
 	python setup.py install --user
 
-.venv: test_requirements.txt
+.venv:
 	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
