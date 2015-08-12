@@ -18,6 +18,7 @@ import io
 import logging
 import os
 import re
+import socket
 import sys
 import time
 
@@ -551,3 +552,93 @@ class AmuletUtils(object):
             return 'Dicts within list are not identical'
 
         return None
+
+#
+    def validate_sectionless_conf(self, file_contents, expected):
+        """A crude conf parser.  Useful to inspect configuration files which
+        do not have section headers (as would be necessary in order to use
+        the configparser).  Such as openstack-dashboard or rabbitmq confs."""
+        for line in file_contents.split('\n'):
+            if '=' in line:
+                args = line.split('=')
+                if len(args) <= 1:
+                    continue
+                key = args[0].strip()
+                value = args[1].strip()
+                if key in expected.keys():
+                    if expected[key] != value:
+                        msg = ('Config mismatch.  Expected, actual:  {}, '
+                               '{}'.format(expected[key], value))
+                        amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def get_unit_hostnames(self, units):
+        """Return a dict of juju unit names to hostnames."""
+        host_names = {}
+        for unit in units:
+            host_names[unit.info['unit_name']] = \
+                str(unit.file_contents('/etc/hostname').strip())
+        self.log.debug('Unit host names: {}'.format(host_names))
+        return host_names
+
+    def run_cmd_unit(self, sentry_unit, cmd):
+        """Run a command on a unit, return the output and exit code."""
+        output, code = sentry_unit.run(cmd)
+        if code == 0:
+            self.log.debug('{} `{}` command returned {} '
+                           '(OK)'.format(sentry_unit.info['unit_name'],
+                                         cmd, code))
+        else:
+            msg = ('{} `{}` command returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, code, output))
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        return str(output), code
+
+    def file_exists_on_unit(self, sentry_unit, file_name):
+        """Check if a file exists on a unit."""
+        try:
+            sentry_unit.file_stat(file_name)
+            return True
+        except IOError:
+            return False
+        except Exception as e:
+            msg = 'Error checking file {}: {}'.format(file_name, e)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def port_knock_tcp(self, host="localhost", port=22, timeout=15):
+        """Open a TCP socket to check for a listening sevice on a host.
+
+        :param host: host name or IP address, default to localhost
+        :param port: TCP port number, default to 22
+        :param timeout: Connect timeout, default to 15 seconds
+        """
+
+        # Resolve host name if possible
+        try:
+            connect_host = socket.gethostbyname(host)
+            host_human = "{} ({})".format(connect_host, host)
+        except socket.error, e:
+            self.log.warn('Unable to resolve address: '
+                          '{} ({}) Trying anyway!'.format(host, e))
+            connect_host = host
+            host_human = connect_host
+
+        # Attempt socket connection
+        try:
+            knock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            knock.settimeout(timeout)
+            knock.connect((connect_host, port))
+            knock.close()
+            self.log.debug('Socket connect OK for host '
+                           '{} on port {}.'.format(host_human, port))
+            return True
+        except socket.error, e:
+            self.log.debug('Socket connect FAIL for'
+                           ' {} port {} ({})'.format(host_human, port, e))
+            return False
+
+    def get_uuid_epoch_stamp(self):
+        """Returns a stamp string based on uuid4 and epoch time.  Useful in   
+        generating test messages which need to be unique-ish."""
+        return '[{}-{}]'.format(uuid.uuid4(), time.time())
+
