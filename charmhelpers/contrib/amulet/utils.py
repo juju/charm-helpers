@@ -14,17 +14,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-import amulet
-import ConfigParser
-import distro_info
 import io
 import logging
 import os
 import re
-import six
 import sys
 import time
-import urlparse
+
+import amulet
+import distro_info
+import six
+from six.moves import configparser
+if six.PY3:
+    from urllib import parse as urlparse
+else:
+    import urlparse
 
 
 class AmuletUtils(object):
@@ -143,18 +147,22 @@ class AmuletUtils(object):
             for service_name in services_list:
                 if (self.ubuntu_releases.index(release) >= systemd_switch or
                         service_name in ['rabbitmq-server', 'apache2']):
-                    # init is systemd
+                    # init is systemd (or regular sysv)
                     cmd = 'sudo service {} status'.format(service_name)
+                    output, code = sentry_unit.run(cmd)
+                    service_running = code == 0
                 elif self.ubuntu_releases.index(release) < systemd_switch:
                     # init is upstart
                     cmd = 'sudo status {}'.format(service_name)
+                    output, code = sentry_unit.run(cmd)
+                    service_running = code == 0 and "start/running" in output
 
-                output, code = sentry_unit.run(cmd)
                 self.log.debug('{} `{}` returned '
                                '{}'.format(sentry_unit.info['unit_name'],
                                            cmd, code))
-                if code != 0:
-                    return "command `{}` returned {}".format(cmd, str(code))
+                if not service_running:
+                    return u"command `{}` returned {} {}".format(
+                        cmd, output, str(code))
         return None
 
     def _get_config(self, unit, filename):
@@ -164,7 +172,7 @@ class AmuletUtils(object):
         # NOTE(beisner):  by default, ConfigParser does not handle options
         # with no value, such as the flags used in the mysql my.cnf file.
         # https://bugs.python.org/issue7005
-        config = ConfigParser.ConfigParser(allow_no_value=True)
+        config = configparser.ConfigParser(allow_no_value=True)
         config.readfp(io.StringIO(file_contents))
         return config
 
