@@ -27,6 +27,7 @@ import glanceclient.v1.client as glance_client
 import heatclient.v1.client as heat_client
 import keystoneclient.v2_0 as keystone_client
 import novaclient.v1_1.client as nova_client
+import pika
 import swiftclient
 
 from charmhelpers.contrib.amulet.utils import (
@@ -602,3 +603,322 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug('Ceph {} samples (OK): '
                            '{}'.format(sample_type, samples))
             return None
+
+# rabbitmq/amdqp specific helpers:
+    def get_rmq_cluster_status(self, sentry_unit):
+        """Execute rabbitmq cluster status command on a unit and return
+        the full output.
+
+        :param unit: sentry unit
+        :returns: String containing console output of cluster status command
+        """
+        cmd = 'rabbitmqctl cluster_status'
+        output, _ = self.run_cmd_unit(sentry_unit, cmd)
+        self.log.debug('\n{}'.format(output))
+        return str(output)
+
+    def get_rmq_cluster_running_nodes(self, sentry_unit):
+        """Parse rabbitmqctl cluster_status output string, return list of
+        running rabbitmq cluster nodes.
+
+        :param unit: sentry unit
+        :returns: List containing node names of running nodes
+        """
+        # NOTE(beisner): rabbitmqctl cluster_status output is not
+        # json-parsable, do string chop foo, then json.loads that.
+        str_stat = self.get_rmq_cluster_status(sentry_unit)
+        if 'running_nodes' in str_stat:
+            pos_start = str_stat.find("{running_nodes,") + 15
+            pos_end = str_stat.find("]},", pos_start) + 1
+            str_run_nodes = str_stat[pos_start:pos_end].replace("'", '"')
+            run_nodes = json.loads(str_run_nodes)
+            self.log.debug('Running nodes from {} cluster_status output: '
+                           '{}'.format(sentry_unit.info['unit_name'],
+                                       run_nodes))
+            return run_nodes
+        else:
+            return []
+
+    def validate_rmq_cluster_running_nodes(self, sentry_units):
+        """Check that all rmq unit hostnames are represented in the
+        cluster_status output of all units.
+
+        :param host_names: dict of juju unit names to host names
+        :param units: list of sentry unit pointers
+        :returns: None if successful, otherwise return error message
+        """
+        host_names = self.get_unit_hostnames(sentry_units)
+
+        for sentry_unit in sentry_units:
+            unit_name = sentry_unit.info['unit_name']
+            running_nodes = self.get_rmq_cluster_running_nodes(sentry_unit)
+            host_name = host_names[sentry_unit.info['unit_name']]
+            node_name = 'rabbit@{}'.format(host_name)
+            if node_name in running_nodes:
+                self.log.debug('Cluster member check OK on {} '
+                               '({}).'.format(unit_name, host_name))
+            else:
+                return ('Cluster member check failed on {}: {} not in '
+                        '{}'.format(unit_name, node_name, running_nodes))
+
+    def rmq_ssl_is_enabled(self, sentry_unit):
+        """Check a single juju rmq unit for ssl in the config file."""
+        host = sentry_unit.info['public-address']
+        unit_name = sentry_unit.info['unit_name']
+
+        conf_file = '/etc/rabbitmq/rabbitmq.config'
+        if self.file_exists_on_unit(sentry_unit, conf_file):
+            conf_contents = sentry_unit.file_contents(conf_file)
+        else:
+            conf_contents = None
+
+        if 'ssl' in str(conf_contents):
+            self.log.debug('SSL is enabled  @{} ({})'.format(host, unit_name))
+            return True
+        else:
+            self.log.debug('SSL not enabled @{} ({})'.format(host, unit_name))
+            return False
+
+    def validate_rmq_ssl_enabled_all_units(self, sentry_units):
+        """Check that ssl is enabled on listed rmq juju sentry units.
+
+        :param sentry_units: list of all rmq sentry units
+        :returns: None if successful, otherwise return error message
+        """
+        for sentry_unit in sentry_units:
+            if self.rmq_ssl_is_enabled(sentry_unit):
+                return 'Unexpected condition:  ssl is enabled on unit.'
+        return None
+
+    def validate_rmq_ssl_disabled_all_units(self, sentry_units):
+        """Check that ssl is enabled on listed rmq juju sentry units.
+
+        :param sentry_units: list of all rmq sentry units
+        :returns: True if successful.  Raise on error.
+        """
+        for sentry_unit in sentry_units:
+            if not self.rmq_ssl_is_enabled(sentry_unit):
+                return 'Unexpected condition:  ssl is disabled on unit.'
+        return None
+
+    def connect_amqp_by_unit(self, sentry_unit, ssl=False,
+                             port=None, fatal=True,
+                             username="testuser1", password="changeme"):
+        """Establish and return a pika amqp connection to the rabbitmq service
+        running on a rmq juju unit.
+
+        :param sentry_unit: sentry unit pointer
+        :param ssl: boolean, default to False
+        :param port: amqp port, use defaults if None
+        :param fatal: boolean, default to True (raises on connect error)
+        :param username: amqp user name, default to testuser1
+        :param password: amqp user password
+        :returns: pika amqp connection pointer or None if failed and non-fatal
+        """
+        host = sentry_unit.info['public-address']
+        unit_name = sentry_unit.info['unit_name']
+
+        # Default port logic if port is not specified
+        if ssl and not port:
+            port = 5671
+        elif not ssl and not port:
+            port = 5672
+
+        self.log.debug('Connecting to amqp on {}:{} ({}) as '
+                       '{}...'.format(host, port, unit_name, username))
+
+        try:
+            credentials = pika.PlainCredentials(username, password)
+            parameters = pika.ConnectionParameters(host=host, port=port,
+                                                   credentials=credentials,
+                                                   ssl=ssl)
+            connection = pika.BlockingConnection(parameters)
+            assert connection.server_properties['product'] == 'RabbitMQ'
+            return connection
+        except Exception as e:
+            msg = ('amqp connection failed to {}:{} as '
+                   '{} ({})'.format(host, port, username, str(e)))
+            if fatal:
+                amulet.raise_status(amulet.FAIL, msg)
+            else:
+                self.log.warn(msg)
+                return None
+
+# move to ch!
+    def add_rmq_test_user(self, sentry_units,
+                          username="testuser1", password="changeme"):
+        """Add a test user via the first rmq juju unit, check connection as
+        user against all sentry_units.
+
+        :param sentry_units: list of sentry unit pointers
+        :param username: amqp user name, default to testuser1
+        :param password: amqp user password
+        :returns: None if successful.  Raise on error.
+        """
+        self.log.debug('Adding rmq user ({})...'.format(username))
+
+        # Check that user does not already exist
+        cmd_user_list = 'rabbitmqctl list_users'
+        output, _ = self.run_cmd_unit(sentry_units[0], cmd_user_list)
+        if username in output:
+            self.log.warning('User ({}) already exists, returning '
+                             'gracefully.'.format(username))
+            return
+
+        perms = '".*" ".*" ".*"'
+        cmds = ['rabbitmqctl add_user {} {}'.format(username, password),
+                'rabbitmqctl set_permissions {} {}'.format(username, perms)]
+
+        # Add user via first unit
+        for cmd in cmds:
+            output, _ = self.run_cmd_unit(sentry_units[0], cmd)
+
+        # Check connection against the other sentry_units
+        for sentry_unit in sentry_units:
+            connection = self.connect_amqp_by_unit(sentry_unit, ssl=False,
+                                                   fatal=False,
+                                                   username=username,
+                                                   password=password)
+            if not connection:
+                msg = 'Connection failed for {} user'.format(username)
+                amulet.raise_status(amulet.FAIL, msg)
+
+    def delete_rmq_test_user(self, sentry_units, username="testuser1"):
+        """Delete a rabbitmq user via the first rmq juju unit.
+
+        :param sentry_units: list of sentry unit pointers
+        :param username: amqp user name, default to testuser1
+        :param password: amqp user password
+        :returns: None if successful or no such user.
+        """
+        self.log.debug('Deleting rmq user ({})...'.format(username))
+
+        # Check that user does not already exist
+        cmd_user_list = 'rabbitmqctl list_users'
+        output, _ = self.run_cmd_unit(sentry_units[0], cmd_user_list)
+
+        if username not in output:
+            self.log.warning('User ({}) does not exist, returning '
+                             'gracefully.'.format(username))
+            return
+
+        # Delete the user
+        cmd_user_del = 'rabbitmqctl delete_user {}'.format(username)
+        output, _ = self.run_cmd_unit(sentry_units[0], cmd_user_del)
+
+    def configure_rmq_ssl_on(self, sentry_units, deployment,
+                             port=None, max_wait=60):
+        """Turn ssl charm config option on, with optional non-default
+        ssl port specification.
+
+        :param sentry_units: list of sentry units
+        :param deployment: amulet deployment object pointer
+        :param port: amqp port, use defaults if None
+        :param max_wait: maximum time to wait in seconds to confirm
+        :returns: None if successful.  Raise on error.
+        """
+        self.log.debug('Setting ssl charm config option:  on')
+
+        # Enable RMQ SSL
+        config = {'ssl': 'on'}
+        if port:
+            config['ssl_port'] = port
+
+        deployment.configure('rabbitmq-server', config)
+
+        # Confirm
+        tries = 0
+        ret = self.validate_rmq_ssl_disabled_all_units(sentry_units)
+        while ret and tries < (max_wait / 4):
+            time.sleep(4)
+            ret = self.validate_rmq_ssl_disabled_all_units(sentry_units)
+            tries += 1
+
+        if ret:
+            amulet.raise_status(amulet.FAIL, ret)
+
+    def configure_rmq_ssl_off(self, sentry_units, deployment, max_wait=60):
+        """Turn ssl charm config option off.
+
+        :param sentry_units: list of sentry units
+        :param deployment: amulet deployment object pointer
+        :param max_wait: maximum time to wait in seconds to confirm
+        :returns: None if successful.  Raise on error.
+        """
+        self.log.debug('Setting ssl charm config option:  off')
+
+        # Disable RMQ SSL
+        config = {'ssl': 'off'}
+        deployment.configure('rabbitmq-server', config)
+
+        # Confirm
+        tries = 0
+        ret = self.validate_rmq_ssl_disabled_all_units(sentry_units)
+        while ret and tries < (max_wait / 4):
+            time.sleep(4)
+            ret = self.validate_rmq_ssl_disabled_all_units(sentry_units)
+            tries += 1
+
+        if ret:
+            amulet.raise_status(amulet.FAIL, ret)
+
+# move to ch
+    def publish_amqp_message_by_unit(self, sentry_unit, message,
+                                     queue="test", ssl=False,
+                                     username="testuser1",
+                                     password="changeme",
+                                     port=None):
+        """Publish an amqp message to a rmq juju unit.
+
+        :param sentry_unit: sentry unit pointer
+        :param message: amqp message string
+        :param queue: message queue, default to test
+        :param username: amqp user name, default to testuser1
+        :param password: amqp user password
+        :param ssl: boolean, default to False
+        :param port: amqp port, use defaults if None
+        :returns: None.  Raises exception if publish failed.
+        """
+        connection = self.connect_amqp_by_unit(sentry_unit, ssl=ssl,
+                                               port=port,
+                                               username=username,
+                                               password=password)
+        channel = connection.channel()
+        channel.queue_declare(queue=queue)
+        self.log.debug('Publishing message to {} queue:\n{}'.format(queue,
+                                                                    message))
+        channel.basic_publish(exchange='', routing_key=queue, body=message)
+
+# move to ch
+    def get_amqp_message_by_unit(self, sentry_unit, queue="test",
+                                 username="testuser1",
+                                 password="changeme",
+                                 ssl=False, port=None):
+        """Get an amqp message from a rmq juju unit.
+
+        :param sentry_unit: sentry unit pointer
+        :param queue: message queue, default to test
+        :param username: amqp user name, default to testuser1
+        :param password: amqp user password
+        :param ssl: boolean, default to False
+        :param port: amqp port, use defaults if None
+        :returns: amqp message body as string.  Raise if get fails.
+        """
+
+        connection = self.connect_amqp_by_unit(sentry_unit, ssl=ssl,
+                                               port=port,
+                                               username=username,
+                                               password=password)
+        channel = connection.channel()
+
+        # method_frame, header_frame, body
+        method_frame, _, body = channel.basic_get(queue)
+
+        if method_frame:
+            self.log.debug('Retreived message from {} queue:\n{}'.format(queue,
+                                                                         body))
+            channel.basic_ack(method_frame.delivery_tag)
+            return body
+        else:
+            msg = 'No message retrieved.'
+            amulet.raise_status(amulet.FAIL, msg)
