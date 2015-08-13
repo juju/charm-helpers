@@ -21,6 +21,7 @@ import re
 import socket
 import sys
 import time
+import uuid
 
 import amulet
 import distro_info
@@ -553,7 +554,6 @@ class AmuletUtils(object):
 
         return None
 
-#
     def validate_sectionless_conf(self, file_contents, expected):
         """A crude conf parser.  Useful to inspect configuration files which
         do not have section headers (as would be necessary in order to use
@@ -611,6 +611,7 @@ class AmuletUtils(object):
         :param host: host name or IP address, default to localhost
         :param port: TCP port number, default to 22
         :param timeout: Connect timeout, default to 15 seconds
+        :returns: True if successful, False if connect failed
         """
 
         # Resolve host name if possible
@@ -637,8 +638,26 @@ class AmuletUtils(object):
                            ' {} port {} ({})'.format(host_human, port, e))
             return False
 
+    def port_knock_units(self, sentry_units, port=22,
+                         timeout=15, expect_success=True):
+        """Open a TCP socket to check for a listening sevice on each
+        listed juju unit.
+
+        :param sentry_units: list of sentry unit pointers
+        :param port: TCP port number, default to 22
+        :param timeout: Connect timeout, default to 15 seconds
+        :expect_success: True by default, set False to invert logic
+        :returns: None if successful, Failure message otherwise
+        """
+        for unit in sentry_units:
+            host = unit.info['public-address']
+            connected = self.port_knock_tcp(host, port, timeout)
+            if not connected and expect_success:
+                return 'Socket connect failed.'
+            elif connected and not expect_success:
+                return 'Socket connected unexpectedly.'
+
     def get_uuid_epoch_stamp(self):
-        """Returns a stamp string based on uuid4 and epoch time.  Useful in   
+        """Returns a stamp string based on uuid4 and epoch time.  Useful in
         generating test messages which need to be unique-ish."""
         return '[{}-{}]'.format(uuid.uuid4(), time.time())
-
