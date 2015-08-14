@@ -675,7 +675,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         """
         cmd = 'rabbitmqctl cluster_status'
         output, _ = self.run_cmd_unit(sentry_unit, cmd)
-        self.log.debug('\n{}'.format(output))
+        self.log.debug('{} cluster_status:\n{}'.format(
+            sentry_unit.info['unit_name'], output))
         return str(output)
 
     def get_rmq_cluster_running_nodes(self, sentry_unit):
@@ -693,9 +694,6 @@ class OpenStackAmuletUtils(AmuletUtils):
             pos_end = str_stat.find("]},", pos_start) + 1
             str_run_nodes = str_stat[pos_start:pos_end].replace("'", '"')
             run_nodes = json.loads(str_run_nodes)
-            self.log.debug('Running nodes from {} cluster_status output: '
-                           '{}'.format(sentry_unit.info['unit_name'],
-                                       run_nodes))
             return run_nodes
         else:
             return []
@@ -705,22 +703,30 @@ class OpenStackAmuletUtils(AmuletUtils):
         cluster_status output of all units.
 
         :param host_names: dict of juju unit names to host names
-        :param units: list of sentry unit pointers
+        :param units: list of sentry unit pointers (all rmq units)
         :returns: None if successful, otherwise return error message
         """
         host_names = self.get_unit_hostnames(sentry_units)
+        errors = []
 
-        for sentry_unit in sentry_units:
-            unit_name = sentry_unit.info['unit_name']
-            running_nodes = self.get_rmq_cluster_running_nodes(sentry_unit)
-            host_name = host_names[sentry_unit.info['unit_name']]
-            node_name = 'rabbit@{}'.format(host_name)
-            if node_name in running_nodes:
-                self.log.debug('Cluster member check OK on {} '
-                               '({}).'.format(unit_name, host_name))
-            else:
-                return ('Cluster member check failed on {}: {} not in '
-                        '{}'.format(unit_name, node_name, running_nodes))
+        # Query every unit for cluster_status running nodes
+        for query_unit in sentry_units:
+            query_unit_name = query_unit.info['unit_name']
+            running_nodes = self.get_rmq_cluster_running_nodes(query_unit)
+
+            # Confirm that every unit is represented in the queried unit's
+            # cluster_status running nodes output.
+            for validate_unit in sentry_units:
+                val_host_name = host_names[validate_unit.info['unit_name']]
+                val_node_name = 'rabbit@{}'.format(val_host_name)
+
+                if val_node_name not in running_nodes:
+                    errors.append('Cluster member check failed on {}: {} not '
+                                  'in {}\n'.format(query_unit_name,
+                                                   val_node_name,
+                                                   running_nodes))
+        if errors:
+            return ''.join(errors)
 
     def rmq_ssl_is_enabled_on_unit(self, sentry_unit):
         """Check a single juju rmq unit for ssl in the config file."""
