@@ -604,6 +604,29 @@ class AmuletUtils(object):
             msg = 'Error checking file {}: {}'.format(file_name, e)
             amulet.raise_status(amulet.FAIL, msg=msg)
 
+    def file_contents_safe(self, sentry_unit, file_name, max_wait=60):
+        """Wrap amulet file_contents with retry logic to address races
+        where a file checks as existing, but no longer exists by the time
+        file_contents is called."""
+        unit_name = sentry_unit.info['unit_name']
+        file_contents = False
+        tries = 0
+        while not file_contents and tries < (max_wait / 4):
+            try:
+                file_contents = sentry_unit.file_contents(file_name)
+            except IOError:
+                self.log.error('Attempt {} to open file {} from {} '
+                               'failed'.format(tries, file_name,
+                                               unit_name))
+                time.sleep(4)
+                tries += 1
+
+        if file_contents:
+            return file_contents
+        else:
+            msg = 'Failed to get file contents from unit.'
+            amulet.raise_status(amulet.FAIL, msg)
+
     def port_knock_tcp(self, host="localhost", port=22, timeout=15):
         """Open a TCP socket to check for a listening sevice on a host.
 

@@ -735,7 +735,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         conf_file = '/etc/rabbitmq/rabbitmq.config'
         if self.file_exists_on_unit(sentry_unit, conf_file):
-            conf_contents = sentry_unit.file_contents(conf_file)
+            conf_contents = self.file_contents_safe(sentry_unit, conf_file)
         else:
             self.log.debug('Conf file not found: {}'.format(conf_file))
             conf_contents = None
@@ -861,9 +861,13 @@ class OpenStackAmuletUtils(AmuletUtils):
             credentials = pika.PlainCredentials(username, password)
             parameters = pika.ConnectionParameters(host=host, port=port,
                                                    credentials=credentials,
-                                                   ssl=ssl)
+                                                   ssl=ssl,
+                                                   connection_attempts=3,
+                                                   retry_delay=5,
+                                                   socket_timeout=1)
             connection = pika.BlockingConnection(parameters)
             assert connection.server_properties['product'] == 'RabbitMQ'
+            self.log.debug('Connect OK')
             return connection
         except Exception as e:
             msg = ('amqp connection failed to {}:{} as '
