@@ -428,7 +428,6 @@ class AmuletUtils(object):
         """Return a list of all Ubuntu releases in order of release."""
         _d = distro_info.UbuntuDistroInfo()
         _release_list = _d.all
-        self.log.debug('Ubuntu release list: {}'.format(_release_list))
         return _release_list
 
     def file_to_url(self, file_rel_path):
