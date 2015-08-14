@@ -565,9 +565,8 @@ class AmuletUtils(object):
         unit_id = unit_sentry.info["unit_name"]
         command = ["juju", "action", "do", "--format=json", unit_id, action]
         self.log.info("Running command: %s\n" % " ".join(command))
-        output = _check_output(command)
-        output_json = output.decode("utf-8")
-        data = json.loads(output_json)
+        output = _check_output(command, universal_newlines=True)
+        data = json.loads(output)
         action_id = data[u'Action queued with id']
         return action_id
 
@@ -578,7 +577,6 @@ class AmuletUtils(object):
         """
         command = ["juju", "action", "fetch", "--format=json", "--wait=0",
                    action_id]
-        output = _check_output(command)
-        output_json = output.decode("utf-8")
-        data = json.loads(output_json)
+        output = _check_output(command, universal_newlines=True)
+        data = json.loads(output)
         return data.get(u"status") == "completed"
