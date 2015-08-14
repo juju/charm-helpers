@@ -554,25 +554,31 @@ class AmuletUtils(object):
 
         return None
 
-    def run_action(self, unit_sentry, action):
+    def run_action(self, unit_sentry, action,
+                   _check_output=subprocess.check_output):
         """Run the named action on a given unit sentry.
+
+        _check_output parameter is used for dependency injection.
 
         @return action_id.
         """
         unit_id = unit_sentry.info["unit_name"]
         command = ["juju", "action", "do", "--format=json", unit_id, action]
         self.log.info("Running command: %s\n" % " ".join(command))
-        output = subprocess.check_output(command)
+        output = _check_output(command)
         output_json = output.decode("utf-8")
         data = json.loads(output_json)
         action_id = data[u'Action queued with id']
         return action_id
 
-    def wait_on_action(self, action_id):
-        """Wait for a given action, returning if it completed or not."""
+    def wait_on_action(self, action_id, _check_output=subprocess.check_output):
+        """Wait for a given action, returning if it completed or not.
+
+        _check_output parameter is used for dependency injection.
+        """
         command = ["juju", "action", "fetch", "--format=json", "--wait=0",
                    action_id]
-        output = subprocess.check_output(command)
+        output = _check_output(command)
         output_json = output.decode("utf-8")
         data = json.loads(output_json)
         return data.get(u"status") == "completed"
