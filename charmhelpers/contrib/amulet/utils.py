@@ -15,9 +15,11 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import io
+import json
 import logging
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -551,3 +553,26 @@ class AmuletUtils(object):
             return 'Dicts within list are not identical'
 
         return None
+
+    def run_action(self, unit_sentry, action):
+        """Run the named action on a given unit sentry.
+
+        @return action_id.
+        """
+        unit_id = unit_sentry.info["unit_name"]
+        command = ["juju", "action", "do", "--format=json", unit_id, action]
+        self.log.info("Running command: %s\n" % " ".join(command))
+        output = subprocess.check_output(command)
+        output_json = output.decode("utf-8")
+        data = json.loads(output_json)
+        action_id = data[u'Action queued with id']
+        return action_id
+
+    def wait_on_action(self, action_id):
+        """Wait for a given action, returning if it completed or not."""
+        command = ["juju", "action", "fetch", "--format=json", "--wait=0",
+                   action_id]
+        output = subprocess.check_output(command)
+        output_json = output.decode("utf-8")
+        data = json.loads(output_json)
+        return data.get(u"status") == "completed"
