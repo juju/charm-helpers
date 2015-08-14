@@ -103,3 +103,25 @@ class ValidateServicesByNameTestCase(unittest.TestCase):
         result = self.utils.validate_services_by_name(
             {self.sentry_unit: ["foo"]})
         self.assertIsNotNone(result)
+
+
+class RunActionTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.utils = AmuletUtils()
+        self.sentry_unit = FakeSentry()
+
+    def test_request_json_output(self):
+        """Juju is called with --format=json, to guarantee output format."""
+        output_calls = []
+        check_output = output_calls.append
+        self.utils.run_action(
+            self.sentry_unit, "foo", _check_output=check_output)
+        call, = output_calls
+        self.assertIn("--format=json", call)
+
+    def test_returns_action_id(self):
+        """JSON output is parsed and returns action_id."""
+        check_output = lambda x: "{'Action queued with id': 'action-id'}"
+        self.assertEqual("action-id", self.utils.run_action(
+            self.sentry_unit, "foo", _check_output=check_output))
