@@ -482,14 +482,23 @@ class AmuletUtils(object):
             amulet.raise_status(amulet.FAIL, msg=msg)
         return str(output).split()
 
-    def get_unit_process_ids(self, unit_processes):
+    def get_unit_process_ids(self, unit_processes, expect_success=True):
         """Construct a dict containing unit sentries, process names, and
-        process IDs."""
+        process IDs.
+
+        :param unit_processes: A dictionary of Amulet sentry instance
+            to list of process names.
+        :param expect_success: if False expect the processes to not be
+            running, raise if they are.
+        :returns: Dictionary of Amulet sentry instance to dictionary
+            of process names to PIDs.
+        """
         pid_dict = {}
         for sentry_unit, process_list in unit_processes.iteritems():
             pid_dict[sentry_unit] = {}
             for process in process_list:
-                pids = self.get_process_id_list(sentry_unit, process)
+                pids = self.get_process_id_list(
+                    sentry_unit, process, expect_success=expect_success)
                 pid_dict[sentry_unit].update({process: pids})
         return pid_dict
 

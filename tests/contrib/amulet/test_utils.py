@@ -10,9 +10,9 @@ from charmhelpers.contrib.amulet.utils import AmuletUtils
 
 class FakeSentry(object):
 
-    def __init__(self):
+    def __init__(self, name="foo"):
         self.commands = {}
-        self.info = {"unit_name": "foo"}
+        self.info = {"unit_name": name}
 
     def run(self, command):
         return self.commands[command]
@@ -245,3 +245,40 @@ class GetProcessIdListTestCase(unittest.TestCase):
                 self.sentry_unit, "bar", expect_success=False)
         the_exception = cm.exception
         self.assertEqual(1, the_exception.code)
+
+
+class GetUnitProcessIdsTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.utils = AmuletUtils()
+        self.sentry_unit = FakeSentry()
+
+    def test_returns_map(self):
+        """
+        Normal execution returns a dictionary mapping process names to
+        PIDs for each unit.
+        """
+        second_sentry = FakeSentry(name="bar")
+        self.sentry_unit.commands["pidof -x foo"] = ("123 124", 0)
+        second_sentry.commands["pidof -x bar"] = ("456 457", 0)
+
+        result = self.utils.get_unit_process_ids({
+            self.sentry_unit: ["foo"], second_sentry: ["bar"]})
+        self.assertEqual({
+            self.sentry_unit: {"foo": ["123", "124"]},
+            second_sentry: {"bar": ["456", "457"]}}, result)
+
+    def test_expect_failure(self):
+        """
+        Expected failures return empty lists.
+        """
+        second_sentry = FakeSentry(name="bar")
+        self.sentry_unit.commands["pidof -x foo || exit 0 && exit 1"] = ("", 0)
+        second_sentry.commands["pidof -x bar || exit 0 && exit 1"] = ("", 0)
+
+        result = self.utils.get_unit_process_ids(
+            {self.sentry_unit: ["foo"], second_sentry: ["bar"]},
+            expect_success=False)
+        self.assertEqual({
+            self.sentry_unit: {"foo": []},
+            second_sentry: {"bar": []}}, result)
