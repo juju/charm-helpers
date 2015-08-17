@@ -303,6 +303,16 @@ class HelpersTest(TestCase):
         ])
         getpwnam.assert_called_with(username)
 
+    @patch('pwd.getpwnam')
+    def test_user_exists_true(self, getpwnam):
+        getpwnam.side_effect = 'pw info'
+        self.assertTrue(host.user_exists('bob'))
+
+    @patch('pwd.getpwnam')
+    def test_user_exists_false(self, getpwnam):
+        getpwnam.side_effect = KeyError('user not found')
+        self.assertFalse(host.user_exists('bob'))
+
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
     def test_adds_a_user_to_a_group(self, log, check_call):
@@ -665,6 +675,20 @@ class HelpersTest(TestCase):
         '/etc/exists.conf': 'lots of nice ceph configuration',
         '/etc/missing.conf': None
     }
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_fstab_mount(self, log, check_output):
+        self.assertTrue(host.fstab_mount('/mnt/mymntpnt'))
+        check_output.assert_called_with(['mount', '/mnt/mymntpnt'])
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_fstab_mount_fail(self, log, check_output):
+        error = subprocess.CalledProcessError(123, 'mount it', 'Oops...')
+        check_output.side_effect = error
+        self.assertFalse(host.fstab_mount('/mnt/mymntpnt'))
+        check_output.assert_called_with(['mount', '/mnt/mymntpnt'])
 
     @patch('hashlib.md5')
     @patch('os.path.exists')
