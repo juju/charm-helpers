@@ -15,10 +15,12 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import io
+import json
 import logging
 import os
 import re
 import socket
+import subprocess
 import sys
 import time
 import uuid
@@ -459,15 +461,20 @@ class AmuletUtils(object):
                                         cmd, code, output))
         return None
 
-    def get_process_id_list(self, sentry_unit, process_name):
+    def get_process_id_list(self, sentry_unit, process_name,
+                            expect_success=True):
         """Get a list of process ID(s) from a single sentry juju unit
         for a single process name.
 
-        :param sentry_unit: Pointer to amulet sentry instance (juju unit)
+        :param sentry_unit: Amulet sentry instance (juju unit)
         :param process_name: Process name
+        :param expect_success: If False, expect the PID to be missing,
+            raise if it is present.
         :returns: List of process IDs
         """
-        cmd = 'pidof {}'.format(process_name)
+        cmd = 'pidof -x {}'.format(process_name)
+        if not expect_success:
+            cmd += " || exit 0 && exit 1"
         output, code = sentry_unit.run(cmd)
         if code != 0:
             msg = ('{} `{}` returned {} '
@@ -476,14 +483,23 @@ class AmuletUtils(object):
             amulet.raise_status(amulet.FAIL, msg=msg)
         return str(output).split()
 
-    def get_unit_process_ids(self, unit_processes):
+    def get_unit_process_ids(self, unit_processes, expect_success=True):
         """Construct a dict containing unit sentries, process names, and
-        process IDs."""
+        process IDs.
+
+        :param unit_processes: A dictionary of Amulet sentry instance
+            to list of process names.
+        :param expect_success: if False expect the processes to not be
+            running, raise if they are.
+        :returns: Dictionary of Amulet sentry instance to dictionary
+            of process names to PIDs.
+        """
         pid_dict = {}
-        for sentry_unit, process_list in unit_processes.iteritems():
+        for sentry_unit, process_list in six.iteritems(unit_processes):
             pid_dict[sentry_unit] = {}
             for process in process_list:
-                pids = self.get_process_id_list(sentry_unit, process)
+                pids = self.get_process_id_list(
+                    sentry_unit, process, expect_success=expect_success)
                 pid_dict[sentry_unit].update({process: pids})
         return pid_dict
 
@@ -497,7 +513,7 @@ class AmuletUtils(object):
             return ('Unit count mismatch.  expected, actual: {}, '
                     '{} '.format(len(expected), len(actual)))
 
-        for (e_sentry, e_proc_names) in expected.iteritems():
+        for (e_sentry, e_proc_names) in six.iteritems(expected):
             e_sentry_name = e_sentry.info['unit_name']
             if e_sentry in actual.keys():
                 a_proc_names = actual[e_sentry]
@@ -683,3 +699,32 @@ class AmuletUtils(object):
         """Returns a stamp string based on uuid4 and epoch time.  Useful in
         generating test messages which need to be unique-ish."""
         return '[{}-{}]'.format(uuid.uuid4(), time.time())
+
+# amulet juju action helpers:
+    def run_action(self, unit_sentry, action,
+                   _check_output=subprocess.check_output):
+        """Run the named action on a given unit sentry.
+
+        _check_output parameter is used for dependency injection.
+
+        @return action_id.
+        """
+        unit_id = unit_sentry.info["unit_name"]
+        command = ["juju", "action", "do", "--format=json", unit_id, action]
+        self.log.info("Running command: %s\n" % " ".join(command))
+        output = _check_output(command, universal_newlines=True)
+        data = json.loads(output)
+        action_id = data[u'Action queued with id']
+        return action_id
+
+    def wait_on_action(self, action_id, _check_output=subprocess.check_output):
+        """Wait for a given action, returning if it completed or not.
+
+        _check_output parameter is used for dependency injection.
+        """
+        command = ["juju", "action", "fetch", "--format=json", "--wait=0",
+                   action_id]
+        output = _check_output(command, universal_newlines=True)
+        data = json.loads(output)
+        return data.get(u"status") == "completed"
+
