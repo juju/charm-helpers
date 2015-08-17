@@ -460,15 +460,20 @@ class AmuletUtils(object):
                                         cmd, code, output))
         return None
 
-    def get_process_id_list(self, sentry_unit, process_name):
+    def get_process_id_list(self, sentry_unit, process_name,
+                            expect_success=True):
         """Get a list of process ID(s) from a single sentry juju unit
         for a single process name.
 
-        :param sentry_unit: Pointer to amulet sentry instance (juju unit)
+        :param sentry_unit: Amulet sentry instance (juju unit)
         :param process_name: Process name
+        :param expect_success: If False, expect the PID to be missing,
+            raise if it is present.
         :returns: List of process IDs
         """
-        cmd = 'pidof {}'.format(process_name)
+        cmd = 'pidof -x {}'.format(process_name)
+        if not expect_success:
+            cmd += " || exit 0 && exit 1"
         output, code = sentry_unit.run(cmd)
         if code != 0:
             msg = ('{} `{}` returned {} '

@@ -10,9 +10,9 @@ from charmhelpers.contrib.amulet.utils import AmuletUtils
 
 class FakeSentry(object):
 
-    commands = {}
-
-    info = {"unit_name": "foo"}
+    def __init__(self):
+        self.commands = {}
+        self.info = {"unit_name": "foo"}
 
     def run(self, command):
         return self.commands[command]
@@ -193,3 +193,55 @@ class WaitActionTestCase(unittest.TestCase):
 
         self.assertFalse(self.utils.wait_on_action(
             "action-id", _check_output=fake_check_output))
+
+
+class GetProcessIdListTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.utils = AmuletUtils()
+        self.sentry_unit = FakeSentry()
+
+    def test_returns_pids(self):
+        """
+        Normal execution returns a list of pids
+        """
+        self.sentry_unit.commands["pidof -x foo"] = ("123 124 125", 0)
+        result = self.utils.get_process_id_list(self.sentry_unit, "foo")
+        self.assertEqual(["123", "124", "125"], result)
+
+    def test_fails_if_no_process_found(self):
+        """
+        By default, the expectation is that a process is running. Failure
+        to find a given process results in an amulet.FAIL being
+        raised.
+        """
+        self.sentry_unit.commands["pidof -x foo"] = ("", 1)
+        with self.assertRaises(SystemExit) as cm:
+            self.utils.get_process_id_list(self.sentry_unit, "foo")
+        the_exception = cm.exception
+        self.assertEqual(1, the_exception.code)
+
+    def test_looks_for_scripts(self):
+        """
+        pidof command uses -x to return a list of pids of scripts
+        """
+        self.sentry_unit.commands["pidof foo"] = ("", 1)
+        self.sentry_unit.commands["pidof -x foo"] = ("123 124 125", 0)
+        result = self.utils.get_process_id_list(self.sentry_unit, "foo")
+        self.assertEqual(["123", "124", "125"], result)
+
+    def test_expect_no_pid(self):
+        """
+        By setting expectation that there are no pids running the logic
+        about when to fail is reversed.
+        """
+        self.sentry_unit.commands["pidof -x foo || exit 0 && exit 1"] = ("", 0)
+        self.sentry_unit.commands["pidof -x bar || exit 0 && exit 1"] = ("", 1)
+        result = self.utils.get_process_id_list(
+            self.sentry_unit, "foo", expect_success=False)
+        self.assertEqual([], result)
+        with self.assertRaises(SystemExit) as cm:
+            self.utils.get_process_id_list(
+                self.sentry_unit, "bar", expect_success=False)
+        the_exception = cm.exception
+        self.assertEqual(1, the_exception.code)
