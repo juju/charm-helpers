@@ -494,7 +494,7 @@ class AmuletUtils(object):
             of process names to PIDs.
         """
         pid_dict = {}
-        for sentry_unit, process_list in unit_processes.iteritems():
+        for sentry_unit, process_list in six.iteritems(unit_processes):
             pid_dict[sentry_unit] = {}
             for process in process_list:
                 pids = self.get_process_id_list(
@@ -512,7 +512,7 @@ class AmuletUtils(object):
             return ('Unit count mismatch.  expected, actual: {}, '
                     '{} '.format(len(expected), len(actual)))
 
-        for (e_sentry, e_proc_names) in expected.iteritems():
+        for (e_sentry, e_proc_names) in six.iteritems(expected):
             e_sentry_name = e_sentry.info['unit_name']
             if e_sentry in actual.keys():
                 a_proc_names = actual[e_sentry]
