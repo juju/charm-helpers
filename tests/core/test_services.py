@@ -1,7 +1,11 @@
+import os
 import mock
 import unittest
+import uuid
 from charmhelpers.core import hookenv
+from charmhelpers.core import host
 from charmhelpers.core import services
+from functools import partial
 
 
 class TestServiceManager(unittest.TestCase):
@@ -751,6 +755,54 @@ class TestTemplateCallback(unittest.TestCase):
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
             'user', 'group', 0o555)
+
+    @mock.patch.object(os.path, 'isfile')
+    @mock.patch.object(host, 'file_hash')
+    @mock.patch.object(host, 'service_restart')
+    @mock.patch.object(services.helpers, 'templating')
+    def test_template_onchange_restart(self, mtemplating, mrestart, mfile_hash, misfile):
+        def random_string(arg):
+            return uuid.uuid4()
+        mfile_hash.side_effect = random_string
+        misfile.return_value = True
+        manager = mock.Mock(**{'get_service.return_value': {
+            'required_data': [{'foo': 'bar'}]}})
+        callback = services.template(
+            source='foo.yml', target='bar.yml',
+            owner='user', group='group', perms=0o555,
+            on_change_action=(partial(mrestart, "mysuperservice")),
+        )
+        assert isinstance(callback, services.ManagerCallback)
+        assert not mtemplating.render.called
+        callback(manager, 'test', 'event')
+        mtemplating.render.assert_called_once_with(
+            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'user', 'group', 0o555)
+        mrestart.assert_called_with('mysuperservice')
+
+    @mock.patch.object(hookenv, 'log')
+    @mock.patch.object(os.path, 'isfile')
+    @mock.patch.object(host, 'file_hash')
+    @mock.patch.object(host, 'service_restart')
+    @mock.patch.object(services.helpers, 'templating')
+    def test_template_onchange_restart_nochange(self, mtemplating, mrestart,
+                                                mfile_hash, misfile, mlog):
+        mfile_hash.return_value = "myhash"
+        misfile.return_value = True
+        manager = mock.Mock(**{'get_service.return_value': {
+            'required_data': [{'foo': 'bar'}]}})
+        callback = services.template(
+            source='foo.yml', target='bar.yml',
+            owner='user', group='group', perms=0o555,
+            on_change_action=(partial(mrestart, "mysuperservice")),
+        )
+        assert isinstance(callback, services.ManagerCallback)
+        assert not mtemplating.render.called
+        callback(manager, 'test', 'event')
+        mtemplating.render.assert_called_once_with(
+            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'user', 'group', 0o555)
+        self.assertEqual(mrestart.call_args_list, [])
 
 
 class TestPortsCallback(unittest.TestCase):
