@@ -148,6 +148,16 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
     return user_info
 
 
+def user_exists(username):
+    """Check if a user exists"""
+    try:
+        pwd.getpwnam(username)
+        user_exists = True
+    except KeyError:
+        user_exists = False
+    return user_exists
+
+
 def add_group(group_name, system_group=False):
     """Add a group to the system"""
     try:
@@ -278,6 +288,17 @@ def mounts():
         system_mounts = [m[1::-1] for m in [l.strip().split()
                                             for l in f.readlines()]]
     return system_mounts
+
+
+def fstab_mount(mountpoint):
+    """Mount filesystem using fstab"""
+    cmd_args = ['mount', mountpoint]
+    try:
+        subprocess.check_output(cmd_args)
+    except subprocess.CalledProcessError as e:
+        log('Error unmounting {}\n{}'.format(mountpoint, e.output))
+        return False
+    return True
 
 
 def file_hash(path, hash_type='md5'):
