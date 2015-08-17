@@ -3,9 +3,28 @@
 # Authors:
 #  Adam Collard <adam.collard@canonical.com>
 
+from contextlib import contextmanager
+import sys
 import unittest
 
+import six
+
 from charmhelpers.contrib.amulet.utils import AmuletUtils
+
+
+@contextmanager
+def captured_output():
+    """Simple context manager to capture stdout/stderr.
+
+    Source: http://stackoverflow.com/a/17981937/56219.
+    """
+    new_out, new_err = six.StringIO(), six.StringIO()
+    old_out, old_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = new_out, new_err
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
 
 
 class FakeSentry(object):
@@ -216,10 +235,13 @@ class GetProcessIdListTestCase(unittest.TestCase):
         raised.
         """
         self.sentry_unit.commands["pidof -x foo"] = ("", 1)
-        with self.assertRaises(SystemExit) as cm:
+        with self.assertRaises(SystemExit) as cm, captured_output() as (
+                out, err):
             self.utils.get_process_id_list(self.sentry_unit, "foo")
         the_exception = cm.exception
         self.assertEqual(1, the_exception.code)
+        self.assertEqual(
+            "foo `pidof -x foo` returned 1", out.getvalue().rstrip())
 
     def test_looks_for_scripts(self):
         """
@@ -240,11 +262,15 @@ class GetProcessIdListTestCase(unittest.TestCase):
         result = self.utils.get_process_id_list(
             self.sentry_unit, "foo", expect_success=False)
         self.assertEqual([], result)
-        with self.assertRaises(SystemExit) as cm:
+        with self.assertRaises(SystemExit) as cm, captured_output() as (
+                out, err):
             self.utils.get_process_id_list(
                 self.sentry_unit, "bar", expect_success=False)
         the_exception = cm.exception
         self.assertEqual(1, the_exception.code)
+        self.assertEqual(
+            "foo `pidof -x bar || exit 0 && exit 1` returned 1",
+            out.getvalue().rstrip())
 
 
 class GetUnitProcessIdsTestCase(unittest.TestCase):
