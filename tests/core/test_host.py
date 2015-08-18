@@ -35,6 +35,11 @@ IP_LINE_ETH0 = b"""
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """
 
+IP_LINE_ETH100 = b"""
+2: eth100: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
+    link/ether e4:11:5b:ab:a7:3d brd ff:ff:ff:ff:ff:ff
+"""
+
 IP_LINE_ETH0_VLAN = b"""
 6: eth0.10@eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
     link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
@@ -47,7 +52,7 @@ IP_LINE_ETH1 = b"""
 
 IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
-IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN
+IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN + IP_LINE_ETH100
 
 IP_LINE_BONDS = b"""
 6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
@@ -962,13 +967,36 @@ class HelpersTest(TestCase):
         pw2 = host.pwgen(10)
         self.assertNotEqual(pw, pw2, 'Duplicated password')
 
+    @patch.object(host, 'glob')
+    @patch('os.path.realpath')
+    @patch('os.path.isdir')
+    def test_is_phy_iface(self, mock_isdir, mock_realpath, mock_glob):
+        mock_isdir.return_value = True
+        mock_glob.glob.return_value = ['/sys/class/net/eth0',
+                                       '/sys/class/net/veth0']
+
+        def fake_realpath(soft):
+            if soft.endswith('/eth0'):
+                hard = \
+                    '/sys/devices/pci0000:00/0000:00:1c.4/0000:02:00.1/net/eth0'
+            else:
+                hard = '/sys/devices/virtual/net/veth0'
+
+            return hard
+
+        mock_realpath.side_effect = fake_realpath
+        self.assertTrue(host.is_phy_iface('eth0'))
+        self.assertFalse(host.is_phy_iface('veth0'))
+
     @patch('subprocess.check_output')
     def test_list_nics(self, check_output):
         check_output.return_value = IP_LINES
+        nics = host.list_nics()
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10', 'eth100'])
         nics = host.list_nics('eth')
-        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10', 'eth100'])
         nics = host.list_nics(['eth'])
-        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10', 'eth100'])
 
     @patch('subprocess.check_output')
     def test_list_nics_with_bonds(self, check_output):
