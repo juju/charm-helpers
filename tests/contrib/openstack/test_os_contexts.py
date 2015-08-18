@@ -2425,6 +2425,8 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.ExternalPortContext()(),
                           {'ext_port': 'eth1010'})
 
+    @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
+           lambda arg: True)
     @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
@@ -2452,6 +2454,8 @@ class ContextTests(unittest.TestCase):
 
         self.assertEquals(context.ExternalPortContext()(), {})
 
+    @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
+           lambda arg: True)
     @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
@@ -2484,8 +2488,9 @@ class ContextTests(unittest.TestCase):
            'resolve_ports')
     def test_data_port_eth(self, mock_resolve):
         self.config.side_effect = fake_config({'data-port':
-                                               'phybr1:eth1010'})
-        mock_resolve.side_effect = lambda ports: ports
+                                               'phybr1:eth1010 '
+                                               'phybr1:eth1011'})
+        mock_resolve.side_effect = lambda ports: ['eth1010']
         self.assertEquals(context.DataPortContext()(),
                           {'phybr1': 'eth1010'})
 

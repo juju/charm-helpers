@@ -181,13 +181,13 @@ class NeutronTests(unittest.TestCase):
         ret = neutron.parse_data_port_mappings(None)
         self.assertEqual(ret, {})
         ret = neutron.parse_data_port_mappings('br0:eth0')
-        self.assertEqual(ret, {'br0': 'eth0'})
+        self.assertEqual(ret, {'eth0': 'br0'})
         # Back-compat test
         ret = neutron.parse_data_port_mappings('eth0', default_bridge='br0')
-        self.assertEqual(ret, {'br0': 'eth0'})
+        self.assertEqual(ret, {'eth0': 'br0'})
         # Multiple mappings
         ret = neutron.parse_data_port_mappings('br0:eth0 br1:eth1')
-        self.assertEqual(ret, {'br0': 'eth0', 'br1': 'eth1'})
+        self.assertEqual(ret, {'eth0': 'br0', 'eth1': 'br1'})
 
     def test_parse_vlan_range_mappings(self):
         ret = neutron.parse_vlan_range_mappings(None)
