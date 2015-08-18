@@ -988,6 +988,31 @@ class HelpersTest(TestCase):
         self.assertTrue(host.is_phy_iface('eth0'))
         self.assertFalse(host.is_phy_iface('veth0'))
 
+    @patch('os.path.exists')
+    @patch('os.path.realpath')
+    @patch('os.path.isdir')
+    def test_get_bond_master(self, mock_isdir, mock_realpath, mock_exists):
+        mock_isdir.return_value = True
+
+        def fake_realpath(soft):
+            if soft.endswith('/eth0'):
+                return \
+                    '/sys/devices/pci0000:00/0000:00:1c.4/0000:02:00.1/net/eth0'
+            elif soft.endswith('/br0'):
+                return '/sys/devices/virtual/net/br0'
+            elif soft.endswith('/master'):
+                return '/sys/devices/virtual/net/bond0'
+
+            return None
+
+        def fake_exists(path):
+            return True
+
+        mock_exists.side_effect = fake_exists
+        mock_realpath.side_effect = fake_realpath
+        self.assertEqual(host.get_bond_master('eth0'), 'bond0')
+        self.assertIsNone(host.get_bond_master('br0'))
+
     @patch('subprocess.check_output')
     def test_list_nics(self, check_output):
         check_output.return_value = IP_LINES
