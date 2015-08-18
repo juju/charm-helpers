@@ -445,7 +445,10 @@ def get_bond_master(interface):
 
             master = os.path.join(iface_path, 'master')
             if os.path.exists(master):
-                return os.path.basename(os.path.realpath(master))
+                master = os.path.realpath(master)
+                # make sure it is a bond master
+                if os.path.exists(os.path.join(master, 'bonding')):
+                    return os.path.basename(master)
 
     return None
 
