@@ -432,6 +432,24 @@ def is_phy_iface(interface):
     return False
 
 
+def get_bond_master(interface):
+    """Returns bond master if interface is bond slave otherwise None.
+
+    NOTE: the provided interface is expected to be physical
+    """
+    if interface:
+        iface_path = '/sys/class/net/%s' % (interface)
+        if os.path.exists(iface_path):
+            if '/virtual/' in os.path.realpath(iface_path):
+                return None
+
+            master = os.path.join(iface_path, 'master')
+            if os.path.exists(master):
+                return os.path.basename(os.path.realpath(master))
+
+    return None
+
+
 def list_nics(nic_type=None):
     '''Return a list of nics of given type(s)'''
     if isinstance(nic_type, six.string_types):

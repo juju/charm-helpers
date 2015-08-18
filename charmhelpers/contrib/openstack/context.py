@@ -50,6 +50,7 @@ from charmhelpers.core.sysctl import create as sysctl_create
 from charmhelpers.core.strutils import bool_from_string
 
 from charmhelpers.core.host import (
+    get_bond_master,
     is_phy_iface,
     list_nics,
     get_nic_hwaddr,
@@ -936,13 +937,22 @@ class NeutronPortContext(OSContextGenerator):
         hwaddr_to_nic = {}
         hwaddr_to_ip = {}
         for nic in list_nics():
-            # Ignore virtual interfaces
-            if is_phy_iface(nic):
-                hwaddr = get_nic_hwaddr(nic)
-                hwaddr_to_nic[hwaddr] = nic
-                addresses = get_ipv4_addr(nic, fatal=False)
-                addresses += get_ipv6_addr(iface=nic, fatal=False)
-                hwaddr_to_ip[hwaddr] = addresses
+            # Ignore virtual interfaces (bond masters will be identified from
+            # their slaves)
+            if not is_phy_iface(nic):
+                continue
+
+            _nic = get_bond_master(nic)
+            if _nic:
+                log("Replacing iface '%s' with bond master '%s'" % (nic, _nic),
+                    level=DEBUG)
+                nic = _nic
+
+            hwaddr = get_nic_hwaddr(nic)
+            hwaddr_to_nic[hwaddr] = nic
+            addresses = get_ipv4_addr(nic, fatal=False)
+            addresses += get_ipv6_addr(iface=nic, fatal=False)
+            hwaddr_to_ip[hwaddr] = addresses
 
         resolved = []
         mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
