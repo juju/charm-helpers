@@ -2516,7 +2516,6 @@ class ContextTests(unittest.TestCase):
 
         self.assertEquals(context.DataPortContext()(),
                           {'phybr1': 'eth1010'})
-        mock_resolve.assert_called_with([extant_mac, non_extant_mac])
 
     def test_neutronapicontext_defaults(self):
         self.relation_ids.return_value = []
