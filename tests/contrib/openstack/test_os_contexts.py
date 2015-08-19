@@ -2495,8 +2495,7 @@ class ContextTests(unittest.TestCase):
                           {'phybr1': 'eth1010'})
 
     @patch.object(context, 'get_nic_hwaddr')
-    @patch('charmhelpers.contrib.openstack.context.NeutronPortContext.'
-           'resolve_ports')
+    @patch.object(context.NeutronPortContext, 'resolve_ports')
     def test_data_port_mac(self, mock_resolve, mock_get_nic_hwaddr):
         extant_mac = 'cb:23:ae:72:f2:33'
         non_extant_mac = 'fa:16:3e:12:97:8e'
@@ -2505,11 +2504,12 @@ class ContextTests(unittest.TestCase):
                                                (non_extant_mac, extant_mac)})
 
         def fake_resolve(ports):
+            resolved = []
             for port in ports:
                 if port == extant_mac:
-                    return ['eth1010']
-                else:
-                    return []
+                    resolved.append('eth1010')
+
+            return resolved
 
         mock_get_nic_hwaddr.side_effect = lambda nic: extant_mac
         mock_resolve.side_effect = fake_resolve
