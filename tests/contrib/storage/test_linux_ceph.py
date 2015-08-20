@@ -569,12 +569,18 @@ class CephUtilsTests(TestCase):
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('pool1', replica_count=1)
         rq.add_op_create_pool('pool2')
-        expected = json.dumps({'api-version': 1, 'rq-id': 'uuid',
-                               'ops': [{'op': 'create-pool', 'name': 'pool1',
-                                        'replicas': 1},
-                                       {'op': 'create-pool', 'name': 'pool2',
-                                        'replicas': 3}]})
-        self.assertEqual(rq.request, expected)
+        expected = {
+            'api-version': 1,
+            'request-id': 'uuid',
+            'ops': [{'op': 'create-pool', 'name': 'pool1', 'replicas': 1},
+                    {'op': 'create-pool', 'name': 'pool2', 'replicas': 3}]
+        }
+        request_dict = json.loads(rq.request)
+        for key in ['api-version', 'request-id']:
+            self.assertEqual(request_dict[key], expected[key])
+        for key in ['op', 'name', 'replicas']:
+            self.assertEqual(request_dict['ops'][0][key], expected['ops'][0][key])
+            self.assertEqual(request_dict['ops'][1][key], expected['ops'][1][key])
 
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
