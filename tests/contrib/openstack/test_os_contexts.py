@@ -74,7 +74,7 @@ class FakeRelation(object):
 
     def relation_ids(self, relation):
         rids = []
-        for rid in self.relation_data.keys():
+        for rid in sorted(self.relation_data.keys()):
             if relation + ':' in rid:
                 rids.append(rid)
         return rids
@@ -82,7 +82,7 @@ class FakeRelation(object):
     def relation_units(self, relation_id):
         if relation_id not in self.relation_data:
             return None
-        return self.relation_data[relation_id].keys()
+        return sorted(self.relation_data[relation_id].keys())
 
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
@@ -1029,7 +1029,7 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir,
                                     config):
         '''Test ceph context with all relation data'''
-        config.return_value = True
+        config.side_effect = fake_config({'use-syslog': 'True'})
         isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -1051,7 +1051,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
-        relation = copy(CEPH_RELATION)
+        relation = deepcopy(CEPH_RELATION)
         for k, v in six.iteritems(relation):
             for u in six.iterkeys(v):
                 del relation[k][u]['auth']
@@ -1063,6 +1063,33 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         self.assertEquals(result, {})
         self.assertFalse(ensure_packages.called)
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_partial_missing_data(self, ensure_packages, mkdir, isdir, config):
+        '''Test ceph context last unit missing data'''
+        config.side_effect = fake_config({'use-syslog': 'True'})
+        relation = deepcopy(CEPH_RELATION)
+        for k, v in six.iteritems(relation):
+            last_unit = sorted(six.iterkeys(v))[-1]
+            unit_data = relation[k][last_unit]
+            del unit_data['auth']
+            relation[k][last_unit] = unit_data
+        relation = FakeRelation(relation_data=relation)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true'
+        }
+        self.assertEquals(result, expected)
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
