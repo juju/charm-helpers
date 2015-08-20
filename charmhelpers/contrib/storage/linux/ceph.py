@@ -414,7 +414,7 @@ class CephBrokerRq(object):
     """
     def __init__(self, api_version=1):
         self.api_version = api_version
-        self.rq_id = str(uuid.uuid1())
+        self.request_id = str(uuid.uuid1())
         self.ops = []
 
     def add_op_create_pool(self, name, replica_count=3):
@@ -424,7 +424,7 @@ class CephBrokerRq(object):
     @property
     def request(self):
         return json.dumps({'api-version': self.api_version, 'ops': self.ops,
-                           'rq-id': self.rq_id})
+                           'request-id': self.request_id})
 
 
 class CephBrokerRsp(object):
@@ -439,8 +439,8 @@ class CephBrokerRsp(object):
         self.rsp = json.loads(encoded_rsp)
 
     @property
-    def req_id(self):
-        return self.rsp.get('rq-id')
+    def request_id(self):
+        return self.rsp.get('request-id')
 
     @property
     def exit_code(self):
