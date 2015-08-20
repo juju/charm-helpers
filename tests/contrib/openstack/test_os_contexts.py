@@ -2425,6 +2425,8 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.ExternalPortContext()(),
                           {'ext_port': 'eth1010'})
 
+    @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
+           lambda arg: True)
     @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
@@ -2452,6 +2454,8 @@ class ContextTests(unittest.TestCase):
 
         self.assertEquals(context.ExternalPortContext()(), {})
 
+    @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
+           lambda arg: True)
     @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
@@ -2484,8 +2488,32 @@ class ContextTests(unittest.TestCase):
            'resolve_ports')
     def test_data_port_eth(self, mock_resolve):
         self.config.side_effect = fake_config({'data-port':
-                                               'phybr1:eth1010'})
-        mock_resolve.side_effect = lambda ports: ports
+                                               'phybr1:eth1010 '
+                                               'phybr1:eth1011'})
+        mock_resolve.side_effect = lambda ports: ['eth1010']
+        self.assertEquals(context.DataPortContext()(),
+                          {'phybr1': 'eth1010'})
+
+    @patch.object(context, 'get_nic_hwaddr')
+    @patch.object(context.NeutronPortContext, 'resolve_ports')
+    def test_data_port_mac(self, mock_resolve, mock_get_nic_hwaddr):
+        extant_mac = 'cb:23:ae:72:f2:33'
+        non_extant_mac = 'fa:16:3e:12:97:8e'
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:%s phybr1:%s' %
+                                               (non_extant_mac, extant_mac)})
+
+        def fake_resolve(ports):
+            resolved = []
+            for port in ports:
+                if port == extant_mac:
+                    resolved.append('eth1010')
+
+            return resolved
+
+        mock_get_nic_hwaddr.side_effect = lambda nic: extant_mac
+        mock_resolve.side_effect = fake_resolve
+
         self.assertEquals(context.DataPortContext()(),
                           {'phybr1': 'eth1010'})
 
