@@ -417,7 +417,7 @@ class CephBrokerRq(object):
         self.api_version = api_version
         self.request_id = str(uuid.uuid1())
         self.ops = []
-        log('Received request {}'.format(self.request_id)
+        log('Received request {}'.format(self.request_id))
 
     def add_op_create_pool(self, name, replica_count=3):
         self.ops.append({'op': 'create-pool', 'name': name,
