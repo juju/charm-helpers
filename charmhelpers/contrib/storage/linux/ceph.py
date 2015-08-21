@@ -36,6 +36,7 @@ from subprocess import (
     CalledProcessError,
 )
 from charmhelpers.core.hookenv import (
+    local_unit,
     relation_get,
     relation_ids,
     related_units,
@@ -434,6 +435,10 @@ class CephBrokerRsp(object):
 
     The API is versioned and defaults to version 1.
     """
+    VALID = 0
+    ABSENT = 1
+    INVALID = 2
+
     def __init__(self, encoded_rsp):
         self.api_version = None
         self.rsp = json.loads(encoded_rsp)
@@ -449,3 +454,19 @@ class CephBrokerRsp(object):
     @property
     def exit_msg(self):
         return self.rsp.get('stderr')
+
+    def validate_request_id(self):
+        pending_request_id = None
+        pending_request_raw = relation_get(attribute='broker_req',
+                                           unit=local_unit())
+        if pending_request_raw:
+            pending_request = json.loads(pending_request_raw)
+            pending_request_id = pending_request.get('request-id')
+        if not self.request_id:
+            # back compat
+            return self.ABSENT
+
+        if pending_request_id and self.request_id != pending_request_id:
+            return self.INVALID
+
+        return self.VALID
