@@ -40,6 +40,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    remote_unit,
     log,
     DEBUG,
     INFO,
@@ -417,7 +418,6 @@ class CephBrokerRq(object):
         self.api_version = api_version
         self.request_id = str(uuid.uuid1())
         self.ops = []
-        log('Received request {}'.format(self.request_id))
 
     def add_op_create_pool(self, name, replica_count=3):
         self.ops.append({'op': 'create-pool', 'name': name,
@@ -475,3 +475,14 @@ class CephBrokerRsp(object):
 
         log('request-id {} is expected'.format(self.request_id))
         return self.VALID
+
+def duplicate_broker_requests(encoded_req1, encoded_req2):
+    req1 = json.loads(encoded_req1)
+    req2 = json.loads(encoded_req2)
+    if len(req1['ops']) != len(req2['ops']):
+        return False
+    for req_no in range(0,len(req1['ops'])):
+        for key in ['replicas', 'name', 'op']:
+            if req1['ops'][req_no][key] != req2['ops'][req_no][key]:
+                return False
+    return True
