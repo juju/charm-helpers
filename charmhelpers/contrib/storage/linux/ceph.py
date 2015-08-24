@@ -533,7 +533,7 @@ def broker_request_completed(encoded_req, rid):
     for unit in related_units(rid):
         rdata = relation_get(rid=rid, unit=unit)
         if rdata.get(broker_key):
-            rsp = CephBrokerRsp(rdata)        
+            rsp = CephBrokerRsp(rdata.get(broker_key))
             if rsp.request_id == req.get('request-id'):
                 if not rsp.exit_code:
                     return True
