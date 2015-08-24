@@ -39,6 +39,7 @@ from charmhelpers.core.hookenv import (
     local_unit,
     relation_get,
     relation_ids,
+    relation_set,
     related_units,
     remote_unit,
     log,
