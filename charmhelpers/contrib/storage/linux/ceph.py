@@ -541,14 +541,16 @@ def broker_request_completed(encoded_req, rid):
             # The remote unit sent no reply targeted at this unit so either the
             # remote ceph cluster does not support unit targeted replies or it
             # has not processed our request yet.
-            if rdata.get('broker_rsp') and rdata.get('unit-targeted-reponses'):
-                log('Ignoring legacy broker_rsp without unit key as remote '
-                    'service supports unit specific replies')
-            else:
-                log('Using legacy broker_rsp as remote service does not '
-                    'supports unit specific replies')
-                if not rsp.exit_code:
-                    return True
+            if rdata.get('broker_rsp'):
+                if rdata.get('unit-targeted-reponses'):
+                    log('Ignoring legacy broker_rsp without unit key as remote '
+                        'service supports unit specific replies')
+                else:
+                    log('Using legacy broker_rsp as remote service does not '
+                        'supports unit specific replies')
+                    rsp = CephBrokerRsp(rdata['broker_rsp'])
+                    if not rsp.exit_code:
+                        return True
     return False
 
 def get_broker_rsp_key():
