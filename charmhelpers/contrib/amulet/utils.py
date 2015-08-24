@@ -298,6 +298,13 @@ class AmuletUtils(object):
            (such as a config file for that service) to determine if the service
            has been restarted.
            """
+        # /!\ DEPRECATION WARNING (beisner):
+        # This is prone to races in that no before-time is known.
+        # Use validate_service_config_changed instead.
+        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+                      'validate_service_config_changed instead of '
+                      'service_restarted due to known races.')
+
         time.sleep(sleep_time)
         if (self._get_proc_start_time(sentry_unit, service, pgrep_full) >=
                 self._get_file_mtime(sentry_unit, filename)):
