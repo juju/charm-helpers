@@ -539,8 +539,8 @@ def get_broker_rsp_key():
 
 def send_request_if_needed(rq):
     if request_sent(rq):
-        juju_log('Request already sent but not complete, not sending new request')
+        log('Request already sent but not complete, not sending new request')
     else:
         for rid in relation_ids('ceph'):
-            juju_log('Sending request {}'.format(rq.request_id))
+            log('Sending request {}'.format(rq.request_id))
             relation_set(relation_id=rid, broker_req=rq.request)
