@@ -553,7 +553,7 @@ def broker_request_completed(encoded_req, rid):
 
 def get_broker_rsp_key():
     """Return broker request key for this unit"""
-    return 'broker_rsp_' + local_unit().replace('/', '-')
+    return 'broker-rsp-' + local_unit().replace('/', '-')
 
 def send_request_if_needed(rq):
     """Send broker request if one has not already been sent"""
