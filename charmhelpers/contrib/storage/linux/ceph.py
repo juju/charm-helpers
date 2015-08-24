@@ -538,7 +538,7 @@ def get_broker_rsp_key():
     return 'broker_rsp_' + local_unit().replace('/', '-')
 
 def send_request_if_needed(rq):
-    if request_sent(get_ceph_request()):
+    if request_sent(rq):
         juju_log('Request already sent but not complete, not sending new request')
     else:
         for rid in relation_ids('ceph'):
