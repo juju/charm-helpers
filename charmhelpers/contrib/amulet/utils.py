@@ -296,6 +296,13 @@ class AmuletUtils(object):
            (such as a config file for that service) to determine if the service
            has been restarted.
            """
+        # /!\ DEPRECATION WARNING (beisner):
+        # This is prone to races in that no before-time is known.
+        # Use validate_service_config_changed instead.
+        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+                      'validate_service_config_changed instead of '
+                      'service_restarted due to known races.')
+
         time.sleep(sleep_time)
         if (self._get_proc_start_time(sentry_unit, service, pgrep_full) >=
                 self._get_file_mtime(sentry_unit, filename)):
@@ -305,7 +312,7 @@ class AmuletUtils(object):
 
     def service_restarted_since(self, sentry_unit, mtime, service,
                                 pgrep_full=False, sleep_time=20,
-                                retry_count=2):
+                                retry_count=2, retry_sleep_time=30):
         """Check if service was been started after a given time.
 
         Args:
@@ -321,30 +328,40 @@ class AmuletUtils(object):
                 False if service is older than mtime or if service was
                 not found.
         """
-        self.log.debug('Checking %s restarted since %s' % (service, mtime))
+        unit_name = sentry_unit.info['unit_name']
+        self.log.debug('Checking %s restarted since %s on '
+                       '%s' % (service, mtime, unit_name))
         time.sleep(sleep_time)
-        proc_start_time = self._get_proc_start_time(sentry_unit, service,
-                                                    pgrep_full)
-        while retry_count > 0 and not proc_start_time:
-            self.log.debug('No pid file found for service %s, will retry %i '
-                           'more times' % (service, retry_count))
-            time.sleep(30)
-            proc_start_time = self._get_proc_start_time(sentry_unit, service,
-                                                        pgrep_full)
-            retry_count = retry_count - 1
+        proc_start_time = None
+        tries = 0
+        while tries <= retry_count and not proc_start_time:
+            try:
+                proc_start_time = self._get_proc_start_time(sentry_unit,
+                                                            service,
+                                                            pgrep_full)
+                self.log.debug('Attempt {} to get {} proc start time on {} '
+                               'OK'.format(tries, service, unit_name))
+            except IOError:
+                # NOTE(beisner) - race avoidance, proc may not exist yet.
+                # https://bugs.launchpad.net/charm-helpers/+bug/1474030
+                self.log.debug('Attempt {} to get {} proc start time on {} '
+                               'failed'.format(tries, service, unit_name))
+                time.sleep(retry_sleep_time)
+                tries += 1
 
         if not proc_start_time:
             self.log.warn('No proc start time found, assuming service did '
                           'not start')
             return False
         if proc_start_time >= mtime:
-            self.log.debug('proc start time is newer than provided mtime'
-                           '(%s >= %s)' % (proc_start_time, mtime))
+            self.log.debug('Proc start time is newer than provided mtime'
+                           '(%s >= %s) on %s (OK)' % (proc_start_time,
+                                                      mtime, unit_name))
             return True
         else:
-            self.log.warn('proc start time (%s) is older than provided mtime '
-                          '(%s), service did not restart' % (proc_start_time,
-                                                             mtime))
+            self.log.warn('Proc start time (%s) is older than provided mtime '
+                          '(%s) on %s, service did not '
+                          'restart' % (proc_start_time, mtime, unit_name))
             return False
 
     def config_updated_since(self, sentry_unit, filename, mtime,
@@ -375,7 +392,8 @@ class AmuletUtils(object):
 
     def validate_service_config_changed(self, sentry_unit, mtime, service,
                                         filename, pgrep_full=False,
-                                        sleep_time=20, retry_count=2):
+                                        sleep_time=20, retry_count=2,
+                                        retry_sleep_time=30):
         """Check service and file were updated after mtime
 
         Args:
@@ -384,8 +402,9 @@ class AmuletUtils(object):
           service (string): service name to look for in process table
           filename (string): The file to check mtime of
           pgrep_full (boolean): Use full command line search mode with pgrep
-          sleep_time (int): Seconds to sleep before looking for process
+          sleep_time (int): Initial sleep in seconds to pass to test helpers
           retry_count (int): If service is not found, how many times to retry
+          retry_sleep_time (int): Time in seconds to wait between retries
 
         Typical Usage:
             u = OpenStackAmuletUtils(ERROR)
@@ -402,15 +421,20 @@ class AmuletUtils(object):
                 mtime, False if service is older than mtime or if service was
                 not found or if filename was modified before mtime.
         """
-        self.log.debug('Checking %s restarted since %s' % (service, mtime))
-        time.sleep(sleep_time)
-        service_restart = self.service_restarted_since(sentry_unit, mtime,
-                                                       service,
-                                                       pgrep_full=pgrep_full,
-                                                       sleep_time=0,
-                                                       retry_count=retry_count)
-        config_update = self.config_updated_since(sentry_unit, filename, mtime,
-                                                  sleep_time=0)
+        service_restart = self.service_restarted_since(
+            sentry_unit, mtime,
+            service,
+            pgrep_full=pgrep_full,
+            sleep_time=sleep_time,
+            retry_count=retry_count,
+            retry_sleep_time=retry_sleep_time)
+
+        config_update = self.config_updated_since(
+            sentry_unit,
+            filename,
+            mtime,
+            sleep_time=0)
+
         return service_restart and config_update
 
     def get_sentry_time(self, sentry_unit):
