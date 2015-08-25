@@ -74,12 +74,12 @@ class FakeRelation(object):
     def __init__(self, relation_data):
         self.relation_data = relation_data
 
-    def get(self, attr=None, unit=None, rid=None):
+    def get(self, attribute=None, unit=None, rid=None):
         if not rid or rid == 'foo:0':
-            if attr is None:
+            if attribute is None:
                 return self.relation_data
-            elif attr in self.relation_data:
-                return self.relation_data[attr]
+            elif attribute in self.relation_data:
+                return self.relation_data[attribute]
             return None
         else:
             if rid not in self.relation_data:
@@ -88,9 +88,9 @@ class FakeRelation(object):
                 relation = self.relation_data[rid][unit]
             except KeyError:
                 return None
-            if attr in relation:
-                return relation[attr]
-            return None
+            if attribute and attribute in relation:
+                    return relation[attribute]
+            return relation
 
     def relation_ids(self, relation=None):
         return self.relation_data.keys()
