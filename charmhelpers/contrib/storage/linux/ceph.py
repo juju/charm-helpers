@@ -436,9 +436,6 @@ class CephBrokerRsp(object):
 
     The API is versioned and defaults to version 1.
     """
-    VALID = 0
-    ABSENT = 1
-    INVALID = 2
 
     def __init__(self, encoded_rsp):
         self.api_version = None
