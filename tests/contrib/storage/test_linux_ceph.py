@@ -5,10 +5,11 @@ from tempfile import mkdtemp
 from threading import Timer
 from testtools import TestCase
 import json
+import copy
 
 import charmhelpers.contrib.storage.linux.ceph as ceph_utils
 from subprocess import CalledProcessError
-from tests.helpers import patch_open
+from tests.helpers import patch_open, FakeRelation
 import nose.plugins.attrib
 import os
 import time
@@ -31,6 +32,47 @@ bar
 baz
 """
 
+CEPH_CLIENT_RELATION = {
+    'ceph:8': {
+        'ceph/0': {
+            'auth': 'cephx',
+            'broker-rsp-glance-0': '{"request-id": "0bc7dc54", "exit-code": 0}',
+            'broker-rsp-glance-1': '{"request-id": "0880e22a", "exit-code": 0}',
+            'broker-rsp-glance-2': '{"request-id": "0da543b8", "exit-code": 0}',
+            'broker_rsp': '{"request-id": "0da543b8", "exit-code": 0}',
+            'ceph-public-address': '10.5.44.103',
+            'key': 'AQCLDttVuHXINhAAvI144CB09dYchhHyTUY9BQ==',
+            'private-address': '10.5.44.103',
+            'unit-targeted-reponses': 'True',
+        },
+        'ceph/1': {
+            'auth': 'cephx',
+            'ceph-public-address': '10.5.44.104',
+            'key': 'AQCLDttVuHXINhAAvI144CB09dYchhHyTUY9BQ==',
+            'private-address': '10.5.44.104',
+        },
+        'ceph/2': {
+            'auth': 'cephx',
+            'ceph-public-address': '10.5.44.105',
+            'key': 'AQCLDttVuHXINhAAvI144CB09dYchhHyTUY9BQ==',
+            'private-address': '10.5.44.105',
+        },
+        'glance/0': {
+            'broker_req': '{"api-version": 1, "request-id": "0bc7dc54", "ops": [{"replicas": 3, "name": "glance", "op": "create-pool"}]}',
+            'private-address': '10.5.44.109',
+        },
+    }
+}
+
+CEPH_CLIENT_RELATION_LEGACY = copy.deepcopy(CEPH_CLIENT_RELATION)
+CEPH_CLIENT_RELATION_LEGACY['ceph:8']['ceph/0'] = {
+    'auth': 'cephx',
+    'broker_rsp': '{"exit-code": 0}',
+    'ceph-public-address': '10.5.44.103',
+    'key': 'AQCLDttVuHXINhAAvI144CB09dYchhHyTUY9BQ==',
+    'private-address': '10.5.44.103',
+}
+
 
 class CephUtilsTests(TestCase):
     def setUp(self):
@@ -38,6 +80,10 @@ class CephUtilsTests(TestCase):
         [self._patch(m) for m in [
             'check_call',
             'check_output',
+            'relation_get',
+            'related_units',
+            'relation_ids',
+            'relation_set',
             'log',
         ]]
 
@@ -587,3 +633,257 @@ class CephUtilsTests(TestCase):
                                                    'stderr': "Success"}))
         self.assertEqual(rsp.exit_code, 0)
         self.assertEqual(rsp.exit_msg, "Success")
+        self.assertEqual(rsp.request_id, None)
+
+    def test_ceph_broker_rsp_class_rqid(self):
+        rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
+                                                   'stderr': "Success",
+                                                   'request-id': 'reqid1'}))
+        self.assertEqual(rsp.exit_code, 0)
+        self.assertEqual(rsp.exit_msg, 'Success')
+        self.assertEqual(rsp.request_id, 'reqid1')
+
+    def setup_client_relation(self, relation):
+        relation = FakeRelation(relation)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.related_units
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_states(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        expect = {'ceph:8': {'complete': True, 'sent': True}}
+        self.assertEqual(ceph_utils.request_states(rq), expect)
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_states_newrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=4)
+        expect = {'ceph:8': {'complete': False, 'sent': False}}
+        self.assertEqual(ceph_utils.request_states(rq), expect)
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_states_pendingrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION)
+        del rel['ceph:8']['ceph/0']['broker-rsp-glance-0']
+        self.setup_client_relation(rel)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        expect = {'ceph:8': {'complete': False, 'sent': True}}
+        self.assertEqual(ceph_utils.request_states(rq), expect)
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_states_failedrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION)
+        rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = '{"request-id": "0bc7dc54", "exit-code": 1}'
+        self.setup_client_relation(rel)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        expect = {'ceph:8': {'complete': False, 'sent': True}}
+        self.assertEqual(ceph_utils.request_states(rq), expect)
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_sent(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertTrue(ceph_utils.request_sent(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_sent_newrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=4)
+        self.assertFalse(ceph_utils.request_sent(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_sent_pending(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION)
+        del rel['ceph:8']['ceph/0']['broker-rsp-glance-0']
+        self.setup_client_relation(rel)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertTrue(ceph_utils.request_sent(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_sent_legacy(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertTrue(ceph_utils.request_sent(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_sent_legacy_newrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=4)
+        self.assertFalse(ceph_utils.request_sent(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_sent_legacy_pending(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION_LEGACY)
+        del rel['ceph:8']['ceph/0']['broker_rsp']
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertTrue(ceph_utils.request_sent(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_complete(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertTrue(ceph_utils.request_complete(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_complete_newrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=4)
+        self.assertFalse(ceph_utils.request_complete(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_complete_pending(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION)
+        del rel['ceph:8']['ceph/0']['broker-rsp-glance-0']
+        self.setup_client_relation(rel)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertFalse(ceph_utils.request_complete(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_complete_legacy(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertTrue(ceph_utils.request_complete(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_complete_legacy_newrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=4)
+        self.assertFalse(ceph_utils.request_complete(rq))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_request_complete_legacy_pending(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION_LEGACY)
+        del rel['ceph:8']['ceph/0']['broker_rsp']
+        self.setup_client_relation(rel)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        self.assertFalse(ceph_utils.request_complete(rq))
+
+    def test_equivalent_broker_requests(self):
+        req1 = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+                '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+        req2 = ('{"api-version": 1, "request-id": "1cd8ed65", "ops": '
+                '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+        self.assertTrue(ceph_utils.equivalent_broker_requests(req1, req2))
+
+    def test_equivalent_broker_requests_diff1(self):
+        req1 = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+                '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+        req2 = ('{"api-version": 1, "request-id": "1cd8ed65", "ops": '
+                '[{"replicas": 4, "name": "glance", "op": "create-pool"}]}')
+        self.assertFalse(ceph_utils.equivalent_broker_requests(req1, req2))
+
+    def test_equivalent_broker_requests_diff2(self):
+        req1 = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+                '[{"replicas": 3, "name": "glance", "op": "create-pool"}, '
+                ' {"replicas": 3, "name": "cinder", "op": "create-pool"}]}')
+        req2 = ('{"api-version": 1, "request-id": "1cd8ed65", "ops": '
+                '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+        self.assertFalse(ceph_utils.equivalent_broker_requests(req1, req2))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_broker_request_completed(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        req = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+               '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        self.assertTrue(ceph_utils.broker_request_completed(req, 'ceph:8'))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_broker_request_completed_newrq(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        req = ('{"api-version": 1, "request-id": "a44c0fa6", "ops": '
+               '[{"replicas": 4, "name": "glance", "op": "create-pool"}]}')
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        self.assertFalse(ceph_utils.broker_request_completed(req, 'ceph:8'))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_broker_request_completed_failed(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        req = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+               '[{"replicas": 4, "name": "glance", "op": "create-pool"}]}')
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION)
+        rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = '{"request-id": "0bc7dc54", "exit-code": 1}'
+        self.setup_client_relation(rel)
+        self.assertFalse(ceph_utils.broker_request_completed(req, 'ceph:8'))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_broker_request_completed_pending(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        req = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+               '[{"replicas": 4, "name": "glance", "op": "create-pool"}]}')
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION)
+        del rel['ceph:8']['ceph/0']['broker-rsp-glance-0']
+        self.setup_client_relation(rel)
+        self.assertFalse(ceph_utils.broker_request_completed(req, 'ceph:8'))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_broker_request_completed_legacy(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        req = ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+               '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+        self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
+        self.assertTrue(ceph_utils.broker_request_completed(req, 'ceph:8'))
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_get_broker_rsp_key(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.assertEqual(ceph_utils.get_broker_rsp_key(), 'broker-rsp-glance-0')
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_send_request_if_needed(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=3)
+        ceph_utils.send_request_if_needed(rq)
+        self.relation_set.assert_has_calls([])
+
+    @patch.object(ceph_utils, 'uuid')
+    @patch.object(ceph_utils, 'local_unit')
+    def test_send_request_if_needed_newrq(self, mlocal_unit, muuid):
+        muuid.uuid1.return_value = 'de67511e'
+        mlocal_unit.return_value = 'glance/0'
+        self.setup_client_relation(CEPH_CLIENT_RELATION)
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool(name='glance', replica_count=4)
+        ceph_utils.send_request_if_needed(rq)
+        actual = json.loads(self.relation_set.call_args_list[0][1]['broker_req'])
+        self.assertEqual(actual['api-version'], 1)
+        self.assertEqual(actual['request-id'], 'de67511e')
+        self.assertEqual(actual['ops'][0]['replicas'], 4)
+        self.assertEqual(actual['ops'][0]['op'], 'create-pool')
+        self.assertEqual(actual['ops'][0]['name'], 'glance')
