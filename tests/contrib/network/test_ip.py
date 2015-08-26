@@ -670,11 +670,25 @@ class IPTest(unittest.TestCase):
             apt_install.assert_called_with('python-dnspython')
         self.assertEquals(hn, 'www.ubuntu.com')
 
+    @patch('charmhelpers.contrib.network.ip.socket.gethostbyaddr')
     @patch('charmhelpers.contrib.network.ip.ns_query')
     @patch('charmhelpers.contrib.network.ip.apt_install')
-    def test_get_hostname_lookup_fail(self, apt_install, ns_query):
+    def test_get_hostname_lookup_fail(self, apt_install, ns_query, socket):
         fake_dns = FakeDNS('www.ubuntu.com')
         ns_query.return_value = []
+        socket.return_value = ()
         with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
         self.assertEquals(hn, None)
+
+    @patch('charmhelpers.contrib.network.ip.socket.gethostbyaddr')
+    @patch('charmhelpers.contrib.network.ip.ns_query')
+    @patch('charmhelpers.contrib.network.ip.apt_install')
+    def test_get_hostname_lookup_fail_gethostbyaddr_fallback(
+            self, apt_install, ns_query, socket):
+        fake_dns = FakeDNS('www.ubuntu.com')
+        ns_query.return_value = []
+        socket.return_value = ("www.ubuntu.com", "", "")
+        with patch(builtin_import, side_effect=[fake_dns]):
+            hn = net_ip.get_hostname('4.2.2.1')
+        self.assertEquals(hn, "www.ubuntu.com")
