@@ -437,10 +437,10 @@ def get_hostname(address, fqdn=True):
         result = ns_query(rev)
 
         if not result:
-            addr = socket.gethostbyaddr(address)
-            if not len(addr):
+            try:
+                result = socket.gethostbyaddr(address)[0]
+            except:
                 return None
-            result = addr[0]
     else:
         result = address
 
