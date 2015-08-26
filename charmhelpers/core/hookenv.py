@@ -769,7 +769,7 @@ def status_set(workload_state, message):
 def status_get(with_message=False):
     """Retrieve the previously set juju workload state
 
-    If the status-set command is not found then assume this is juju < 1.23 and
+    If the status-get command is not found then assume this is juju < 1.23 and
     return 'unknown'
 
     with_message -- boolean to control if the message is returned too,
