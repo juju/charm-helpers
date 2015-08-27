@@ -1354,23 +1354,25 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_status_get(self, check_output):
-        check_output.return_value = 'active\n'
+        check_output.return_value = json.dumps(
+            {"message": "foo",
+             "status": "active",
+             "status-data": {}}).encode("UTF-8")
         result = hookenv.status_get()
-        self.assertEqual(result, 'active')
-        check_output.assert_called_with(['status-get'], universal_newlines=True)
+        self.assertEqual(result, ('active', 'foo'))
+        check_output.assert_called_with(
+            ['status-get', "--format=json", "--include-data"])
 
     @patch('subprocess.check_output')
     def test_status_get_nostatus(self, check_output):
         check_output.side_effect = OSError(2, 'fail')
         result = hookenv.status_get()
-        self.assertEqual(result, 'unknown')
-        check_output.assert_called_with(['status-get'], universal_newlines=True)
+        self.assertEqual(result, ('unknown', ''))
 
     @patch('subprocess.check_output')
     def test_status_get_status_error(self, check_output):
         check_output.side_effect = OSError(3, 'fail')
         self.assertRaises(OSError, hookenv.status_get)
-        check_output.assert_called_with(['status-get'], universal_newlines=True)
 
     @patch('subprocess.check_output')
     @patch('glob.glob')
