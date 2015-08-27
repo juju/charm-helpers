@@ -270,23 +270,27 @@ class AmuletUtils(object):
         return sentry_unit.directory_stat(directory)['mtime']
 
     def _get_proc_start_time(self, sentry_unit, service, pgrep_full=False):
-        """Get process' start time.
-
-           Determine start time of the process based on the last modification
-           time of the /proc/pid directory. If pgrep_full is True, the process
-           name is matched against the full command line.
+        """Get start time of a process based on the last modification time
+           of the /proc/pid directory.
            """
         if pgrep_full:
-            cmd = 'pgrep -o -f {}'.format(service)
+            # /!\ DEPRECATION WARNING (beisner):
+            # https://bugs.launchpad.net/charm-helpers/+bug/1474030
+            self.log.warn('/!\\ DEPRECATION WARNING:  pgrep_full bool is no '
+                          'longer implemented re: lp 1474030.')
+
+        pid_list = self.get_process_id_list(sentry_unit, service)
+        if len(pid_list) == 1:
+            pid = pid_list[0]
+            proc_dir = '/proc/{}'.format(pid)
+            self.log.debug('Pid for {} on {}: {}'.format(
+                service, sentry_unit.info['unit_name'], pid))
         else:
-            cmd = 'pgrep -o {}'.format(service)
-        cmd = cmd + '  | grep  -v pgrep || exit 0'
-        cmd_out = sentry_unit.run(cmd)
-        self.log.debug('CMDout: ' + str(cmd_out))
-        if cmd_out[0]:
-            self.log.debug('Pid for %s %s' % (service, str(cmd_out[0])))
-            proc_dir = '/proc/{}'.format(cmd_out[0].strip())
-            return self._get_dir_mtime(sentry_unit, proc_dir)
+            msg = 'Unexpected PID count for {} on {}: {}'.format(
+                service, sentry_unit.info['unit_name'], len(pid_list))
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+        return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
                           pgrep_full=False, sleep_time=20):
