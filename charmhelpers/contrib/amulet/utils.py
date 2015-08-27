@@ -338,7 +338,7 @@ class AmuletUtils(object):
         # deprecation WARNS.  lp1474030
 
         unit_name = sentry_unit.info['unit_name']
-        self.log.debug('Checking %s restarted since %s on '
+        self.log.debug('Checking that %s service restarted since %s on '
                        '%s' % (service, mtime, unit_name))
         time.sleep(sleep_time)
         proc_start_time = None
@@ -387,12 +387,15 @@ class AmuletUtils(object):
           bool: True if file was modified more recently than mtime, False if
                 file was modified before mtime,
         """
-        self.log.debug('Checking %s updated since %s' % (filename, mtime))
+        self.log.debug('Checking that %s file updated since '
+                       '%s' % (filename, mtime))
+        unit_name = sentry_unit.info['unit_name']
         time.sleep(sleep_time)
         file_mtime = self._get_file_mtime(sentry_unit, filename)
         if file_mtime >= mtime:
             self.log.debug('File mtime is newer than provided mtime '
-                           '(%s >= %s)' % (file_mtime, mtime))
+                           '(%s >= %s) on %s (OK)' % (file_mtime, mtime,
+                                                      unit_name))
             return True
         else:
             self.log.warn('File mtime %s is older than provided mtime %s'
