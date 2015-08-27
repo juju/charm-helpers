@@ -269,31 +269,27 @@ class AmuletUtils(object):
         """Get last modification time of directory."""
         return sentry_unit.directory_stat(directory)['mtime']
 
-    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=False):
+    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=None):
         """Get start time of a process based on the last modification time
            of the /proc/pid directory.
            """
-        if pgrep_full:
+        if pgrep_full is True or pgrep_full is False:
             # /!\ DEPRECATION WARNING (beisner):
+            # No longer implemented, as pidof is now used instead of pgrep.
             # https://bugs.launchpad.net/charm-helpers/+bug/1474030
             self.log.warn('/!\\ DEPRECATION WARNING:  pgrep_full bool is no '
                           'longer implemented re: lp 1474030.')
 
         pid_list = self.get_process_id_list(sentry_unit, service)
-        if len(pid_list) == 1:
-            pid = pid_list[0]
-            proc_dir = '/proc/{}'.format(pid)
-            self.log.debug('Pid for {} on {}: {}'.format(
-                service, sentry_unit.info['unit_name'], pid))
-        else:
-            msg = 'Unexpected PID count for {} on {}: {}'.format(
-                service, sentry_unit.info['unit_name'], len(pid_list))
-            amulet.raise_status(amulet.FAIL, msg=msg)
+        pid = pid_list[0]
+        proc_dir = '/proc/{}'.format(pid)
+        self.log.debug('Pid for {} on {}: {}'.format(
+            service, sentry_unit.info['unit_name'], pid))
 
         return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
-                          pgrep_full=False, sleep_time=20):
+                          pgrep_full=None, sleep_time=20):
         """Check if service was restarted.
 
            Compare a service's start time vs a file's last modification time
@@ -303,6 +299,11 @@ class AmuletUtils(object):
         # /!\ DEPRECATION WARNING (beisner):
         # This is prone to races in that no before-time is known.
         # Use validate_service_config_changed instead.
+
+        # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
+        # used instead of pgrep.  pgrep_full is still passed through to ensure
+        # deprecation WARNS.  lp1474030
+
         self.log.warn('/!\\ DEPRECATION WARNING:  use '
                       'validate_service_config_changed instead of '
                       'service_restarted due to known races.')
@@ -315,7 +316,7 @@ class AmuletUtils(object):
             return False
 
     def service_restarted_since(self, sentry_unit, mtime, service,
-                                pgrep_full=False, sleep_time=20,
+                                pgrep_full=None, sleep_time=20,
                                 retry_count=2, retry_sleep_time=30):
         """Check if service was been started after a given time.
 
@@ -323,7 +324,7 @@ class AmuletUtils(object):
           sentry_unit (sentry): The sentry unit to check for the service on
           mtime (float): The epoch time to check against
           service (string): service name to look for in process table
-          pgrep_full (boolean): Use full command line search mode with pgrep
+          pgrep_full: No longer implemented, passed for WARNs
           sleep_time (int): Seconds to sleep before looking for process
           retry_count (int): If service is not found, how many times to retry
 
@@ -332,6 +333,10 @@ class AmuletUtils(object):
                 False if service is older than mtime or if service was
                 not found.
         """
+        # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
+        # used instead of pgrep.  pgrep_full is still passed through to ensure
+        # deprecation WARNS.  lp1474030
+
         unit_name = sentry_unit.info['unit_name']
         self.log.debug('Checking %s restarted since %s on '
                        '%s' % (service, mtime, unit_name))
@@ -395,7 +400,7 @@ class AmuletUtils(object):
             return False
 
     def validate_service_config_changed(self, sentry_unit, mtime, service,
-                                        filename, pgrep_full=False,
+                                        filename, pgrep_full=None,
                                         sleep_time=20, retry_count=2,
                                         retry_sleep_time=30):
         """Check service and file were updated after mtime
@@ -405,7 +410,7 @@ class AmuletUtils(object):
           mtime (float): The epoch time to check against
           service (string): service name to look for in process table
           filename (string): The file to check mtime of
-          pgrep_full (boolean): Use full command line search mode with pgrep
+          pgrep_full: No longer implemented, passed for WARNs
           sleep_time (int): Initial sleep in seconds to pass to test helpers
           retry_count (int): If service is not found, how many times to retry
           retry_sleep_time (int): Time in seconds to wait between retries
@@ -425,6 +430,11 @@ class AmuletUtils(object):
                 mtime, False if service is older than mtime or if service was
                 not found or if filename was modified before mtime.
         """
+
+        # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
+        # used instead of pgrep.  pgrep_full is still passed through to ensure
+        # deprecation WARNS.  lp1474030
+
         service_restart = self.service_restarted_since(
             sentry_unit, mtime,
             service,
