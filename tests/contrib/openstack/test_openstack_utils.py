@@ -204,7 +204,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_os_version_from_install_source(self, codename, version):
         codename.return_value = 'grizzly'
         openstack.get_os_version_install_source('cloud:precise-grizzly')
-        version.assert_called_with('grizzly')
+        version.assert_called_with('grizzly', openstack.OPENSTACK_CODENAMES)
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_bad_install_source(self, mocked_lsb):
@@ -222,13 +222,15 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_os_codename_from_version(self):
         '''Test mapping OpenStack numerical versions to code name'''
-        self.assertEquals(openstack.get_os_codename_version('2013.1'),
-                          'grizzly')
+        codename = openstack.get_os_codename_version(
+            '2013.1', openstack.OPENSTACK_CODENAMES)
+        self.assertEquals(codename, 'grizzly')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_version(self, mocked_error):
         '''Test mapping a bad OpenStack numerical versions to code name'''
-        openstack.get_os_codename_version('2014.5.5')
+        openstack.get_os_codename_version(
+            '2014.5.5', openstack.OPENSTACK_CODENAMES)
         expected_err = ('Could not determine OpenStack codename for '
                         'version 2014.5.5')
         mocked_error.assert_called_with(expected_err)
@@ -514,6 +516,8 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to major release detection
         vers_pkg.return_value = '2013.2~b1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
+        vers_pkg.return_value = '1.9.0'
+        self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
@@ -527,6 +531,10 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to majro release detection
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
+        # ugly duckling testing
+        config.return_value = 'cloud:precise-havana'
+        vers_pkg.return_value = '1.10.0'
+        self.assertFalse(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
