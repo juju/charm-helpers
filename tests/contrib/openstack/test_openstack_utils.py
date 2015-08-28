@@ -204,7 +204,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_os_version_from_install_source(self, codename, version):
         codename.return_value = 'grizzly'
         openstack.get_os_version_install_source('cloud:precise-grizzly')
-        version.assert_called_with('grizzly', openstack.OPENSTACK_CODENAMES)
+        version.assert_called_with('grizzly')
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_bad_install_source(self, mocked_lsb):
@@ -222,15 +222,13 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_os_codename_from_version(self):
         '''Test mapping OpenStack numerical versions to code name'''
-        codename = openstack.get_os_codename_version(
-            '2013.1', openstack.OPENSTACK_CODENAMES)
+        codename = openstack.get_os_codename_version('2013.1')
         self.assertEquals(codename, 'grizzly')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_version(self, mocked_error):
         '''Test mapping a bad OpenStack numerical versions to code name'''
-        openstack.get_os_codename_version(
-            '2014.5.5', openstack.OPENSTACK_CODENAMES)
+        openstack.get_os_codename_version('2014.5.5')
         expected_err = ('Could not determine OpenStack codename for '
                         'version 2014.5.5')
         mocked_error.assert_called_with(expected_err)
