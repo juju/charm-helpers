@@ -222,8 +222,8 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_os_codename_from_version(self):
         '''Test mapping OpenStack numerical versions to code name'''
-        codename = openstack.get_os_codename_version('2013.1')
-        self.assertEquals(codename, 'grizzly')
+        self.assertEquals(openstack.get_os_codename_version('2013.1'),
+                          'grizzly')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_version(self, mocked_error):
