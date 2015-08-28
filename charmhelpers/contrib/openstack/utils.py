@@ -179,15 +179,15 @@ def get_os_codename_install_source(src):
                 return v
 
 
-def get_os_version_install_source(src, version_map=OPENSTACK_CODENAMES):
+def get_os_version_install_source(src):
     codename = get_os_codename_install_source(src)
-    return get_os_version_codename(codename, version_map)
+    return get_os_version_codename(codename)
 
 
-def get_os_codename_version(vers, version_map):
+def get_os_codename_version(vers):
     '''Determine OpenStack codename from version number.'''
     try:
-        return version_map[vers]
+        return OPENSTACK_CODENAMES[vers]
     except KeyError:
         e = 'Could not determine OpenStack codename for version %s' % vers
         error_out(e)
@@ -428,10 +428,10 @@ def openstack_upgrade_available(package):
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     if "swift" in package:
-        version_map = SWIFT_CODENAMES
+        codename = get_os_codename_install_source(src)
+        available_vers = get_os_version_codename(codename, SWIFT_CODENAMES)
     else:
-        version_map = OPENSTACK_CODENAMES
-    available_vers = get_os_version_install_source(src, version_map)
+        available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
 
