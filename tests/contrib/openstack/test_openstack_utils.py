@@ -514,6 +514,8 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to major release detection
         vers_pkg.return_value = '2013.2~b1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
+        vers_pkg.return_value = '1.9.0'
+        self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
@@ -527,6 +529,10 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to majro release detection
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
+        # ugly duckling testing
+        config.return_value = 'cloud:precise-havana'
+        vers_pkg.return_value = '1.10.0'
+        self.assertFalse(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
