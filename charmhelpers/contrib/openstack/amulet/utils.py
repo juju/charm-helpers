@@ -634,14 +634,13 @@ class OpenStackAmuletUtils(AmuletUtils):
             output, _ = self.run_cmd_unit(sentry_units[0], cmd)
 
         # Check connection against the other sentry_units
+        self.log.debug('Checking user connect against units...')
         for sentry_unit in sentry_units:
             connection = self.connect_amqp_by_unit(sentry_unit, ssl=False,
                                                    fatal=False,
                                                    username=username,
                                                    password=password)
-            if not connection:
-                msg = 'Connection failed for {} user'.format(username)
-                amulet.raise_status(amulet.FAIL, msg)
+            connection.close()
 
     def delete_rmq_test_user(self, sentry_units, username="testuser1"):
         """Delete a rabbitmq user via the first rmq juju unit.
@@ -728,33 +727,50 @@ class OpenStackAmuletUtils(AmuletUtils):
         if errors:
             return ''.join(errors)
 
-    def rmq_ssl_is_enabled_on_unit(self, sentry_unit):
-        """Check a single juju rmq unit for ssl in the config file."""
+    def rmq_ssl_is_enabled_on_unit(self, sentry_unit, port=None):
+        """Check a single juju rmq unit for ssl and port in the config file."""
         host = sentry_unit.info['public-address']
         unit_name = sentry_unit.info['unit_name']
 
         conf_file = '/etc/rabbitmq/rabbitmq.config'
-        if self.file_exists_on_unit(sentry_unit, conf_file):
-            conf_contents = self.file_contents_safe(sentry_unit, conf_file)
-        else:
-            self.log.debug('Conf file not found: {}'.format(conf_file))
-            conf_contents = None
+        conf_contents = str(self.file_contents_safe(sentry_unit,
+                                                    conf_file, max_wait=16))
+        # Checks
+        conf_ssl = 'ssl' in conf_contents
+        conf_port = str(port) in conf_contents
 
-        if 'ssl' in str(conf_contents):
-            self.log.debug('SSL is enabled  @{} ({})'.format(host, unit_name))
+        # Port explicitly checked in config
+        if port and conf_port and conf_ssl:
+            self.log.debug('SSL is enabled  @{}:{} '
+                           '({})'.format(host, port, unit_name))
             return True
-        else:
-            self.log.debug('SSL not enabled @{} ({})'.format(host, unit_name))
+        elif port and not conf_port and conf_ssl:
+            self.log.debug('SSL is enabled @{} but not on port {} '
+                           '({})'.format(host, port, unit_name))
             return False
+        # Port not checked (useful when checking that ssl is disabled)
+        elif not port and conf_ssl:
+            self.log.debug('SSL is enabled  @{}:{} '
+                           '({})'.format(host, port, unit_name))
+            return True
+        elif not port and not conf_ssl:
+            self.log.debug('SSL not enabled @{}:{} '
+                           '({})'.format(host, port, unit_name))
+            return False
+        else:
+            msg = ('Unknown condition when checking SSL status @{}:{} '
+                   '({})'.format(host, port, unit_name))
+            amulet.raise_status(amulet.FAIL, msg)
 
-    def validate_rmq_ssl_enabled_units(self, sentry_units):
-        """Check that ssl is enabled on listed rmq juju sentry units.
+    def validate_rmq_ssl_enabled_units(self, sentry_units, port=None):
+        """Check that ssl is enabled on rmq juju sentry units.
 
         :param sentry_units: list of all rmq sentry units
+        :param port: optional ssl port override to validate
         :returns: None if successful, otherwise return error message
         """
         for sentry_unit in sentry_units:
-            if not self.rmq_ssl_is_enabled_on_unit(sentry_unit):
+            if not self.rmq_ssl_is_enabled_on_unit(sentry_unit, port=port):
                 return ('Unexpected condition:  ssl is disabled on unit '
                         '({})'.format(sentry_unit.info['unit_name']))
         return None
@@ -794,11 +810,11 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         # Confirm
         tries = 0
-        ret = self.validate_rmq_ssl_enabled_units(sentry_units)
+        ret = self.validate_rmq_ssl_enabled_units(sentry_units, port=port)
         while ret and tries < (max_wait / 4):
             time.sleep(4)
             self.log.debug('Attempt {}: {}'.format(tries, ret))
-            ret = self.validate_rmq_ssl_enabled_units(sentry_units)
+            ret = self.validate_rmq_ssl_enabled_units(sentry_units, port=port)
             tries += 1
 
         if ret:
@@ -862,6 +878,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             parameters = pika.ConnectionParameters(host=host, port=port,
                                                    credentials=credentials,
                                                    ssl=ssl,
+                                                   #heartbeat_interval=0,
                                                    connection_attempts=3,
                                                    retry_delay=5,
                                                    socket_timeout=1)
@@ -894,15 +911,26 @@ class OpenStackAmuletUtils(AmuletUtils):
         :param port: amqp port, use defaults if None
         :returns: None.  Raises exception if publish failed.
         """
+        self.log.debug('Publishing message to {} queue:\n{}'.format(queue,
+                                                                    message))
         connection = self.connect_amqp_by_unit(sentry_unit, ssl=ssl,
                                                port=port,
                                                username=username,
                                                password=password)
+
+        # NOTE(beisner): extra debug here re: pika hang potential:
+        #   https://github.com/pika/pika/issues/297
+        #   https://groups.google.com/forum/#!topic/rabbitmq-users/Ja0iyfF0Szw
+        self.log.debug('Defining channel...')
         channel = connection.channel()
-        channel.queue_declare(queue=queue)
-        self.log.debug('Publishing message to {} queue:\n{}'.format(queue,
-                                                                    message))
+        self.log.debug('Declaring queue...')
+        channel.queue_declare(queue=queue, auto_delete=False, durable=True)
+        self.log.debug('Publishing message...')
         channel.basic_publish(exchange='', routing_key=queue, body=message)
+        self.log.debug('Closing channel...')
+        channel.close()
+        self.log.debug('Closing connection...')
+        connection.close()
 
     def get_amqp_message_by_unit(self, sentry_unit, queue="test",
                                  username="testuser1",
@@ -918,20 +946,19 @@ class OpenStackAmuletUtils(AmuletUtils):
         :param port: amqp port, use defaults if None
         :returns: amqp message body as string.  Raise if get fails.
         """
-
         connection = self.connect_amqp_by_unit(sentry_unit, ssl=ssl,
                                                port=port,
                                                username=username,
                                                password=password)
         channel = connection.channel()
-
-        # method_frame, header_frame, body
         method_frame, _, body = channel.basic_get(queue)
 
         if method_frame:
             self.log.debug('Retreived message from {} queue:\n{}'.format(queue,
                                                                          body))
             channel.basic_ack(method_frame.delivery_tag)
+            channel.close()
+            connection.close()
             return body
         else:
             msg = 'No message retrieved.'

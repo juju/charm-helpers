@@ -644,10 +644,12 @@ class AmuletUtils(object):
             msg = 'Error checking file {}: {}'.format(file_name, e)
             amulet.raise_status(amulet.FAIL, msg=msg)
 
-    def file_contents_safe(self, sentry_unit, file_name, max_wait=60):
-        """Wrap amulet file_contents with retry logic to address races
-        where a file checks as existing, but no longer exists by the time
-        file_contents is called."""
+    def file_contents_safe(self, sentry_unit, file_name,
+                           max_wait=60, fatal=False):
+        """Get file contents from a sentry unit.  Wrap amulet file_contents
+        with retry logic to address races where a file checks as existing,
+        but no longer exists by the time file_contents is called.
+        Return None if file not found. Optionally raise if fatal is True."""
         unit_name = sentry_unit.info['unit_name']
         file_contents = False
         tries = 0
@@ -655,7 +657,7 @@ class AmuletUtils(object):
             try:
                 file_contents = sentry_unit.file_contents(file_name)
             except IOError:
-                self.log.error('Attempt {} to open file {} from {} '
+                self.log.debug('Attempt {} to open file {} from {} '
                                'failed'.format(tries, file_name,
                                                unit_name))
                 time.sleep(4)
@@ -663,7 +665,9 @@ class AmuletUtils(object):
 
         if file_contents:
             return file_contents
-        else:
+        elif not fatal:
+            return None
+        elif fatal:
             msg = 'Failed to get file contents from unit.'
             amulet.raise_status(amulet.FAIL, msg)
 
