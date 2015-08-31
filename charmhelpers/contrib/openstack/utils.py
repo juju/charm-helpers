@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright 2014-2015 Canonical Limited.
 #
 # This file is part of charm-helpers.
@@ -195,9 +193,9 @@ def get_os_codename_version(vers):
         error_out(e)
 
 
-def get_os_version_codename(codename):
+def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
     '''Determine OpenStack version number from codename.'''
-    for k, v in six.iteritems(OPENSTACK_CODENAMES):
+    for k, v in six.iteritems(version_map):
         if v == codename:
             return k
     e = 'Could not derive OpenStack version for '\
@@ -429,7 +427,11 @@ def openstack_upgrade_available(package):
     import apt_pkg as apt
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
-    available_vers = get_os_version_install_source(src)
+    if "swift" in package:
+        codename = get_os_codename_install_source(src)
+        available_vers = get_os_version_codename(codename, SWIFT_CODENAMES)
+    else:
+        available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
 
