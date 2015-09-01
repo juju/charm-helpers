@@ -878,7 +878,6 @@ class OpenStackAmuletUtils(AmuletUtils):
             parameters = pika.ConnectionParameters(host=host, port=port,
                                                    credentials=credentials,
                                                    ssl=ssl,
-                                                   #heartbeat_interval=0,
                                                    connection_attempts=3,
                                                    retry_delay=5,
                                                    socket_timeout=1)

@@ -698,7 +698,7 @@ class AmuletUtils(object):
         try:
             connect_host = socket.gethostbyname(host)
             host_human = "{} ({})".format(connect_host, host)
-        except socket.error, e:
+        except socket.error as e:
             self.log.warn('Unable to resolve address: '
                           '{} ({}) Trying anyway!'.format(host, e))
             connect_host = host
@@ -713,7 +713,7 @@ class AmuletUtils(object):
             self.log.debug('Socket connect OK for host '
                            '{} on port {}.'.format(host_human, port))
             return True
-        except socket.error, e:
+        except socket.error as e:
             self.log.debug('Socket connect FAIL for'
                            ' {} port {} ({})'.format(host_human, port, e))
             return False
