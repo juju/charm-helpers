@@ -604,7 +604,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                            '{}'.format(sample_type, samples))
             return None
 
-# rabbitmq/amdqp specific helpers:
+# rabbitmq/amqp specific helpers:
     def add_rmq_test_user(self, sentry_units,
                           username="testuser1", password="changeme"):
         """Add a test user via the first rmq juju unit, check connection as
@@ -637,7 +637,6 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Checking user connect against units...')
         for sentry_unit in sentry_units:
             connection = self.connect_amqp_by_unit(sentry_unit, ssl=False,
-                                                   fatal=False,
                                                    username=username,
                                                    password=password)
             connection.close()
@@ -652,7 +651,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         """
         self.log.debug('Deleting rmq user ({})...'.format(username))
 
-        # Check that user does not already exist
+        # Check that the user exists
         cmd_user_list = 'rabbitmqctl list_users'
         output, _ = self.run_cmd_unit(sentry_units[0], cmd_user_list)
 
