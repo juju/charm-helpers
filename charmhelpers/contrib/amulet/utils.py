@@ -116,7 +116,7 @@ class AmuletUtils(object):
         # /!\ DEPRECATION WARNING (beisner):
         # New and existing tests should be rewritten to use
         # validate_services_by_name() as it is aware of init systems.
-        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+        self.log.warn('DEPRECATION WARNING:  use '
                       'validate_services_by_name instead of validate_services '
                       'due to init system differences.')
 
@@ -271,24 +271,32 @@ class AmuletUtils(object):
         """Get last modification time of directory."""
         return sentry_unit.directory_stat(directory)['mtime']
 
-    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=False):
-        """Get process' start time.
+    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=None):
+        """Get start time of a process based on the last modification time
+           of the /proc/pid directory.
 
-           Determine start time of the process based on the last modification
-           time of the /proc/pid directory. If pgrep_full is True, the process
-           name is matched against the full command line.
-           """
-        if pgrep_full:
-            cmd = 'pgrep -o -f {}'.format(service)
-        else:
-            cmd = 'pgrep -o {}'.format(service)
-        cmd = cmd + '  | grep  -v pgrep || exit 0'
-        cmd_out = sentry_unit.run(cmd)
-        self.log.debug('CMDout: ' + str(cmd_out))
-        if cmd_out[0]:
-            self.log.debug('Pid for %s %s' % (service, str(cmd_out[0])))
-            proc_dir = '/proc/{}'.format(cmd_out[0].strip())
-            return self._get_dir_mtime(sentry_unit, proc_dir)
+        :sentry_unit:  The sentry unit to check for the service on
+        :service:  service name to look for in process table
+        :pgrep_full:  [Deprecated] Use full command line search mode with pgrep
+        :returns:  epoch time of service process start
+        :param commands:  list of bash commands
+        :param sentry_units:  list of sentry unit pointers
+        :returns:  None if successful; Failure message otherwise
+        """
+        if pgrep_full is not None:
+            # /!\ DEPRECATION WARNING (beisner):
+            # No longer implemented, as pidof is now used instead of pgrep.
+            # https://bugs.launchpad.net/charm-helpers/+bug/1474030
+            self.log.warn('DEPRECATION WARNING:  pgrep_full bool is no '
+                          'longer implemented re: lp 1474030.')
+
+        pid_list = self.get_process_id_list(sentry_unit, service)
+        pid = pid_list[0]
+        proc_dir = '/proc/{}'.format(pid)
+        self.log.debug('Pid for {} on {}: {}'.format(
+            service, sentry_unit.info['unit_name'], pid))
+
+        return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
                           pgrep_full=None, sleep_time=20):
@@ -299,14 +307,13 @@ class AmuletUtils(object):
            has been restarted.
            """
         # /!\ DEPRECATION WARNING (beisner):
-        # This is prone to races in that no before-time is known.
+        # This method is prone to races in that no before-time is known.
         # Use validate_service_config_changed instead.
 
         # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
         # used instead of pgrep.  pgrep_full is still passed through to ensure
         # deprecation WARNS.  lp1474030
-
-        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+        self.log.warn('DEPRECATION WARNING:  use '
                       'validate_service_config_changed instead of '
                       'service_restarted due to known races.')
 
@@ -326,7 +333,7 @@ class AmuletUtils(object):
           sentry_unit (sentry): The sentry unit to check for the service on
           mtime (float): The epoch time to check against
           service (string): service name to look for in process table
-          pgrep_full: No longer implemented, passed for WARNs
+          pgrep_full: [Deprecated] Use full command line search mode with pgrep
           sleep_time (int): Seconds to sleep before looking for process
           retry_count (int): If service is not found, how many times to retry
 
@@ -412,7 +419,7 @@ class AmuletUtils(object):
           mtime (float): The epoch time to check against
           service (string): service name to look for in process table
           filename (string): The file to check mtime of
-          pgrep_full: No longer implemented, passed for WARNs
+          pgrep_full: [Deprecated] Use full command line search mode with pgrep
           sleep_time (int): Initial sleep in seconds to pass to test helpers
           retry_count (int): If service is not found, how many times to retry
           retry_sleep_time (int): Time in seconds to wait between retries
