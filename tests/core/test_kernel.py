@@ -59,3 +59,8 @@ class TestKernel(unittest.TestCase):
         lsmod.return_value = "ip6_tables 28672  1 ip6table_filter"
         self.assertTrue(kernel.is_module_loaded(
             "ip6_tables"))
+
+    def test_update_initramfs(self):
+        kernel.update_initramfs()
+        self.check_call.assert_called_with([
+            "update-initramfs", "-k", "all", "-u"])
