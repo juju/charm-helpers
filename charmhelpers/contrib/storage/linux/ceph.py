@@ -455,7 +455,14 @@ class CephBrokerRsp(object):
 
 
 def request_states(request_needed):
-    """Return dict showing if a request has been sent and completed per rid"""
+    """Return a dict of requests per relation id with their corresponding
+       completion state.
+
+    This allows a charm, which has a request for ceph, to see whether there is
+    an equivalent request already being processed and if so what state that
+    request is in.
+
+    @param request_needed: A CephBrokerRq object"""
     complete = []
     requests = {}
     for rid in relation_ids('ceph'):
@@ -474,7 +481,11 @@ def request_states(request_needed):
 
 
 def request_sent(request_needed):
-    """Check to see if a matching request has been sent"""
+    """Check to see if a functionally equivalent request has already been sent
+
+    Returns True if a similair request has been sent
+
+    @param request_needed: A CephBrokerRq object"""
     states = request_states(request_needed)
     for rid in states.keys():
         if not states[rid]['sent']:
@@ -483,7 +494,12 @@ def request_sent(request_needed):
 
 
 def request_complete(request_needed):
-    """Check to see if a matching request has been completed"""
+    """Check to see if a functionally equivalent request has already been
+    completed
+
+    Returns True if a similair request has been completed
+
+    @param request_needed: A CephBrokerRq object"""
     states = request_states(request_needed)
     for rid in states.keys():
         if not states[rid]['complete']:
@@ -492,7 +508,16 @@ def request_complete(request_needed):
 
 
 def equivalent_broker_requests(encoded_req1, encoded_req2):
-    """Check to see if two requests are equivalent (ignore request id)"""
+    """A helper function to check whether or not two serialized requests are
+       equivalent.
+
+    @param encoded_req1: A json-encoded request to compare
+    @param encoded_req2: A json-encoded request to compare
+    
+    Example json-encoded request:
+        ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
+         '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
+    """
     if not encoded_req1 or not encoded_req2:
         return False
     req1 = json.loads(encoded_req1)
@@ -507,7 +532,11 @@ def equivalent_broker_requests(encoded_req1, encoded_req2):
 
 
 def broker_request_completed(encoded_req, rid):
-    """Check if a given request has been completed on the given relation"""
+    """Check if a given request has been completed on the given relation
+
+    @param encoded_req: A json-encoded request to compare
+    @param rid: Relation ID
+    """
     req = json.loads(encoded_req)
     broker_key = get_broker_rsp_key()
     for unit in related_units(rid):
@@ -535,12 +564,17 @@ def broker_request_completed(encoded_req, rid):
 
 
 def get_broker_rsp_key():
-    """Return broker request key for this unit"""
+    """Return broker response key for this unit
+    
+    This is the key that ceph is going to use to pass request status
+    information back to this unit"""
     return 'broker-rsp-' + local_unit().replace('/', '-')
 
 
 def send_request_if_needed(rq):
-    """Send broker request if one has not already been sent"""
+    """Send broker request if an equivalent request has not already been sent
+
+    @param request_needed: A CephBrokerRq object"""
     if request_sent(rq):
         log('Request already sent but not complete, not sending new request')
     else:
