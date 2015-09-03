@@ -40,7 +40,9 @@ Examples:
 import re
 import os
 import subprocess
+
 from charmhelpers.core import hookenv
+from charmhelpers.core.kernel import modprobe, is_module_loaded
 
 __author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
 
@@ -82,14 +84,11 @@ def is_ipv6_ok(soft_fail=False):
     # do we have IPv6 in the machine?
     if os.path.isdir('/proc/sys/net/ipv6'):
         # is ip6tables kernel module loaded?
-        lsmod = subprocess.check_output(['lsmod'], universal_newlines=True)
-        matches = re.findall('^ip6_tables[ ]+', lsmod, re.M)
-        if len(matches) == 0:
+        if not is_module_loaded('ip6_tables'):
             # ip6tables support isn't complete, let's try to load it
             try:
-                subprocess.check_output(['modprobe', 'ip6_tables'],
-                                        universal_newlines=True)
-                # great, we could load the module
+                modprobe('ip6_tables')
+                # great, we can load the module
                 return True
             except subprocess.CalledProcessError as ex:
                 hookenv.log("Couldn't load ip6_tables module: %s" % ex.output,
