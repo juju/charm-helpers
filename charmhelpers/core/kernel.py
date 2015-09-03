@@ -59,3 +59,8 @@ def is_module_loaded(module):
     """Checks if a kernel module is already loaded"""
     matches = re.findall('^%s[ ]+' % module, lsmod(), re.M)
     return len(matches) > 0
+
+
+def update_initramfs(version='all'):
+    """Updates an initramfs image"""
+    return check_call(["update-initramfs", "-k", version, "-u"])
