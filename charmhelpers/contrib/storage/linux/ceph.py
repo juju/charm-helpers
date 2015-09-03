@@ -414,10 +414,13 @@ class CephBrokerRq(object):
 
     The API is versioned and defaults to version 1.
     """
-    def __init__(self, api_version=1):
+    def __init__(self, api_version=1, ops=None):
         self.api_version = api_version
         self.request_id = str(uuid.uuid1())
-        self.ops = []
+        if ops:
+            self.ops = ops
+        else:
+            self.ops = []
 
     def add_op_create_pool(self, name, replica_count=3):
         self.ops.append({'op': 'create-pool', 'name': name,
@@ -427,6 +430,28 @@ class CephBrokerRq(object):
     def request(self):
         return json.dumps({'api-version': self.api_version, 'ops': self.ops,
                            'request-id': self.request_id})
+
+    def _ops_equal(self, other):
+        if len(self.ops) == len(other.ops):
+            for req_no in range(0, len(self.ops)):
+                for key in ['replicas', 'name', 'op']:
+                    if self.ops[req_no][key] != other.ops[req_no][key]:
+                        return False
+        else:
+            return False
+        return True
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        if self.api_version == other.api_version and \
+                self._ops_equal(other):
+            return True
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class CephBrokerRsp(object):
@@ -454,7 +479,22 @@ class CephBrokerRsp(object):
         return self.rsp.get('stderr')
 
 
-def request_states(request_needed):
+def get_previous_request(rid):
+    """Return the last ceph broker request sent on a given relation
+
+    @param rid: Relation id to query for request
+    """
+    request = None
+    broker_req = relation_get(attribute='broker_req', rid=rid,
+                              unit=local_unit())
+    if broker_req:
+        request_data = json.loads(broker_req)
+        request = CephBrokerRq(api_version=request_data['api-version'],
+                               ops=request_data['ops'])
+    return request
+
+
+def get_request_states(request):
     """Return a dict of requests per relation id with their corresponding
        completion state.
 
@@ -462,16 +502,18 @@ def request_states(request_needed):
     an equivalent request already being processed and if so what state that
     request is in.
 
-    @param request_needed: A CephBrokerRq object"""
+    @param request_needed: A CephBrokerRq object
+    """
     complete = []
     requests = {}
     for rid in relation_ids('ceph'):
         complete = False
-        previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
-        sent = equivalent_broker_requests(previous_request, request_needed.request)
-        if sent:
+        previous_request = get_previous_request(rid)
+        if request == previous_request:
+            sent = True
             complete = broker_request_completed(previous_request, rid)
         else:
+            sent = False
             complete = False
         requests[rid] = {
             'sent': sent,
@@ -480,54 +522,32 @@ def request_states(request_needed):
     return requests
 
 
-def request_sent(request_needed):
+def is_request_sent(request):
     """Check to see if a functionally equivalent request has already been sent
 
     Returns True if a similair request has been sent
 
-    @param request_needed: A CephBrokerRq object"""
-    states = request_states(request_needed)
+    @param request_needed: A CephBrokerRq object
+    """
+    states = get_request_states(request)
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
     return True
 
 
-def request_complete(request_needed):
+def is_request_complete(request):
     """Check to see if a functionally equivalent request has already been
     completed
 
     Returns True if a similair request has been completed
 
-    @param request_needed: A CephBrokerRq object"""
-    states = request_states(request_needed)
+    @param request_needed: A CephBrokerRq object
+    """
+    states = get_request_states(request)
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
-    return True
-
-
-def equivalent_broker_requests(encoded_req1, encoded_req2):
-    """A helper function to check whether or not two serialized requests are
-       equivalent.
-
-    @param encoded_req1: A json-encoded request to compare
-    @param encoded_req2: A json-encoded request to compare
-    
-    Example json-encoded request:
-        ('{"api-version": 1, "request-id": "0bc7dc54", "ops": '
-         '[{"replicas": 3, "name": "glance", "op": "create-pool"}]}')
-    """
-    if not encoded_req1 or not encoded_req2:
-        return False
-    req1 = json.loads(encoded_req1)
-    req2 = json.loads(encoded_req2)
-    if len(req1['ops']) != len(req2['ops']):
-        return False
-    for req_no in range(0, len(req1['ops'])):
-        for key in ['replicas', 'name', 'op']:
-            if req1['ops'][req_no][key] != req2['ops'][req_no][key]:
-                return False
     return True
 
 
@@ -567,17 +587,19 @@ def get_broker_rsp_key():
     """Return broker response key for this unit
     
     This is the key that ceph is going to use to pass request status
-    information back to this unit"""
+    information back to this unit
+    """
     return 'broker-rsp-' + local_unit().replace('/', '-')
 
 
-def send_request_if_needed(rq):
+def send_request_if_needed(request):
     """Send broker request if an equivalent request has not already been sent
 
-    @param request_needed: A CephBrokerRq object"""
-    if request_sent(rq):
+    @param request_needed: A CephBrokerRq object
+    """
+    if is_request_sent(request):
         log('Request already sent but not complete, not sending new request')
     else:
         for rid in relation_ids('ceph'):
-            log('Sending request {}'.format(rq.request_id))
-            relation_set(relation_id=rid, broker_req=rq.request)
+            log('Sending request {}'.format(request.request_id))
+            relation_set(relation_id=rid, broker_req=request.request)
