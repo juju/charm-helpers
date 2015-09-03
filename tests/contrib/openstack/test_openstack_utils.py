@@ -36,7 +36,7 @@ FAKE_REPO = {
         'os_release': 'liberty',
         'os_version': '2015.2'
     },
-    'nova-common': {
+    'nova': {
         'pkg_vers': '2012.2.3-0ubuntu2.1',
         'os_release': 'folsom',
         'os_version': '2012.2'

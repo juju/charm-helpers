@@ -227,7 +227,7 @@ def get_os_codename_package(package, fatal=True):
         error_out(e)
 
     vers = apt.upstream_version(pkg.current_ver.ver_str)
-    match = re.match('^(\d)\.(\d)\.(\d)', vers)
+    match = re.match('^(\d+)\.(\d+)\.(\d+)', vers)
     if match:
         vers = match.group(0)
 
@@ -248,6 +248,8 @@ def get_os_codename_package(package, fatal=True):
                 vers = vers[:6]
                 return OPENSTACK_CODENAMES[vers]
         except KeyError:
+            if not fatal:
+                return None
             e = 'Could not determine OpenStack codename for version %s' % vers
             error_out(e)
 
