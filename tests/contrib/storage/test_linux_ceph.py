@@ -299,15 +299,6 @@ class CephUtilsTests(TestCase):
         ceph_utils.map_block_storage(_service, _pool, _img)
         self.check_call.assert_called_with(_cmd)
 
-    def test_modprobe(self):
-        with patch_open() as (_open, _file):
-            _file.read.return_value = 'anothermod\n'
-            ceph_utils.modprobe('mymod')
-            _open.assert_called_with('/etc/modules', 'r+')
-            _file.read.assert_called_with()
-            _file.write.assert_called_with('mymod')
-        self.check_call.assert_called_with(['modprobe', 'mymod'])
-
     def test_filesystem_mounted(self):
         self._patch('mounts')
         self.mounts.return_value = [['/afs', '/dev/sdb'], ['/bfs', '/dev/sdd']]
