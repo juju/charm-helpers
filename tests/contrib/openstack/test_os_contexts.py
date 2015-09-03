@@ -1068,8 +1068,13 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
-    def test_ceph_context_partial_missing_data(self, ensure_packages, mkdir, isdir, config):
-        '''Test ceph context last unit missing data'''
+    def test_ceph_context_partial_missing_data(self, ensure_packages, mkdir,
+                                               isdir, config):
+        '''Test ceph context last unit missing data
+        
+           Tests a fix to a previously bug which meant only the config from
+           last unit was returned so if a valid value was supplied from an
+           earlier unit it would be ignored'''
         config.side_effect = fake_config({'use-syslog': 'True'})
         relation = deepcopy(CEPH_RELATION)
         for k, v in six.iteritems(relation):
