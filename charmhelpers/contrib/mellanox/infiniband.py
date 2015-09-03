@@ -21,7 +21,8 @@
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 from charmhelpers.fetch import (
-    apt_install
+    apt_install,
+    apt_update,
 )
 
 from charmhelpers.core.hookenv import (
@@ -73,12 +74,15 @@ IPOIB_DRIVERS = (
     "ib_ipoib",
 )
 
+ABI_VERSION_FILE = "/sys/class/infiniband_mad/abi_version"
+
 
 class DeviceInfo(object):
     pass
 
 
 def install_packages():
+    apt_update()
     apt_install(REQUIRED_PACKAGES, fatal=True)
 
 
@@ -89,7 +93,7 @@ def load_modules():
 
 def is_enabled():
     """Check if infiniband is loaded on the system"""
-    return os.path.exists("/sys/class/infiniband_mad/abi_version")
+    return os.path.exists(ABI_VERSION_FILE)
 
 
 def stat():
@@ -134,16 +138,12 @@ def ipoib_interfaces():
 
     for interface in network_interfaces():
         try:
-            output = subprocess.check_output([
-                "ethtool", "-i",
-                interface],
-                stderr=subprocess.STDOUT).splitlines()
+            driver = re.search('^driver: (.+)$', subprocess.check_output([
+                'ethtool', '-i',
+                interface]), re.M).group(1)
 
-            for line in output:
-                if line.startswith("driver"):
-                    _, driver = line.split(":")
-                    if driver.strip(" ") in IPOIB_DRIVERS:
-                        interfaces.append(interface)
+            if driver in IPOIB_DRIVERS:
+                interfaces.append(interface)
         except:
             log("Skipping interface %s" % interface, level=INFO)
             continue
