@@ -9,6 +9,7 @@ TO_PATCH = [
     "log",
     "INFO",
     "apt_install",
+    "apt_update",
     "modprobe",
     "network_interfaces"
 ]
@@ -64,6 +65,8 @@ class InfinibandTest(unittest.TestCase):
 
     def test_install_packages(self):
         infiniband.install_packages()
+
+        self.apt_update.assert_is_called_once()
         self.apt_install.assert_is_called_once()
 
     @patch("os.path.exists")
