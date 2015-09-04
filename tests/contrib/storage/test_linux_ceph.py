@@ -43,7 +43,6 @@ CEPH_CLIENT_RELATION = {
             'ceph-public-address': '10.5.44.103',
             'key': 'AQCLDttVuHXINhAAvI144CB09dYchhHyTUY9BQ==',
             'private-address': '10.5.44.103',
-            'unit-targeted-reponses': 'True',
         },
         'ceph/1': {
             'auth': 'cephx',

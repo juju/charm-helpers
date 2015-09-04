@@ -574,7 +574,8 @@ def is_broker_request_complete(request, rid):
             # remote ceph cluster does not support unit targeted replies or it
             # has not processed our request yet.
             if rdata.get('broker_rsp'):
-                if rdata.get('unit-targeted-reponses'):
+                request_data = json.loads(rdata['broker_rsp'])
+                if request_data.get('request-id'):
                     log('Ignoring legacy broker_rsp without unit key as remote '
                         'service supports unit specific replies', level=DEBUG)
                 else:
