@@ -142,6 +142,9 @@ PACKAGE_CODENAMES = {
     'glance-common': OrderedDict([
         ('11.0.0', 'liberty'),
     ]),
+    'openstack-dashboard': OrderedDict([
+        ('8.0.0', 'liberty'),
+    ]),
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
