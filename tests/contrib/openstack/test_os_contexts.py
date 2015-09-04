@@ -1071,7 +1071,7 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_partial_missing_data(self, ensure_packages, mkdir,
                                                isdir, config):
         '''Test ceph context last unit missing data
-        
+
            Tests a fix to a previously bug which meant only the config from
            last unit was returned so if a valid value was supplied from an
            earlier unit it would be ignored'''
