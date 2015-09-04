@@ -482,6 +482,51 @@ class CephBrokerRsp(object):
         return self.rsp.get('stderr')
 
 
+# Ceph Broker Conversation:
+# If a charm needs an action to be taken by ceph it can create a CephBrokerRq
+# and send that request to ceph via the ceph relation. The CephBrokerRq has a
+# unique id so that the client can identity which CephBrokerRsp is associated
+# with the request. Ceph will also respond to each client unit individually
+# creating a response key per client unit eg glance/0 will get a CephBrokerRsp
+# via key broker-rsp-glance-0
+#
+# To use this the charm can just do something like:
+#
+# from charmhelpers.contrib.storage.linux.ceph import (
+#     send_request_if_needed,
+#     is_request_complete,
+#     CephBrokerRq,
+# )
+#
+# @hooks.hook('ceph-relation-changed')
+# def ceph_changed():
+#     rq = CephBrokerRq()
+#     rq.add_op_create_pool(name='poolname', replica_count=3)
+#
+#     if is_request_complete(rq):
+#         <Request complete actions>
+#     else:
+#         send_request_if_needed(get_ceph_request())
+#
+# CephBrokerRq and CephBrokerRsp are serialized into JSON. Below is an example
+# of glance having sent a request to ceph which ceph has successfully processed
+#  'ceph:8': {
+#      'ceph/0': {
+#          'auth': 'cephx',
+#          'broker-rsp-glance-0': '{"request-id": "0bc7dc54", "exit-code": 0}',
+#          'broker_rsp': '{"request-id": "0da543b8", "exit-code": 0}',
+#          'ceph-public-address': '10.5.44.103',
+#          'key': 'AQCLDttVuHXINhAAvI144CB09dYchhHyTUY9BQ==',
+#          'private-address': '10.5.44.103',
+#      },
+#      'glance/0': {
+#          'broker_req': ('{"api-version": 1, "request-id": "0bc7dc54", '
+#                         '"ops": [{"replicas": 3, "name": "glance", '
+#                         '"op": "create-pool"}]}'),
+#          'private-address': '10.5.44.109',
+#      },
+#  }
+
 def get_previous_request(rid):
     """Return the last ceph broker request sent on a given relation
 
