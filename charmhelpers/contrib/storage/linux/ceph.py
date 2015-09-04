@@ -414,9 +414,12 @@ class CephBrokerRq(object):
 
     The API is versioned and defaults to version 1.
     """
-    def __init__(self, api_version=1, ops=None):
+    def __init__(self, api_version=1, ops=None, request_id=None):
         self.api_version = api_version
-        self.request_id = str(uuid.uuid1())
+        if request_id:
+            self.request_id = request_id
+        else:
+            self.request_id = str(uuid.uuid1())
         if ops:
             self.ops = ops
         else:
@@ -490,7 +493,8 @@ def get_previous_request(rid):
     if broker_req:
         request_data = json.loads(broker_req)
         request = CephBrokerRq(api_version=request_data['api-version'],
-                               ops=request_data['ops'])
+                               ops=request_data['ops'],
+                               request_id=request_data['request-id'])
     return request
 
 
@@ -502,7 +506,7 @@ def get_request_states(request):
     an equivalent request already being processed and if so what state that
     request is in.
 
-    @param request_needed: A CephBrokerRq object
+    @param request: A CephBrokerRq object
     """
     complete = []
     requests = {}
@@ -511,7 +515,7 @@ def get_request_states(request):
         previous_request = get_previous_request(rid)
         if request == previous_request:
             sent = True
-            complete = broker_request_completed(previous_request, rid)
+            complete = is_broker_request_complete(previous_request, rid)
         else:
             sent = False
             complete = False
@@ -527,7 +531,7 @@ def is_request_sent(request):
 
     Returns True if a similair request has been sent
 
-    @param request_needed: A CephBrokerRq object
+    @param request: A CephBrokerRq object
     """
     states = get_request_states(request)
     for rid in states.keys():
@@ -542,7 +546,7 @@ def is_request_complete(request):
 
     Returns True if a similair request has been completed
 
-    @param request_needed: A CephBrokerRq object
+    @param request: A CephBrokerRq object
     """
     states = get_request_states(request)
     for rid in states.keys():
@@ -551,19 +555,18 @@ def is_request_complete(request):
     return True
 
 
-def broker_request_completed(encoded_req, rid):
+def is_broker_request_complete(request, rid):
     """Check if a given request has been completed on the given relation
 
-    @param encoded_req: A json-encoded request to compare
+    @param request: A CephBrokerRq object
     @param rid: Relation ID
     """
-    req = json.loads(encoded_req)
     broker_key = get_broker_rsp_key()
     for unit in related_units(rid):
         rdata = relation_get(rid=rid, unit=unit)
         if rdata.get(broker_key):
             rsp = CephBrokerRsp(rdata.get(broker_key))
-            if rsp.request_id == req.get('request-id'):
+            if rsp.request_id == request.request_id:
                 if not rsp.exit_code:
                     return True
         else:
@@ -585,7 +588,7 @@ def broker_request_completed(encoded_req, rid):
 
 def get_broker_rsp_key():
     """Return broker response key for this unit
-    
+
     This is the key that ceph is going to use to pass request status
     information back to this unit
     """
@@ -595,7 +598,7 @@ def get_broker_rsp_key():
 def send_request_if_needed(request):
     """Send broker request if an equivalent request has not already been sent
 
-    @param request_needed: A CephBrokerRq object
+    @param request: A CephBrokerRq object
     """
     if is_request_sent(request):
         log('Request already sent but not complete, not sending new request')
