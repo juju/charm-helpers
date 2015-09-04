@@ -576,10 +576,10 @@ def is_broker_request_complete(request, rid):
             if rdata.get('broker_rsp'):
                 if rdata.get('unit-targeted-reponses'):
                     log('Ignoring legacy broker_rsp without unit key as remote '
-                        'service supports unit specific replies')
+                        'service supports unit specific replies', level=DEBUG)
                 else:
                     log('Using legacy broker_rsp as remote service does not '
-                        'supports unit specific replies')
+                        'supports unit specific replies', level=DEBUG)
                     rsp = CephBrokerRsp(rdata['broker_rsp'])
                     if not rsp.exit_code:
                         return True
@@ -601,8 +601,9 @@ def send_request_if_needed(request):
     @param request: A CephBrokerRq object
     """
     if is_request_sent(request):
-        log('Request already sent but not complete, not sending new request')
+        log('Request already sent but not complete, not sending new request',
+            level=DEBUG)
     else:
         for rid in relation_ids('ceph'):
-            log('Sending request {}'.format(request.request_id))
+            log('Sending request {}'.format(request.request_id), level=DEBUG)
             relation_set(relation_id=rid, broker_req=request.request)
