@@ -414,20 +414,25 @@ class CephBrokerRq(object):
 
     The API is versioned and defaults to version 1.
     """
-    def __init__(self, api_version=1, ops=None, request_id=None):
+    def __init__(self, api_version=1, request_id=None):
         self.api_version = api_version
         if request_id:
             self.request_id = request_id
         else:
             self.request_id = str(uuid.uuid1())
-        if ops:
-            self.ops = ops
-        else:
-            self.ops = []
+        self.ops = []
 
     def add_op_create_pool(self, name, replica_count=3):
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count})
+
+    def set_ops(self, ops):
+        """Set request ops to provided value.
+
+        Useful for injecting ops that come from a previous request
+        to allow comparisons to ensure validity.
+        """
+        self.ops = ops
 
     @property
     def request(self):
@@ -538,8 +543,8 @@ def get_previous_request(rid):
     if broker_req:
         request_data = json.loads(broker_req)
         request = CephBrokerRq(api_version=request_data['api-version'],
-                               ops=request_data['ops'],
                                request_id=request_data['request-id'])
+        request.set_ops(request_data['ops'])
     return request
 
 
