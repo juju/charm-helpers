@@ -597,7 +597,8 @@ class AmuletUtils(object):
 
     def status_get(self, unit):
         """Return the current service status of this unit."""
-        raw_status, return_code = unit.run("status-get --format=json")
+        raw_status, return_code = unit.run(
+            "status-get --format=json --include-data")
         if return_code != 0:
             return ("unknown", "")
         status = json.loads(raw_status)
