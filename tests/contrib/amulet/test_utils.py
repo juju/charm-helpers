@@ -324,3 +324,22 @@ class StatusGetTestCase(unittest.TestCase):
             """{"status": "active", "message": "foo"}""", 0)
         self.assertEqual(self.utils.status_get(self.sentry_unit),
                          (u"active", u"foo"))
+
+    def test_status_get_no_message(self):
+        """
+        We can get the status of a unit with no associated message.
+        """
+        self.sentry_unit.commands["status-get --format=json"] = (
+            """{"status": "active", "message": ""}""", 0)
+        self.assertEqual(self.utils.status_get(self.sentry_unit),
+                         (u"active", u"foo"))
+
+    def test_status_get_missing_command(self):
+        """
+        Older releases of Juju have no status-get command.  In those
+        cases we should return the "unknown" status.
+        """
+        self.sentry_unit.commands["status-get --format=json"] = (
+            "status-get: command not found", 127)
+        self.assertEqual(self.utils.status_get(self.sentry_unit),
+                         (u"unknown", u""))
