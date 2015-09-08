@@ -108,10 +108,14 @@ class HelpersTest(TestCase):
         service.assert_called_with('restart', service_name)
 
     @patch.object(host, 'service')
-    def test_pauses_a_service(self, service):
+    def test_pauses_an_upstart_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [True]
-        tempdir = mkdtemp(prefix="test_pauses_a_service")
+        tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        # Just needs to exist
+        with open(conf_path, "w") as fh:
+            fh.write("")
         self.addCleanup(rmtree, tempdir)
         self.assertTrue(host.service_pause(service_name, init_dir=tempdir))
 
@@ -122,11 +126,44 @@ class HelpersTest(TestCase):
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
 
+    @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_resumes_a_service(self, service):
+    def test_pauses_a_sysv_service(self, service, check_call):
         service_name = 'foo-service'
         service.side_effect = [True]
-        tempdir = mkdtemp(prefix="test_resumes_a_service")
+        tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        service.assert_called_with('stop', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "disable"])
+
+    @patch.object(host, 'service')
+    def test_pause_with_unknown_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_with_unknown_service")
+        self.addCleanup(rmtree, tempdir)
+        exception = self.assertRaises(
+            ValueError, host.service_pause,
+            service_name, init_dir=tempdir, initd_dir=tempdir)
+        self.assertIn(
+            "Unable to detect {0}".format(service_name), str(exception))
+        self.assertIn(tempdir, str(exception))
+
+    @patch.object(host, 'service')
+    def test_resumes_an_upstart_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        with open(conf_path, "w") as fh:
+            fh.write("")
         self.addCleanup(rmtree, tempdir)
         self.assertTrue(host.service_resume(service_name, init_dir=tempdir))
 
@@ -134,6 +171,36 @@ class HelpersTest(TestCase):
         override_path = os.path.join(
             tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
+
+    @patch('subprocess.check_call')
+    @patch.object(host, 'service')
+    def test_resumes_a_sysv_service(self, service, check_call):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        service.assert_called_with('start', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "enable"])
+
+    @patch.object(host, 'service')
+    def test_resume_with_unknown_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_with_unknown_service")
+        self.addCleanup(rmtree, tempdir)
+        exception = self.assertRaises(
+            ValueError, host.service_resume,
+            service_name, init_dir=tempdir, initd_dir=tempdir)
+        self.assertIn(
+            "Unable to detect {0}".format(service_name), str(exception))
+        self.assertIn(tempdir, str(exception))
 
     @patch.object(host, 'service')
     def test_reloads_a_service(self, service):
