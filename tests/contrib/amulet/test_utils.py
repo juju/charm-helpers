@@ -332,7 +332,7 @@ class StatusGetTestCase(unittest.TestCase):
         self.sentry_unit.commands["status-get --format=json"] = (
             """{"status": "active", "message": ""}""", 0)
         self.assertEqual(self.utils.status_get(self.sentry_unit),
-                         (u"active", u"foo"))
+                         (u"active", u""))
 
     def test_status_get_missing_command(self):
         """
