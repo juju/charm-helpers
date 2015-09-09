@@ -19,9 +19,11 @@ import json
 import logging
 import os
 import re
+import socket
 import subprocess
 import sys
 import time
+import uuid
 
 import amulet
 import distro_info
@@ -394,15 +396,12 @@ class AmuletUtils(object):
           bool: True if file was modified more recently than mtime, False if
                 file was modified before mtime,
         """
-        self.log.debug('Checking that %s file updated since '
-                       '%s' % (filename, mtime))
-        unit_name = sentry_unit.info['unit_name']
+        self.log.debug('Checking %s updated since %s' % (filename, mtime))
         time.sleep(sleep_time)
         file_mtime = self._get_file_mtime(sentry_unit, filename)
         if file_mtime >= mtime:
             self.log.debug('File mtime is newer than provided mtime '
-                           '(%s >= %s) on %s (OK)' % (file_mtime, mtime,
-                                                      unit_name))
+                           '(%s >= %s)' % (file_mtime, mtime))
             return True
         else:
             self.log.warn('File mtime %s is older than provided mtime %s'
@@ -476,7 +475,6 @@ class AmuletUtils(object):
         """Return a list of all Ubuntu releases in order of release."""
         _d = distro_info.UbuntuDistroInfo()
         _release_list = _d.all
-        self.log.debug('Ubuntu release list: {}'.format(_release_list))
         return _release_list
 
     def file_to_url(self, file_rel_path):
@@ -616,6 +614,142 @@ class AmuletUtils(object):
 
         return None
 
+    def validate_sectionless_conf(self, file_contents, expected):
+        """A crude conf parser.  Useful to inspect configuration files which
+        do not have section headers (as would be necessary in order to use
+        the configparser).  Such as openstack-dashboard or rabbitmq confs."""
+        for line in file_contents.split('\n'):
+            if '=' in line:
+                args = line.split('=')
+                if len(args) <= 1:
+                    continue
+                key = args[0].strip()
+                value = args[1].strip()
+                if key in expected.keys():
+                    if expected[key] != value:
+                        msg = ('Config mismatch.  Expected, actual:  {}, '
+                               '{}'.format(expected[key], value))
+                        amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def get_unit_hostnames(self, units):
+        """Return a dict of juju unit names to hostnames."""
+        host_names = {}
+        for unit in units:
+            host_names[unit.info['unit_name']] = \
+                str(unit.file_contents('/etc/hostname').strip())
+        self.log.debug('Unit host names: {}'.format(host_names))
+        return host_names
+
+    def run_cmd_unit(self, sentry_unit, cmd):
+        """Run a command on a unit, return the output and exit code."""
+        output, code = sentry_unit.run(cmd)
+        if code == 0:
+            self.log.debug('{} `{}` command returned {} '
+                           '(OK)'.format(sentry_unit.info['unit_name'],
+                                         cmd, code))
+        else:
+            msg = ('{} `{}` command returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, code, output))
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        return str(output), code
+
+    def file_exists_on_unit(self, sentry_unit, file_name):
+        """Check if a file exists on a unit."""
+        try:
+            sentry_unit.file_stat(file_name)
+            return True
+        except IOError:
+            return False
+        except Exception as e:
+            msg = 'Error checking file {}: {}'.format(file_name, e)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def file_contents_safe(self, sentry_unit, file_name,
+                           max_wait=60, fatal=False):
+        """Get file contents from a sentry unit.  Wrap amulet file_contents
+        with retry logic to address races where a file checks as existing,
+        but no longer exists by the time file_contents is called.
+        Return None if file not found. Optionally raise if fatal is True."""
+        unit_name = sentry_unit.info['unit_name']
+        file_contents = False
+        tries = 0
+        while not file_contents and tries < (max_wait / 4):
+            try:
+                file_contents = sentry_unit.file_contents(file_name)
+            except IOError:
+                self.log.debug('Attempt {} to open file {} from {} '
+                               'failed'.format(tries, file_name,
+                                               unit_name))
+                time.sleep(4)
+                tries += 1
+
+        if file_contents:
+            return file_contents
+        elif not fatal:
+            return None
+        elif fatal:
+            msg = 'Failed to get file contents from unit.'
+            amulet.raise_status(amulet.FAIL, msg)
+
+    def port_knock_tcp(self, host="localhost", port=22, timeout=15):
+        """Open a TCP socket to check for a listening sevice on a host.
+
+        :param host: host name or IP address, default to localhost
+        :param port: TCP port number, default to 22
+        :param timeout: Connect timeout, default to 15 seconds
+        :returns: True if successful, False if connect failed
+        """
+
+        # Resolve host name if possible
+        try:
+            connect_host = socket.gethostbyname(host)
+            host_human = "{} ({})".format(connect_host, host)
+        except socket.error as e:
+            self.log.warn('Unable to resolve address: '
+                          '{} ({}) Trying anyway!'.format(host, e))
+            connect_host = host
+            host_human = connect_host
+
+        # Attempt socket connection
+        try:
+            knock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            knock.settimeout(timeout)
+            knock.connect((connect_host, port))
+            knock.close()
+            self.log.debug('Socket connect OK for host '
+                           '{} on port {}.'.format(host_human, port))
+            return True
+        except socket.error as e:
+            self.log.debug('Socket connect FAIL for'
+                           ' {} port {} ({})'.format(host_human, port, e))
+            return False
+
+    def port_knock_units(self, sentry_units, port=22,
+                         timeout=15, expect_success=True):
+        """Open a TCP socket to check for a listening sevice on each
+        listed juju unit.
+
+        :param sentry_units: list of sentry unit pointers
+        :param port: TCP port number, default to 22
+        :param timeout: Connect timeout, default to 15 seconds
+        :expect_success: True by default, set False to invert logic
+        :returns: None if successful, Failure message otherwise
+        """
+        for unit in sentry_units:
+            host = unit.info['public-address']
+            connected = self.port_knock_tcp(host, port, timeout)
+            if not connected and expect_success:
+                return 'Socket connect failed.'
+            elif connected and not expect_success:
+                return 'Socket connected unexpectedly.'
+
+    def get_uuid_epoch_stamp(self):
+        """Returns a stamp string based on uuid4 and epoch time.  Useful in
+        generating test messages which need to be unique-ish."""
+        return '[{}-{}]'.format(uuid.uuid4(), time.time())
+
+# amulet juju action helpers:
     def run_action(self, unit_sentry, action,
                    _check_output=subprocess.check_output):
         """Run the named action on a given unit sentry.
