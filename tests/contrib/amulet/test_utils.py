@@ -320,7 +320,7 @@ class StatusGetTestCase(unittest.TestCase):
         """
         We can get the status of a unit.
         """
-        self.sentry_unit.commands["status-get --format=json"] = (
+        self.sentry_unit.commands["status-get --format=json --include-data"] = (
             """{"status": "active", "message": "foo"}""", 0)
         self.assertEqual(self.utils.status_get(self.sentry_unit),
                          (u"active", u"foo"))
@@ -330,7 +330,7 @@ class StatusGetTestCase(unittest.TestCase):
         Older releases of Juju have no status-get command.  In those
         cases we should return the "unknown" status.
         """
-        self.sentry_unit.commands["status-get --format=json"] = (
+        self.sentry_unit.commands["status-get --format=json --include-data"] = (
             "status-get: command not found", 127)
         self.assertEqual(self.utils.status_get(self.sentry_unit),
                          (u"unknown", u""))
