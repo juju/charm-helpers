@@ -602,4 +602,4 @@ class AmuletUtils(object):
         if return_code != 0:
             return ("unknown", "")
         status = json.loads(raw_status)
-        return (status["status"], status.get("message", ""))
+        return (status["status"], status["message"])
