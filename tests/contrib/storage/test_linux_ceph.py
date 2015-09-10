@@ -827,27 +827,27 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_broker_request_complete(self, mlocal_unit, muuid):
+    def test_is_request_complete_for_rid(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=3)
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
-        self.assertTrue(ceph_utils.is_broker_request_complete(req, 'ceph:8'))
+        self.assertTrue(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_broker_request_complete_newrq(self, mlocal_unit, muuid):
+    def test_is_request_complete_for_rid_newrq(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = 'a44c0fa6'
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=4)
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
-        self.assertFalse(ceph_utils.is_broker_request_complete(req, 'ceph:8'))
+        self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_broker_request_complete_failed(self, mlocal_unit, muuid):
+    def test_is_request_complete_for_rid_failed(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=4)
@@ -855,11 +855,11 @@ class CephUtilsTests(TestCase):
         rel = copy.deepcopy(CEPH_CLIENT_RELATION)
         rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = '{"request-id": "0bc7dc54", "exit-code": 1}'
         self.setup_client_relation(rel)
-        self.assertFalse(ceph_utils.is_broker_request_complete(req, 'ceph:8'))
+        self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_broker_request_complete_pending(self, mlocal_unit, muuid):
+    def test_is_request_complete_for_rid_pending(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=4)
@@ -867,17 +867,17 @@ class CephUtilsTests(TestCase):
         rel = copy.deepcopy(CEPH_CLIENT_RELATION)
         del rel['ceph:8']['ceph/0']['broker-rsp-glance-0']
         self.setup_client_relation(rel)
-        self.assertFalse(ceph_utils.is_broker_request_complete(req, 'ceph:8'))
+        self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_broker_request_complete_legacy(self, mlocal_unit, muuid):
+    def test_is_request_complete_for_rid_legacy(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=3)
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
-        self.assertTrue(ceph_utils.is_broker_request_complete(req, 'ceph:8'))
+        self.assertTrue(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'local_unit')
     def test_get_broker_rsp_key(self, mlocal_unit):
