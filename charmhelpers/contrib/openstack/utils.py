@@ -707,7 +707,7 @@ def git_yaml_value(projects_yaml, key):
     return None
 
 
-def context_status(configs, required_interfaces):
+def os_workload_status(configs, required_interfaces, charm_func=None):
     """
     Decorator to set workload status based on complete contexts
     """
@@ -718,21 +718,27 @@ def context_status(configs, required_interfaces):
             f(*args, **kwargs)
             # Set workload status now that contexts have been
             # acted on
-            set_context_status(configs, required_interfaces)
+            set_os_workload_status(configs, required_interfaces, charm_func)
         return wrapped_f
     return wrap
 
 
-def set_context_status(configs, required_interfaces):
+def set_os_workload_status(configs, required_interfaces, charm_func=None):
     """
     Set workload status based on complete contexts.
     status-set missing or incomplete contexts
     and juju-log details of missing required data.
+    charm_func is a charm specific function to run checking
+    for charm specific requirements such as a VIP setting.
     """
     incomplete_ctxts = incomplete_contexts(configs, required_interfaces)
     state = 'active'
     missing_relations = []
     incomplete_relations = []
+    message = None
+    charm_state = None
+    charm_message = None
+
     for context in incomplete_ctxts.keys():
         related_interface = None
         missing_data = {}
@@ -789,10 +795,44 @@ def set_context_status(configs, required_interfaces):
         message = "Incomplete relations: {}" \
                   "".format(", ".join(incomplete_relations))
         state = 'waiting'
+
+    # Run charm specific checks
+    if charm_func:
+        charm_state, charm_message = charm_func(configs)
+        if charm_state != 'active' and charm_state != 'unknown':
+            state = workload_state_compare(state, charm_state)
+            if message:
+                message = "{} {}".format(message, charm_message)
+            else:
+                message = charm_message
+
+    # Set to active if all requirements have been met
     if state == 'active':
         message = "All required contexts are present and complete"
         juju_log(message, "INFO")
+
     status_set(state, message)
+
+
+def workload_state_compare(current_workload_state, workload_state):
+    """ Return highest priority of two states"""
+    hierarchy = {'unknown': -1,
+                 'active': 0,
+                 'maintenance': 1,
+                 'waiting': 2,
+                 'blocked': 3,
+                 }
+
+    if hierarchy.get(workload_state) is None:
+        workload_state = 'unknown'
+    if hierarchy.get(current_workload_state) is None:
+        current_workload_state = 'unknown'
+
+    # Set workload_state based on hierarchy of statuses
+    if hierarchy.get(current_workload_state) > hierarchy.get(workload_state):
+        return current_workload_state
+    else:
+        return workload_state
 
 
 def incomplete_contexts(configs, required_interfaces):

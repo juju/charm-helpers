@@ -203,7 +203,7 @@ class OSContextGenerator(object):
         """Check for missing data for the required context data.
         Set self.missing_data if it exists and return False.
         Set self.complete if no missing data and return True.
-        """ 
+        """
         # Fresh start
         self.complete = False
         self.missing_data = []
