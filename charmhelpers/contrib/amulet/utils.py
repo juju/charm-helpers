@@ -776,3 +776,12 @@ class AmuletUtils(object):
         output = _check_output(command, universal_newlines=True)
         data = json.loads(output)
         return data.get(u"status") == "completed"
+
+    def status_get(self, unit):
+        """Return the current service status of this unit."""
+        raw_status, return_code = unit.run(
+            "status-get --format=json --include-data")
+        if return_code != 0:
+            return ("unknown", "")
+        status = json.loads(raw_status)
+        return (status["status"], status["message"])
