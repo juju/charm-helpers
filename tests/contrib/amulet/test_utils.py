@@ -308,3 +308,29 @@ class GetUnitProcessIdsTestCase(unittest.TestCase):
         self.assertEqual({
             self.sentry_unit: {"foo": []},
             second_sentry: {"bar": []}}, result)
+
+
+class StatusGetTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.utils = AmuletUtils()
+        self.sentry_unit = FakeSentry()
+
+    def test_status_get(self):
+        """
+        We can get the status of a unit.
+        """
+        self.sentry_unit.commands["status-get --format=json --include-data"] = (
+            """{"status": "active", "message": "foo"}""", 0)
+        self.assertEqual(self.utils.status_get(self.sentry_unit),
+                         (u"active", u"foo"))
+
+    def test_status_get_missing_command(self):
+        """
+        Older releases of Juju have no status-get command.  In those
+        cases we should return the "unknown" status.
+        """
+        self.sentry_unit.commands["status-get --format=json --include-data"] = (
+            "status-get: command not found", 127)
+        self.assertEqual(self.utils.status_get(self.sentry_unit),
+                         (u"unknown", u""))
