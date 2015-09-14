@@ -781,7 +781,7 @@ def do_action_openstack_upgrade(package, upgrade_callback, configs):
                 juju_log('Upgrading OpenStack release')
 
                 try:
-                    do_openstack_upgrade(configs=configs)
+                    upgrade_callback(configs=configs)
                     action_set({'outcome': 'success, upgrade completed.'})
                     ret = True
                 except:
