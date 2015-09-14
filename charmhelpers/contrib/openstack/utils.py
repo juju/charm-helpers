@@ -754,7 +754,7 @@ def git_yaml_value(projects_yaml, key):
     return None
 
 
-def do_action_openstack_upgrade(package, do_openstack_upgrade, configs):
+def do_action_openstack_upgrade(package, upgrade_callback, configs):
     """Perform action-managed OpenStack upgrade.
 
     Upgrades packages to the configured openstack-origin version and sets
