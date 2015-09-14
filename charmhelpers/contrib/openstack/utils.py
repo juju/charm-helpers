@@ -760,21 +760,30 @@ def git_yaml_value(projects_yaml, key):
     return None
 
 
-def do_action_openstack_upgrade(package, action_managed_upgrade,
-                                do_openstack_upgrade, configs):
-    """Upgrade packages to config-set Openstack version.
+def do_action_openstack_upgrade(package, do_openstack_upgrade, configs):
+    """Perform action-managed OpenStack upgrade.
+
+    Upgrades packages to the configured openstack-origin version and sets
+    the corresponding action status as a result.
 
     If the charm was installed from source we cannot upgrade it.
-    For backwards compatibility a config flag must be set for this
-    code to run, otherwise a full service level upgrade will fire
-    on config-changed."""
+    For backwards compatibility a config flag (action-managed-upgrade) must
+    be set for this code to run, otherwise a full service level upgrade will
+    fire on config-changed.
+
+    @param package: package name for determining if upgrade available
+    @param do_openstack_upgrade: function callback to charm's upgrade function
+    @param configs: templating object derived from OSConfigRenderer class
+
+    @return: True if upgrade successful; False if upgrade failed or skipped
+    """
     ret = False
 
     if git_install_requested():
         action_set({'outcome': 'installed from source, skipped upgrade.'})
     else:
         if openstack_upgrade_available(package):
-            if action_managed_upgrade:
+            if config('action-managed-upgrade'):
                 juju_log('Upgrading OpenStack release')
 
                 try:
