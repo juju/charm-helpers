@@ -45,12 +45,6 @@ from charmhelpers.core.hookenv import (
     relation_set
 )
 
-from charmhelpers.contrib.openstack.utils import (
-    git_install_requested,
-    juju_log,
-    openstack_upgrade_available,
-)
-
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
     is_lvm_physical_volume,
