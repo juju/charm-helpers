@@ -766,7 +766,7 @@ def do_action_openstack_upgrade(package, upgrade_callback, configs):
     fire on config-changed.
 
     @param package: package name for determining if upgrade available
-    @param do_openstack_upgrade: function callback to charm's upgrade function
+    @param upgrade_callback: function callback to charm's upgrade function
     @param configs: templating object derived from OSConfigRenderer class
 
     @return: True if upgrade successful; False if upgrade failed or skipped
