@@ -25,6 +25,7 @@ import sys
 import re
 
 import six
+import traceback
 import yaml
 
 from charmhelpers.contrib.network import ip
@@ -34,12 +35,20 @@ from charmhelpers.core import (
 )
 
 from charmhelpers.core.hookenv import (
+    action_fail,
+    action_set,
     config,
     log as juju_log,
     charm_dir,
     INFO,
     relation_ids,
     relation_set
+)
+
+from charmhelpers.contrib.openstack.utils import (
+    git_install_requested,
+    juju_log,
+    openstack_upgrade_available,
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
@@ -749,3 +758,38 @@ def git_yaml_value(projects_yaml, key):
         return projects[key]
 
     return None
+
+
+def do_action_openstack_upgrade(package, action_managed_upgrade,
+                                do_openstack_upgrade, configs):
+    """Upgrade packages to config-set Openstack version.
+
+    If the charm was installed from source we cannot upgrade it.
+    For backwards compatibility a config flag must be set for this
+    code to run, otherwise a full service level upgrade will fire
+    on config-changed."""
+    ret = False
+
+    if git_install_requested():
+        action_set({'outcome': 'installed from source, skipped upgrade.'})
+    else:
+        if openstack_upgrade_available(package):
+            if action_managed_upgrade:
+                juju_log('Upgrading OpenStack release')
+
+                try:
+                    do_openstack_upgrade(configs=configs)
+                    action_set({'outcome': 'success, upgrade completed.'})
+                    ret = True
+                except:
+                    action_set({'outcome': 'upgrade failed, see traceback.'})
+                    action_set({'traceback': traceback.format_exc()})
+                    action_fail('do_openstack_upgrade resulted in an '
+                                'unexpected error')
+            else:
+                action_set({'outcome': 'action-managed-upgrade config is '
+                                       'False, skipped upgrade.'})
+        else:
+            action_set({'outcome': 'no upgrade available.'})
+
+    return ret
