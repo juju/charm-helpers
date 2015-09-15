@@ -731,7 +731,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
     charm_func is a charm specific function to run checking
     for charm specific requirements such as a VIP setting.
     """
-    incomplete_ctxts = incomplete_contexts(configs, required_interfaces)
+    incomplete_ctxts = incomplete_relation_data(configs, required_interfaces)
     state = 'active'
     missing_relations = []
     incomplete_relations = []
@@ -835,7 +835,7 @@ def workload_state_compare(current_workload_state, workload_state):
         return workload_state
 
 
-def incomplete_contexts(configs, required_interfaces):
+def incomplete_relation_data(configs, required_interfaces):
     """
     Check complete contexts against required_interfaces
     Return list of incomplete contexts
