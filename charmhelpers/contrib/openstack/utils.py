@@ -808,7 +808,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
 
     # Set to active if all requirements have been met
     if state == 'active':
-        message = "Charm is ready"
+        message = "Unit is ready"
         juju_log(message, "INFO")
 
     status_set(state, message)
