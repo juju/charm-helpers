@@ -848,9 +848,7 @@ class OpenStackHelpersTestCase(TestCase):
             'identity': ['identity-service']}
 
         openstack.set_os_workload_status(configs, required_interfaces)
-        status_set.assert_called_with('active',
-                                      'All required contexts are present and '
-                                      'complete')
+        status_set.assert_called_with('active', 'Charm is ready')
 
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity': {'identity-service': {'related': True}}})

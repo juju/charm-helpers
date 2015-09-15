@@ -731,7 +731,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
     charm_func is a charm specific function to run checking
     for charm specific requirements such as a VIP setting.
     """
-    incomplete_ctxts = incomplete_relation_data(configs, required_interfaces)
+    incomplete_rel_data = incomplete_relation_data(configs, required_interfaces)
     state = 'active'
     missing_relations = []
     incomplete_relations = []
@@ -739,21 +739,21 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
     charm_state = None
     charm_message = None
 
-    for context in incomplete_ctxts.keys():
+    for generic_interface in incomplete_rel_data.keys():
         related_interface = None
         missing_data = {}
         # Related or not?
-        for interface in incomplete_ctxts[context]:
-            if incomplete_ctxts[context][interface].get('related'):
+        for interface in incomplete_rel_data[generic_interface]:
+            if incomplete_rel_data[generic_interface][interface].get('related'):
                 related_interface = interface
-                missing_data = incomplete_ctxts[context][interface].get('missing_data')
-        # No relation ID for the context
+                missing_data = incomplete_rel_data[generic_interface][interface].get('missing_data')
+        # No relation ID for the generic_interface
         if not related_interface:
-            juju_log("{} context is missing and must be related for "
-                     "functionality. ".format(context), 'WARN')
+            juju_log("{} relation is missing and must be related for "
+                     "functionality. ".format(generic_interface), 'WARN')
             state = 'blocked'
-            if context not in missing_relations:
-                missing_relations.append(context)
+            if generic_interface not in missing_relations:
+                missing_relations.append(generic_interface)
         else:
             # Relation ID exists but no related unit
             if not missing_data:
@@ -761,29 +761,29 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
                 if ('departed' in hook_name() or 'broken' in hook_name()) \
                         and related_interface in hook_name():
                     state = 'blocked'
-                    if context not in missing_relations:
-                        missing_relations.append(context)
-                    juju_log("{} context's interface, {}, "
+                    if generic_interface not in missing_relations:
+                        missing_relations.append(generic_interface)
+                    juju_log("{} relation's interface, {}, "
                              "relationship is departed or broken "
                              "and is required for functionality."
-                             "".format(context, related_interface), "WARN")
+                             "".format(generic_interface, related_interface), "WARN")
                 # Normal case relation ID exists but no related unit
                 # (joining)
                 else:
-                    juju_log("{} context's interface, {}, is related but has "
+                    juju_log("{} relations's interface, {}, is related but has "
                              "no units in the relation."
-                             "".format(context, related_interface), "INFO")
+                             "".format(generic_interface, related_interface), "INFO")
             # Related unit exists and data missing on the relation
             else:
-                juju_log("{} context's interface, {}, is related awaiting "
+                juju_log("{} relation's interface, {}, is related awaiting "
                          "the following data from the relationship: {}. "
-                         "".format(context, related_interface,
+                         "".format(generic_interface, related_interface,
                                    ", ".join(missing_data)), "INFO")
             if state != 'blocked':
                 state = 'waiting'
-            if context not in incomplete_relations \
-                    and context not in missing_relations:
-                incomplete_relations.append(context)
+            if generic_interface not in incomplete_relations \
+                    and generic_interface not in missing_relations:
+                incomplete_relations.append(generic_interface)
 
     if missing_relations:
         message = "Missing relations: {}".format(", ".join(missing_relations))
@@ -808,7 +808,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
 
     # Set to active if all requirements have been met
     if state == 'active':
-        message = "All required contexts are present and complete"
+        message = "Charm is ready"
         juju_log(message, "INFO")
 
     status_set(state, message)
@@ -838,7 +838,7 @@ def workload_state_compare(current_workload_state, workload_state):
 def incomplete_relation_data(configs, required_interfaces):
     """
     Check complete contexts against required_interfaces
-    Return list of incomplete contexts
+    Return dictionary of incomplete relation data.
 
     configs is an OSConfigRenderer object with configs registered
 
@@ -862,7 +862,7 @@ def incomplete_relation_data(configs, required_interfaces):
               'shared-db': {'related': True}}}
     """
     complete_ctxts = configs.complete_contexts()
-    incomplete_contexts = []
+    incomplete_relations = []
     for svc_type in required_interfaces.keys():
         # Avoid duplicates
         found_ctxt = False
@@ -870,8 +870,8 @@ def incomplete_relation_data(configs, required_interfaces):
             if interface in complete_ctxts:
                 found_ctxt = True
         if not found_ctxt:
-            incomplete_contexts.append(svc_type)
+            incomplete_relations.append(svc_type)
     incomplete_context_data = {}
-    for i in incomplete_contexts:
+    for i in incomplete_relations:
         incomplete_context_data[i] = configs.get_incomplete_context_data(required_interfaces[i])
     return incomplete_context_data
