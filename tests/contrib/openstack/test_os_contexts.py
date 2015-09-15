@@ -2594,7 +2594,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.return_value = []
         self.assertEquals(context.NetworkServiceContext()(), {})
 
-    @patch.object(context, 'context_complete')
+    @patch.object(context.OSContextGenerator, 'context_complete')
     def test_network_service_ctxt_no_data(self, mock_context_complete):
         rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
         self.relation_ids.side_effect = rel.relation_ids
