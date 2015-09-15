@@ -840,5 +840,108 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.git_src_dir(openstack_origin_git, 'keystone')
         join.assert_called_with('/mnt/openstack-git', 'keystone')
 
+    def test_incomplete_relation_data(self):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['pgsql-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+        expected_result = 'identity'
+
+        result = openstack.incomplete_relation_data(configs, required_interfaces)
+        self.assertTrue(expected_result in result.keys())
+
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete(self, status_set):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('active', 'Unit is ready')
+
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity': {'identity-service': {'related': True}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_related_incomplete(self, status_set,
+                                                       incomplete_relation_data):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('waiting',
+                                      "Incomplete relations: identity")
+
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity': {'identity-service': {'related': False}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_absent(self, status_set,
+                                           incomplete_relation_data):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      'Missing relations: identity')
+
+    @patch('charmhelpers.contrib.openstack.utils.hook_name',
+           return_value='identity-service-relation-broken')
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity': {'identity-service': {'related': True}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_related_broken(self, status_set,
+                                                   incomplete_relation_data,
+                                                   hook_name):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      "Missing relations: identity")
+
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity':
+                         {'identity-service': {'related': True}},
+
+                         'message':
+                         {'amqp': {'missing_data': ['rabbitmq-password'],
+                                   'related': True}},
+
+                         'database':
+                         {'shared-db': {'related': False}}
+                         })
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_mixed(self, status_set, incomplete_relation_data):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      "Missing relations: database; "
+                                      "incomplete relations: message, "
+                                      "identity")
+
 if __name__ == '__main__':
     unittest.main()
