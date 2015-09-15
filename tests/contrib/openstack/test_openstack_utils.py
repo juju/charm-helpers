@@ -854,9 +854,9 @@ class OpenStackHelpersTestCase(TestCase):
         # openstack-origin-git=None, action-managed-upgrade=True
         config.side_effect = [None, True]
 
-        ret = openstack.do_action_openstack_upgrade('package-xyz',
-                                                    do_openstack_upgrade,
-                                                    None)
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
 
         self.assertTrue(openstack_upgrade_available.called)
         msg = ('success, upgrade completed.')
@@ -867,8 +867,8 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_openstack_upgrade(self, config, openstack_upgrade_available,
-                               action_fail, action_set):
+    def test_openstack_upgrade_git(self, config, openstack_upgrade_available,
+                                   action_fail, action_set):
         def do_openstack_upgrade(configs):
             pass
 
@@ -877,9 +877,9 @@ class OpenStackHelpersTestCase(TestCase):
         # openstack-origin-git=xyz
         config.side_effect = ['openstack-origin-git: xyz']
 
-        ret = openstack.do_action_openstack_upgrade('package-xyz',
-                                                    do_openstack_upgrade,
-                                                    None)
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
 
         self.assertFalse(openstack_upgrade_available.called)
         msg = ('installed from source, skipped upgrade.')
@@ -901,9 +901,9 @@ class OpenStackHelpersTestCase(TestCase):
         # openstack-origin-git=None
         config.side_effect = [None]
 
-        ret = openstack.do_action_openstack_upgrade('package-xyz',
-                                                    do_openstack_upgrade,
-                                                    None)
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
 
         self.assertTrue(openstack_upgrade_available.called)
         msg = ('no upgrade available.')
@@ -925,9 +925,9 @@ class OpenStackHelpersTestCase(TestCase):
         # openstack-origin-git=None, action-managed-upgrade=False
         config.side_effect = [None, False]
 
-        ret = openstack.do_action_openstack_upgrade('package-xyz',
-                                                    do_openstack_upgrade,
-                                                    None)
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
 
         self.assertTrue(openstack_upgrade_available.called)
         msg = ('action-managed-upgrade config is False, skipped upgrade.')
@@ -942,16 +942,16 @@ class OpenStackHelpersTestCase(TestCase):
                                           openstack_upgrade_available,
                                           action_fail, action_set):
         def do_openstack_upgrade(configs):
-            oops()
+            oops()  # noqa
 
         openstack_upgrade_available.return_value = True
 
         # openstack-origin-git=None, action-managed-upgrade=False
         config.side_effect = [None, True]
 
-        ret = openstack.do_action_openstack_upgrade('package-xyz',
-                                                    do_openstack_upgrade,
-                                                    None)
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
 
         self.assertTrue(openstack_upgrade_available.called)
         traceback = (
@@ -963,7 +963,7 @@ class OpenStackHelpersTestCase(TestCase):
             "  File"
             " \"/home/ubuntu/src/charm-helpers/tests/contrib/openstack/test_openstack_utils.py\","  # noqa
             " line 945, in do_openstack_upgrade\n"
-            "    oops()\nNameError: global name \'oops\' is not defined\n")
+            "    oops()  # noqa\nNameError: global name \'oops\' is not defined\n")
         msg = 'do_openstack_upgrade resulted in an unexpected error'
         action_fail.assert_called_with(msg)
         action_set.assert_called_with({'traceback': traceback})
