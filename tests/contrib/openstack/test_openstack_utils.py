@@ -1040,10 +1040,11 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('traceback.format_exc')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_openstack_upgrade_tracebacke(self, config,
-                                          openstack_upgrade_available,
-                                          action_fail, action_set):
+    def test_openstack_upgrade_traceback(self, config, traceback,
+                                         openstack_upgrade_available,
+                                         action_fail, action_set):
         def do_openstack_upgrade(configs):
             oops()  # noqa
 
@@ -1057,19 +1058,10 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        traceback = (
-            "Traceback (most recent call last):\n"
-            "  File"
-            " \"/home/ubuntu/src/charm-helpers/charmhelpers/contrib/openstack/utils.py\","  # noqa
-            " line 784, in do_action_openstack_upgrade\n"
-            "    upgrade_callback(configs=configs)\n"
-            "  File"
-            " \"/home/ubuntu/src/charm-helpers/tests/contrib/openstack/test_openstack_utils.py\","  # noqa
-            " line 945, in do_openstack_upgrade\n"
-            "    oops()  # noqa\nNameError: global name \'oops\' is not defined\n")
         msg = 'do_openstack_upgrade resulted in an unexpected error'
         action_fail.assert_called_with(msg)
-        action_set.assert_called_with({'traceback': traceback})
+        self.assertTrue(action_set.called)
+        self.assertTrue(traceback.called)
 
 if __name__ == '__main__':
     unittest.main()
