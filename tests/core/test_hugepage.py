@@ -46,7 +46,7 @@ class HugepageTests(TestCase):
         self.fstab.Fstab().remove_entry.assert_called_with('old fstab entry')
         self.fstab.Fstab().Entry.assert_called_with(
             'nodev', '/run/hugepages/kvm', 'hugetlbfs',
-            'mode=1770,gid=1010,pagesize=2097152', 0, 0)
+            'mode=1770,gid=1010,pagesize=2MB', 0, 0)
         self.fstab.Fstab().add_entry.assert_called_with('new fstab entry')
         self.fstab_mount.assert_called_with('/run/hugepages/kvm')
 
@@ -70,7 +70,7 @@ class HugepageTests(TestCase):
         self.fstab.Fstab().Entry.return_value = 'new fstab entry'
         hugepage.hugepage_support(
             'nova', group='neutron', nr_hugepages=512, max_map_count=70000,
-            mnt_point='/hugepages', pagesize=1073741824, mount=False)
+            mnt_point='/hugepages', pagesize='1G', mount=False)
         sysctl_expect = {
             'vm.hugetlb_shm_group': '1010',
             'vm.max_map_count': 70000,
@@ -83,7 +83,7 @@ class HugepageTests(TestCase):
         self.fstab.Fstab().remove_entry.assert_called_with('old fstab entry')
         self.fstab.Fstab().Entry.assert_called_with(
             'nodev', '/hugepages', 'hugetlbfs',
-            'mode=1770,gid=1010,pagesize=1073741824', 0, 0)
+            'mode=1770,gid=1010,pagesize=1G', 0, 0)
         self.fstab.Fstab().add_entry.assert_called_with('new fstab entry')
 
     def test_hugepage_support_set_shmmax(self):
