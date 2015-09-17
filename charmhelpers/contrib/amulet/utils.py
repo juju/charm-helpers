@@ -383,29 +383,55 @@ class AmuletUtils(object):
             return False
 
     def config_updated_since(self, sentry_unit, filename, mtime,
-                             sleep_time=20):
+                             sleep_time=20, retry_sleep_time=30,
+                             retry_count=2):
         """Check if file was modified after a given time.
 
         Args:
           sentry_unit (sentry): The sentry unit to check the file mtime on
           filename (string): The file to check mtime of
           mtime (float): The epoch time to check against
-          sleep_time (int): Seconds to sleep before looking for process
+          sleep_time (int): Initial sleep time (s) before looking for file
+          retry_sleep_time (int): Time (s) to sleep between retries
+          retry_count (int): If file is not found, how many times to retry
 
         Returns:
           bool: True if file was modified more recently than mtime, False if
-                file was modified before mtime,
+                file was modified before mtime, or if file not found.
         """
-        self.log.debug('Checking %s updated since %s' % (filename, mtime))
+        unit_name = sentry_unit.info['unit_name']
+        self.log.debug('Checking that %s updated since %s on '
+                       '%s' % (filename, mtime, unit_name))
         time.sleep(sleep_time)
-        file_mtime = self._get_file_mtime(sentry_unit, filename)
+        file_mtime = None
+        tries = 0
+        while tries <= retry_count and not file_mtime:
+            try:
+                file_mtime = self._get_file_mtime(sentry_unit, filename)
+                self.log.debug('Attempt {} to get {} file mtime on {} '
+                               'OK'.format(tries, filename, unit_name))
+            except IOError:
+                # NOTE(beisner) - race avoidance, file may not exist yet.
+                # https://bugs.launchpad.net/charm-helpers/+bug/1474030
+                self.log.debug('Attempt {} to get {} file mtime on {} '
+                               'failed'.format(tries, filename, unit_name))
+                time.sleep(retry_sleep_time)
+                tries += 1
+
+        if not file_mtime:
+            self.log.warn('Could not determine file mtime, assuming '
+                          'file does not exist')
+            return False
+
         if file_mtime >= mtime:
             self.log.debug('File mtime is newer than provided mtime '
-                           '(%s >= %s)' % (file_mtime, mtime))
+                           '(%s >= %s) on %s (OK)' % (file_mtime,
+                                                      mtime, unit_name))
             return True
         else:
-            self.log.warn('File mtime %s is older than provided mtime %s'
-                          % (file_mtime, mtime))
+            self.log.warn('File mtime is older than provided mtime'
+                          '(%s < on %s) on %s' % (file_mtime,
+                                                  mtime, unit_name))
             return False
 
     def validate_service_config_changed(self, sentry_unit, mtime, service,
@@ -456,7 +482,9 @@ class AmuletUtils(object):
             sentry_unit,
             filename,
             mtime,
-            sleep_time=0)
+            sleep_time=0,
+            retry_count=retry_count,
+            retry_sleep_time=retry_sleep_time)
 
         return service_restart and config_update
 
