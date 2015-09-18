@@ -32,15 +32,15 @@ from charmhelpers.core.hookenv import (
 try:
     import netifaces
 except ImportError:
-    apt_update()
-    apt_install('python-netifaces')
+    apt_update(fatal=True)
+    apt_install('python-netifaces', fatal=True)
     import netifaces
 
 try:
     import netaddr
 except ImportError:
-    apt_update()
-    apt_install('python-netaddr')
+    apt_update(fatal=True)
+    apt_install('python-netaddr', fatal=True)
     import netaddr
 
 
