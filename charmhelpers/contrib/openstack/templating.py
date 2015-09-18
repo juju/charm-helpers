@@ -18,7 +18,7 @@ import os
 
 import six
 
-from charmhelpers.fetch import apt_install
+from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
     log,
     ERROR,
@@ -29,6 +29,7 @@ from charmhelpers.contrib.openstack.utils import OPENSTACK_CODENAMES
 try:
     from jinja2 import FileSystemLoader, ChoiceLoader, Environment, exceptions
 except ImportError:
+    apt_update(fatal=True)
     apt_install('python-jinja2', fatal=True)
     from jinja2 import FileSystemLoader, ChoiceLoader, Environment, exceptions
 
