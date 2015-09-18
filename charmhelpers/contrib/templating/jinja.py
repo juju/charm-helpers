@@ -18,14 +18,15 @@
 Templating using the python-jinja2 package.
 """
 import six
-from charmhelpers.fetch import apt_install
+from charmhelpers.fetch import apt_install, apt_update
 try:
     import jinja2
 except ImportError:
+    apt_update(fatal=True)
     if six.PY3:
-        apt_install(["python3-jinja2"])
+        apt_install(["python3-jinja2"], fatal=True)
     else:
-        apt_install(["python-jinja2"])
+        apt_install(["python-jinja2"], fatal=True)
     import jinja2
 
 
