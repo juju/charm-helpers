@@ -25,6 +25,7 @@ import sys
 import re
 
 import six
+import traceback
 import yaml
 
 from charmhelpers.contrib.network import ip
@@ -34,6 +35,8 @@ from charmhelpers.core import (
 )
 
 from charmhelpers.core.hookenv import (
+    action_fail,
+    action_set,
     config,
     log as juju_log,
     charm_dir,
@@ -921,3 +924,47 @@ def incomplete_relation_data(configs, required_interfaces):
     for i in incomplete_relations:
         incomplete_context_data[i] = configs.get_incomplete_context_data(required_interfaces[i])
     return incomplete_context_data
+
+
+def do_action_openstack_upgrade(package, upgrade_callback, configs):
+    """Perform action-managed OpenStack upgrade.
+
+    Upgrades packages to the configured openstack-origin version and sets
+    the corresponding action status as a result.
+
+    If the charm was installed from source we cannot upgrade it.
+    For backwards compatibility a config flag (action-managed-upgrade) must
+    be set for this code to run, otherwise a full service level upgrade will
+    fire on config-changed.
+
+    @param package: package name for determining if upgrade available
+    @param upgrade_callback: function callback to charm's upgrade function
+    @param configs: templating object derived from OSConfigRenderer class
+
+    @return: True if upgrade successful; False if upgrade failed or skipped
+    """
+    ret = False
+
+    if git_install_requested():
+        action_set({'outcome': 'installed from source, skipped upgrade.'})
+    else:
+        if openstack_upgrade_available(package):
+            if config('action-managed-upgrade'):
+                juju_log('Upgrading OpenStack release')
+
+                try:
+                    upgrade_callback(configs=configs)
+                    action_set({'outcome': 'success, upgrade completed.'})
+                    ret = True
+                except:
+                    action_set({'outcome': 'upgrade failed, see traceback.'})
+                    action_set({'traceback': traceback.format_exc()})
+                    action_fail('do_openstack_upgrade resulted in an '
+                                'unexpected error')
+            else:
+                action_set({'outcome': 'action-managed-upgrade config is '
+                                       'False, skipped upgrade.'})
+        else:
+            action_set({'outcome': 'no upgrade available.'})
+
+    return ret
