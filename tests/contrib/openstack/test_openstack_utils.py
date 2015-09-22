@@ -852,8 +852,9 @@ class OpenStackHelpersTestCase(TestCase):
         result = openstack.incomplete_relation_data(configs, required_interfaces)
         self.assertTrue(expected_result in result.keys())
 
+    @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_complete(self, status_set):
+    def test_set_os_workload_status_complete(self, status_set, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db',
                                                   'amqp',
@@ -866,11 +867,13 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.set_os_workload_status(configs, required_interfaces)
         status_set.assert_called_with('active', 'Unit is ready')
 
+    @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity': {'identity-service': {'related': True}}})
     @patch('charmhelpers.contrib.openstack.utils.status_set')
     def test_set_os_workload_status_related_incomplete(self, status_set,
-                                                       incomplete_relation_data):
+                                                       incomplete_relation_data,
+                                                       log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -882,11 +885,12 @@ class OpenStackHelpersTestCase(TestCase):
         status_set.assert_called_with('waiting',
                                       "Incomplete relations: identity")
 
+    @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity': {'identity-service': {'related': False}}})
     @patch('charmhelpers.contrib.openstack.utils.status_set')
     def test_set_os_workload_status_absent(self, status_set,
-                                           incomplete_relation_data):
+                                           incomplete_relation_data, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -898,6 +902,7 @@ class OpenStackHelpersTestCase(TestCase):
         status_set.assert_called_with('blocked',
                                       'Missing relations: identity')
 
+    @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.hook_name',
            return_value='identity-service-relation-broken')
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
@@ -905,7 +910,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.status_set')
     def test_set_os_workload_status_related_broken(self, status_set,
                                                    incomplete_relation_data,
-                                                   hook_name):
+                                                   hook_name, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -917,6 +922,7 @@ class OpenStackHelpersTestCase(TestCase):
         status_set.assert_called_with('blocked',
                                       "Missing relations: identity")
 
+    @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity':
                          {'identity-service': {'related': True}},
@@ -929,7 +935,8 @@ class OpenStackHelpersTestCase(TestCase):
                          {'shared-db': {'related': False}}
                          })
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_mixed(self, status_set, incomplete_relation_data):
+    def test_set_os_workload_status_mixed(self, status_set, incomplete_relation_data,
+                                          log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -938,17 +945,24 @@ class OpenStackHelpersTestCase(TestCase):
             'identity': ['identity-service']}
 
         openstack.set_os_workload_status(configs, required_interfaces)
-        status_set.assert_called_with('blocked',
-                                      "Missing relations: database; "
-                                      "incomplete relations: message, "
-                                      "identity")
 
+        args = status_set.call_args
+        actual_parm1 = args[0][0]
+        actual_parm2 = args[0][1]
+        expected1 = ("Missing relations: database; incomplete relations: "
+                     "identity, message")
+        expected2 = ("Missing relations: database; incomplete relations: "
+                     "message, identity")
+        self.assertTrue(actual_parm1 == 'blocked')
+        self.assertTrue(actual_parm2 == expected1 or actual_parm2 == expected2)
+
+    @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade(self, config, openstack_upgrade_available,
-                               action_fail, action_set):
+                               action_fail, action_set, log):
         def do_openstack_upgrade(configs):
             pass
 
@@ -966,12 +980,13 @@ class OpenStackHelpersTestCase(TestCase):
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
+    @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_git(self, config, openstack_upgrade_available,
-                                   action_fail, action_set):
+                                   action_fail, action_set, log):
         def do_openstack_upgrade(configs):
             pass
 
@@ -989,13 +1004,14 @@ class OpenStackHelpersTestCase(TestCase):
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
+    @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_not_avail(self, config,
                                          openstack_upgrade_available,
-                                         action_fail, action_set):
+                                         action_fail, action_set, log):
         def do_openstack_upgrade(configs):
             pass
 
@@ -1013,13 +1029,14 @@ class OpenStackHelpersTestCase(TestCase):
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
+    @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_config_false(self, config,
                                             openstack_upgrade_available,
-                                            action_fail, action_set):
+                                            action_fail, action_set, log):
         def do_openstack_upgrade(configs):
             pass
 
@@ -1037,6 +1054,7 @@ class OpenStackHelpersTestCase(TestCase):
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
+    @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
@@ -1044,7 +1062,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_traceback(self, config, traceback,
                                          openstack_upgrade_available,
-                                         action_fail, action_set):
+                                         action_fail, action_set, log):
         def do_openstack_upgrade(configs):
             oops()  # noqa
 
