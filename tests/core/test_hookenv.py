@@ -1500,3 +1500,79 @@ class HooksTest(TestCase):
     def test_action_tag(self):
         with patch.dict('os.environ', JUJU_ACTION_TAG='action-jack'):
             self.assertEqual(hookenv.action_tag(), 'action-jack')
+
+    @patch('subprocess.check_output')
+    def test_storage_list(self, check_output):
+        ids = ['data/0', 'data/1', 'data/2']
+        check_output.return_value = json.dumps(ids).encode('UTF-8')
+
+        storage_name = 'arbitrary'
+        result = hookenv.storage_list(storage_name)
+
+        self.assertEqual(result, ids)
+        check_output.assert_called_with(['storage-list', '--format=json',
+                                         storage_name])
+
+    @patch('subprocess.check_output')
+    def test_storage_list_notexist(self, check_output):
+        import errno
+        e = OSError()
+        e.errno = errno.ENOENT
+        check_output.side_effect = e
+
+        result = hookenv.storage_list()
+
+        self.assertEqual(result, [])
+        check_output.assert_called_with(['storage-list', '--format=json'])
+
+    @patch('subprocess.check_output')
+    def test_storage_get_notexist(self, check_output):
+        # storage_get does not catch ENOENT, because there's no reason why you
+        # should be calling storage_get except from a storage hook, or with
+        # the result of storage_list (which will return [] as shown above).
+
+        import errno
+        e = OSError()
+        e.errno = errno.ENOENT
+        check_output.side_effect = e
+        self.assertRaises(OSError, hookenv.storage_get)
+
+    @patch('subprocess.check_output')
+    def test_storage_get(self, check_output):
+        result = {
+            'location': '/dev/sda',
+            'kind': 'block',
+        }
+        check_output.return_value = json.dumps(result).encode('UTF-8')
+
+        result = hookenv.storage_get()
+
+        self.assertEqual(result, result)
+        check_output.assert_called_with(['storage-get', '--format=json'])
+
+    @patch('subprocess.check_output')
+    def test_storage_get_attr(self, check_output):
+        result = '/dev/sda'
+        check_output.return_value = json.dumps(result).encode('UTF-8')
+
+        attribute = 'location'
+        result = hookenv.storage_get(attribute)
+
+        self.assertEqual(result, result)
+        check_output.assert_called_with(['storage-get', '--format=json',
+                                         attribute])
+
+    @patch('subprocess.check_output')
+    def test_storage_get_with_id(self, check_output):
+        result = {
+            'location': '/dev/sda',
+            'kind': 'block',
+        }
+        check_output.return_value = json.dumps(result).encode('UTF-8')
+
+        storage_id = 'data/0'
+        result = hookenv.storage_get(storage_id=storage_id)
+
+        self.assertEqual(result, result)
+        check_output.assert_called_with(['storage-get', '--format=json',
+                                         '-s', storage_id])
