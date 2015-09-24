@@ -1539,40 +1539,40 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_storage_get(self, check_output):
-        result = {
+        expect = {
             'location': '/dev/sda',
             'kind': 'block',
         }
-        check_output.return_value = json.dumps(result).encode('UTF-8')
+        check_output.return_value = json.dumps(expect).encode('UTF-8')
 
         result = hookenv.storage_get()
 
-        self.assertEqual(result, result)
+        self.assertEqual(result, expect)
         check_output.assert_called_with(['storage-get', '--format=json'])
 
     @patch('subprocess.check_output')
     def test_storage_get_attr(self, check_output):
-        result = '/dev/sda'
-        check_output.return_value = json.dumps(result).encode('UTF-8')
+        expect = '/dev/sda'
+        check_output.return_value = json.dumps(expect).encode('UTF-8')
 
         attribute = 'location'
         result = hookenv.storage_get(attribute)
 
-        self.assertEqual(result, result)
+        self.assertEqual(result, expect)
         check_output.assert_called_with(['storage-get', '--format=json',
                                          attribute])
 
     @patch('subprocess.check_output')
     def test_storage_get_with_id(self, check_output):
-        result = {
+        expect = {
             'location': '/dev/sda',
             'kind': 'block',
         }
-        check_output.return_value = json.dumps(result).encode('UTF-8')
+        check_output.return_value = json.dumps(expect).encode('UTF-8')
 
         storage_id = 'data/0'
         result = hookenv.storage_get(storage_id=storage_id)
 
-        self.assertEqual(result, result)
+        self.assertEqual(result, expect)
         check_output.assert_called_with(['storage-get', '--format=json',
                                          '-s', storage_id])
