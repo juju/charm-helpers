@@ -164,6 +164,11 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'auth_protocol': 'https',
 }
 
+IDENTITY_SERVICE_RELATION_VERSIONED = {
+    'api_version': '3',
+}
+IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
+
 POSTGRESQL_DB_RELATION = {
     'host': 'dbserver.local',
     'user': 'adam',
@@ -716,7 +721,8 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'http',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
-            'service_protocol': 'http'
+            'service_protocol': 'http',
+            'api_version': '2.0',
         }
         self.assertEquals(result, expected)
 
@@ -742,7 +748,8 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'http',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
-            'service_protocol': 'http'
+            'service_protocol': 'http',
+            'api_version': '2.0',
         }
         self.assertEquals(result, expected)
 
@@ -766,6 +773,7 @@ class ContextTests(unittest.TestCase):
             'service_port': '5000',
             'service_protocol': 'http',
             'signing_dir': '/var/cache/cinder',
+            'api_version': '2.0',
         }
         self.assertTrue(self.mkdir.called)
         self.assertEquals(result, expected)
@@ -786,7 +794,8 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'http',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
-            'service_protocol': 'http'
+            'service_protocol': 'http',
+            'api_version': '2.0',
         }
         self.assertEquals(result, expected)
 
@@ -806,7 +815,29 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'https',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
-            'service_protocol': 'https'
+            'service_protocol': 'https',
+            'api_version': '2.0',
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_service_context_with_data_versioned(self):
+        '''Test shared-db context with api version supplied from keystone'''
+        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https',
+            'api_version': '3',
         }
         self.assertEquals(result, expected)
 
@@ -827,7 +858,8 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'http',
             'service_host': '[2001:db8:1::1]',
             'service_port': '5000',
-            'service_protocol': 'http'
+            'service_protocol': 'http',
+            'api_version': '2.0',
         }
         self.assertEquals(result, expected)
 
