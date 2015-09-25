@@ -9,12 +9,15 @@ class UtilsTests(unittest.TestCase):
     def setUp(self):
         super(UtilsTests, self).setUp()
 
+    @mock.patch.object(utils, 'config')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_ids')
     @mock.patch('charmhelpers.contrib.openstack.utils.get_ipv6_addr')
     def test_sync_db_with_multi_ipv6_addresses(self, mock_get_ipv6_addr,
                                                mock_relation_ids,
-                                               mock_relation_set):
+                                               mock_relation_set,
+                                               mock_config):
+        mock_config.return_value = None
         addr1 = '2001:db8:1:0:f816:3eff:fe45:7c/64'
         addr2 = '2001:db8:1:0:d0cf:528c:23eb:5000/64'
         mock_get_ipv6_addr.return_value = [addr1, addr2]
@@ -27,12 +30,15 @@ class UtilsTests(unittest.TestCase):
                                              username='testdbuser',
                                              hostname=hosts)
 
+    @mock.patch.object(utils, 'config')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_ids')
     @mock.patch('charmhelpers.contrib.openstack.utils.get_ipv6_addr')
     def test_sync_db_with_multi_ipv6_addresses_single(self, mock_get_ipv6_addr,
                                                       mock_relation_ids,
-                                                      mock_relation_set):
+                                                      mock_relation_set,
+                                                      mock_config):
+        mock_config.return_value = None
         addr1 = '2001:db8:1:0:f816:3eff:fe45:7c/64'
         mock_get_ipv6_addr.return_value = [addr1]
         mock_relation_ids.return_value = ['shared-db']
@@ -44,13 +50,16 @@ class UtilsTests(unittest.TestCase):
                                              username='testdbuser',
                                              hostname=hosts)
 
+    @mock.patch.object(utils, 'config')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_ids')
     @mock.patch('charmhelpers.contrib.openstack.utils.get_ipv6_addr')
     def test_sync_db_with_multi_ipv6_addresses_w_prefix(self,
                                                         mock_get_ipv6_addr,
                                                         mock_relation_ids,
-                                                        mock_relation_set):
+                                                        mock_relation_set,
+                                                        mock_config):
+        mock_config.return_value = None
         addr1 = '2001:db8:1:0:f816:3eff:fe45:7c/64'
         mock_get_ipv6_addr.return_value = [addr1]
         mock_relation_ids.return_value = ['shared-db']
@@ -62,3 +71,27 @@ class UtilsTests(unittest.TestCase):
                                              bungabunga_database='testdb',
                                              bungabunga_username='testdbuser',
                                              bungabunga_hostname=hosts)
+
+    @mock.patch.object(utils, 'config')
+    @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
+    @mock.patch('charmhelpers.contrib.openstack.utils.relation_ids')
+    @mock.patch('charmhelpers.contrib.openstack.utils.get_ipv6_addr')
+    def test_sync_db_with_multi_ipv6_addresses_vips(self, mock_get_ipv6_addr,
+                                                    mock_relation_ids,
+                                                    mock_relation_set,
+                                                    mock_config):
+        addr1 = '2001:db8:1:0:f816:3eff:fe45:7c/64'
+        addr2 = '2001:db8:1:0:d0cf:528c:23eb:5000/64'
+        vip1 = '2001:db8:1:0:f816:3eff:32b3:7c'
+        vip2 = '2001:db8:1:0:f816:3eff:32b3:7d'
+        mock_config.return_value = '%s 10.0.0.1 %s' % (vip1, vip2)
+
+        mock_get_ipv6_addr.return_value = [addr1, addr2]
+        mock_relation_ids.return_value = ['shared-db']
+
+        utils.sync_db_with_multi_ipv6_addresses('testdb', 'testdbuser')
+        hosts = json.dumps([addr1, addr2, vip1, vip2])
+        mock_relation_set.assert_called_with(relation_id='shared-db',
+                                             database='testdb',
+                                             username='testdbuser',
+                                             hostname=hosts)
