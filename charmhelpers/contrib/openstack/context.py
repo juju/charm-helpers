@@ -1379,14 +1379,15 @@ class PhyNICMTUContext(DataPortContext):
             ports = mappings.values()
             napi_settings = NeutronAPIContext()()
             mtu = napi_settings.get('network_device_mtu')
-            all_ports = []
+            all_ports = set()
             # If any of ports is a vlan device, its underlying device must have
             # mtu applied first.
             for port in ports:
                 for lport in glob.glob("/sys/class/net/%s/lower_*" % port):
                     lport = os.path.basename(lport)
-                    all_ports.append(lport.split('_')[1])
+                    all_ports.add(lport.split('_')[1])
 
+            all_ports = list(all_ports)
             all_ports.extend(ports)
             if mtu:
                 ctxt["devs"] = '\\n'.join(all_ports)
