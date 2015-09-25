@@ -54,7 +54,8 @@ from charmhelpers.contrib.storage.linux.lvm import (
 )
 
 from charmhelpers.contrib.network.ip import (
-    get_ipv6_addr
+    get_ipv6_addr,
+    is_ipv6,
 )
 
 from charmhelpers.contrib.python.packages import (
@@ -518,6 +519,12 @@ def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
 def sync_db_with_multi_ipv6_addresses(database, database_user,
                                       relation_prefix=None):
     hosts = get_ipv6_addr(dynamic_only=False)
+
+    if config('vip'):
+        vips = config('vip').split()
+        for vip in vips:
+            if vip and is_ipv6(vip):
+                hosts.append(vip)
 
     kwargs = {'database': database,
               'username': database_user,
