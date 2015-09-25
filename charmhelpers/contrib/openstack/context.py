@@ -1412,6 +1412,8 @@ class NetworkServiceContext(OSContextGenerator):
                     rdata.get('service_protocol') or 'http',
                     'auth_protocol':
                     rdata.get('auth_protocol') or 'http',
+                    'api_version':
+                    rdata.get('api_version') or '2.0',
                 }
                 if self.context_complete(ctxt):
                     return ctxt

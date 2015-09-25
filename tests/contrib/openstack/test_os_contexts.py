@@ -318,6 +318,23 @@ QUANTUM_NETWORK_SERVICE_RELATION = {
     }
 }
 
+QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED = {
+    'quantum-network-service:0': {
+        'unit/0': {
+            'keystone_host': '10.5.0.1',
+            'service_port': '5000',
+            'auth_port': '20000',
+            'service_tenant': 'tenant',
+            'service_username': 'username',
+            'service_password': 'password',
+            'quantum_host': '10.5.0.2',
+            'quantum_port': '9696',
+            'quantum_url': 'http://10.5.0.2:9696/v2',
+            'region': 'aregion',
+            'api_version': '3',
+        },
+    }
+}
 
 SUB_CONFIG = """
 nova:
@@ -2650,10 +2667,34 @@ class ContextTests(unittest.TestCase):
             'region': 'aregion',
             'service_protocol': 'http',
             'auth_protocol': 'http',
+            'api_version': '2.0',
         }
         rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
         self.relation_ids.side_effect = rel.relation_ids
         self.related_units.side_effect = rel.relation_units
         relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.assertEquals(context.NetworkServiceContext()(), data_result)
+
+    def test_network_service_ctxt_data_api_version(self):
+        data_result = {
+            'keystone_host': '10.5.0.1',
+            'service_port': '5000',
+            'auth_port': '20000',
+            'service_tenant': 'tenant',
+            'service_username': 'username',
+            'service_password': 'password',
+            'quantum_host': '10.5.0.2',
+            'quantum_port': '9696',
+            'quantum_url': 'http://10.5.0.2:9696/v2',
+            'region': 'aregion',
+            'service_protocol': 'http',
+            'auth_protocol': 'http',
+            'api_version': '3',
+        }
+        rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
+        self.relation_ids.side_effect = rel.relation_ids
+        self.related_units.side_effect = rel.relation_units
+        relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
