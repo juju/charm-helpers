@@ -2629,6 +2629,30 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.DataPortContext()(),
                           {'phybr1': 'eth1010'})
 
+    @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
+                  {'network_device_mtu': 5000})
+    @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
+    @patch.object(context.NeutronPortContext, 'resolve_ports',
+                  lambda inst, ports: ports)
+    def test_phy_nic_mtu_context(self):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth0'})
+        ctxt = context.PhyNICMTUContext()()
+        self.assertEqual(ctxt, {'devs': 'eth0', 'mtu': 5000})
+
+    @patch.object(context.glob, 'glob')
+    @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
+                  {'network_device_mtu': 5000})
+    @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
+    @patch.object(context.NeutronPortContext, 'resolve_ports',
+                  lambda inst, ports: ports)
+    def test_phy_nic_mtu_context_vlan(self, mock_glob):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth0.100'})
+        mock_glob.return_value = ['/sys/class/net/eth0.100/lower_eth0']
+        ctxt = context.PhyNICMTUContext()()
+        self.assertEqual(ctxt, {'devs': 'eth0\\neth0.100', 'mtu': 5000})
+
     def test_neutronapicontext_defaults(self):
         self.relation_ids.return_value = []
         expected_keys = [
