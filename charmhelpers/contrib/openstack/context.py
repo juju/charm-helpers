@@ -1376,7 +1376,7 @@ class PhyNICMTUContext(DataPortContext):
         ctxt = {}
         mappings = super(PhyNICMTUContext, self).__call__()
         if mappings and mappings.keys():
-            ports = mappings.keys()
+            ports = sorted(mappings.keys())
             napi_settings = NeutronAPIContext()()
             mtu = napi_settings.get('network_device_mtu')
             all_ports = set()
