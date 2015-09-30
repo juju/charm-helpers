@@ -2604,7 +2604,7 @@ class ContextTests(unittest.TestCase):
                                                'phybr1:eth1011'})
         mock_resolve.side_effect = lambda ports: ['eth1010']
         self.assertEquals(context.DataPortContext()(),
-                          {'phybr1': 'eth1010'})
+                          {'eth1010': 'phybr1'})
 
     @patch.object(context, 'get_nic_hwaddr')
     @patch.object(context.NeutronPortContext, 'resolve_ports')
@@ -2627,7 +2627,7 @@ class ContextTests(unittest.TestCase):
         mock_resolve.side_effect = fake_resolve
 
         self.assertEquals(context.DataPortContext()(),
-                          {'phybr1': 'eth1010'})
+                          {'eth1010': 'phybr1'})
 
     @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
                   {'network_device_mtu': 5000})
@@ -2652,6 +2652,30 @@ class ContextTests(unittest.TestCase):
         mock_glob.return_value = ['/sys/class/net/eth0.100/lower_eth0']
         ctxt = context.PhyNICMTUContext()()
         self.assertEqual(ctxt, {'devs': 'eth0\\neth0.100', 'mtu': 5000})
+
+    @patch.object(context.glob, 'glob')
+    @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
+                  {'network_device_mtu': 5000})
+    @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
+    @patch.object(context.NeutronPortContext, 'resolve_ports',
+                  lambda inst, ports: ports)
+    def test_phy_nic_mtu_context_vlan_w_duplicate_raw(self, mock_glob):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth0.100 '
+                                               'phybr1:eth0.200'})
+
+        def fake_glob(wcard):
+            if 'eth0.100' in wcard:
+                return ['/sys/class/net/eth0.100/lower_eth0']
+            elif 'eth0.200' in wcard:
+                return ['/sys/class/net/eth0.200/lower_eth0']
+
+            raise Exception("Unexpeced key '%s'" % (wcard))
+
+        mock_glob.side_effect = fake_glob
+        ctxt = context.PhyNICMTUContext()()
+        self.assertEqual(ctxt, {'devs': 'eth0\\neth0.100\\neth0.200',
+                                'mtu': 5000})
 
     def test_neutronapicontext_defaults(self):
         self.relation_ids.return_value = []
