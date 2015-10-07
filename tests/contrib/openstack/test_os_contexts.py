@@ -1912,6 +1912,21 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.nuage_ctxt())
 
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_midonet_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'config': 'some.quantum.driver.class',
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'midonet',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.midonet_ctxt())
+
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
