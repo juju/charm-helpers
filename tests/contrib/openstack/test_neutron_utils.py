@@ -73,6 +73,8 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/ml2/ml2_conf.ini')
         self.assertEquals(plugins['plumgrid']['config'],
                           '/etc/neutron/plugins/plumgrid/plumgrid.ini')
+        self.assertEquals(plugins['midonet']['config'],
+                          '/etc/neutron/plugins/midonet/midonet.ini')
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 
