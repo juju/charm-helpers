@@ -1120,7 +1120,7 @@ class SubordinateConfigContext(OSContextGenerator):
 
         ctxt = {
             ... other context ...
-            'subordinate_config': {
+            'subordinate_configuration': {
                 'DEFAULT': {
                     'key1': 'value1',
                 },
@@ -1161,22 +1161,23 @@ class SubordinateConfigContext(OSContextGenerator):
                     try:
                         sub_config = json.loads(sub_config)
                     except:
-                        log('Could not parse JSON from subordinate_config '
-                            'setting from %s' % rid, level=ERROR)
+                        log('Could not parse JSON from '
+                            'subordinate_configuration setting from %s'
+                            % rid, level=ERROR)
                         continue
 
                     for service in self.services:
                         if service not in sub_config:
-                            log('Found subordinate_config on %s but it contained'
-                                'nothing for %s service' % (rid, service),
-                                level=INFO)
+                            log('Found subordinate_configuration on %s but it '
+                                'contained nothing for %s service'
+                                % (rid, service), level=INFO)
                             continue
 
                         sub_config = sub_config[service]
                         if self.config_file not in sub_config:
-                            log('Found subordinate_config on %s but it contained'
-                                'nothing for %s' % (rid, self.config_file),
-                                level=INFO)
+                            log('Found subordinate_configuration on %s but it '
+                                'contained nothing for %s'
+                                % (rid, self.config_file), level=INFO)
                             continue
 
                         sub_config = sub_config[self.config_file]
