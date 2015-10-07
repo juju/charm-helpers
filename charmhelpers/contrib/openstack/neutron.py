@@ -209,6 +209,20 @@ def neutron_plugins():
             'server_packages': ['neutron-server',
                                 'neutron-plugin-plumgrid'],
             'server_services': ['neutron-server']
+        },
+        'midonet': {
+            'config': '/etc/neutron/plugins/midonet/midonet.ini',
+            'driver': 'midonet.neutron.plugin.MidonetPluginV2',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [[headers_package()] + determine_dkms_package()],
+            'server_packages': ['neutron-server',
+                                'python-neutron-plugin-midonet'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':
