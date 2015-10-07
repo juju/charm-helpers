@@ -952,6 +952,19 @@ class NeutronContext(OSContextGenerator):
                     'config': config}
         return ovs_ctxt
 
+    def midonet_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        midonet_config = neutron_plugin_attribute(self.plugin, 'config',
+                                                  self.network_manager)
+        mido_ctxt = {'core_plugin': driver,
+                     'neutron_plugin': 'midonet',
+                     'neutron_security_groups': self.neutron_security_groups,
+                     'local_ip': unit_private_ip(),
+                     'config': midonet_config}
+
+        return mido_ctxt
+
     def __call__(self):
         if self.network_manager not in ['quantum', 'neutron']:
             return {}
@@ -973,6 +986,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.nuage_ctxt())
         elif self.plugin == 'plumgrid':
             ctxt.update(self.pg_ctxt())
+        elif self.plugin == 'midonet':
+            ctxt.update(self.midonet_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
