@@ -260,7 +260,7 @@ def get_nagios_hostcontext(relation_name='nrpe-external-master'):
     :param str relation_name: Name of relation nrpe sub joined to
     """
     for rel in relations_of_type(relation_name):
-        if 'nagios_hostname' in rel:
+        if 'nagios_host_context' in rel:
             return rel['nagios_host_context']
 
 
