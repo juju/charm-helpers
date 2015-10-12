@@ -218,7 +218,11 @@ class NRPE(object):
         if hostname:
             self.hostname = hostname
         else:
-            self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
+            nagios_hostname = get_nagios_hostname()
+            if nagios_hostname:
+                self.hostname = nagios_hostname
+            else:
+                self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
         self.checks = []
 
     def add_check(self, *args, **kwargs):
