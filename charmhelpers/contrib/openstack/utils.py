@@ -859,7 +859,9 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
         if charm_state != 'active' and charm_state != 'unknown':
             state = workload_state_compare(state, charm_state)
             if message:
-                message = "{} {}".format(message, charm_message)
+                charm_message = charm_message.replace("Incomplete relations: ",
+                                                      "")
+                message = "{}, {}".format(message, charm_message)
             else:
                 message = charm_message
 
