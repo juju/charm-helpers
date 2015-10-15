@@ -122,7 +122,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         status containing any case of 'ready' will be considered a match.
 
         Examples of message usage:
-  
+
           Wait for all unit status to CONTAIN any case of 'ready' or 'ok':
               message = re.compile('.*ready.*|.*ok.*', re.IGNORECASE)
 
