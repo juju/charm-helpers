@@ -152,7 +152,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         services = list(set(self.d.services.keys()) - set(exclude_services))
         service_messages = {service: message for service in services}
-        self.d.sentry.wait_for_messages(service_messages, timeout=900)
+        self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
 
     def _get_openstack_release(self):
         """Get openstack release.
