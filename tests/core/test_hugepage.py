@@ -100,3 +100,16 @@ class HugepageTests(TestCase):
         }
         sysctl_setting_arg = self.sysctl.create.call_args_list[0][0][0]
         self.assertEqual(yaml.load(sysctl_setting_arg), sysctl_expect)
+
+    def test_hugepage_support_auto_increase_max_map_count(self):
+        self.add_group.return_value = Group()
+        hugepage.hugepage_support(
+            'nova', group='neutron', nr_hugepages=512, max_map_count=200,
+            mnt_point='/hugepages', pagesize='1G', mount=False)
+        sysctl_expect = {
+            'vm.hugetlb_shm_group': '1010',
+            'vm.max_map_count': 1024,
+            'vm.nr_hugepages': 512,
+        }
+        sysctl_setting_arg = self.sysctl.create.call_args_list[0][0][0]
+        self.assertEqual(yaml.load(sysctl_setting_arg), sysctl_expect)
