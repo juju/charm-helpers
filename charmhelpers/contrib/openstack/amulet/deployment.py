@@ -39,6 +39,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         """Initialize the deployment environment."""
         super(OpenStackAmuletDeployment, self).__init__(series)
         self.log = self.get_logger(level=log_level)
+        self.log.info('OpenStackAmuletDeployment:  init')
         self.openstack = openstack
         self.source = source
         self.stable = stable
@@ -68,6 +69,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
+
+        self.log.info('OpenStackAmuletDeployment:  determine branch locations')
 
         # Charms outside the lp:~openstack-charmers namespace
         base_charms = ['mysql', 'mongodb', 'nrpe']
@@ -106,6 +109,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
     def _add_services(self, this_service, other_services):
         """Add services to the deployment and set openstack-origin/source."""
+        self.log.info('OpenStackAmuletDeployment:  adding services')
+
         other_services = self._determine_branch_locations(other_services)
 
         super(OpenStackAmuletDeployment, self)._add_services(this_service,
@@ -135,6 +140,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
     def _configure_services(self, configs):
         """Configure all of the services."""
+        self.log.info('OpenStackAmuletDeployment:  configure services')
         for service, config in six.iteritems(configs):
             self.d.configure(service, config)
 
