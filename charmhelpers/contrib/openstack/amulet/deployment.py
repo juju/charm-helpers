@@ -156,7 +156,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
               message = re.compile('.*ready.*|.*ok.*', re.IGNORECASE)
 
           Wait for all units to reach this status (exact match):
-              message = 'Unit is ready'
+              message = re.compile('^Unit is ready and clustered$')
 
           Wait for all units to reach any one of these (exact match):
               message = re.compile('Unit is ready|OK|Ready')
@@ -184,11 +184,16 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                              'with include_only')
 
         if message:
+            if isinstance(message, re._pattern_type):
+                match = message.pattern
+            else:
+                match = message
+
             self.log.debug('Custom extended status wait match: '
-                           '{}'.format(message))
+                           '{}'.format(match))
         else:
             self.log.debug('Default extended status wait match:  contains '
-                           '"READY" case-insensitive...'.format())
+                           '"READY" case-insensitive...')
             message = re.compile('.*ready.*', re.IGNORECASE)
 
         if exclude_services:
