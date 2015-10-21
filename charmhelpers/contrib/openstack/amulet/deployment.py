@@ -193,7 +193,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                            '{}'.format(match))
         else:
             self.log.debug('Default extended status wait match:  contains '
-                           '"READY" case-insensitive...')
+                           'READY (case-insensitive)')
             message = re.compile('.*ready.*', re.IGNORECASE)
 
         if exclude_services:
@@ -207,8 +207,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         else:
             services = list(set(all_services) - set(exclude_services))
 
-        self.log.debug('Waiting for extended status on services: '
-                       '{}'.format(services))
+        self.log.debug('Waiting up to {}s for extended status on services: '
+                       '{}'.format(timeout, services))
         service_messages = {service: message for service in services}
         self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
         self.log.info('OK')
