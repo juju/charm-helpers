@@ -18,6 +18,7 @@ import amulet
 import json
 import logging
 import os
+import re
 import six
 import time
 import urllib
@@ -606,9 +607,16 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     # rabbitmq/amqp specific helpers:
 
-    def rmq_wait_for_cluster(self, deployment, timeout=1200):
-        """Wait for rmq units extended status to show cluster readiness."""
-        message = 'Unit is ready and clustered'
+    def rmq_wait_for_cluster(self, deployment, init_sleep=15, timeout=1200):
+        """Wait for rmq units extended status to show cluster readiness,
+        after an optional initial sleep period.  Initial sleep is likely
+        necessary to be effective following a config change, as status
+        message may not instantly update to non-ready."""
+
+        if init_sleep:
+            time.sleep(init_sleep)
+
+        message = re.compile('^Unit is ready and clustered$')
         deployment._auto_wait_for_status(message=message,
                                          timeout=timeout,
                                          include_only=['rabbitmq-server'])
