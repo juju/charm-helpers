@@ -171,6 +171,8 @@ define service {{
         return ''
 
     def _remove_service_files(self):
+        if not os.path.exists(NRPE.nagios_exportdir):
+            pass
         for f in os.listdir(NRPE.nagios_exportdir):
             if re.search('.*_{}.cfg'.format(self.command), f):
                 os.remove(os.path.join(NRPE.nagios_exportdir, f))
