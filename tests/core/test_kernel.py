@@ -52,7 +52,8 @@ class TestKernel(unittest.TestCase):
 
     def test_lsmod(self):
         kernel.lsmod()
-        self.check_output.assert_called_once()
+        self.check_output.assert_called_with(['lsmod'],
+                                             universal_newlines=True)
 
     @patch('charmhelpers.core.kernel.lsmod')
     def test_is_module_loaded(self, lsmod):
