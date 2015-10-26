@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright 2014-2015 Canonical Limited.
 #
 # This file is part of charm-helpers.
@@ -24,8 +22,10 @@ import subprocess
 import json
 import os
 import sys
+import re
 
 import six
+import traceback
 import yaml
 
 from charmhelpers.contrib.network import ip
@@ -35,12 +35,16 @@ from charmhelpers.core import (
 )
 
 from charmhelpers.core.hookenv import (
+    action_fail,
+    action_set,
     config,
     log as juju_log,
     charm_dir,
     INFO,
     relation_ids,
-    relation_set
+    relation_set,
+    status_set,
+    hook_name
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
@@ -50,7 +54,8 @@ from charmhelpers.contrib.storage.linux.lvm import (
 )
 
 from charmhelpers.contrib.network.ip import (
-    get_ipv6_addr
+    get_ipv6_addr,
+    is_ipv6,
 )
 
 from charmhelpers.contrib.python.packages import (
@@ -68,7 +73,6 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
-
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('oneiric', 'diablo'),
@@ -116,7 +120,40 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.2.1', 'kilo'),
     ('2.2.2', 'kilo'),
     ('2.3.0', 'liberty'),
+    ('2.4.0', 'liberty'),
+    ('2.5.0', 'liberty'),
 ])
+
+# >= Liberty version->codename mapping
+PACKAGE_CODENAMES = {
+    'nova-common': OrderedDict([
+        ('12.0.0', 'liberty'),
+    ]),
+    'neutron-common': OrderedDict([
+        ('7.0.0', 'liberty'),
+    ]),
+    'cinder-common': OrderedDict([
+        ('7.0.0', 'liberty'),
+    ]),
+    'keystone': OrderedDict([
+        ('8.0.0', 'liberty'),
+    ]),
+    'horizon-common': OrderedDict([
+        ('8.0.0', 'liberty'),
+    ]),
+    'ceilometer-common': OrderedDict([
+        ('5.0.0', 'liberty'),
+    ]),
+    'heat-common': OrderedDict([
+        ('5.0.0', 'liberty'),
+    ]),
+    'glance-common': OrderedDict([
+        ('11.0.0', 'liberty'),
+    ]),
+    'openstack-dashboard': OrderedDict([
+        ('8.0.0', 'liberty'),
+    ]),
+}
 
 DEFAULT_LOOPBACK_SIZE = '5G'
 
@@ -167,9 +204,9 @@ def get_os_codename_version(vers):
         error_out(e)
 
 
-def get_os_version_codename(codename):
+def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
     '''Determine OpenStack version number from codename.'''
-    for k, v in six.iteritems(OPENSTACK_CODENAMES):
+    for k, v in six.iteritems(version_map):
         if v == codename:
             return k
     e = 'Could not derive OpenStack version for '\
@@ -201,20 +238,31 @@ def get_os_codename_package(package, fatal=True):
         error_out(e)
 
     vers = apt.upstream_version(pkg.current_ver.ver_str)
+    match = re.match('^(\d+)\.(\d+)\.(\d+)', vers)
+    if match:
+        vers = match.group(0)
 
-    try:
-        if 'swift' in pkg.name:
-            swift_vers = vers[:5]
-            if swift_vers not in SWIFT_CODENAMES:
-                # Deal with 1.10.0 upward
-                swift_vers = vers[:6]
-            return SWIFT_CODENAMES[swift_vers]
-        else:
-            vers = vers[:6]
-            return OPENSTACK_CODENAMES[vers]
-    except KeyError:
-        e = 'Could not determine OpenStack codename for version %s' % vers
-        error_out(e)
+    # >= Liberty independent project versions
+    if (package in PACKAGE_CODENAMES and
+            vers in PACKAGE_CODENAMES[package]):
+        return PACKAGE_CODENAMES[package][vers]
+    else:
+        # < Liberty co-ordinated project versions
+        try:
+            if 'swift' in pkg.name:
+                swift_vers = vers[:5]
+                if swift_vers not in SWIFT_CODENAMES:
+                    # Deal with 1.10.0 upward
+                    swift_vers = vers[:6]
+                return SWIFT_CODENAMES[swift_vers]
+            else:
+                vers = vers[:6]
+                return OPENSTACK_CODENAMES[vers]
+        except KeyError:
+            if not fatal:
+                return None
+            e = 'Could not determine OpenStack codename for version %s' % vers
+            error_out(e)
 
 
 def get_os_version_package(pkg, fatal=True):
@@ -392,7 +440,11 @@ def openstack_upgrade_available(package):
     import apt_pkg as apt
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
-    available_vers = get_os_version_install_source(src)
+    if "swift" in package:
+        codename = get_os_codename_install_source(src)
+        available_vers = get_os_version_codename(codename, SWIFT_CODENAMES)
+    else:
+        available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
 
@@ -468,6 +520,12 @@ def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
 def sync_db_with_multi_ipv6_addresses(database, database_user,
                                       relation_prefix=None):
     hosts = get_ipv6_addr(dynamic_only=False)
+
+    if config('vip'):
+        vips = config('vip').split()
+        for vip in vips:
+            if vip and is_ipv6(vip):
+                hosts.append(vip)
 
     kwargs = {'database': database,
               'username': database_user,
@@ -704,3 +762,219 @@ def git_yaml_value(projects_yaml, key):
         return projects[key]
 
     return None
+
+
+def os_workload_status(configs, required_interfaces, charm_func=None):
+    """
+    Decorator to set workload status based on complete contexts
+    """
+    def wrap(f):
+        @wraps(f)
+        def wrapped_f(*args, **kwargs):
+            # Run the original function first
+            f(*args, **kwargs)
+            # Set workload status now that contexts have been
+            # acted on
+            set_os_workload_status(configs, required_interfaces, charm_func)
+        return wrapped_f
+    return wrap
+
+
+def set_os_workload_status(configs, required_interfaces, charm_func=None):
+    """
+    Set workload status based on complete contexts.
+    status-set missing or incomplete contexts
+    and juju-log details of missing required data.
+    charm_func is a charm specific function to run checking
+    for charm specific requirements such as a VIP setting.
+    """
+    incomplete_rel_data = incomplete_relation_data(configs, required_interfaces)
+    state = 'active'
+    missing_relations = []
+    incomplete_relations = []
+    message = None
+    charm_state = None
+    charm_message = None
+
+    for generic_interface in incomplete_rel_data.keys():
+        related_interface = None
+        missing_data = {}
+        # Related or not?
+        for interface in incomplete_rel_data[generic_interface]:
+            if incomplete_rel_data[generic_interface][interface].get('related'):
+                related_interface = interface
+                missing_data = incomplete_rel_data[generic_interface][interface].get('missing_data')
+        # No relation ID for the generic_interface
+        if not related_interface:
+            juju_log("{} relation is missing and must be related for "
+                     "functionality. ".format(generic_interface), 'WARN')
+            state = 'blocked'
+            if generic_interface not in missing_relations:
+                missing_relations.append(generic_interface)
+        else:
+            # Relation ID exists but no related unit
+            if not missing_data:
+                # Edge case relation ID exists but departing
+                if ('departed' in hook_name() or 'broken' in hook_name()) \
+                        and related_interface in hook_name():
+                    state = 'blocked'
+                    if generic_interface not in missing_relations:
+                        missing_relations.append(generic_interface)
+                    juju_log("{} relation's interface, {}, "
+                             "relationship is departed or broken "
+                             "and is required for functionality."
+                             "".format(generic_interface, related_interface), "WARN")
+                # Normal case relation ID exists but no related unit
+                # (joining)
+                else:
+                    juju_log("{} relations's interface, {}, is related but has "
+                             "no units in the relation."
+                             "".format(generic_interface, related_interface), "INFO")
+            # Related unit exists and data missing on the relation
+            else:
+                juju_log("{} relation's interface, {}, is related awaiting "
+                         "the following data from the relationship: {}. "
+                         "".format(generic_interface, related_interface,
+                                   ", ".join(missing_data)), "INFO")
+            if state != 'blocked':
+                state = 'waiting'
+            if generic_interface not in incomplete_relations \
+                    and generic_interface not in missing_relations:
+                incomplete_relations.append(generic_interface)
+
+    if missing_relations:
+        message = "Missing relations: {}".format(", ".join(missing_relations))
+        if incomplete_relations:
+            message += "; incomplete relations: {}" \
+                       "".format(", ".join(incomplete_relations))
+        state = 'blocked'
+    elif incomplete_relations:
+        message = "Incomplete relations: {}" \
+                  "".format(", ".join(incomplete_relations))
+        state = 'waiting'
+
+    # Run charm specific checks
+    if charm_func:
+        charm_state, charm_message = charm_func(configs)
+        if charm_state != 'active' and charm_state != 'unknown':
+            state = workload_state_compare(state, charm_state)
+            if message:
+                charm_message = charm_message.replace("Incomplete relations: ",
+                                                      "")
+                message = "{}, {}".format(message, charm_message)
+            else:
+                message = charm_message
+
+    # Set to active if all requirements have been met
+    if state == 'active':
+        message = "Unit is ready"
+        juju_log(message, "INFO")
+
+    status_set(state, message)
+
+
+def workload_state_compare(current_workload_state, workload_state):
+    """ Return highest priority of two states"""
+    hierarchy = {'unknown': -1,
+                 'active': 0,
+                 'maintenance': 1,
+                 'waiting': 2,
+                 'blocked': 3,
+                 }
+
+    if hierarchy.get(workload_state) is None:
+        workload_state = 'unknown'
+    if hierarchy.get(current_workload_state) is None:
+        current_workload_state = 'unknown'
+
+    # Set workload_state based on hierarchy of statuses
+    if hierarchy.get(current_workload_state) > hierarchy.get(workload_state):
+        return current_workload_state
+    else:
+        return workload_state
+
+
+def incomplete_relation_data(configs, required_interfaces):
+    """
+    Check complete contexts against required_interfaces
+    Return dictionary of incomplete relation data.
+
+    configs is an OSConfigRenderer object with configs registered
+
+    required_interfaces is a dictionary of required general interfaces
+    with dictionary values of possible specific interfaces.
+    Example:
+    required_interfaces = {'database': ['shared-db', 'pgsql-db']}
+
+    The interface is said to be satisfied if anyone of the interfaces in the
+    list has a complete context.
+
+    Return dictionary of incomplete or missing required contexts with relation
+    status of interfaces and any missing data points. Example:
+        {'message':
+             {'amqp': {'missing_data': ['rabbitmq_password'], 'related': True},
+              'zeromq-configuration': {'related': False}},
+         'identity':
+             {'identity-service': {'related': False}},
+         'database':
+             {'pgsql-db': {'related': False},
+              'shared-db': {'related': True}}}
+    """
+    complete_ctxts = configs.complete_contexts()
+    incomplete_relations = []
+    for svc_type in required_interfaces.keys():
+        # Avoid duplicates
+        found_ctxt = False
+        for interface in required_interfaces[svc_type]:
+            if interface in complete_ctxts:
+                found_ctxt = True
+        if not found_ctxt:
+            incomplete_relations.append(svc_type)
+    incomplete_context_data = {}
+    for i in incomplete_relations:
+        incomplete_context_data[i] = configs.get_incomplete_context_data(required_interfaces[i])
+    return incomplete_context_data
+
+
+def do_action_openstack_upgrade(package, upgrade_callback, configs):
+    """Perform action-managed OpenStack upgrade.
+
+    Upgrades packages to the configured openstack-origin version and sets
+    the corresponding action status as a result.
+
+    If the charm was installed from source we cannot upgrade it.
+    For backwards compatibility a config flag (action-managed-upgrade) must
+    be set for this code to run, otherwise a full service level upgrade will
+    fire on config-changed.
+
+    @param package: package name for determining if upgrade available
+    @param upgrade_callback: function callback to charm's upgrade function
+    @param configs: templating object derived from OSConfigRenderer class
+
+    @return: True if upgrade successful; False if upgrade failed or skipped
+    """
+    ret = False
+
+    if git_install_requested():
+        action_set({'outcome': 'installed from source, skipped upgrade.'})
+    else:
+        if openstack_upgrade_available(package):
+            if config('action-managed-upgrade'):
+                juju_log('Upgrading OpenStack release')
+
+                try:
+                    upgrade_callback(configs=configs)
+                    action_set({'outcome': 'success, upgrade completed.'})
+                    ret = True
+                except:
+                    action_set({'outcome': 'upgrade failed, see traceback.'})
+                    action_set({'traceback': traceback.format_exc()})
+                    action_fail('do_openstack_upgrade resulted in an '
+                                'unexpected error')
+            else:
+                action_set({'outcome': 'action-managed-upgrade config is '
+                                       'False, skipped upgrade.'})
+        else:
+            action_set({'outcome': 'no upgrade available.'})
+
+    return ret

@@ -63,32 +63,48 @@ def service_reload(service_name, restart_on_failure=False):
     return service_result
 
 
-def service_pause(service_name, init_dir=None):
+def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
     """Pause a system service.
 
     Stop it, and prevent it from starting again at boot."""
-    if init_dir is None:
-        init_dir = "/etc/init"
     stopped = service_stop(service_name)
-    # XXX: Support systemd too
-    override_path = os.path.join(
-        init_dir, '{}.conf.override'.format(service_name))
-    with open(override_path, 'w') as fh:
-        fh.write("manual\n")
+    upstart_file = os.path.join(init_dir, "{}.conf".format(service_name))
+    sysv_file = os.path.join(initd_dir, service_name)
+    if os.path.exists(upstart_file):
+        override_path = os.path.join(
+            init_dir, '{}.override'.format(service_name))
+        with open(override_path, 'w') as fh:
+            fh.write("manual\n")
+    elif os.path.exists(sysv_file):
+        subprocess.check_call(["update-rc.d", service_name, "disable"])
+    else:
+        # XXX: Support SystemD too
+        raise ValueError(
+            "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
+                service_name, upstart_file, sysv_file))
     return stopped
 
 
-def service_resume(service_name, init_dir=None):
+def service_resume(service_name, init_dir="/etc/init",
+                   initd_dir="/etc/init.d"):
     """Resume a system service.
 
     Reenable starting again at boot. Start the service"""
-    # XXX: Support systemd too
-    if init_dir is None:
-        init_dir = "/etc/init"
-    override_path = os.path.join(
-        init_dir, '{}.conf.override'.format(service_name))
-    if os.path.exists(override_path):
-        os.unlink(override_path)
+    upstart_file = os.path.join(init_dir, "{}.conf".format(service_name))
+    sysv_file = os.path.join(initd_dir, service_name)
+    if os.path.exists(upstart_file):
+        override_path = os.path.join(
+            init_dir, '{}.override'.format(service_name))
+        if os.path.exists(override_path):
+            os.unlink(override_path)
+    elif os.path.exists(sysv_file):
+        subprocess.check_call(["update-rc.d", service_name, "enable"])
+    else:
+        # XXX: Support SystemD too
+        raise ValueError(
+            "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
+                service_name, upstart_file, sysv_file))
+
     started = service_start(service_name)
     return started
 
@@ -146,6 +162,16 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)
     return user_info
+
+
+def user_exists(username):
+    """Check if a user exists"""
+    try:
+        pwd.getpwnam(username)
+        user_exists = True
+    except KeyError:
+        user_exists = False
+    return user_exists
 
 
 def add_group(group_name, system_group=False):
@@ -280,6 +306,17 @@ def mounts():
     return system_mounts
 
 
+def fstab_mount(mountpoint):
+    """Mount filesystem using fstab"""
+    cmd_args = ['mount', mountpoint]
+    try:
+        subprocess.check_output(cmd_args)
+    except subprocess.CalledProcessError as e:
+        log('Error unmounting {}\n{}'.format(mountpoint, e.output))
+        return False
+    return True
+
+
 def file_hash(path, hash_type='md5'):
     """
     Generate a hash checksum of the contents of 'path' or None if not found.
@@ -396,25 +433,80 @@ def pwgen(length=None):
     return(''.join(random_chars))
 
 
-def list_nics(nic_type):
+def is_phy_iface(interface):
+    """Returns True if interface is not virtual, otherwise False."""
+    if interface:
+        sys_net = '/sys/class/net'
+        if os.path.isdir(sys_net):
+            for iface in glob.glob(os.path.join(sys_net, '*')):
+                if '/virtual/' in os.path.realpath(iface):
+                    continue
+
+                if interface == os.path.basename(iface):
+                    return True
+
+    return False
+
+
+def get_bond_master(interface):
+    """Returns bond master if interface is bond slave otherwise None.
+
+    NOTE: the provided interface is expected to be physical
+    """
+    if interface:
+        iface_path = '/sys/class/net/%s' % (interface)
+        if os.path.exists(iface_path):
+            if '/virtual/' in os.path.realpath(iface_path):
+                return None
+
+            master = os.path.join(iface_path, 'master')
+            if os.path.exists(master):
+                master = os.path.realpath(master)
+                # make sure it is a bond master
+                if os.path.exists(os.path.join(master, 'bonding')):
+                    return os.path.basename(master)
+
+    return None
+
+
+def list_nics(nic_type=None):
     '''Return a list of nics of given type(s)'''
     if isinstance(nic_type, six.string_types):
         int_types = [nic_type]
     else:
         int_types = nic_type
+
     interfaces = []
-    for int_type in int_types:
-        cmd = ['ip', 'addr', 'show', 'label', int_type + '*']
+    if nic_type:
+        for int_type in int_types:
+            cmd = ['ip', 'addr', 'show', 'label', int_type + '*']
+            ip_output = subprocess.check_output(cmd).decode('UTF-8')
+            ip_output = ip_output.split('\n')
+            ip_output = (line for line in ip_output if line)
+            for line in ip_output:
+                if line.split()[1].startswith(int_type):
+                    matched = re.search('.*: (' + int_type +
+                                        r'[0-9]+\.[0-9]+)@.*', line)
+                    if matched:
+                        iface = matched.groups()[0]
+                    else:
+                        iface = line.split()[1].replace(":", "")
+
+                    if iface not in interfaces:
+                        interfaces.append(iface)
+    else:
+        cmd = ['ip', 'a']
         ip_output = subprocess.check_output(cmd).decode('UTF-8').split('\n')
-        ip_output = (line for line in ip_output if line)
+        ip_output = (line.strip() for line in ip_output if line)
+
+        key = re.compile('^[0-9]+:\s+(.+):')
         for line in ip_output:
-            if line.split()[1].startswith(int_type):
-                matched = re.search('.*: (' + int_type + r'[0-9]+\.[0-9]+)@.*', line)
-                if matched:
-                    interface = matched.groups()[0]
-                else:
-                    interface = line.split()[1].replace(":", "")
-                interfaces.append(interface)
+            matched = re.search(key, line)
+            if matched:
+                iface = matched.group(1)
+                iface = iface.partition("@")[0]
+                if iface not in interfaces:
+                    interfaces.append(iface)
 
     return interfaces
 
@@ -474,7 +566,14 @@ def chdir(d):
         os.chdir(cur)
 
 
-def chownr(path, owner, group, follow_links=True):
+def chownr(path, owner, group, follow_links=True, chowntopdir=False):
+    """
+    Recursively change user and group ownership of files and directories
+    in given path. Doesn't chown path itself by default, only its children.
+
+    :param bool follow_links: Also Chown links if True
+    :param bool chowntopdir: Also chown path itself if True
+    """
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
     if follow_links:
@@ -482,6 +581,10 @@ def chownr(path, owner, group, follow_links=True):
     else:
         chown = os.lchown
 
+    if chowntopdir:
+        broken_symlink = os.path.lexists(path) and not os.path.exists(path)
+        if not broken_symlink:
+            chown(path, uid, gid)
     for root, dirs, files in os.walk(path):
         for name in dirs + files:
             full = os.path.join(root, name)
@@ -492,3 +595,19 @@ def chownr(path, owner, group, follow_links=True):
 
 def lchownr(path, owner, group):
     chownr(path, owner, group, follow_links=False)
+
+
+def get_total_ram():
+    '''The total amount of system RAM in bytes.
+
+    This is what is reported by the OS, and may be overcommitted when
+    there are multiple containers hosted on the same machine.
+    '''
+    with open('/proc/meminfo', 'r') as f:
+        for line in f.readlines():
+            if line:
+                key, value, unit = line.split()
+                if key == 'MemTotal:':
+                    assert unit == 'kB', 'Unknown unit'
+                    return int(value) * 1024  # Classic, not KiB.
+        raise NotImplementedError()

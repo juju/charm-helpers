@@ -195,6 +195,34 @@ def neutron_plugins():
             'packages': [],
             'server_packages': ['neutron-server', 'neutron-plugin-nuage'],
             'server_services': ['neutron-server']
+        },
+        'plumgrid': {
+            'config': '/etc/neutron/plugins/plumgrid/plumgrid.ini',
+            'driver': 'neutron.plugins.plumgrid.plumgrid_plugin.plumgrid_plugin.NeutronPluginPLUMgridV2',
+            'contexts': [
+                context.SharedDBContext(user=config('database-user'),
+                                        database=config('database'),
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [['plumgrid-lxc'],
+                         ['iovisor-dkms']],
+            'server_packages': ['neutron-server',
+                                'neutron-plugin-plumgrid'],
+            'server_services': ['neutron-server']
+        },
+        'midonet': {
+            'config': '/etc/neutron/plugins/midonet/midonet.ini',
+            'driver': 'midonet.neutron.plugin.MidonetPluginV2',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [[headers_package()] + determine_dkms_package()],
+            'server_packages': ['neutron-server',
+                                'python-neutron-plugin-midonet'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':
@@ -255,17 +283,30 @@ def network_manager():
         return 'neutron'
 
 
-def parse_mappings(mappings):
+def parse_mappings(mappings, key_rvalue=False):
+    """By default mappings are lvalue keyed.
+
+    If key_rvalue is True, the mapping will be reversed to allow multiple
+    configs for the same lvalue.
+    """
     parsed = {}
     if mappings:
         mappings = mappings.split()
         for m in mappings:
             p = m.partition(':')
-            key = p[0].strip()
-            if p[1]:
-                parsed[key] = p[2].strip()
+
+            if key_rvalue:
+                key_index = 2
+                val_index = 0
+                # if there is no rvalue skip to next
+                if not p[1]:
+                    continue
             else:
-                parsed[key] = ''
+                key_index = 0
+                val_index = 2
+
+            key = p[key_index].strip()
+            parsed[key] = p[val_index].strip()
 
     return parsed
 
@@ -283,25 +324,25 @@ def parse_bridge_mappings(mappings):
 def parse_data_port_mappings(mappings, default_bridge='br-data'):
     """Parse data port mappings.
 
-    Mappings must be a space-delimited list of bridge:port mappings.
+    Mappings must be a space-delimited list of bridge:port.
 
-    Returns dict of the form {bridge:port}.
+    Returns dict of the form {port:bridge} where ports may be mac addresses or
+    interface names.
     """
-    _mappings = parse_mappings(mappings)
+
+    # NOTE(dosaboy): we use rvalue for key to allow multiple values to be
+    # proposed for <port> since it may be a mac address which will differ
+    # across units this allowing first-known-good to be chosen.
+    _mappings = parse_mappings(mappings, key_rvalue=True)
     if not _mappings or list(_mappings.values()) == ['']:
         if not mappings:
             return {}
 
         # For backwards-compatibility we need to support port-only provided in
         # config.
-        _mappings = {default_bridge: mappings.split()[0]}
+        _mappings = {mappings.split()[0]: default_bridge}
 
-    bridges = _mappings.keys()
-    ports = _mappings.values()
-    if len(set(bridges)) != len(bridges):
-        raise Exception("It is not allowed to have more than one port "
-                        "configured on the same bridge")
-
+    ports = _mappings.keys()
     if len(set(ports)) != len(ports):
         raise Exception("It is not allowed to have the same port configured "
                         "on more than one bridge")

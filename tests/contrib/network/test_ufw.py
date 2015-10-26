@@ -326,48 +326,46 @@ class TestUFW(unittest.TestCase):
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('os.path.isdir')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_output')
-    def test_no_ip6_tables_fail_to_load(self, check_output, call, isdir, log,
-                                        is_enabled):
-        def c(*args, **kwargs):
-            if args[0] == ['lsmod']:
-                return LSMOD_NO_IP6
-            elif args[0] == ['modprobe', 'ip6_tables']:
-                raise subprocess.CalledProcessError(1, ['modprobe',
-                                                        'ip6_tables'],
-                                                    "fail to load ip6_tables")
-            else:
-                return 'Firewall is active and enabled on system startup\n'
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    @mock.patch('charmhelpers.contrib.network.ufw.is_module_loaded')
+    def test_no_ip6_tables_fail_to_load(self, is_module_loaded,
+                                        modprobe, isdir, log, is_enabled):
+        is_module_loaded.return_value = False
 
-        check_output.side_effect = c
+        def c(m):
+            raise subprocess.CalledProcessError(1, ['modprobe',
+                                                    'ip6_tables'],
+                                                "fail to load ip6_tables")
+
+        modprobe.side_effect = c
         isdir.return_value = True
-        call.return_value = 0
-
         is_enabled.return_value = False
+
         self.assertRaises(ufw.UFWIPv6Error, ufw.enable)
 
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('os.path.isdir')
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    @mock.patch('charmhelpers.contrib.network.ufw.is_module_loaded')
     @mock.patch('subprocess.call')
     @mock.patch('subprocess.check_output')
-    def test_no_ip6_tables_fail_to_load_soft_fail(self, check_output, call,
+    def test_no_ip6_tables_fail_to_load_soft_fail(self, check_output,
+                                                  call, is_module_loaded,
+                                                  modprobe,
                                                   isdir, log, is_enabled):
-        def c(*args, **kwargs):
-            if args[0] == ['lsmod']:
-                return LSMOD_NO_IP6
-            elif args[0] == ['modprobe', 'ip6_tables']:
-                raise subprocess.CalledProcessError(1, ['modprobe',
-                                                        'ip6_tables'],
-                                                    "fail to load ip6_tables")
-            else:
-                return 'Firewall is active and enabled on system startup\n'
+        is_module_loaded.return_value = False
 
-        check_output.side_effect = c
+        def c(m):
+            raise subprocess.CalledProcessError(1, ['modprobe',
+                                                    'ip6_tables'],
+                                                "fail to load ip6_tables")
+
+        modprobe.side_effect = c
         isdir.return_value = True
         call.return_value = 0
-
+        check_output.return_value = ("Firewall is active and enabled on "
+                                     "system startup\n")
         is_enabled.return_value = False
         self.assertTrue(ufw.enable(soft_fail=True))
         call.assert_called_with(['sed', '-i', 's/IPV6=.*/IPV6=no/g',
