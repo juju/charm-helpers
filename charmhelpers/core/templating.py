@@ -64,5 +64,9 @@ def render(source, target, context, owner='root', group='root',
                     level=hookenv.ERROR)
         raise e
     content = template.render(context)
-    host.mkdir(os.path.dirname(target), owner, group, perms=0o755)
+    target_dir = os.path.dirname(target)
+    if not os.path.exists(target_dir):
+        # This is a terrible default directory permission, as the file
+        # or its siblings will often contain secrets.
+        host.mkdir(os.path.dirname(target), owner, group, perms=0o755)
     host.write_file(target, content.encode(encoding), owner, group, perms)
