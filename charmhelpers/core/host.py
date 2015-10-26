@@ -595,3 +595,19 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
 
 def lchownr(path, owner, group):
     chownr(path, owner, group, follow_links=False)
+
+
+def get_total_ram():
+    '''The total amount of system RAM in bytes.
+
+    This is what is reported by the OS, and may be overcommitted when
+    there are multiple containers hosted on the same machine.
+    '''
+    with open('/proc/meminfo', 'r') as f:
+        for line in f.readlines():
+            if line:
+                key, value, unit = line.split()
+                if key == 'MemTotal:':
+                    assert unit == 'kB', 'Unknown unit'
+                    return int(value) * 1024  # Classic, not KiB.
+        raise NotImplementedError()
