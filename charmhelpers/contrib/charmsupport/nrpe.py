@@ -244,7 +244,10 @@ class NRPE(object):
         if kwargs.get('shortname') is None:
             raise ValueError('shortname of check must be specified')
 
-        # use sensible defaults if they're not specified
+        # Use sensible defaults if they're not specified - these are not
+        # actually used during removal, but they're required for constructing
+        # the Check object; check_disk is chosen because it's part of the
+        # nagios-plugins-basic package.
         if kwargs.get('check_cmd') is None:
             kwargs['check_cmd'] = 'check_disk'
         if kwargs.get('description') is None:
