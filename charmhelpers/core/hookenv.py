@@ -491,6 +491,19 @@ def relation_types():
 
 
 @cached
+def peer_relation_id():
+    '''Get a peer relation id if a peer relation has been joined, else None.'''
+    md = metadata()
+    section = md.get('peers')
+    if section:
+        for key in section:
+            relids = relation_ids(key)
+            if relids:
+                return relids[0]
+    return None
+
+
+@cached
 def relation_to_interface(relation_name):
     """
     Given the name of a relation, return the interface that relation uses.
@@ -820,6 +833,7 @@ def status_get():
 
 def translate_exc(from_exc, to_exc):
     def inner_translate_exc1(f):
+        @wraps(f)
         def inner_translate_exc2(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
