@@ -71,6 +71,10 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/cisco/cisco_plugins.ini')
         self.assertEquals(plugins['Calico']['config'],
                           '/etc/neutron/plugins/ml2/ml2_conf.ini')
+        self.assertEquals(plugins['plumgrid']['config'],
+                          '/etc/neutron/plugins/plumgrid/plumgrid.ini')
+        self.assertEquals(plugins['midonet']['config'],
+                          '/etc/neutron/plugins/midonet/midonet.ini')
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 
@@ -181,13 +185,18 @@ class NeutronTests(unittest.TestCase):
         ret = neutron.parse_data_port_mappings(None)
         self.assertEqual(ret, {})
         ret = neutron.parse_data_port_mappings('br0:eth0')
-        self.assertEqual(ret, {'br0': 'eth0'})
+        self.assertEqual(ret, {'eth0': 'br0'})
         # Back-compat test
         ret = neutron.parse_data_port_mappings('eth0', default_bridge='br0')
-        self.assertEqual(ret, {'br0': 'eth0'})
+        self.assertEqual(ret, {'eth0': 'br0'})
         # Multiple mappings
         ret = neutron.parse_data_port_mappings('br0:eth0 br1:eth1')
-        self.assertEqual(ret, {'br0': 'eth0', 'br1': 'eth1'})
+        self.assertEqual(ret, {'eth0': 'br0', 'eth1': 'br1'})
+        # MultMAC mappings
+        ret = neutron.parse_data_port_mappings('br0:cb:23:ae:72:f2:33 '
+                                               'br0:fa:16:3e:12:97:8e')
+        self.assertEqual(ret, {'cb:23:ae:72:f2:33': 'br0',
+                               'fa:16:3e:12:97:8e': 'br0'})
 
     def test_parse_vlan_range_mappings(self):
         ret = neutron.parse_vlan_range_mappings(None)

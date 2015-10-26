@@ -26,7 +26,17 @@ FAKE_RELEASE = {
 }
 
 FAKE_REPO = {
+    'neutron-common': {
+        'pkg_vers': '2:7.0.0-0ubuntu1',
+        'os_release': 'liberty',
+        'os_version': '2015.2'
+    },
     'nova-common': {
+        'pkg_vers': '2:12.0.0~b1-0ubuntu1',
+        'os_release': 'liberty',
+        'os_version': '2015.2'
+    },
+    'nova': {
         'pkg_vers': '2012.2.3-0ubuntu2.1',
         'os_release': 'folsom',
         'os_version': '2012.2'
@@ -504,6 +514,8 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to major release detection
         vers_pkg.return_value = '2013.2~b1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
+        vers_pkg.return_value = '1.9.0'
+        self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
@@ -517,6 +529,10 @@ class OpenStackHelpersTestCase(TestCase):
         # milestone to majro release detection
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
+        # ugly duckling testing
+        config.return_value = 'cloud:precise-havana'
+        vers_pkg.return_value = '1.10.0'
+        self.assertFalse(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
@@ -823,6 +839,247 @@ class OpenStackHelpersTestCase(TestCase):
     def test_git_src_dir(self, check_call, join):
         openstack.git_src_dir(openstack_origin_git, 'keystone')
         join.assert_called_with('/mnt/openstack-git', 'keystone')
+
+    def test_incomplete_relation_data(self):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['pgsql-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+        expected_result = 'identity'
+
+        result = openstack.incomplete_relation_data(configs, required_interfaces)
+        self.assertTrue(expected_result in result.keys())
+
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete(self, status_set, log):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('active', 'Unit is ready')
+
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity': {'identity-service': {'related': True}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_related_incomplete(self, status_set,
+                                                       incomplete_relation_data,
+                                                       log):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('waiting',
+                                      "Incomplete relations: identity")
+
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity': {'identity-service': {'related': False}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_absent(self, status_set,
+                                           incomplete_relation_data, log):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      'Missing relations: identity')
+
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.hook_name',
+           return_value='identity-service-relation-broken')
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity': {'identity-service': {'related': True}}})
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_related_broken(self, status_set,
+                                                   incomplete_relation_data,
+                                                   hook_name, log):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with('blocked',
+                                      "Missing relations: identity")
+
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
+           return_value={'identity':
+                         {'identity-service': {'related': True}},
+
+                         'message':
+                         {'amqp': {'missing_data': ['rabbitmq-password'],
+                                   'related': True}},
+
+                         'database':
+                         {'shared-db': {'related': False}}
+                         })
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_mixed(self, status_set, incomplete_relation_data,
+                                          log):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db', 'amqp']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+
+        args = status_set.call_args
+        actual_parm1 = args[0][0]
+        actual_parm2 = args[0][1]
+        expected1 = ("Missing relations: database; incomplete relations: "
+                     "identity, message")
+        expected2 = ("Missing relations: database; incomplete relations: "
+                     "message, identity")
+        self.assertTrue(actual_parm1 == 'blocked')
+        self.assertTrue(actual_parm2 == expected1 or actual_parm2 == expected2)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_openstack_upgrade(self, config, openstack_upgrade_available,
+                               action_fail, action_set, log):
+        def do_openstack_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = True
+
+        # openstack-origin-git=None, action-managed-upgrade=True
+        config.side_effect = [None, True]
+
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('success, upgrade completed.')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_openstack_upgrade_git(self, config, openstack_upgrade_available,
+                                   action_fail, action_set, log):
+        def do_openstack_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = True
+
+        # openstack-origin-git=xyz
+        config.side_effect = ['openstack-origin-git: xyz']
+
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
+
+        self.assertFalse(openstack_upgrade_available.called)
+        msg = ('installed from source, skipped upgrade.')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_openstack_upgrade_not_avail(self, config,
+                                         openstack_upgrade_available,
+                                         action_fail, action_set, log):
+        def do_openstack_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = False
+
+        # openstack-origin-git=None
+        config.side_effect = [None]
+
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('no upgrade available.')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_openstack_upgrade_config_false(self, config,
+                                            openstack_upgrade_available,
+                                            action_fail, action_set, log):
+        def do_openstack_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = True
+
+        # openstack-origin-git=None, action-managed-upgrade=False
+        config.side_effect = [None, False]
+
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('action-managed-upgrade config is False, skipped upgrade.')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('traceback.format_exc')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_openstack_upgrade_traceback(self, config, traceback,
+                                         openstack_upgrade_available,
+                                         action_fail, action_set, log):
+        def do_openstack_upgrade(configs):
+            oops()  # noqa
+
+        openstack_upgrade_available.return_value = True
+
+        # openstack-origin-git=None, action-managed-upgrade=False
+        config.side_effect = [None, True]
+
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = 'do_openstack_upgrade resulted in an unexpected error'
+        action_fail.assert_called_with(msg)
+        self.assertTrue(action_set.called)
+        self.assertTrue(traceback.called)
 
 if __name__ == '__main__':
     unittest.main()

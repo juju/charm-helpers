@@ -73,12 +73,16 @@ class FakeRelation(object):
             return None
 
     def relation_ids(self, relation):
-        return self.relation_data.keys()
+        rids = []
+        for rid in sorted(self.relation_data.keys()):
+            if relation + ':' in rid:
+                rids.append(rid)
+        return rids
 
     def relation_units(self, relation_id):
         if relation_id not in self.relation_data:
             return None
-        return self.relation_data[relation_id].keys()
+        return sorted(self.relation_data[relation_id].keys())
 
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
@@ -325,6 +329,25 @@ glance:
                 - [glance-key2, value2]
 """
 
+NOVA_SUB_CONFIG1 = """
+nova:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key1, value1]
+                - [nova-key2, value2]
+"""
+
+
+NOVA_SUB_CONFIG2 = """
+nova-compute:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key3, value3]
+                - [nova-key4, value4]
+"""
+
 CINDER_SUB_CONFIG1 = """
 cinder:
     /etc/cinder/cinder.conf:
@@ -374,6 +397,21 @@ SUB_CONFIG_RELATION = {
             'subordinate_configuration': json.dumps(yaml.load(CINDER_SUB_CONFIG2)),
         },
     },
+}
+
+SUB_CONFIG_RELATION2 = {
+    'nova-ceilometer:6': {
+        'ceilometer-agent/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG1)),
+        },
+    },
+    'neutron-plugin:3': {
+        'neutron-ovs-plugin/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG2)),
+        },
+    }
 }
 
 NONET_CONFIG = {
@@ -989,9 +1027,14 @@ class ContextTests(unittest.TestCase):
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_data(self, ensure_packages, mkdir, isdir,
-                                    config):
+                                    mock_config):
         '''Test ceph context with all relation data'''
-        config.return_value = True
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
         isdir.return_value = False
         relation = FakeRelation(relation_data=CEPH_RELATION)
         self.relation_get.side_effect = relation.get
@@ -1013,7 +1056,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
-        relation = copy(CEPH_RELATION)
+        relation = deepcopy(CEPH_RELATION)
         for k, v in six.iteritems(relation):
             for u in six.iterkeys(v):
                 del relation[k][u]['auth']
@@ -1030,12 +1073,49 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
+    def test_ceph_context_partial_missing_data(self, ensure_packages, mkdir,
+                                               isdir, config):
+        '''Test ceph context last unit missing data
+
+           Tests a fix to a previously bug which meant only the config from
+           last unit was returned so if a valid value was supplied from an
+           earlier unit it would be ignored'''
+        config.side_effect = fake_config({'use-syslog': 'True'})
+        relation = deepcopy(CEPH_RELATION)
+        for k, v in six.iteritems(relation):
+            last_unit = sorted(six.iterkeys(v))[-1]
+            unit_data = relation[k][last_unit]
+            del unit_data['auth']
+            relation[k][last_unit] = unit_data
+        relation = FakeRelation(relation_data=relation)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true'
+        }
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_public_addr(
-            self, ensure_packages, mkdir, isdir, config):
+            self, ensure_packages, mkdir, isdir, mock_config):
         '''Test ceph context in host with multiple networks with all
         relation data'''
         isdir.return_value = False
-        config.return_value = True
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
         relation = FakeRelation(relation_data=CEPH_RELATION_WITH_PUBLIC_ADDR)
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
@@ -1049,6 +1129,56 @@ class ContextTests(unittest.TestCase):
             'use_syslog': 'true',
         }
         self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_rbd_cache(self, ensure_packages, mkdir, isdir,
+                                         mock_config):
+        isdir.return_value = False
+        config_dict = {'rbd-client-cache': 'enabled',
+                       'use-syslog': False}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_RELATION_WITH_PUBLIC_ADDR)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+
+        class CephContextWithRBDCache(context.CephContext):
+            def __call__(self):
+                ctxt = super(CephContextWithRBDCache, self).__call__()
+
+                rbd_cache = fake_config('rbd-client-cache') or ""
+                if rbd_cache.lower() == "enabled":
+                    ctxt['rbd_client_cache_settings'] = \
+                        {'rbd cache': 'true',
+                         'rbd cache writethrough until flush': 'true'}
+                elif rbd_cache.lower() == "disabled":
+                    ctxt['rbd_client_cache_settings'] = \
+                        {'rbd cache': 'false'}
+
+                return ctxt
+
+        ceph = CephContextWithRBDCache()
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.10 192.168.1.11',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'false',
+        }
+        expected['rbd_client_cache_settings'] = \
+            {'rbd cache': 'true',
+             'rbd cache writethrough until flush': 'true'}
+
+        self.assertDictEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -1080,11 +1210,16 @@ class ContextTests(unittest.TestCase):
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_missing_public_addr(
-            self, ensure_packages, mkdir, isdir, config):
+            self, ensure_packages, mkdir, isdir, mock_config):
         '''Test ceph context in host with multiple networks with no
         ceph-public-addr in relation data'''
         isdir.return_value = False
-        config.return_value = True
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
         relation = deepcopy(CEPH_RELATION_WITH_PUBLIC_ADDR)
         del relation['ceph:0']['ceph/0']['ceph-public-address']
         relation = FakeRelation(relation_data=relation)
@@ -1750,6 +1885,21 @@ class ContextTests(unittest.TestCase):
     @patch.object(context.NeutronContext, 'neutron_security_groups')
     @patch.object(context, 'unit_private_ip')
     @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_plumgrid_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'config': 'some.quantum.driver.class',
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'plumgrid',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.pg_ctxt())
+
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
     def test_neutron_nuage_plugin_context(self, attr, ip, sec_groups):
         ip.return_value = '10.0.0.1'
         sec_groups.__get__ = MagicMock(return_value=True)
@@ -1761,6 +1911,21 @@ class ContextTests(unittest.TestCase):
             'neutron_plugin': 'vsp',
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.nuage_ctxt())
+
+    @patch.object(context.NeutronContext, 'neutron_security_groups')
+    @patch.object(context, 'unit_private_ip')
+    @patch.object(context, 'neutron_plugin_attribute')
+    def test_neutron_midonet_plugin_context(self, attr, ip, sec_groups):
+        ip.return_value = '10.0.0.1'
+        sec_groups.__get__ = MagicMock(return_value=True)
+        attr.return_value = 'some.quantum.driver.class'
+        neutron = context.NeutronContext()
+        self.assertEquals({
+            'config': 'some.quantum.driver.class',
+            'core_plugin': 'some.quantum.driver.class',
+            'neutron_plugin': 'midonet',
+            'neutron_security_groups': True,
+            'local_ip': '10.0.0.1'}, neutron.midonet_ctxt())
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch.object(context.NeutronContext, 'network_manager')
@@ -2052,6 +2217,27 @@ class ContextTests(unittest.TestCase):
 
         # subordinate supplies bad input
         self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+
+    def test_os_subordinate_config_context_multiple(self):
+        relation = FakeRelation(relation_data=SUB_CONFIG_RELATION2)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        nova_sub_ctxt = context.SubordinateConfigContext(
+            service=['nova', 'nova-compute'],
+            config_file='/etc/nova/nova.conf',
+            interface=['nova-ceilometer', 'neutron-plugin'],
+        )
+        self.assertEquals(
+            nova_sub_ctxt(),
+            {'sections': {
+                'DEFAULT': [
+                    ['nova-key1', 'value1'],
+                    ['nova-key2', 'value2'],
+                    ['nova-key3', 'value3'],
+                    ['nova-key4', 'value4']]
+            }}
+        )
 
     def test_syslog_context(self):
         self.config.side_effect = fake_config({'use-syslog': 'foo'})
@@ -2366,6 +2552,8 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.ExternalPortContext()(),
                           {'ext_port': 'eth1010'})
 
+    @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
+           lambda arg: True)
     @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
@@ -2393,6 +2581,8 @@ class ContextTests(unittest.TestCase):
 
         self.assertEquals(context.ExternalPortContext()(), {})
 
+    @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
+           lambda arg: True)
     @patch('charmhelpers.contrib.openstack.context.get_nic_hwaddr')
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.get_ipv6_addr')
@@ -2425,10 +2615,82 @@ class ContextTests(unittest.TestCase):
            'resolve_ports')
     def test_data_port_eth(self, mock_resolve):
         self.config.side_effect = fake_config({'data-port':
-                                               'phybr1:eth1010'})
-        mock_resolve.side_effect = lambda ports: ports
+                                               'phybr1:eth1010 '
+                                               'phybr1:eth1011'})
+        mock_resolve.side_effect = lambda ports: ['eth1010']
         self.assertEquals(context.DataPortContext()(),
-                          {'phybr1': 'eth1010'})
+                          {'eth1010': 'phybr1'})
+
+    @patch.object(context, 'get_nic_hwaddr')
+    @patch.object(context.NeutronPortContext, 'resolve_ports')
+    def test_data_port_mac(self, mock_resolve, mock_get_nic_hwaddr):
+        extant_mac = 'cb:23:ae:72:f2:33'
+        non_extant_mac = 'fa:16:3e:12:97:8e'
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:%s phybr1:%s' %
+                                               (non_extant_mac, extant_mac)})
+
+        def fake_resolve(ports):
+            resolved = []
+            for port in ports:
+                if port == extant_mac:
+                    resolved.append('eth1010')
+
+            return resolved
+
+        mock_get_nic_hwaddr.side_effect = lambda nic: extant_mac
+        mock_resolve.side_effect = fake_resolve
+
+        self.assertEquals(context.DataPortContext()(),
+                          {'eth1010': 'phybr1'})
+
+    @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
+                  {'network_device_mtu': 5000})
+    @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
+    @patch.object(context.NeutronPortContext, 'resolve_ports',
+                  lambda inst, ports: ports)
+    def test_phy_nic_mtu_context(self):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth0'})
+        ctxt = context.PhyNICMTUContext()()
+        self.assertEqual(ctxt, {'devs': 'eth0', 'mtu': 5000})
+
+    @patch.object(context.glob, 'glob')
+    @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
+                  {'network_device_mtu': 5000})
+    @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
+    @patch.object(context.NeutronPortContext, 'resolve_ports',
+                  lambda inst, ports: ports)
+    def test_phy_nic_mtu_context_vlan(self, mock_glob):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth0.100'})
+        mock_glob.return_value = ['/sys/class/net/eth0.100/lower_eth0']
+        ctxt = context.PhyNICMTUContext()()
+        self.assertEqual(ctxt, {'devs': 'eth0\\neth0.100', 'mtu': 5000})
+
+    @patch.object(context.glob, 'glob')
+    @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
+                  {'network_device_mtu': 5000})
+    @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
+    @patch.object(context.NeutronPortContext, 'resolve_ports',
+                  lambda inst, ports: ports)
+    def test_phy_nic_mtu_context_vlan_w_duplicate_raw(self, mock_glob):
+        self.config.side_effect = fake_config({'data-port':
+                                               'phybr1:eth0.100 '
+                                               'phybr1:eth0.200'})
+
+        def fake_glob(wcard):
+            if 'eth0.100' in wcard:
+                return ['/sys/class/net/eth0.100/lower_eth0']
+            elif 'eth0.200' in wcard:
+                return ['/sys/class/net/eth0.200/lower_eth0']
+
+            raise Exception("Unexpeced key '%s'" % (wcard))
+
+        mock_glob.side_effect = fake_glob
+        ctxt = context.PhyNICMTUContext()()
+        self.assertEqual(ctxt, {'devs': 'eth0\\neth0.100\\neth0.200',
+                                'mtu': 5000})
 
     def test_neutronapicontext_defaults(self):
         self.relation_ids.return_value = []
@@ -2460,7 +2722,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.return_value = []
         self.assertEquals(context.NetworkServiceContext()(), {})
 
-    @patch.object(context, 'context_complete')
+    @patch.object(context.OSContextGenerator, 'context_complete')
     def test_network_service_ctxt_no_data(self, mock_context_complete):
         rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION)
         self.relation_ids.side_effect = rel.relation_ids

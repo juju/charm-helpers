@@ -20,6 +20,8 @@ import sys
 
 from six.moves import zip
 
+from charmhelpers.core import unitdata
+
 
 class OutputFormatter(object):
     def __init__(self, outfile=sys.stdout):
@@ -53,6 +55,8 @@ class OutputFormatter(object):
 
     def raw(self, output):
         """Output data as raw string (default)"""
+        if isinstance(output, (list, tuple)):
+            output = '\n'.join(map(str, output))
         self.outfile.write(str(output))
 
     def py(self, output):
@@ -91,6 +95,7 @@ class CommandLine(object):
     argument_parser = None
     subparsers = None
     formatter = None
+    exit_code = 0
 
     def __init__(self):
         if not self.argument_parser:
@@ -115,6 +120,21 @@ class CommandLine(object):
             return decorated
         return wrapper
 
+    def test_command(self, decorated):
+        """
+        Subcommand is a boolean test function, so bool return values should be
+        converted to a 0/1 exit code.
+        """
+        decorated._cli_test_command = True
+        return decorated
+
+    def no_output(self, decorated):
+        """
+        Subcommand is not expected to return a value, so don't print a spurious None.
+        """
+        decorated._cli_no_output = True
+        return decorated
+
     def subcommand_builder(self, command_name, description=None):
         """
         Decorate a function that builds a subcommand. Builders should accept a
@@ -132,12 +152,19 @@ class CommandLine(object):
         arguments = self.argument_parser.parse_args()
         argspec = inspect.getargspec(arguments.func)
         vargs = []
-        kwargs = {}
-        if argspec.varargs:
-            vargs = getattr(arguments, argspec.varargs)
         for arg in argspec.args:
-            kwargs[arg] = getattr(arguments, arg)
-        self.formatter.format_output(arguments.func(*vargs, **kwargs), arguments.format)
+            vargs.append(getattr(arguments, arg))
+        if argspec.varargs:
+            vargs.extend(getattr(arguments, argspec.varargs))
+        output = arguments.func(*vargs)
+        if getattr(arguments.func, '_cli_test_command', False):
+            self.exit_code = 0 if output else 1
+            output = ''
+        if getattr(arguments.func, '_cli_no_output', False):
+            output = ''
+        self.formatter.format_output(output, arguments.format)
+        if unitdata._KV:
+            unitdata._KV.flush()
 
 
 cmdline = CommandLine()

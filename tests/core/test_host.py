@@ -3,6 +3,7 @@ from collections import OrderedDict
 import subprocess
 from tempfile import mkdtemp
 from shutil import rmtree
+from textwrap import dedent
 
 import apt_pkg
 
@@ -35,6 +36,11 @@ IP_LINE_ETH0 = b"""
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """
 
+IP_LINE_ETH100 = b"""
+2: eth100: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
+    link/ether e4:11:5b:ab:a7:3d brd ff:ff:ff:ff:ff:ff
+"""
+
 IP_LINE_ETH0_VLAN = b"""
 6: eth0.10@eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
     link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
@@ -47,7 +53,7 @@ IP_LINE_ETH1 = b"""
 
 IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
-IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN
+IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN + IP_LINE_ETH100
 
 IP_LINE_BONDS = b"""
 6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
@@ -103,32 +109,99 @@ class HelpersTest(TestCase):
         service.assert_called_with('restart', service_name)
 
     @patch.object(host, 'service')
-    def test_pauses_a_service(self, service):
+    def test_pauses_an_upstart_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [True]
-        tempdir = mkdtemp(prefix="test_pauses_a_service")
+        tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        # Just needs to exist
+        with open(conf_path, "w") as fh:
+            fh.write("")
         self.addCleanup(rmtree, tempdir)
         self.assertTrue(host.service_pause(service_name, init_dir=tempdir))
 
         service.assert_called_with('stop', service_name)
         override_path = os.path.join(
-            tempdir, "{}.conf.override".format(service_name))
+            tempdir, "{}.override".format(service_name))
         with open(override_path, "r") as fh:
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
 
+    @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_resumes_a_service(self, service):
+    def test_pauses_a_sysv_service(self, service, check_call):
         service_name = 'foo-service'
         service.side_effect = [True]
-        tempdir = mkdtemp(prefix="test_resumes_a_service")
+        tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        service.assert_called_with('stop', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "disable"])
+
+    @patch.object(host, 'service')
+    def test_pause_with_unknown_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_with_unknown_service")
+        self.addCleanup(rmtree, tempdir)
+        exception = self.assertRaises(
+            ValueError, host.service_pause,
+            service_name, init_dir=tempdir, initd_dir=tempdir)
+        self.assertIn(
+            "Unable to detect {0}".format(service_name), str(exception))
+        self.assertIn(tempdir, str(exception))
+
+    @patch.object(host, 'service')
+    def test_resumes_an_upstart_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        with open(conf_path, "w") as fh:
+            fh.write("")
         self.addCleanup(rmtree, tempdir)
         self.assertTrue(host.service_resume(service_name, init_dir=tempdir))
 
         service.assert_called_with('start', service_name)
         override_path = os.path.join(
-            tempdir, "{}.conf.override".format(service_name))
+            tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
+
+    @patch('subprocess.check_call')
+    @patch.object(host, 'service')
+    def test_resumes_a_sysv_service(self, service, check_call):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        service.assert_called_with('start', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "enable"])
+
+    @patch.object(host, 'service')
+    def test_resume_with_unknown_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_with_unknown_service")
+        self.addCleanup(rmtree, tempdir)
+        exception = self.assertRaises(
+            ValueError, host.service_resume,
+            service_name, init_dir=tempdir, initd_dir=tempdir)
+        self.assertIn(
+            "Unable to detect {0}".format(service_name), str(exception))
+        self.assertIn(tempdir, str(exception))
 
     @patch.object(host, 'service')
     def test_reloads_a_service(self, service):
@@ -302,6 +375,16 @@ class HelpersTest(TestCase):
             username
         ])
         getpwnam.assert_called_with(username)
+
+    @patch('pwd.getpwnam')
+    def test_user_exists_true(self, getpwnam):
+        getpwnam.side_effect = 'pw info'
+        self.assertTrue(host.user_exists('bob'))
+
+    @patch('pwd.getpwnam')
+    def test_user_exists_false(self, getpwnam):
+        getpwnam.side_effect = KeyError('user not found')
+        self.assertFalse(host.user_exists('bob'))
 
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
@@ -666,6 +749,20 @@ class HelpersTest(TestCase):
         '/etc/missing.conf': None
     }
 
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_fstab_mount(self, log, check_output):
+        self.assertTrue(host.fstab_mount('/mnt/mymntpnt'))
+        check_output.assert_called_with(['mount', '/mnt/mymntpnt'])
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_fstab_mount_fail(self, log, check_output):
+        error = subprocess.CalledProcessError(123, 'mount it', 'Oops...')
+        check_output.side_effect = error
+        self.assertFalse(host.fstab_mount('/mnt/mymntpnt'))
+        check_output.assert_called_with(['mount', '/mnt/mymntpnt'])
+
     @patch('hashlib.md5')
     @patch('os.path.exists')
     def test_file_hash_exists(self, exists, md5):
@@ -938,13 +1035,61 @@ class HelpersTest(TestCase):
         pw2 = host.pwgen(10)
         self.assertNotEqual(pw, pw2, 'Duplicated password')
 
+    @patch.object(host, 'glob')
+    @patch('os.path.realpath')
+    @patch('os.path.isdir')
+    def test_is_phy_iface(self, mock_isdir, mock_realpath, mock_glob):
+        mock_isdir.return_value = True
+        mock_glob.glob.return_value = ['/sys/class/net/eth0',
+                                       '/sys/class/net/veth0']
+
+        def fake_realpath(soft):
+            if soft.endswith('/eth0'):
+                hard = \
+                    '/sys/devices/pci0000:00/0000:00:1c.4/0000:02:00.1/net/eth0'
+            else:
+                hard = '/sys/devices/virtual/net/veth0'
+
+            return hard
+
+        mock_realpath.side_effect = fake_realpath
+        self.assertTrue(host.is_phy_iface('eth0'))
+        self.assertFalse(host.is_phy_iface('veth0'))
+
+    @patch('os.path.exists')
+    @patch('os.path.realpath')
+    @patch('os.path.isdir')
+    def test_get_bond_master(self, mock_isdir, mock_realpath, mock_exists):
+        mock_isdir.return_value = True
+
+        def fake_realpath(soft):
+            if soft.endswith('/eth0'):
+                return \
+                    '/sys/devices/pci0000:00/0000:00:1c.4/0000:02:00.1/net/eth0'
+            elif soft.endswith('/br0'):
+                return '/sys/devices/virtual/net/br0'
+            elif soft.endswith('/master'):
+                return '/sys/devices/virtual/net/bond0'
+
+            return None
+
+        def fake_exists(path):
+            return True
+
+        mock_exists.side_effect = fake_exists
+        mock_realpath.side_effect = fake_realpath
+        self.assertEqual(host.get_bond_master('eth0'), 'bond0')
+        self.assertIsNone(host.get_bond_master('br0'))
+
     @patch('subprocess.check_output')
     def test_list_nics(self, check_output):
         check_output.return_value = IP_LINES
+        nics = host.list_nics()
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10', 'eth100'])
         nics = host.list_nics('eth')
-        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10', 'eth100'])
         nics = host.list_nics(['eth'])
-        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10', 'eth100'])
 
     @patch('subprocess.check_output')
     def test_list_nics_with_bonds(self, check_output):
@@ -1005,3 +1150,14 @@ class HelpersTest(TestCase):
         self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
+
+    def test_get_total_ram(self):
+        raw = dedent('''\
+                     MemFree:          183868 kB
+                     MemTotal:        7096108 kB
+                     MemAvailable:    5645240 kB
+                     ''').strip()
+        with patch_open() as (mock_open, mock_file):
+            mock_file.readlines.return_value = raw.splitlines()
+            self.assertEqual(host.get_total_ram(), 7266414592)  # 7GB
+            mock_open.assert_called_once_with('/proc/meminfo', 'r')
