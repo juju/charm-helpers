@@ -44,6 +44,12 @@ class PipTestCase(TestCase):
                                              "-r test_requirements.txt"])
 
         packages.pip_install_requirements("test_requirements.txt",
+                                          "test_constraints.txt")
+        self.pip_execute.assert_called_with(["install",
+                                             "-r test_requirements.txt",
+                                             "-c test_constraints.txt"])
+
+        packages.pip_install_requirements("test_requirements.txt",
                                           proxy="proxy_addr:8080")
 
         self.pip_execute.assert_called_with(["install",
