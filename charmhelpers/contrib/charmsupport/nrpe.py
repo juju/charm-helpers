@@ -153,7 +153,7 @@ define service {{
 
     def _get_service_filename(self, hostname):
         return os.path.join(NRPE.nagios_exportdir,
-                'service__{}_{}.cfg'.format(hostname, self.command))
+                            'service__{}_{}.cfg'.format(hostname, self.command))
 
     def _locate_cmd(self, check_cmd):
         search_path = (
