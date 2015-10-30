@@ -148,6 +148,13 @@ define service {{
         self.description = description
         self.check_cmd = self._locate_cmd(check_cmd)
 
+    def _get_check_filename(self):
+        return os.path.join(NRPE.nrpe_confdir, '{}.cfg'.format(self.command))
+
+    def _get_service_filename(self, hostname):
+        return os.path.join(NRPE.nagios_exportdir,
+                            'service__{}_{}.cfg'.format(hostname, self.command))
+
     def _locate_cmd(self, check_cmd):
         search_path = (
             '/usr/lib/nagios/plugins',
@@ -163,9 +170,21 @@ define service {{
         log('Check command not found: {}'.format(parts[0]))
         return ''
 
+    def _remove_service_files(self):
+        if not os.path.exists(NRPE.nagios_exportdir):
+            return
+        for f in os.listdir(NRPE.nagios_exportdir):
+            if f.endswith('_{}.cfg'.format(self.command)):
+                os.remove(os.path.join(NRPE.nagios_exportdir, f))
+
+    def remove(self, hostname):
+        nrpe_check_file = self._get_check_filename()
+        if os.path.exists(nrpe_check_file):
+            os.remove(nrpe_check_file)
+        self._remove_service_files()
+
     def write(self, nagios_context, hostname, nagios_servicegroups):
-        nrpe_check_file = '/etc/nagios/nrpe.d/{}.cfg'.format(
-            self.command)
+        nrpe_check_file = self._get_check_filename()
         with open(nrpe_check_file, 'w') as nrpe_check_config:
             nrpe_check_config.write("# check {}\n".format(self.shortname))
             nrpe_check_config.write("command[{}]={}\n".format(
@@ -180,9 +199,7 @@ define service {{
 
     def write_service_config(self, nagios_context, hostname,
                              nagios_servicegroups):
-        for f in os.listdir(NRPE.nagios_exportdir):
-            if re.search('.*{}.cfg'.format(self.command), f):
-                os.remove(os.path.join(NRPE.nagios_exportdir, f))
+        self._remove_service_files()
 
         templ_vars = {
             'nagios_hostname': hostname,
@@ -192,8 +209,7 @@ define service {{
             'command': self.command,
         }
         nrpe_service_text = Check.service_template.format(**templ_vars)
-        nrpe_service_file = '{}/service__{}_{}.cfg'.format(
-            NRPE.nagios_exportdir, hostname, self.command)
+        nrpe_service_file = self._get_service_filename(hostname)
         with open(nrpe_service_file, 'w') as nrpe_service_config:
             nrpe_service_config.write(str(nrpe_service_text))
 
@@ -227,6 +243,22 @@ class NRPE(object):
 
     def add_check(self, *args, **kwargs):
         self.checks.append(Check(*args, **kwargs))
+
+    def remove_check(self, *args, **kwargs):
+        if kwargs.get('shortname') is None:
+            raise ValueError('shortname of check must be specified')
+
+        # Use sensible defaults if they're not specified - these are not
+        # actually used during removal, but they're required for constructing
+        # the Check object; check_disk is chosen because it's part of the
+        # nagios-plugins-basic package.
+        if kwargs.get('check_cmd') is None:
+            kwargs['check_cmd'] = 'check_disk'
+        if kwargs.get('description') is None:
+            kwargs['description'] = ''
+
+        check = Check(*args, **kwargs)
+        check.remove(self.hostname)
 
     def write(self):
         try:

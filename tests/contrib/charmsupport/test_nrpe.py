@@ -172,7 +172,7 @@ define service {
         ]
         self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
-                               exists=3, open=2, listdir=1,
+                               exists=4, open=2, listdir=1,
                                relation_ids=2, relation_set=2)
 
 
@@ -200,14 +200,14 @@ class NRPECheckTestCase(NRPEBaseTestCase):
 
     def test_write_removes_existing_config(self):
         self.patched['listdir'].return_value = [
-            'foo', 'bar.cfg', 'check_shortname.cfg']
+            'foo', 'bar.cfg', '_check_shortname.cfg']
         check = nrpe.Check('shortname', 'description', '/some/command')
 
         self.assertEqual(None, check.write('testctx', 'hostname', 'testsgrp'))
 
-        expected = '/var/lib/nagios/export/check_shortname.cfg'
+        expected = '/var/lib/nagios/export/_check_shortname.cfg'
         self.patched['remove'].assert_called_once_with(expected)
-        self.check_call_counts(exists=2, remove=1, open=2, listdir=1)
+        self.check_call_counts(exists=3, remove=1, open=2, listdir=1)
 
     def test_check_write_nrpe_exportdir_not_accessible(self):
         self.patched['exists'].return_value = False
