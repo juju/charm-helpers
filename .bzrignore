@@ -8,6 +8,7 @@ charmhelpers/version.py
 .env/
 coverage.xml
 docs/_build
+.idea
 .project
 .pydevproject
 .settings
