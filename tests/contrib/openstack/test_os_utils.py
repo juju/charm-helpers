@@ -95,3 +95,18 @@ class UtilsTests(unittest.TestCase):
                                              database='testdb',
                                              username='testdbuser',
                                              hostname=hosts)
+
+    @mock.patch('uuid.uuid4')
+    @mock.patch('charmhelpers.contrib.openstack.utils.related_units')
+    @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
+    @mock.patch('charmhelpers.contrib.openstack.utils.relation_ids')
+    def test_remote_restart(self, mock_relation_ids, mock_relation_set,
+                            mock_related_units, mock_uuid4):
+        mock_relation_ids.return_value = ['neutron-plugin-api-subordinate:8']
+        mock_related_units.return_value = ['neutron-api/0']
+        mock_uuid4.return_value = 'uuid4'
+        utils.remote_restart('neutron-plugin-api-subordinate')
+        mock_relation_set.assert_called_with(
+            relation_id='neutron-plugin-api-subordinate:8',
+            relation_settings={'restart-trigger': 'uuid4'}
+        )

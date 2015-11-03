@@ -26,6 +26,7 @@ import re
 
 import six
 import traceback
+import uuid
 import yaml
 
 from charmhelpers.contrib.network import ip
@@ -41,6 +42,7 @@ from charmhelpers.core.hookenv import (
     log as juju_log,
     charm_dir,
     INFO,
+    related_units,
     relation_ids,
     relation_set,
     status_set,
@@ -978,3 +980,19 @@ def do_action_openstack_upgrade(package, upgrade_callback, configs):
             action_set({'outcome': 'no upgrade available.'})
 
     return ret
+
+
+def remote_restart(rel_name, remote_service=None):
+    trigger = {
+        'restart-trigger': str(uuid.uuid4()),
+    }
+    if remote_service:
+        trigger['remote-service'] = remote_service
+    for rid in relation_ids(rel_name):
+        # This subordinate can be related to two seperate services using
+        # different subordinate relations so only issue the restart if
+        # the principle is conencted down the relation we think it is
+        if related_units(relid=rid):
+            relation_set(relation_id=rid,
+                         relation_settings=trigger,
+                         )
