@@ -21,7 +21,7 @@ from charmhelpers.core import hookenv
 
 
 def render(source, target, context, owner='root', group='root',
-           perms=0o444, templates_dir=None, encoding='UTF-8'):
+           perms=0o444, templates_dir=None, encoding='UTF-8', loader=None):
     """
     Render a template.
 
@@ -52,9 +52,10 @@ def render(source, target, context, owner='root', group='root',
         apt_install('python-jinja2', fatal=True)
         from jinja2 import FileSystemLoader, Environment, exceptions
 
-    if templates_dir is None:
-        templates_dir = os.path.join(hookenv.charm_dir(), 'templates')
-    loader = Environment(loader=FileSystemLoader(templates_dir))
+    if not loader:
+        if templates_dir is None:
+            templates_dir = os.path.join(hookenv.charm_dir(), 'templates')
+        loader = Environment(loader=FileSystemLoader(templates_dir))
     try:
         source = source
         template = loader.get_template(source)
