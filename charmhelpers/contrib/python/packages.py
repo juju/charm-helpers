@@ -45,7 +45,7 @@ def parse_options(given, available):
 def pip_install_requirements(requirements, constraints=None, **options):
     """Install a requirements file.
 
-    Optionally provide pip constraints
+    :param constraints: Path to pip constraints file.
     http://pip.readthedocs.org/en/stable/user_guide/#constraints-files
     """
     command = ["install"]
