@@ -58,6 +58,29 @@ class TestTemplating(unittest.TestCase):
             # expose your secrets (!).
             self.assertEqual(mkdir.call_count, 0)
 
+    @mock.patch.object(templating.host.os, 'fchown')
+    @mock.patch.object(templating.host, 'mkdir')
+    @mock.patch.object(templating.host, 'log')
+    def test_render_loader(self, log, mkdir, fchown):
+        with tempfile.NamedTemporaryFile() as fn1:
+            context = {
+                'nats': {
+                    'port': '1234',
+                    'host': 'example.com',
+                },
+                'router': {
+                    'domain': 'api.foo.com'
+                },
+                'nginx_port': 80,
+            }
+            template_loader = jinja2.ChoiceLoader([jinja2.FileSystemLoader(TEMPLATES_DIR)])
+            templating.render('fake_cc.yml', fn1.name,
+                              context, template_loader=template_loader)
+            contents = open(fn1.name).read()
+            self.assertRegexpMatches(contents, 'port: 1234')
+            self.assertRegexpMatches(contents, 'host: example.com')
+            self.assertRegexpMatches(contents, 'domain: api.foo.com')
+
     @mock.patch.object(templating.os.path, 'exists')
     @mock.patch.object(templating.host.os, 'fchown')
     @mock.patch.object(templating.host, 'mkdir')

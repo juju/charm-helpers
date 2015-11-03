@@ -249,16 +249,18 @@ class TemplateCallback(ManagerCallback):
     :param int perms: The permissions of the rendered file
     :param partial on_change_action: functools partial to be executed when
                                      rendered file changes
+    :param jinja2 loader template_loader: A jinja2 template loader
     """
     def __init__(self, source, target,
                  owner='root', group='root', perms=0o444,
-                 on_change_action=None):
+                 on_change_action=None, template_loader=None):
         self.source = source
         self.target = target
         self.owner = owner
         self.group = group
         self.perms = perms
         self.on_change_action = on_change_action
+        self.template_loader = template_loader
 
     def __call__(self, manager, service_name, event_name):
         pre_checksum = ''
@@ -269,7 +271,8 @@ class TemplateCallback(ManagerCallback):
         for ctx in service.get('required_data', []):
             context.update(ctx)
         templating.render(self.source, self.target, context,
-                          self.owner, self.group, self.perms)
+                          self.owner, self.group, self.perms,
+                          template_loader=self.template_loader)
         if self.on_change_action:
             if pre_checksum == host.file_hash(self.target):
                 hookenv.log(

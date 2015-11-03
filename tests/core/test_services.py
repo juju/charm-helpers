@@ -739,7 +739,7 @@ class TestTemplateCallback(unittest.TestCase):
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
-            'root', 'root', 0o444)
+            'root', 'root', 0o444, template_loader=None)
 
     @mock.patch.object(services.helpers, 'templating')
     def test_template_explicit(self, mtemplating):
@@ -754,7 +754,23 @@ class TestTemplateCallback(unittest.TestCase):
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
-            'user', 'group', 0o555)
+            'user', 'group', 0o555, template_loader=None)
+
+    @mock.patch.object(services.helpers, 'templating')
+    def test_template_loader(self, mtemplating):
+        manager = mock.Mock(**{'get_service.return_value': {
+            'required_data': [{'foo': 'bar'}]}})
+        callback = services.template(
+            source='foo.yml', target='bar.yml',
+            owner='user', group='group', perms=0o555,
+            template_loader='myloader'
+        )
+        assert isinstance(callback, services.ManagerCallback)
+        assert not mtemplating.render.called
+        callback(manager, 'test', 'event')
+        mtemplating.render.assert_called_once_with(
+            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'user', 'group', 0o555, template_loader='myloader')
 
     @mock.patch.object(os.path, 'isfile')
     @mock.patch.object(host, 'file_hash')
@@ -777,7 +793,7 @@ class TestTemplateCallback(unittest.TestCase):
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
-            'user', 'group', 0o555)
+            'user', 'group', 0o555, template_loader=None)
         mrestart.assert_called_with('mysuperservice')
 
     @mock.patch.object(hookenv, 'log')
@@ -801,7 +817,7 @@ class TestTemplateCallback(unittest.TestCase):
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
             'foo.yml', 'bar.yml', {'foo': 'bar'},
-            'user', 'group', 0o555)
+            'user', 'group', 0o555, template_loader=None)
         self.assertEqual(mrestart.call_args_list, [])
 
 
