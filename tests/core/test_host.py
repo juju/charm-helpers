@@ -108,8 +108,10 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('restart', service_name)
 
+    @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_pauses_an_upstart_service(self, service):
+    def test_pauses_an_upstart_service(self, service, check_output):
+        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
@@ -127,9 +129,11 @@ class HelpersTest(TestCase):
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_pauses_a_sysv_service(self, service, check_call):
+    def test_pauses_a_sysv_service(self, service, check_call, check_output):
+        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
@@ -157,8 +161,10 @@ class HelpersTest(TestCase):
             "Unable to detect {0}".format(service_name), str(exception))
         self.assertIn(tempdir, str(exception))
 
+    @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_an_upstart_service(self, service):
+    def test_resumes_an_upstart_service(self, service, check_output):
+        check_output.return_value = b'foo-service start/running, process 111'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
@@ -173,9 +179,11 @@ class HelpersTest(TestCase):
             tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_resumes_a_sysv_service(self, service, check_call):
+    def test_resumes_a_sysv_service(self, service, check_call, check_output):
+        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
