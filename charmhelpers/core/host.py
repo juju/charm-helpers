@@ -67,7 +67,7 @@ def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
     """Pause a system service.
 
     Stop it, and prevent it from starting again at boot."""
-    stopped = service_stop(service_name)
+    service_stop(service_name)
     upstart_file = os.path.join(init_dir, "{}.conf".format(service_name))
     sysv_file = os.path.join(initd_dir, service_name)
     if os.path.exists(upstart_file):
@@ -82,7 +82,7 @@ def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
         raise ValueError(
             "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
                 service_name, upstart_file, sysv_file))
-    return stopped
+    return not service_running(service_name)
 
 
 def service_resume(service_name, init_dir="/etc/init",
@@ -105,8 +105,8 @@ def service_resume(service_name, init_dir="/etc/init",
             "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
                 service_name, upstart_file, sysv_file))
 
-    started = service_start(service_name)
-    return started
+    service_start(service_name)
+    return service_running(service_name)
 
 
 def service(action, service_name):
