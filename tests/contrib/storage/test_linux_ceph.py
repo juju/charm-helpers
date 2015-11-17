@@ -1,6 +1,8 @@
 import unittest
 from mock import patch, call
 
+from past.builtins import basestring
+
 from shutil import rmtree
 from tempfile import mkdtemp
 from threading import Timer
@@ -257,7 +259,7 @@ class CephUtilsTests(TestCase):
         p.create()
 
     @patch.object(ceph_utils, 'pool_exists')
-    def test_replicated_pool_create_failed(self, pool_exists):
+    def test_replicated_pool_skips_creation(self, pool_exists):
         pool_exists.return_value = True
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
