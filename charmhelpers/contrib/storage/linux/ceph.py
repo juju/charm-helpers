@@ -24,6 +24,7 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 import bisect
+from past.builtins import basestring
 
 import os
 import shutil
