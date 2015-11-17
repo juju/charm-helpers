@@ -163,8 +163,30 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_an_upstart_service(self, service, check_output):
+    def test_resumes_a_running_upstart_service(self, service, check_output):
+        """When the service is already running, service start isn't called."""
         check_output.return_value = b'foo-service start/running, process 111'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        with open(conf_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(service_name, init_dir=tempdir))
+
+        # Start isn't called because service is already running
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'start', service_name)
+        override_path = os.path.join(
+            tempdir, "{}.override".format(service_name))
+        self.assertFalse(os.path.exists(override_path))
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'service')
+    def test_resumes_a_stopped_upstart_service(self, service, check_output):
+        """When the service is stopped, service start is called."""
+        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
@@ -183,7 +205,8 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
     def test_resumes_a_sysv_service(self, service, check_call, check_output):
-        check_output.return_value = b'foo-service start/running, process 123'
+        """When process is in a stop/waiting state, service start is called."""
+        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
@@ -196,6 +219,29 @@ class HelpersTest(TestCase):
             service_name, init_dir=tempdir, initd_dir=tempdir))
 
         service.assert_called_with('start', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "enable"])
+
+    @patch('subprocess.check_output')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'service')
+    def test_resume_a_running_sysv_service(self, service, check_call,
+                                           check_output):
+        """When process is already running, service start isn't called."""
+        check_output.return_value = b'foo-service start/running, process 123'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        # Start isn't called because service is already running
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'start', service_name)
         check_call.assert_called_with(["update-rc.d", service_name, "enable"])
 
     @patch.object(host, 'service')
