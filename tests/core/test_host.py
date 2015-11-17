@@ -110,8 +110,9 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_pauses_an_upstart_service(self, service, check_output):
-        check_output.return_value = b'foo-service stop/waiting'
+    def test_pauses_a_running_upstart_service(self, service, check_output):
+        """Pause on a running service will call service stop."""
+        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
@@ -130,10 +131,36 @@ class HelpersTest(TestCase):
         self.assertEqual("manual\n", override_contents)
 
     @patch('subprocess.check_output')
+    @patch.object(host, 'service')
+    def test_pauses_a_stopped_upstart_service(self, service, check_output):
+        """Pause on a stopped service will not call service stop."""
+        check_output.return_value = b'foo-service stop/waiting'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        # Just needs to exist
+        with open(conf_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(service_name, init_dir=tempdir))
+
+        # Stop isn't called because service is already stopped
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'stop', service_name)
+        override_path = os.path.join(
+            tempdir, "{}.override".format(service_name))
+        with open(override_path, "r") as fh:
+            override_contents = fh.read()
+        self.assertEqual("manual\n", override_contents)
+
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_pauses_a_sysv_service(self, service, check_call, check_output):
-        check_output.return_value = b'foo-service stop/waiting'
+    def test_pauses_a_running_sysv_service(self, service, check_call,
+                                           check_output):
+        """Pause calls service stop on a running sysv service."""
+        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
@@ -146,6 +173,29 @@ class HelpersTest(TestCase):
             service_name, init_dir=tempdir, initd_dir=tempdir))
 
         service.assert_called_with('stop', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "disable"])
+
+    @patch('subprocess.check_output')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'service')
+    def test_pauses_a_stopped_sysv_service(self, service, check_call,
+                                           check_output):
+        """Pause does not call service stop on a stopped sysv service."""
+        check_output.return_value = b'foo-service stop/waiting'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        # Stop isn't called because service is already stopped
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'stop', service_name)
         check_call.assert_called_with(["update-rc.d", service_name, "disable"])
 
     @patch.object(host, 'service')
