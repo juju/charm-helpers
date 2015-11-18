@@ -1,8 +1,7 @@
 import unittest
 from mock import patch, call
 
-from past.builtins import basestring
-
+import six
 from shutil import rmtree
 from tempfile import mkdtemp
 from threading import Timer
@@ -163,9 +162,9 @@ class CephUtilsTests(TestCase):
 
     @unittest.expectedFailure
     def test_validator_invalid_string_list(self):
-        # foo is a basestring that isn't in the valid string list
+        # foo is a six.string_types that isn't in the valid string list
         ceph_utils.validator(value="foo",
-                             valid_type=basestring,
+                             valid_type=six.string_types,
                              valid_range=["valid", "list", "of", "strings"])
 
     def test_pool_add_cache_tier(self):
