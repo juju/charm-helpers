@@ -1088,6 +1088,20 @@ class OSConfigFlagContext(OSContextGenerator):
                 config_flags_parser(config_flags)}
 
 
+class LibvirtConfigFlagsContext(OSContextGenerator):
+    """
+    This context provides support for extending
+    the libvirt section through user-defined flags.
+    """
+    def __call__(self):
+        ctxt = {}
+        libvirt_flags = config('libvirt-flags')
+        if libvirt_flags:
+            ctxt['libvirt_flags'] = config_flags_parser(
+                libvirt_flags)
+        return ctxt
+
+
 class SubordinateConfigContext(OSContextGenerator):
 
     """
