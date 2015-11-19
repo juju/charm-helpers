@@ -570,14 +570,14 @@ def get_request_states(request, relation='ceph'):
     return requests
 
 
-def is_request_sent(request):
+def is_request_sent(request, relation='ceph'):
     """Check to see if a functionally equivalent request has already been sent
 
     Returns True if a similair request has been sent
 
     @param request: A CephBrokerRq object
     """
-    states = get_request_states(request)
+    states = get_request_states(request, relation=relation)
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
@@ -585,7 +585,7 @@ def is_request_sent(request):
     return True
 
 
-def is_request_complete(request):
+def is_request_complete(request, relation='ceph'):
     """Check to see if a functionally equivalent request has already been
     completed
 
@@ -593,7 +593,7 @@ def is_request_complete(request):
 
     @param request: A CephBrokerRq object
     """
-    states = get_request_states(request)
+    states = get_request_states(request, relation=relation)
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
@@ -648,7 +648,7 @@ def send_request_if_needed(request, relation='ceph'):
 
     @param request: A CephBrokerRq object
     """
-    if is_request_sent(request):
+    if is_request_sent(request, relation=relation):
         log('Request already sent but not complete, not sending new request',
             level=DEBUG)
     else:
