@@ -202,10 +202,10 @@ def create_key_file(service, key):
     log('Created new keyfile at %s.' % keyfile, level=INFO)
 
 
-def get_ceph_nodes():
-    """Query named relation 'ceph' to determine current nodes."""
+def get_ceph_nodes(relation='ceph'):
+    """Query named relation to determine current nodes."""
     hosts = []
-    for r_id in relation_ids('ceph'):
+    for r_id in relation_ids(relation):
         for unit in related_units(r_id):
             hosts.append(relation_get('private-address', unit=unit, rid=r_id))
 
@@ -357,14 +357,14 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
             service_start(svc)
 
 
-def ensure_ceph_keyring(service, user=None, group=None):
+def ensure_ceph_keyring(service, user=None, group=None, relation='ceph'):
     """Ensures a ceph keyring is created for a named service and optionally
     ensures user and group ownership.
 
     Returns False if no ceph key is available in relation state.
     """
     key = None
-    for rid in relation_ids('ceph'):
+    for rid in relation_ids(relation):
         for unit in related_units(rid):
             key = relation_get('key', rid=rid, unit=unit)
             if key:
@@ -540,7 +540,7 @@ def get_previous_request(rid):
     return request
 
 
-def get_request_states(request):
+def get_request_states(request, relation='ceph'):
     """Return a dict of requests per relation id with their corresponding
        completion state.
 
@@ -552,7 +552,7 @@ def get_request_states(request):
     """
     complete = []
     requests = {}
-    for rid in relation_ids('ceph'):
+    for rid in relation_ids(relation):
         complete = False
         previous_request = get_previous_request(rid)
         if request == previous_request:
@@ -643,7 +643,7 @@ def get_broker_rsp_key():
     return 'broker-rsp-' + local_unit().replace('/', '-')
 
 
-def send_request_if_needed(request):
+def send_request_if_needed(request, relation='ceph'):
     """Send broker request if an equivalent request has not already been sent
 
     @param request: A CephBrokerRq object
@@ -652,6 +652,6 @@ def send_request_if_needed(request):
         log('Request already sent but not complete, not sending new request',
             level=DEBUG)
     else:
-        for rid in relation_ids('ceph'):
+        for rid in relation_ids(relation):
             log('Sending request {}'.format(request.request_id), level=DEBUG)
             relation_set(relation_id=rid, broker_req=request.request)
