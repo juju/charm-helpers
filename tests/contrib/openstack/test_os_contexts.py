@@ -1014,6 +1014,19 @@ class ContextTests(unittest.TestCase):
 
         self.assertEquals(result, expected)
 
+    def test_libvirt_config_flags(self):
+        self.config.side_effect = fake_config({
+            'libvirt-flags': 'iscsi_use_multipath=True,chap_auth=False',
+        })
+
+        results = context.LibvirtConfigFlagsContext()()
+        self.assertEquals(results, {
+            'libvirt_flags': {
+                'chap_auth': 'False',
+                'iscsi_use_multipath': 'True'
+            }
+        })
+
     def test_ceph_no_relids(self):
         '''Test empty ceph realtion'''
         relation = FakeRelation(relation_data={})
