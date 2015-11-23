@@ -624,7 +624,7 @@ def unit_private_ip():
 
 
 @cached
-def storage_get(attribute="", storage_id=""):
+def storage_get(attribute=None, storage_id=None):
     """Get storage attributes"""
     _args = ['storage-get', '--format=json']
     if storage_id:
@@ -638,7 +638,7 @@ def storage_get(attribute="", storage_id=""):
 
 
 @cached
-def storage_list(storage_name=""):
+def storage_list(storage_name=None):
     """List the storage IDs for the unit"""
     _args = ['storage-list', '--format=json']
     if storage_name:
