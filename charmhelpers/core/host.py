@@ -175,8 +175,15 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False,
                 '--create-home',
                 '--shell', shell,
                 '--password', password,
-                '-g', primary_group or username,  # always -g to avoid "group exists" error
             ])
+        if not primary_group:
+            try:
+                grp.getgrnam(username)
+                primary_group = username  # avoid "group exists" error
+            except KeyError:
+                pass
+        if primary_group:
+            cmd.extend(['-g', primary_group])
         if secondary_groups:
             cmd.extend(['-G', ','.join(secondary_groups)])
         cmd.append(username)
