@@ -146,7 +146,8 @@ def service_available(service_name):
         return True
 
 
-def adduser(username, password=None, shell='/bin/bash', system_user=False, group=None, groups=None):
+def adduser(username, password=None, shell='/bin/bash', system_user=False,
+            primary_group=None, secondary_groups=None):
     """Add a user to the system"""
     try:
         user_info = pwd.getpwnam(username)
@@ -162,10 +163,10 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False, group
                 '--shell', shell,
                 '--password', password,
             ])
-        if group:
-            cmd.extend(['-g', group])
-        if groups:
-            cmd.extend(['-G', ','.join(groups)])
+        if primary_group:
+            cmd.extend(['-g', primary_group])
+        if secondary_groups:
+            cmd.extend(['-G', ','.join(secondary_groups)])
         cmd.append(username)
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)

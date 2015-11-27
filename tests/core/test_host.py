@@ -463,6 +463,35 @@ class HelpersTest(TestCase):
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
+    def test_adduser_with_groups(self, log, check_call, getpwnam):
+        username = 'johndoe'
+        password = 'eodnhoj'
+        shell = '/bin/bash'
+        existing_user_pwnam = KeyError('user not found')
+        new_user_pwnam = 'some user pwnam'
+
+        getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
+
+        result = host.adduser(username, password,
+                              primary_group='foo', secondary_groups=[
+                                  'bar', 'qux',
+                              ])
+
+        self.assertEqual(result, new_user_pwnam)
+        check_call.assert_called_with([
+            'useradd',
+            '--create-home',
+            '--shell', shell,
+            '--password', password,
+            '-g', 'foo',
+            '-G', 'bar,qux',
+            username
+        ])
+        getpwnam.assert_called_with(username)
+
+    @patch('pwd.getpwnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
     def test_adds_a_systemuser(self, log, check_call, getpwnam):
         username = 'johndoe'
         existing_user_pwnam = KeyError('user not found')
