@@ -395,10 +395,11 @@ class HelpersTest(TestCase):
         check_output.side_effect = exc
         self.assertFalse(host.service_running('foo'))
 
+    @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
-    def test_adds_a_user_if_it_doesnt_exist(self, log, check_call, getpwnam):
+    def test_adds_a_user_if_it_doesnt_exist(self, log, check_call, getpwnam, getgrnam):
         username = 'johndoe'
         password = 'eodnhoj'
         shell = '/bin/bash'
@@ -415,6 +416,7 @@ class HelpersTest(TestCase):
             '--create-home',
             '--shell', shell,
             '--password', password,
+            '-g', username,
             username
         ])
         getpwnam.assert_called_with(username)
@@ -436,10 +438,12 @@ class HelpersTest(TestCase):
         self.assertFalse(check_call.called)
         getpwnam.assert_called_with(username)
 
+    @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
-    def test_adds_a_user_with_different_shell(self, log, check_call, getpwnam):
+    def test_adds_a_user_with_different_shell(self, log, check_call, getpwnam,
+                                              getgrnam):
         username = 'johndoe'
         password = 'eodnhoj'
         shell = '/bin/zsh'
@@ -447,6 +451,7 @@ class HelpersTest(TestCase):
         new_user_pwnam = 'some user pwnam'
 
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
+        getgrnam.side_effect = KeyError('group not found')
 
         result = host.adduser(username, password, shell=shell)
 
@@ -460,10 +465,11 @@ class HelpersTest(TestCase):
         ])
         getpwnam.assert_called_with(username)
 
+    @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
-    def test_adduser_with_groups(self, log, check_call, getpwnam):
+    def test_adduser_with_groups(self, log, check_call, getpwnam, getgrnam):
         username = 'johndoe'
         password = 'eodnhoj'
         shell = '/bin/bash'
@@ -488,6 +494,7 @@ class HelpersTest(TestCase):
             username
         ])
         getpwnam.assert_called_with(username)
+        assert not getgrnam.called
 
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
