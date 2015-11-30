@@ -28,7 +28,6 @@ import six
 
 import os
 import shutil
-import six
 import json
 import time
 import uuid
@@ -490,30 +489,6 @@ def create_rbd_image(service, pool, image, sizemb):
     cmd = ['rbd', 'create', image, '--size', str(sizemb), '--id', service,
            '--pool', pool]
     check_call(cmd)
-
-
-def pool_exists(service, name):
-    """Check to see if a RADOS pool already exists."""
-    try:
-        out = check_output(['rados', '--id', service,
-                            'lspools']).decode('UTF-8')
-    except CalledProcessError:
-        return False
-
-    return name in out
-
-
-def get_osds(service):
-    """Return a list of all Ceph Object Storage Daemons currently in the
-    cluster.
-    """
-    version = ceph_version()
-    if version and version >= '0.56':
-        return json.loads(check_output(['ceph', '--id', service,
-                                        'osd', 'ls',
-                                        '--format=json']).decode('UTF-8'))
-
-    return None
 
 
 def update_pool(client, pool, settings):
