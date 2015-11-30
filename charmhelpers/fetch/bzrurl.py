@@ -64,11 +64,15 @@ class BzrUrlFetchHandler(BaseFetchHandler):
         except Exception as e:
             raise e
 
-    def install(self, source):
+    def install(self, source, dest=None):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
-        dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
-                                branch_name)
+        if dest:
+            dest_dir = os.path.join(dest, branch_name)
+        else:
+            dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
+                                    branch_name)
+
         if not os.path.exists(dest_dir):
             mkdir(dest_dir, perms=0o755)
         try:
