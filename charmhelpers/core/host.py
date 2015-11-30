@@ -146,8 +146,22 @@ def service_available(service_name):
         return True
 
 
-def adduser(username, password=None, shell='/bin/bash', system_user=False):
-    """Add a user to the system"""
+def adduser(username, password=None, shell='/bin/bash', system_user=False,
+            primary_group=None, secondary_groups=None):
+    """
+    Add a user to the system.
+
+    Will log but otherwise succeed if the user already exists.
+
+    :param str username: Username to create
+    :param str password: Password for user; if ``None``, create a system user
+    :param str shell: The default shell for the user
+    :param bool system_user: Whether to create a login or system user
+    :param str primary_group: Primary group for user; defaults to their username
+    :param list secondary_groups: Optional list of additional groups
+
+    :returns: The password database entry struct, as returned by `pwd.getpwnam`
+    """
     try:
         user_info = pwd.getpwnam(username)
         log('user {0} already exists!'.format(username))
@@ -162,6 +176,16 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
                 '--shell', shell,
                 '--password', password,
             ])
+        if not primary_group:
+            try:
+                grp.getgrnam(username)
+                primary_group = username  # avoid "group exists" error
+            except KeyError:
+                pass
+        if primary_group:
+            cmd.extend(['-g', primary_group])
+        if secondary_groups:
+            cmd.extend(['-G', ','.join(secondary_groups)])
         cmd.append(username)
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)
