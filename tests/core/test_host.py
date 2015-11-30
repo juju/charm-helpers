@@ -108,8 +108,11 @@ class HelpersTest(TestCase):
 
         service.assert_called_with('restart', service_name)
 
+    @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_pauses_an_upstart_service(self, service):
+    def test_pauses_a_running_upstart_service(self, service, check_output):
+        """Pause on a running service will call service stop."""
+        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
@@ -127,9 +130,37 @@ class HelpersTest(TestCase):
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
 
+    @patch('subprocess.check_output')
+    @patch.object(host, 'service')
+    def test_pauses_a_stopped_upstart_service(self, service, check_output):
+        """Pause on a stopped service will not call service stop."""
+        check_output.return_value = b'foo-service stop/waiting'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        # Just needs to exist
+        with open(conf_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(service_name, init_dir=tempdir))
+
+        # Stop isn't called because service is already stopped
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'stop', service_name)
+        override_path = os.path.join(
+            tempdir, "{}.override".format(service_name))
+        with open(override_path, "r") as fh:
+            override_contents = fh.read()
+        self.assertEqual("manual\n", override_contents)
+
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_pauses_a_sysv_service(self, service, check_call):
+    def test_pauses_a_running_sysv_service(self, service, check_call,
+                                           check_output):
+        """Pause calls service stop on a running sysv service."""
+        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
@@ -142,6 +173,29 @@ class HelpersTest(TestCase):
             service_name, init_dir=tempdir, initd_dir=tempdir))
 
         service.assert_called_with('stop', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "disable"])
+
+    @patch('subprocess.check_output')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'service')
+    def test_pauses_a_stopped_sysv_service(self, service, check_call,
+                                           check_output):
+        """Pause does not call service stop on a stopped sysv service."""
+        check_output.return_value = b'foo-service stop/waiting'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_pause(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        # Stop isn't called because service is already stopped
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'stop', service_name)
         check_call.assert_called_with(["update-rc.d", service_name, "disable"])
 
     @patch.object(host, 'service')
@@ -157,8 +211,32 @@ class HelpersTest(TestCase):
             "Unable to detect {0}".format(service_name), str(exception))
         self.assertIn(tempdir, str(exception))
 
+    @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_an_upstart_service(self, service):
+    def test_resumes_a_running_upstart_service(self, service, check_output):
+        """When the service is already running, service start isn't called."""
+        check_output.return_value = b'foo-service start/running, process 111'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
+        conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
+        with open(conf_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(service_name, init_dir=tempdir))
+
+        # Start isn't called because service is already running
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'start', service_name)
+        override_path = os.path.join(
+            tempdir, "{}.override".format(service_name))
+        self.assertFalse(os.path.exists(override_path))
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'service')
+    def test_resumes_a_stopped_upstart_service(self, service, check_output):
+        """When the service is stopped, service start is called."""
+        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
@@ -173,9 +251,12 @@ class HelpersTest(TestCase):
             tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
 
+    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_resumes_a_sysv_service(self, service, check_call):
+    def test_resumes_a_sysv_service(self, service, check_call, check_output):
+        """When process is in a stop/waiting state, service start is called."""
+        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
@@ -188,6 +269,29 @@ class HelpersTest(TestCase):
             service_name, init_dir=tempdir, initd_dir=tempdir))
 
         service.assert_called_with('start', service_name)
+        check_call.assert_called_with(["update-rc.d", service_name, "enable"])
+
+    @patch('subprocess.check_output')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'service')
+    def test_resume_a_running_sysv_service(self, service, check_call,
+                                           check_output):
+        """When process is already running, service start isn't called."""
+        check_output.return_value = b'foo-service start/running, process 123'
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
+        sysv_path = os.path.join(tempdir, service_name)
+        # Just needs to exist
+        with open(sysv_path, "w") as fh:
+            fh.write("")
+        self.addCleanup(rmtree, tempdir)
+        self.assertTrue(host.service_resume(
+            service_name, init_dir=tempdir, initd_dir=tempdir))
+
+        # Start isn't called because service is already running
+        self.assertRaises(
+            AssertionError, service.assert_called_with, 'start', service_name)
         check_call.assert_called_with(["update-rc.d", service_name, "enable"])
 
     @patch.object(host, 'service')
@@ -291,10 +395,11 @@ class HelpersTest(TestCase):
         check_output.side_effect = exc
         self.assertFalse(host.service_running('foo'))
 
+    @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
-    def test_adds_a_user_if_it_doesnt_exist(self, log, check_call, getpwnam):
+    def test_adds_a_user_if_it_doesnt_exist(self, log, check_call, getpwnam, getgrnam):
         username = 'johndoe'
         password = 'eodnhoj'
         shell = '/bin/bash'
@@ -311,6 +416,7 @@ class HelpersTest(TestCase):
             '--create-home',
             '--shell', shell,
             '--password', password,
+            '-g', username,
             username
         ])
         getpwnam.assert_called_with(username)
@@ -332,10 +438,12 @@ class HelpersTest(TestCase):
         self.assertFalse(check_call.called)
         getpwnam.assert_called_with(username)
 
+    @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
-    def test_adds_a_user_with_different_shell(self, log, check_call, getpwnam):
+    def test_adds_a_user_with_different_shell(self, log, check_call, getpwnam,
+                                              getgrnam):
         username = 'johndoe'
         password = 'eodnhoj'
         shell = '/bin/zsh'
@@ -343,6 +451,7 @@ class HelpersTest(TestCase):
         new_user_pwnam = 'some user pwnam'
 
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
+        getgrnam.side_effect = KeyError('group not found')
 
         result = host.adduser(username, password, shell=shell)
 
@@ -355,6 +464,37 @@ class HelpersTest(TestCase):
             username
         ])
         getpwnam.assert_called_with(username)
+
+    @patch('grp.getgrnam')
+    @patch('pwd.getpwnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_adduser_with_groups(self, log, check_call, getpwnam, getgrnam):
+        username = 'johndoe'
+        password = 'eodnhoj'
+        shell = '/bin/bash'
+        existing_user_pwnam = KeyError('user not found')
+        new_user_pwnam = 'some user pwnam'
+
+        getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
+
+        result = host.adduser(username, password,
+                              primary_group='foo', secondary_groups=[
+                                  'bar', 'qux',
+                              ])
+
+        self.assertEqual(result, new_user_pwnam)
+        check_call.assert_called_with([
+            'useradd',
+            '--create-home',
+            '--shell', shell,
+            '--password', password,
+            '-g', 'foo',
+            '-G', 'bar,qux',
+            username
+        ])
+        getpwnam.assert_called_with(username)
+        assert not getgrnam.called
 
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')

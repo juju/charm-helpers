@@ -28,6 +28,7 @@ import six
 
 import os
 import shutil
+import six
 import json
 import time
 import uuid
@@ -491,29 +492,61 @@ def create_rbd_image(service, pool, image, sizemb):
     check_call(cmd)
 
 
-def create_pool(service, name, replicas=3):
+def pool_exists(service, name):
+    """Check to see if a RADOS pool already exists."""
+    try:
+        out = check_output(['rados', '--id', service,
+                            'lspools']).decode('UTF-8')
+    except CalledProcessError:
+        return False
+
+    return name in out
+
+
+def get_osds(service):
+    """Return a list of all Ceph Object Storage Daemons currently in the
+    cluster.
+    """
+    version = ceph_version()
+    if version and version >= '0.56':
+        return json.loads(check_output(['ceph', '--id', service,
+                                        'osd', 'ls',
+                                        '--format=json']).decode('UTF-8'))
+
+    return None
+
+
+def update_pool(client, pool, settings):
+    cmd = ['ceph', '--id', client, 'osd', 'pool', 'set', pool]
+    for k, v in six.iteritems(settings):
+        cmd.append(k)
+        cmd.append(v)
+
+    check_call(cmd)
+
+
+def create_pool(service, name, replicas=3, pg_num=None):
     """Create a new RADOS pool."""
     if pool_exists(service, name):
         log("Ceph pool {} already exists, skipping creation".format(name),
             level=WARNING)
         return
 
-    # Calculate the number of placement groups based
-    # on upstream recommended best practices.
-    osds = get_osds(service)
-    if osds:
-        pgnum = (len(osds) * 100 // replicas)
-    else:
-        # NOTE(james-page): Default to 200 for older ceph versions
-        # which don't support OSD query from cli
-        pgnum = 200
+    if not pg_num:
+        # Calculate the number of placement groups based
+        # on upstream recommended best practices.
+        osds = get_osds(service)
+        if osds:
+            pg_num = (len(osds) * 100 // replicas)
+        else:
+            # NOTE(james-page): Default to 200 for older ceph versions
+            # which don't support OSD query from cli
+            pg_num = 200
 
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'create', name, str(pgnum)]
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'create', name, str(pg_num)]
     check_call(cmd)
 
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', name, 'size',
-           str(replicas)]
-    check_call(cmd)
+    update_pool(service, name, settings={'size': str(replicas)})
 
 
 def delete_pool(service, name):
@@ -568,10 +601,10 @@ def create_key_file(service, key):
     log('Created new keyfile at %s.' % keyfile, level=INFO)
 
 
-def get_ceph_nodes():
-    """Query named relation 'ceph' to determine current nodes."""
+def get_ceph_nodes(relation='ceph'):
+    """Query named relation to determine current nodes."""
     hosts = []
-    for r_id in relation_ids('ceph'):
+    for r_id in relation_ids(relation):
         for unit in related_units(r_id):
             hosts.append(relation_get('private-address', unit=unit, rid=r_id))
 
@@ -723,14 +756,14 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
             service_start(svc)
 
 
-def ensure_ceph_keyring(service, user=None, group=None):
+def ensure_ceph_keyring(service, user=None, group=None, relation='ceph'):
     """Ensures a ceph keyring is created for a named service and optionally
     ensures user and group ownership.
 
     Returns False if no ceph key is available in relation state.
     """
     key = None
-    for rid in relation_ids('ceph'):
+    for rid in relation_ids(relation):
         for unit in related_units(rid):
             key = relation_get('key', rid=rid, unit=unit)
             if key:
@@ -780,9 +813,16 @@ class CephBrokerRq(object):
             self.request_id = str(uuid.uuid1())
         self.ops = []
 
-    def add_op_create_pool(self, name, replica_count=3):
+    def add_op_create_pool(self, name, replica_count=3, pg_num=None):
+        """Adds an operation to create a pool.
+
+        @param pg_num setting:  optional setting. If not provided, this value
+        will be calculated by the broker based on how many OSDs are in the
+        cluster at the time of creation. Note that, if provided, this value
+        will be capped at the current available maximum.
+        """
         self.ops.append({'op': 'create-pool', 'name': name,
-                         'replicas': replica_count})
+                         'replicas': replica_count, 'pg_num': pg_num})
 
     def set_ops(self, ops):
         """Set request ops to provided value.
@@ -800,8 +840,8 @@ class CephBrokerRq(object):
     def _ops_equal(self, other):
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in ['replicas', 'name', 'op']:
-                    if self.ops[req_no][key] != other.ops[req_no][key]:
+                for key in ['replicas', 'name', 'op', 'pg_num']:
+                    if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:
             return False
@@ -907,7 +947,7 @@ def get_previous_request(rid):
     return request
 
 
-def get_request_states(request):
+def get_request_states(request, relation='ceph'):
     """Return a dict of requests per relation id with their corresponding
        completion state.
 
@@ -919,7 +959,7 @@ def get_request_states(request):
     """
     complete = []
     requests = {}
-    for rid in relation_ids('ceph'):
+    for rid in relation_ids(relation):
         complete = False
         previous_request = get_previous_request(rid)
         if request == previous_request:
@@ -937,14 +977,14 @@ def get_request_states(request):
     return requests
 
 
-def is_request_sent(request):
+def is_request_sent(request, relation='ceph'):
     """Check to see if a functionally equivalent request has already been sent
 
     Returns True if a similair request has been sent
 
     @param request: A CephBrokerRq object
     """
-    states = get_request_states(request)
+    states = get_request_states(request, relation=relation)
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
@@ -952,7 +992,7 @@ def is_request_sent(request):
     return True
 
 
-def is_request_complete(request):
+def is_request_complete(request, relation='ceph'):
     """Check to see if a functionally equivalent request has already been
     completed
 
@@ -960,7 +1000,7 @@ def is_request_complete(request):
 
     @param request: A CephBrokerRq object
     """
-    states = get_request_states(request)
+    states = get_request_states(request, relation=relation)
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
@@ -1010,15 +1050,15 @@ def get_broker_rsp_key():
     return 'broker-rsp-' + local_unit().replace('/', '-')
 
 
-def send_request_if_needed(request):
+def send_request_if_needed(request, relation='ceph'):
     """Send broker request if an equivalent request has not already been sent
 
     @param request: A CephBrokerRq object
     """
-    if is_request_sent(request):
+    if is_request_sent(request, relation=relation):
         log('Request already sent but not complete, not sending new request',
             level=DEBUG)
     else:
-        for rid in relation_ids('ceph'):
+        for rid in relation_ids(relation):
             log('Sending request {}'.format(request.request_id), level=DEBUG)
             relation_set(relation_id=rid, broker_req=request.request)

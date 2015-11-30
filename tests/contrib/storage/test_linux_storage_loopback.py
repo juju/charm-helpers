@@ -73,3 +73,10 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
             result = loopback.create_loopback('/tmp/foo')
             check_call.assert_called_with(['losetup', '--find', '/tmp/foo'])
             self.assertEquals(result, '/dev/loop0')
+
+    @patch.object(loopback, 'loopback_devices')
+    def test_create_is_mapped_loopback_device(self, devs):
+        devs.return_value = {'/dev/loop0': "/tmp/manco"}
+        self.assertEquals(loopback.is_mapped_loopback_device("/dev/loop0"),
+                          "/tmp/manco")
+        self.assertFalse(loopback.is_mapped_loopback_device("/dev/loop1"))
