@@ -21,10 +21,6 @@ from charmhelpers.fetch import (
 )
 from charmhelpers.core.host import mkdir
 
-import six
-if six.PY3:
-    raise ImportError('GitPython does not support Python 3')
-
 try:
     from git import Repo
 except ImportError:
