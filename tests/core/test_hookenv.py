@@ -1171,6 +1171,24 @@ class HelpersTest(TestCase):
         check_output_.return_value = b'true'
         self.assertTrue(hookenv.is_leader())
 
+    @patch('subprocess.check_call')
+    def test_payload_register(self, check_call_):
+        hookenv.payload_register('monitoring', 'docker', 'abc123')
+        check_call_.assert_called_with(['payload-register', 'monitoring',
+                                        'docker', 'abc123'])
+
+    @patch('subprocess.check_call')
+    def test_payload_unregister(self, check_call_):
+        hookenv.payload_unregister('monitoring', 'abc123')
+        check_call_.assert_called_with(['payload-unregister', 'monitoring',
+                                        'abc123'])
+
+    @patch('subprocess.check_call')
+    def test_payload_status_set(self, check_call_):
+        hookenv.payload_status_set('monitoring', 'abc123', 'Running')
+        check_call_.assert_called_with(['payload-status-set', 'monitoring',
+                                        'abc123', 'Running'])
+
 
 class HooksTest(TestCase):
     def setUp(self):

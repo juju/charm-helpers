@@ -878,6 +878,40 @@ def leader_set(settings=None, **kwargs):
     subprocess.check_call(cmd)
 
 
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def payload_register(ptype, klass, pid):
+    """ is used while a hook is running to let Juju know that a
+        payload has been started."""
+    cmd = ['payload-register']
+    for x in [ptype, klass, pid]:
+        cmd.append(x)
+    subprocess.check_call(cmd)
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def payload_unregister(klass, pid):
+    """ is used while a hook is running to let Juju know
+    that a payload has been manually stopped. The <class> and <id> provided
+    must match a payload that has been previously registered with juju using
+    payload-register."""
+    cmd = ['payload-unregister']
+    for x in [klass, pid]:
+        cmd.append(x)
+    subprocess.check_call(cmd)
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def payload_status_set(klass, pid, status):
+    """is used to update the current status of a registered payload.
+    The <class> and <id> provided must match a payload that has been previously
+    registered with juju using payload-register. The <status> must be one of the
+    follow: starting, started, stopping, stopped"""
+    cmd = ['payload-status-set']
+    for x in [klass, pid, status]:
+        cmd.append(x)
+    subprocess.check_call(cmd)
+
+
 @cached
 def juju_version():
     """Full version string (eg. '1.23.3.1-trusty-amd64')"""
