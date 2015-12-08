@@ -43,7 +43,6 @@ userinstall:
 	.venv/bin/pip install -U distribute
 	.venv/bin/pip install -I -r test_requirements.txt
 	.venv/bin/pip install bzr
-	.venv/bin/pip install GitPython
 
 .venv3:
 	sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt

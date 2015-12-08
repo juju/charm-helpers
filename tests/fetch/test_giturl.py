@@ -22,7 +22,6 @@ except ImportError:
     UnhandledSource = None
 
 
-@unittest.skipIf(six.PY3, 'git does not support Python 3')
 class GitUrlFetchHandlerTest(TestCase):
 
     @unittest.skipIf(six.PY3, 'git does not support Python 3')

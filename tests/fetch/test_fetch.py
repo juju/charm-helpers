@@ -415,8 +415,8 @@ class PluginTest(TestCase):
         if not six.PY3:
             self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
         else:
-            # No bzr or git libraries for Python3.
-            self.assertEqual(len(fetch.FETCH_HANDLERS) - 2, len(plugins))
+            # No bzr libraries for Python3.
+            self.assertEqual(len(fetch.FETCH_HANDLERS) - 1, len(plugins))
 
 
 class BaseFetchHandlerTest(TestCase):
