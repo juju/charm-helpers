@@ -27,7 +27,8 @@ def render(source, target, context, owner='root', group='root',
 
     The `source` path, if not absolute, is relative to the `templates_dir`.
 
-    The `target` path should be absolute.
+    The `target` path should be absolute.  It can also be `None`, in which
+    case no file will be written.
 
     The context should be a dict containing the values to be replaced in the
     template.
@@ -35,6 +36,9 @@ def render(source, target, context, owner='root', group='root',
     The `owner`, `group`, and `perms` options will be passed to `write_file`.
 
     If omitted, `templates_dir` defaults to the `templates` folder in the charm.
+
+    The rendered template will be written to the file as well as being returned
+    as a string.
 
     Note: Using this requires python-jinja2; if it is not installed, calling
     this will attempt to use charmhelpers.fetch.apt_install to install it.
@@ -67,9 +71,11 @@ def render(source, target, context, owner='root', group='root',
                     level=hookenv.ERROR)
         raise e
     content = template.render(context)
-    target_dir = os.path.dirname(target)
-    if not os.path.exists(target_dir):
-        # This is a terrible default directory permission, as the file
-        # or its siblings will often contain secrets.
-        host.mkdir(os.path.dirname(target), owner, group, perms=0o755)
-    host.write_file(target, content.encode(encoding), owner, group, perms)
+    if target is not None:
+        target_dir = os.path.dirname(target)
+        if not os.path.exists(target_dir):
+            # This is a terrible default directory permission, as the file
+            # or its siblings will often contain secrets.
+            host.mkdir(os.path.dirname(target), owner, group, perms=0o755)
+        host.write_file(target, content.encode(encoding), owner, group, perms)
+    return content
