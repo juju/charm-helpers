@@ -738,7 +738,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'root', 'root', 0o444, template_loader=None)
 
     @mock.patch.object(services.helpers, 'templating')
@@ -753,7 +753,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'user', 'group', 0o555, template_loader=None)
 
     @mock.patch.object(services.helpers, 'templating')
@@ -769,7 +769,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'user', 'group', 0o555, template_loader='myloader')
 
     @mock.patch.object(os.path, 'isfile')
@@ -792,7 +792,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'user', 'group', 0o555, template_loader=None)
         mrestart.assert_called_with('mysuperservice')
 
@@ -816,7 +816,7 @@ class TestTemplateCallback(unittest.TestCase):
         assert not mtemplating.render.called
         callback(manager, 'test', 'event')
         mtemplating.render.assert_called_once_with(
-            'foo.yml', 'bar.yml', {'foo': 'bar'},
+            'foo.yml', 'bar.yml', {'foo': 'bar', 'ctx': {'foo': 'bar'}},
             'user', 'group', 0o555, template_loader=None)
         self.assertEqual(mrestart.call_args_list, [])
 

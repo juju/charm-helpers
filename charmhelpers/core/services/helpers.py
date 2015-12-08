@@ -269,9 +269,10 @@ class TemplateCallback(ManagerCallback):
         if self.on_change_action and os.path.isfile(self.target):
             pre_checksum = host.file_hash(self.target)
         service = manager.get_service(service_name)
-        context = {}
+        context = {'ctx': {}}
         for ctx in service.get('required_data', []):
             context.update(ctx)
+            context['ctx'].update(ctx)
 
         result = templating.render(self.source, self.target, context,
                                    self.owner, self.group, self.perms,
