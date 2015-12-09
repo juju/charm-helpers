@@ -1,5 +1,7 @@
+import unittest
 from mock import patch, call
 
+import six
 from shutil import rmtree
 from tempfile import mkdtemp
 from threading import Timer
@@ -13,7 +15,6 @@ from tests.helpers import patch_open, FakeRelation
 import nose.plugins.attrib
 import os
 import time
-
 
 LS_POOLS = b"""
 images
@@ -30,6 +31,55 @@ rbd3
 IMG_MAP = b"""
 bar
 baz
+"""
+# Vastly abbreviated output from ceph osd dump --format=json
+OSD_DUMP = b"""
+{
+    "pools": [
+        {
+            "pool": 2,
+            "pool_name": "rbd",
+            "flags": 1,
+            "flags_names": "hashpspool",
+            "type": 1,
+            "size": 3,
+            "min_size": 2,
+            "crush_ruleset": 0,
+            "object_hash": 2,
+            "pg_num": 64,
+            "pg_placement_num": 64,
+            "crash_replay_interval": 0,
+            "last_change": "1",
+            "last_force_op_resend": "0",
+            "auid": 0,
+            "snap_mode": "selfmanaged",
+            "snap_seq": 0,
+            "snap_epoch": 0,
+            "pool_snaps": [],
+            "removed_snaps": "[]",
+            "quota_max_bytes": 0,
+            "quota_max_objects": 0,
+            "tiers": [],
+            "tier_of": -1,
+            "read_tier": -1,
+            "write_tier": -1,
+            "cache_mode": "writeback",
+            "target_max_bytes": 0,
+            "target_max_objects": 0,
+            "cache_target_dirty_ratio_micro": 0,
+            "cache_target_full_ratio_micro": 0,
+            "cache_min_flush_age": 0,
+            "cache_min_evict_age": 0,
+            "erasure_code_profile": "",
+            "hit_set_params": {
+                "type": "none"
+            },
+            "hit_set_period": 0,
+            "hit_set_count": 0,
+            "stripe_width": 0
+        }
+    ]
+}
 """
 
 CEPH_CLIENT_RELATION = {
@@ -92,9 +142,256 @@ class CephUtilsTests(TestCase):
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
 
+    def test_validator_valid(self):
+        # 1 is an int
+        ceph_utils.validator(value=1,
+                             valid_type=int)
+
+    def test_validator_valid_range(self):
+        # 1 is an int between 0 and 2
+        ceph_utils.validator(value=1,
+                             valid_type=int,
+                             valid_range=[0, 2])
+
+    @unittest.expectedFailure
+    def test_validator_invalid_range(self):
+        # 1 is an int that isn't in the valid list of only 0
+        ceph_utils.validator(value=1,
+                             valid_type=int,
+                             valid_range=[0])
+
+    @unittest.expectedFailure
+    def test_validator_invalid_string_list(self):
+        # foo is a six.string_types that isn't in the valid string list
+        ceph_utils.validator(value="foo",
+                             valid_type=six.string_types,
+                             valid_range=["valid", "list", "of", "strings"])
+
+    def test_pool_add_cache_tier(self):
+        p = ceph_utils.Pool(name='test', service='admin')
+        p.add_cache_tier('cacher', 'readonly')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'add', 'test', 'cacher']),
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'cache-mode', 'cacher', 'readonly']),
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'set-overlay', 'test', 'cacher']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'cacher', 'hit_set_type', 'bloom']),
+        ])
+
+    @patch.object(ceph_utils, 'get_cache_mode')
+    def test_pool_remove_readonly_cache_tier(self, cache_mode):
+        cache_mode.return_value = 'readonly'
+
+        p = ceph_utils.Pool(name='test', service='admin')
+        p.remove_cache_tier(cache_pool='cacher')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'cache-mode', 'cacher', 'none']),
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove', 'test', 'cacher']),
+        ])
+
+    @patch.object(ceph_utils, 'get_cache_mode')
+    def test_pool_remove_writeback_cache_tier(self, cache_mode):
+        cache_mode.return_value = 'writeback'
+
+        p = ceph_utils.Pool(name='test', service='admin')
+        p.remove_cache_tier(cache_pool='cacher')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'cache-mode', 'cacher', 'forward']),
+            call(['ceph', '--id', 'admin', '-p', 'cacher', 'cache-flush-evict-all']),
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove-overlay', 'test']),
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove', 'test', 'cacher']),
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_old_ceph(self, get_osds):
+        get_osds.return_value = None
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200)]),
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_small_osds(self, get_osds):
+        get_osds.return_value = 4
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(128)]),
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_medium_osds(self, get_osds):
+        get_osds.return_value = 8
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(512)]),
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_large_osds(self, get_osds):
+        get_osds.return_value = 40
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(4096)]),
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_xlarge_osds(self, get_osds):
+        get_osds.return_value = 1000
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(65536)]),
+        ])
+
+    @unittest.expectedFailure
+    def test_replicated_pool_create_failed(self):
+        self.check_call.side_effect = CalledProcessError
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+    @patch.object(ceph_utils, 'pool_exists')
+    def test_replicated_pool_skips_creation(self, pool_exists):
+        pool_exists.return_value = True
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+        self.check_call.assert_has_calls([])
+
+    @unittest.expectedFailure
+    def test_erasure_pool_create_failed(self):
+        p = ceph_utils.ErasurePool(name='test', service='admin', erasure_code_profile='foo')
+        p.create()
+
+    @patch.object(ceph_utils, 'get_erasure_profile')
+    @patch.object(ceph_utils, 'get_osds')
+    def test_erasure_pool_create(self, get_osds, erasure_profile):
+        get_osds.return_value = 60
+        erasure_profile.return_value = {
+            'directory': '/usr/lib/x86_64-linux-gnu/ceph/erasure-code',
+            'k': '2',
+            'technique': 'reed_sol_van',
+            'm': '1',
+            'plugin': 'jerasure'}
+        p = ceph_utils.ErasurePool(name='test', service='admin')
+        p.create()
+        self.check_call.assert_has_calls(
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(8192),
+                  'erasure', 'default'])
+        )
+
+    def test_get_erasure_profile_none(self):
+        self.check_output.side_effect = CalledProcessError(1, 'ceph')
+        return_value = ceph_utils.get_erasure_profile('admin', 'unknown')
+        self.assertEqual(None, return_value)
+
+    def test_pool_set(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
+        self.check_call.assert_has_calls(
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 2])
+        )
+
+    @unittest.expectedFailure
+    def test_pool_set_fails(self):
+        self.check_call.side_effect = CalledProcessError
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
+
+    def test_snapshot_pool(self):
+        self.check_call.return_value = 0
+        ceph_utils.snapshot_pool(service='admin', pool_name='data', snapshot_name='test-snap-1')
+        self.check_call.assert_has_calls(
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'mksnap', 'data', 'test-snap-1'])
+        )
+
+    @unittest.expectedFailure
+    def test_snapshot_pool_fails(self):
+        self.check_call.side_effect = CalledProcessError
+        ceph_utils.snapshot_pool(service='admin', pool_name='data', snapshot_name='test-snap-1')
+
+    def test_remove_pool_snapshot(self):
+        self.check_call.return_value = 0
+        ceph_utils.remove_pool_snapshot(service='admin', pool_name='data', snapshot_name='test-snap-1')
+        self.check_call.assert_has_calls(
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'rmsnap', 'data', 'test-snap-1'])
+        )
+
+    def test_set_pool_quota(self):
+        self.check_call.return_value = 0
+        ceph_utils.set_pool_quota(service='admin', pool_name='data', max_bytes=1024)
+        self.check_call.assert_has_calls(
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', 1024])
+        )
+
+    def test_remove_pool_quota(self):
+        self.check_call.return_value = 0
+        ceph_utils.remove_pool_quota(service='admin', pool_name='data')
+        self.check_call.assert_has_calls(
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '0'])
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile(self, existing_profile):
+        existing_profile.return_value = True
+        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
+               'ruleset_failure_domain=' + 'rack', '--force']
+        self.check_call.assert_has_calls(call(cmd))
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_local(self, existing_profile):
+        existing_profile.return_value = False
+        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='local',
+                                          failure_domain='rack', data_chunks=10, coding_chunks=3, locality=1)
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
+               'ruleset_failure_domain=' + 'rack', 'l=' + str(1)]
+        self.check_call.assert_has_calls(call(cmd))
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_shec(self, existing_profile):
+        existing_profile.return_value = False
+        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='shec',
+                                          failure_domain='rack', data_chunks=10, coding_chunks=3,
+                                          durability_estimator=1)
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'shec', 'k=' + str(10), 'm=' + str(3),
+               'ruleset_failure_domain=' + 'rack', 'c=' + str(1)]
+        self.check_call.assert_has_calls(call(cmd))
+
+    def test_rename_pool(self):
+        ceph_utils.rename_pool(service='admin', old_name='old-pool', new_name='new-pool')
+        cmd = ['ceph', '--id', 'admin', 'osd', 'pool', 'rename', 'old-pool', 'new-pool']
+        self.check_call.assert_called_with(cmd)
+
+    def test_erasure_profile_exists(self):
+        self.check_call.return_value = 0
+        profile_exists = ceph_utils.erasure_profile_exists(service='admin', name='super-profile')
+        cmd = ['ceph', '--id', 'admin',
+               'osd', 'erasure-code-profile', 'get',
+               'super-profile']
+        self.check_call.assert_called_with(cmd)
+        self.assertEqual(True, profile_exists)
+
+    def test_get_cache_mode(self):
+        self.check_output.return_value = OSD_DUMP
+        cache_mode = ceph_utils.get_cache_mode(service='admin', pool_name='rbd')
+        self.assertEqual("writeback", cache_mode)
+
     @patch('os.path.exists')
     def test_create_keyring(self, _exists):
-        '''It creates a new ceph keyring'''
+        """It creates a new ceph keyring"""
         _exists.return_value = False
         ceph_utils.create_keyring('cinder', 'cephkey')
         _cmd = ['ceph-authtool', '/etc/ceph/ceph.client.cinder.keyring',
@@ -104,7 +401,7 @@ class CephUtilsTests(TestCase):
 
     @patch('os.path.exists')
     def test_create_keyring_already_exists(self, _exists):
-        '''It creates a new ceph keyring'''
+        """It creates a new ceph keyring"""
         _exists.return_value = True
         ceph_utils.create_keyring('cinder', 'cephkey')
         self.assertTrue(self.log.called)
@@ -113,7 +410,7 @@ class CephUtilsTests(TestCase):
     @patch('os.remove')
     @patch('os.path.exists')
     def test_delete_keyring(self, _exists, _remove):
-        '''It deletes a ceph keyring.'''
+        """It deletes a ceph keyring."""
         _exists.return_value = True
         ceph_utils.delete_keyring('cinder')
         _remove.assert_called_with('/etc/ceph/ceph.client.cinder.keyring')
@@ -122,7 +419,7 @@ class CephUtilsTests(TestCase):
     @patch('os.remove')
     @patch('os.path.exists')
     def test_delete_keyring_not_exists(self, _exists, _remove):
-        '''It creates a new ceph keyring.'''
+        """It creates a new ceph keyring."""
         _exists.return_value = False
         ceph_utils.delete_keyring('cinder')
         self.assertTrue(self.log.called)
@@ -130,7 +427,7 @@ class CephUtilsTests(TestCase):
 
     @patch('os.path.exists')
     def test_create_keyfile(self, _exists):
-        '''It creates a new ceph keyfile'''
+        """It creates a new ceph keyfile"""
         _exists.return_value = False
         with patch_open() as (_open, _file):
             ceph_utils.create_key_file('cinder', 'cephkey')
@@ -139,7 +436,7 @@ class CephUtilsTests(TestCase):
 
     @patch('os.path.exists')
     def test_create_key_file_already_exists(self, _exists):
-        '''It creates a new ceph keyring'''
+        """It creates a new ceph keyring"""
         _exists.return_value = True
         ceph_utils.create_key_file('cinder', 'cephkey')
         self.assertTrue(self.log.called)
@@ -173,7 +470,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
     def test_create_pool(self, _exists, _get_osds):
-        '''It creates rados pool correctly with default replicas '''
+        """It creates rados pool correctly with default replicas """
         _exists.return_value = False
         _get_osds.return_value = [1, 2, 3]
         ceph_utils.create_pool(service='cinder', name='foo')
@@ -187,7 +484,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
     def test_create_pool_2_replicas(self, _exists, _get_osds):
-        '''It creates rados pool correctly with 3 replicas'''
+        """It creates rados pool correctly with 3 replicas"""
         _exists.return_value = False
         _get_osds.return_value = [1, 2, 3]
         ceph_utils.create_pool(service='cinder', name='foo', replicas=2)
@@ -201,7 +498,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
     def test_create_pool_argonaut(self, _exists, _get_osds):
-        '''It creates rados pool correctly with 3 replicas'''
+        """It creates rados pool correctly with 3 replicas"""
         _exists.return_value = False
         _get_osds.return_value = None
         ceph_utils.create_pool(service='cinder', name='foo')
@@ -220,27 +517,27 @@ class CephUtilsTests(TestCase):
         self.check_call.assert_not_called()
 
     def test_keyring_path(self):
-        '''It correctly dervies keyring path from service name'''
+        """It correctly dervies keyring path from service name"""
         result = ceph_utils._keyring_path('cinder')
         self.assertEquals('/etc/ceph/ceph.client.cinder.keyring', result)
 
     def test_keyfile_path(self):
-        '''It correctly dervies keyring path from service name'''
+        """It correctly dervies keyring path from service name"""
         result = ceph_utils._keyfile_path('cinder')
         self.assertEquals('/etc/ceph/ceph.client.cinder.key', result)
 
     def test_pool_exists(self):
-        '''It detects an rbd pool exists'''
+        """It detects an rbd pool exists"""
         self.check_output.return_value = LS_POOLS
         self.assertTrue(ceph_utils.pool_exists('cinder', 'volumes'))
 
     def test_pool_does_not_exist(self):
-        '''It detects an rbd pool exists'''
+        """It detects an rbd pool exists"""
         self.check_output.return_value = LS_POOLS
         self.assertFalse(ceph_utils.pool_exists('cinder', 'foo'))
 
     def test_pool_exists_error(self):
-        ''' Ensure subprocess errors and sandboxed with False '''
+        """ Ensure subprocess errors and sandboxed with False """
         self.check_output.side_effect = CalledProcessError(1, 'rados')
         self.assertFalse(ceph_utils.pool_exists('cinder', 'foo'))
 
@@ -259,7 +556,7 @@ class CephUtilsTests(TestCase):
         )
 
     def test_rbd_exists_error(self):
-        ''' Ensure subprocess errors and sandboxed with False '''
+        """ Ensure subprocess errors and sandboxed with False """
         self.check_output.side_effect = CalledProcessError(1, 'rbd')
         self.assertFalse(ceph_utils.rbd_exists('cinder', 'foo', 'rbd'))
 
@@ -473,13 +770,13 @@ class CephUtilsTests(TestCase):
         self.service_start.assert_called_with(_services[0])
 
     def test_make_filesystem_default_filesystem(self):
-        '''make_filesystem() uses ext4 as the default filesystem.'''
+        """make_filesystem() uses ext4 as the default filesystem."""
         device = '/dev/zero'
         ceph_utils.make_filesystem(device)
         self.check_call.assert_called_with(['mkfs', '-t', 'ext4', device])
 
     def test_make_filesystem_no_device(self):
-        '''make_filesystem() raises an IOError if the device does not exist.'''
+        """make_filesystem() raises an IOError if the device does not exist."""
         device = '/no/such/device'
         e = self.assertRaises(IOError, ceph_utils.make_filesystem, device,
                               timeout=0)
@@ -512,9 +809,11 @@ class CephUtilsTests(TestCase):
         The specified device is formatted if it appears before the timeout
         is reached.
         """
+
         def create_my_device(filename):
             with open(filename, "w") as device:
                 device.write("hello\n")
+
         temp_dir = mkdtemp()
         self.addCleanup(rmtree, temp_dir)
         device = "%s/mydevice" % temp_dir
@@ -639,10 +938,10 @@ class CephUtilsTests(TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.related_units
 
-#    @patch.object(ceph_utils, 'uuid')
-#    @patch.object(ceph_utils, 'local_unit')
-#    def test_get_request_states(self, mlocal_unit, muuid):
-#        muuid.uuid1.return_value = '0bc7dc54'
+    #    @patch.object(ceph_utils, 'uuid')
+    #    @patch.object(ceph_utils, 'local_unit')
+    #    def test_get_request_states(self, mlocal_unit, muuid):
+    #        muuid.uuid1.return_value = '0bc7dc54'
     @patch.object(ceph_utils, 'local_unit')
     def test_get_request_states(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
