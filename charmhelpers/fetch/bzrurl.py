@@ -15,24 +15,17 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from subprocess import check_call
 from charmhelpers.fetch import (
     BaseFetchHandler,
-    UnhandledSource
+    UnhandledSource,
+    filter_installed_packages,
 )
 from charmhelpers.core.host import mkdir
 
-import six
-if six.PY3:
-    raise ImportError('bzrlib does not support Python3')
 
-try:
-    from bzrlib.branch import Branch
-    from bzrlib import bzrdir, workingtree, errors
-except ImportError:
-    from charmhelpers.fetch import apt_install
-    apt_install("python-bzrlib")
-    from bzrlib.branch import Branch
-    from bzrlib import bzrdir, workingtree, errors
+if filter_installed_packages(['bzr']) != []:
+    raise NotImplementedError('Bzr support not available without bzr')
 
 
 class BzrUrlFetchHandler(BaseFetchHandler):
@@ -45,24 +38,9 @@ class BzrUrlFetchHandler(BaseFetchHandler):
             return True
 
     def branch(self, source, dest):
-        url_parts = self.parse_url(source)
-        # If we use lp:branchname scheme we need to load plugins
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
-        if url_parts.scheme == "lp":
-            from bzrlib.plugin import load_plugins
-            load_plugins()
-        try:
-            local_branch = bzrdir.BzrDir.create_branch_convenience(dest)
-        except errors.AlreadyControlDirError:
-            local_branch = Branch.open(dest)
-        try:
-            remote_branch = Branch.open(source)
-            remote_branch.push(local_branch)
-            tree = workingtree.WorkingTree.open(dest)
-            tree.update()
-        except Exception as e:
-            raise e
+        check_call(['bzr', 'branch', source, dest])
 
     def install(self, source, dest=None):
         url_parts = self.parse_url(source)
