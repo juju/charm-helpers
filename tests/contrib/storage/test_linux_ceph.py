@@ -1,4 +1,3 @@
-import unittest
 from mock import patch, call
 
 import six
@@ -33,7 +32,7 @@ bar
 baz
 """
 # Vastly abbreviated output from ceph osd dump --format=json
-OSD_DUMP = b"""
+OSD_DUMP = """
 {
     "pools": [
         {
@@ -153,19 +152,19 @@ class CephUtilsTests(TestCase):
                              valid_type=int,
                              valid_range=[0, 2])
 
-    @unittest.expectedFailure
     def test_validator_invalid_range(self):
         # 1 is an int that isn't in the valid list of only 0
-        ceph_utils.validator(value=1,
-                             valid_type=int,
-                             valid_range=[0])
+        self.assertRaises(ValueError, ceph_utils.validator,
+                          value=1,
+                          valid_type=int,
+                          valid_range=[0])
 
-    @unittest.expectedFailure
     def test_validator_invalid_string_list(self):
         # foo is a six.string_types that isn't in the valid string list
-        ceph_utils.validator(value="foo",
-                             valid_type=six.string_types,
-                             valid_range=["valid", "list", "of", "strings"])
+        self.assertRaises(AssertionError, ceph_utils.validator,
+                          value="foo",
+                          valid_type=six.string_types,
+                          valid_range=["valid", "list", "of", "strings"])
 
     def test_pool_add_cache_tier(self):
         p = ceph_utils.Pool(name='test', service='admin')
@@ -251,11 +250,11 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(65536)]),
         ])
 
-    @unittest.expectedFailure
     def test_replicated_pool_create_failed(self):
-        self.check_call.side_effect = CalledProcessError
+        self.check_call.side_effect = CalledProcessError(returncode=1, cmd='mock',
+                                                         output=None)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
-        p.create()
+        self.assertRaises(CalledProcessError, p.create)
 
     @patch.object(ceph_utils, 'pool_exists')
     def test_replicated_pool_skips_creation(self, pool_exists):
@@ -264,10 +263,11 @@ class CephUtilsTests(TestCase):
         p.create()
         self.check_call.assert_has_calls([])
 
-    @unittest.expectedFailure
     def test_erasure_pool_create_failed(self):
+        self.check_output.side_effect = CalledProcessError(returncode=1, cmd='ceph',
+                                                           output=None)
         p = ceph_utils.ErasurePool(name='test', service='admin', erasure_code_profile='foo')
-        p.create()
+        self.assertRaises(ceph_utils.PoolCreationError, p.create)
 
     @patch.object(ceph_utils, 'get_erasure_profile')
     @patch.object(ceph_utils, 'get_osds')
@@ -298,10 +298,11 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 2])
         )
 
-    @unittest.expectedFailure
     def test_pool_set_fails(self):
-        self.check_call.side_effect = CalledProcessError
-        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
+        self.check_call.side_effect = CalledProcessError(returncode=1, cmd='mock',
+                                                         output=None)
+        self.assertRaises(CalledProcessError, ceph_utils.pool_set,
+                          service='admin', pool_name='data', key='test', value=2)
 
     def test_snapshot_pool(self):
         self.check_call.return_value = 0
@@ -310,10 +311,11 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'mksnap', 'data', 'test-snap-1'])
         )
 
-    @unittest.expectedFailure
     def test_snapshot_pool_fails(self):
-        self.check_call.side_effect = CalledProcessError
-        ceph_utils.snapshot_pool(service='admin', pool_name='data', snapshot_name='test-snap-1')
+        self.check_call.side_effect = CalledProcessError(returncode=1, cmd='mock',
+                                                         output=None)
+        self.assertRaises(CalledProcessError, ceph_utils.snapshot_pool,
+                          service='admin', pool_name='data', snapshot_name='test-snap-1')
 
     def test_remove_pool_snapshot(self):
         self.check_call.return_value = 0
