@@ -4,7 +4,6 @@ from mock import (
     MagicMock,
     patch,
 )
-import unittest
 
 import six
 if six.PY3:
@@ -22,7 +21,6 @@ except ImportError:
     UnhandledSource = None
 
 
-@unittest.skipIf(six.PY3, 'bzr does not support Python 3')
 class BzrUrlFetchHandlerTest(TestCase):
 
     def setUp(self):
@@ -55,7 +53,6 @@ class BzrUrlFetchHandlerTest(TestCase):
         )
         self.fh = bzrurl.BzrUrlFetchHandler()
 
-    @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
     def test_handles_bzr_urls(self):
         for url in self.valid_urls:
             result = self.fh.can_handle(url)
@@ -64,26 +61,20 @@ class BzrUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
-    @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
-    @patch('bzrlib.workingtree.WorkingTree.open')
-    @patch('bzrlib.bzrdir.BzrDir.create_branch_convenience')
-    @patch('bzrlib.branch.Branch.open')
-    def test_branch(self, _open, _bzrdir, _tree_open):
+    @patch('charmhelpers.fetch.bzrurl.check_call')
+    def test_branch(self, check_call):
         dest_path = "/destination/path"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()
             self.fh.branch(url, dest_path)
 
-            _open.assert_called_with(url)
-            _bzrdir.assert_called_with(dest_path)
-            _tree_open.assert_called_with(dest_path)
+            check_call.assert_called_with(['bzr', 'branch', url, dest_path])
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
 
-    @unittest.skipIf(six.PY3, 'bzr does not support Python 3')
     @patch('charmhelpers.fetch.bzrurl.mkdir')
     def test_installs(self, _mkdir):
         self.fh.branch = MagicMock()

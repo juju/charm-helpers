@@ -24,9 +24,7 @@ from charmhelpers.core.host import mkdir
 try:
     from git import Repo
 except ImportError:
-    from charmhelpers.fetch import apt_install
-    apt_install("python-git")
-    from git import Repo
+    raise NotImplementedError('Git support not available without GitPython')
 
 from git.exc import GitCommandError  # noqa E402
 

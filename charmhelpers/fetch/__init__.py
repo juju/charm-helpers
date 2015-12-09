@@ -411,7 +411,7 @@ def plugins(fetch_handlers=None):
                 importlib.import_module(package),
                 classname)
             plugin_list.append(handler_class())
-        except (ImportError, AttributeError):
+        except NotImplementedError:
             # Skip missing plugins so that they can be ommitted from
             # installation if desired
             log("FetchHandler {} not found, skipping plugin".format(
