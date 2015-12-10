@@ -15,7 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from subprocess import check_call
+import subprocess
 from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource
@@ -25,8 +25,11 @@ from charmhelpers.core.host import mkdir
 try:
     from git import Repo
 except ImportError:
-    check_call(['pip', 'install', 'GitPython'])
-    from git import Repo
+    try:
+        subprocess.check_call(['pip', 'install', 'GitPython'])
+        from git import Repo
+    except (subprocess.CalledProcessError, ImportError):
+        raise NotImplementedError('Unable to install GitPython')
 
 from git.exc import GitCommandError  # noqa E402
 

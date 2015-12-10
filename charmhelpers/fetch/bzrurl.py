@@ -27,6 +27,8 @@ from charmhelpers.core.host import mkdir
 
 if filter_installed_packages(['bzr']) != []:
     apt_install(['bzr'])
+    if filter_installed_packages(['bzr']) != []:
+        raise NotImplementedError('Unable to install bzr')
 
 
 class BzrUrlFetchHandler(BaseFetchHandler):
