@@ -15,6 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from subprocess import check_call
 from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource
@@ -24,7 +25,8 @@ from charmhelpers.core.host import mkdir
 try:
     from git import Repo
 except ImportError:
-    raise NotImplementedError('Git support not available without GitPython')
+    check_call(['pip', 'install', 'GitPython'])
+    from git import Repo
 
 from git.exc import GitCommandError  # noqa E402
 

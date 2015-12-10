@@ -1,4 +1,7 @@
 import os
+import shutil
+import subprocess
+import tempfile
 from testtools import TestCase
 from mock import (
     MagicMock,
@@ -25,8 +28,6 @@ class BzrUrlFetchHandlerTest(TestCase):
 
     def setUp(self):
         super(BzrUrlFetchHandlerTest, self).setUp()
-        if six.PY3:
-            return
         self.valid_urls = (
             "bzr+ssh://example.com/branch-name",
             "bzr+ssh://example.com/branch-name/",
@@ -74,6 +75,24 @@ class BzrUrlFetchHandlerTest(TestCase):
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
+
+    def test_branch_functional(self):
+        src = None
+        dst = None
+        try:
+            src = tempfile.mkdtemp()
+            subprocess.check_call(['bzr', 'init', src])
+            dst = tempfile.mkdtemp()
+            os.rmdir(dst)
+            self.fh.branch(src, dst)
+            assert os.path.exists(os.path.join(dst, '.bzr'))
+            self.fh.branch(src, dst)  # idempotent
+            assert os.path.exists(os.path.join(dst, '.bzr'))
+        finally:
+            if src:
+                shutil.rmtree(src, ignore_errors=True)
+            if dst:
+                shutil.rmtree(dst, ignore_errors=True)
 
     @patch('charmhelpers.fetch.bzrurl.mkdir')
     def test_installs(self, _mkdir):
