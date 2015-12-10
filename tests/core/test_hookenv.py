@@ -1448,7 +1448,7 @@ class HooksTest(TestCase):
                     'interface': 'req-int',
                 },
             },
-            'peer': {
+            'peers': {
                 'pee-rel': {
                     'interface': 'pee-int',
                 },
@@ -1457,7 +1457,7 @@ class HooksTest(TestCase):
         rtri = hookenv.relation_to_role_and_interface
         self.assertEqual(rtri('pro-rel'), ('provides', 'pro-int'))
         self.assertEqual(rtri('req-rel'), ('requires', 'req-int'))
-        self.assertEqual(rtri('pee-rel'), ('peer', 'pee-int'))
+        self.assertEqual(rtri('pee-rel'), ('peers', 'pee-int'))
 
     @patch.object(hookenv, 'metadata')
     def test_role_and_interface_to_relations(self, metadata):
@@ -1475,7 +1475,7 @@ class HooksTest(TestCase):
                     'interface': 'int',
                 },
             },
-            'peer': {
+            'peers': {
                 'pee-rel': {
                     'interface': 'int',
                 },
@@ -1485,7 +1485,7 @@ class HooksTest(TestCase):
         assertItemsEqual = getattr(self, 'assertItemsEqual', getattr(self, 'assertCountEqual', None))
         assertItemsEqual(ritr('provides', 'pro-int'), ['pro-rel', 'pro-rel2'])
         assertItemsEqual(ritr('requires', 'int'), ['req-rel'])
-        assertItemsEqual(ritr('peer', 'int'), ['pee-rel'])
+        assertItemsEqual(ritr('peers', 'int'), ['pee-rel'])
 
     @patch.object(hookenv, 'metadata')
     def test_interface_to_relations(self, metadata):
@@ -1503,7 +1503,7 @@ class HooksTest(TestCase):
                     'interface': 'req-int',
                 },
             },
-            'peer': {
+            'peers': {
                 'pee-rel': {
                     'interface': 'pee-int',
                 },

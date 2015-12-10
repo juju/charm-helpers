@@ -29,10 +29,10 @@ subclassing BaseCoordinator or Serial.
 Services Framework Usage
 ========================
 
-Ensure a peer relation is defined in metadata.yaml. Instantiate a
+Ensure a peers relation is defined in metadata.yaml. Instantiate a
 BaseCoordinator subclass before invoking ServiceManager.manage().
 Ensure that ServiceManager.manage() is wired up to the leader-elected,
-leader-settings-changed, peer relation-changed and peer
+leader-settings-changed, peers relation-changed and peers
 relation-departed hooks in addition to any other hooks you need, or your
 service will deadlock.
 
@@ -90,7 +90,7 @@ is run as normal::
 Traditional Usage
 =================
 
-Ensure a peer relationis defined in metadata.yaml.
+Ensure a peers relation is defined in metadata.yaml.
 
 If you are using charmhelpers.core.hookenv.Hooks, ensure that a
 BaseCoordinator subclass is instantiated before calling Hooks.execute.
@@ -151,7 +151,7 @@ If the lock has been granted, the decorated function is run as normal::
         hookenv.service_restart('myservice')
 
     @hooks.hook('install', 'config-changed', 'upgrade-charm',
-                # Peer and leader hooks must be wired up.
+                # Peers and leader hooks must be wired up.
                 'cluster-relation-changed', 'cluster-relation-departed',
                 'leader-elected', 'leader-settings-changed')
     def default_hook():
@@ -174,7 +174,7 @@ hook.
 Locks are released at the end of the hook they are acquired in. This may
 be the current hook if the unit is leader and the lock is free. It is
 more likely a future hook (probably leader-settings-changed, possibly
-the peer relation-changed or departed hook, potentially any hook).
+the peers relation-changed or departed hook, potentially any hook).
 
 Whenever a charm needs to perform a coordinated action it will acquire()
 the lock and perform the action immediately if acquisition is
@@ -189,16 +189,16 @@ Why do you need to be able to perform the same action in every hook?
 If the unit is the leader, then it may be able to grant its own lock
 and perform the action immediately in the source hook. If the unit is
 the leader and cannot immediately grant the lock, then its only
-guaranteed chance of acquiring the lock is in the peer relation-joined,
-relation-changed or peer relation-departed hooks when another unit has
-released it (the only channel to communicate to the leader is the peer
+guaranteed chance of acquiring the lock is in the peers relation-joined,
+relation-changed or peers relation-departed hooks when another unit has
+released it (the only channel to communicate to the leader is the peers
 relation). If the unit is not the leader, then it is unlikely the lock
 is granted in the source hook (a previous hook must have also made the
 request for this to happen). A non-leader is notified about the lock via
 leader settings. These changes may be visible in any hook, even before
 the leader-settings-changed hook has been invoked. Or the requesting
 unit may be promoted to leader after making a request, in which case the
-lock may be granted in leader-elected or in a future peer
+lock may be granted in leader-elected or in a future peers
 relation-changed or relation-departed hook.
 
 This could be simpler if leader-settings-changed was invoked on the
@@ -255,10 +255,10 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
     def __init__(self, relation_key='coordinator', peer_relation_name=None):
         '''Instatiate a Coordinator.
 
-        Data is stored on the peer relation and in leadership storage
+        Data is stored on the peers relation and in leadership storage
         under the provided relation_key.
 
-        The peer relation is identified by peer_relation_name, and defaults
+        The peers relation is identified by peer_relation_name, and defaults
         to the first one found in metadata.yaml.
         '''
         # Most initialization is deferred, since invoking hook tools from
@@ -310,13 +310,13 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
         Do not mindlessly call this method, as it triggers a cascade of
         hooks. For example, if you call acquire() every time in your
-        peer relation-changed hook you will end up with an infinite loop
+        peers relation-changed hook you will end up with an infinite loop
         of hooks. It should almost always be guarded by some condition.
         '''
         unit = hookenv.local_unit()
         ts = self.requests[unit].get(lock)
         if not ts:
-            # If there is no outstanding request on the peer relation,
+            # If there is no outstanding request on the peers relation,
             # create one.
             self.requests.setdefault(lock, {})
             self.requests[unit][lock] = _timestamp()
@@ -329,7 +329,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
         # If the unit making the request also happens to be the
         # leader, it must handle the request now. Even though the
-        # request has been stored on the peer relation, the peer
+        # request has been stored on the peers relation, the peers
         # relation-changed hook will not be triggered.
         if hookenv.is_leader():
             return self.grant(lock, unit)
@@ -476,13 +476,13 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
 
         local_unit = hookenv.local_unit()
 
-        # All requests must be stored on the peer relation. This is
+        # All requests must be stored on the peers relation. This is
         # the only channel units have to communicate with the leader.
         # Even the leader needs to store its requests here, as a
         # different unit may be leader by the time the request can be
         # granted.
         if self.relid is None:
-            # The peer relation is not available. Maybe we are early in
+            # The peers relation is not available. Maybe we are early in
             # the units's lifecycle. Maybe this unit is standalone.
             # Fallback to using local state.
             self.msg('No peer relation. Loading local state')
@@ -490,7 +490,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         else:
             self.requests = self._load_peer_state()
             if local_unit not in self.requests:
-                # The peer relation has just been joined. Update any state
+                # The peers relation has just been joined. Update any state
                 # loaded from our peers with our local state.
                 self.msg('New peer relation. Merging local state')
                 self.requests[local_unit] = self._load_local_state()
@@ -513,7 +513,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         local_unit = hookenv.local_unit()
 
         if self.relid is None:
-            # No peer relation yet. Fallback to local state.
+            # No peers relation yet. Fallback to local state.
             self.msg('No peer relation. Saving local state')
             self._save_local_state(self.requests[local_unit])
         else:
