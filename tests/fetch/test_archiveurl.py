@@ -69,7 +69,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
                 self.fh.download(url, "foo")
 
             response.read.assert_called_with()
-            _open.assert_called_once_with("foo", 'w')
+            _open.assert_called_once_with("foo", 'wb')
             _open().write.assert_called_with("bar")
 
     @patch('charmhelpers.fetch.archiveurl.check_hash')
