@@ -1,4 +1,7 @@
 import os
+import shutil
+import subprocess
+import tempfile
 from testtools import TestCase
 from mock import (
     MagicMock,
@@ -11,6 +14,7 @@ if six.PY3:
 else:
     from urlparse import urlparse
 
+from charmhelpers.core.host import chdir
 try:
     from charmhelpers.fetch import (
         giturl,
@@ -44,8 +48,8 @@ class GitUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
-    @patch('git.Repo.clone_from')
-    def test_branch(self, _clone_from):
+    @patch.object(giturl, 'check_call')
+    def test_clone(self, check_call):
         dest_path = "/destination/path"
         branch = "master"
         for url in self.valid_urls:
@@ -53,13 +57,37 @@ class GitUrlFetchHandlerTest(TestCase):
             self.fh.load_plugins = MagicMock()
             self.fh.clone(url, dest_path, branch, None)
 
-            _clone_from.assert_called_with(url, dest_path, branch=branch)
+            check_call.assert_called_with(['git', 'clone', url, dest_path, '--branch', branch])
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.clone, url,
                                   dest_path, None,
                                   branch)
+
+    def test_clone_functional(self):
+        src = None
+        dst = None
+        try:
+            src = tempfile.mkdtemp()
+            with chdir(src):
+                subprocess.check_call(['git', 'init'])
+                subprocess.check_call(['git', 'config', 'user.name', 'Joe'])
+                subprocess.check_call(['git', 'config', 'user.email', 'joe@test.com'])
+                subprocess.check_call(['touch', 'foo'])
+                subprocess.check_call(['git', 'add', 'foo'])
+                subprocess.check_call(['git', 'commit', '-m', 'test'])
+            dst = tempfile.mkdtemp()
+            os.rmdir(dst)
+            self.fh.clone(src, dst)
+            assert os.path.exists(os.path.join(dst, '.git'))
+            self.fh.clone(src, dst)  # idempotent
+            assert os.path.exists(os.path.join(dst, '.git'))
+        finally:
+            if src:
+                shutil.rmtree(src, ignore_errors=True)
+            if dst:
+                shutil.rmtree(dst, ignore_errors=True)
 
     @patch('charmhelpers.fetch.giturl.mkdir')
     def test_installs(self, _mkdir):
