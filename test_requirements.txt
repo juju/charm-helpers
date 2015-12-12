@@ -17,4 +17,3 @@ Tempita==0.5.1     # precise
 netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.
 Jinja2==2.6        # precise
 six==1.1           # precise
-GitPython>=0.3.4   # trusty is ~0.3.2, but using py3 compatible version for tests.
