@@ -403,7 +403,7 @@ class PluginTest(TestCase):
     @patch('charmhelpers.fetch.importlib.import_module')
     def test_skips_and_logs_missing_plugins(self, import_, log_):
         fetch_handlers = ['a.foo', 'b.foo', 'c.foo']
-        import_.side_effect = (ImportError, AttributeError, MagicMock())
+        import_.side_effect = (NotImplementedError, NotImplementedError, MagicMock())
         plugins = fetch.plugins(fetch_handlers)
 
         self.assertEqual(1, len(plugins))
@@ -412,11 +412,7 @@ class PluginTest(TestCase):
     @patch('charmhelpers.fetch.log')
     def test_plugins_are_valid(self, log_):
         plugins = fetch.plugins()
-        if not six.PY3:
-            self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
-        else:
-            # No bzr libraries for Python3.
-            self.assertEqual(len(fetch.FETCH_HANDLERS) - 1, len(plugins))
+        self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
 
 
 class BaseFetchHandlerTest(TestCase):
