@@ -73,7 +73,7 @@ FAKE_REPO = {
     },
     # poorly formed openstack version
     'bad-version': {
-        'pkg_vers': '1:2016.1-0ubuntu1.1~cloud0',
+        'pkg_vers': '1:2200.1-0ubuntu1.1~cloud0',
         'os_release': None,
         'os_version': None
     }
@@ -264,7 +264,7 @@ class OpenStackHelpersTestCase(TestCase):
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             openstack.get_os_codename_package('bad-version')
-            _e = ('Could not determine OpenStack codename for version 2016.1')
+            _e = ('Could not determine OpenStack codename for version 2200.1')
             mocked_error.assert_called_with(_e)
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
