@@ -171,6 +171,17 @@ class IPTest(unittest.TestCase):
     def test_get_address_in_network_ipv4(self):
         self._test_get_address_in_network('192.168.1.55', '192.168.1.0/24')
 
+    def test_get_address_in_network_ipv4_multi(self):
+        # Assumes that there is an address configured on both but the first
+        # one is picked#
+        self._test_get_address_in_network('192.168.1.55',
+                                          '192.168.1.0/24 192.168.10.0/24')
+
+    def test_get_address_in_network_ipv4_multi2(self):
+        # Assumes that there is nothing configured on 192.168.11.0/24
+        self._test_get_address_in_network('192.168.10.58',
+                                          '192.168.11.0/24 192.168.10.0/24')
+
     def test_get_address_in_network_ipv6(self):
         self._test_get_address_in_network('2a01:348:2f4:0:685e:5748:ae62:209f',
                                           '2a01:348:2f4::/64')
