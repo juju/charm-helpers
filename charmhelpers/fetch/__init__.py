@@ -98,6 +98,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'liberty/proposed': 'trusty-proposed/liberty',
     'trusty-liberty/proposed': 'trusty-proposed/liberty',
     'trusty-proposed/liberty': 'trusty-proposed/liberty',
+    # Mitaka
+    'mitaka': 'trusty-updates/mitaka',
+    'trusty-mitaka': 'trusty-updates/mitaka',
+    'trusty-mitaka/updates': 'trusty-updates/mitaka',
+    'trusty-updates/mitaka': 'trusty-updates/mitaka',
+    'mitaka/proposed': 'trusty-proposed/mitaka',
+    'trusty-mitaka/proposed': 'trusty-proposed/mitaka',
+    'trusty-proposed/mitaka': 'trusty-proposed/mitaka',
 }
 
 # The order of this list is very important. Handlers should be listed in from
