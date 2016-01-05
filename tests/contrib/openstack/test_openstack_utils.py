@@ -26,11 +26,13 @@ FAKE_RELEASE = {
 }
 
 FAKE_REPO = {
+    # liberty patch release
     'neutron-common': {
-        'pkg_vers': '2:7.0.0-0ubuntu1',
+        'pkg_vers': '2:7.0.1-0ubuntu1',
         'os_release': 'liberty',
         'os_version': '2015.2'
     },
+    # liberty release version
     'nova-common': {
         'pkg_vers': '2:12.0.0~b1-0ubuntu1',
         'os_release': 'liberty',
@@ -51,17 +53,18 @@ FAKE_REPO = {
         'os_release': 'grizzly',
         'os_version': '2013.1'
     },
-    'swift-proxy': {
-        'pkg_vers': '1.7.7-0ubuntu1',
+    # Exercise swift version detection
+    'swift-storage': {
+        'pkg_vers': '1.8.0-0ubuntu1',
         'os_release': 'grizzly',
-        'os_version': '1.7.7'
+        'os_version': '1.8.0'
     },
     'swift-proxy': {
-        'pkg_vers': '1.9.0-0ubuntu1',
-        'os_release': 'havana',
-        'os_version': '1.9.0'
+        'pkg_vers': '1.13.1-0ubuntu1',
+        'os_release': 'icehouse',
+        'os_version': '1.13.1'
     },
-    'swift-proxy': {
+    'swift-common': {
         'pkg_vers': '1.10.0~rc1-0ubuntu1',
         'os_release': 'havana',
         'os_version': '1.10.0'
