@@ -160,10 +160,7 @@ SYSTEMD_SYSTEM = '/run/systemd/system'
 
 
 def init_is_systemd():
-    if os.path.isdir(SYSTEMD_SYSTEM):
-        return True
-    else:
-        return False
+    return os.path.isdir(SYSTEMD_SYSTEM)
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False,
