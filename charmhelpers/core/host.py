@@ -82,6 +82,10 @@ def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
                 fh.write("manual\n")
         elif os.path.exists(sysv_file):
             subprocess.check_call(["update-rc.d", service_name, "disable"])
+        else:
+            raise ValueError(
+                "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
+                    service_name, upstart_file, sysv_file))
     return stopped
 
 
