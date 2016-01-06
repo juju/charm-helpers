@@ -66,15 +66,16 @@ class HelpersTest(TestCase):
     @patch('os.path')
     def test_init_is_systemd_upstart(self, path):
         """Upstart based init is correctly detected"""
-        path.exists.return_value = False
+        path.isdir.return_value = False
         self.assertFalse(host.init_is_systemd())
+        path.isdir.assert_called_with('/run/systemd/system')
 
     @patch('os.path')
     def test_init_is_systemd_system(self, path):
         """Systemd based init is correctly detected"""
-        path.exists.return_value = True
         path.isdir.return_value = True
         self.assertTrue(host.init_is_systemd())
+        path.isdir.assert_called_with('/run/systemd/system')
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')

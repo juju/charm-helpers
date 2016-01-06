@@ -74,18 +74,18 @@ def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
     sysv_file = os.path.join(initd_dir, service_name)
     if init_is_systemd():
         service('disable', service_name)
+    elif os.path.exists(upstart_file):
+        override_path = os.path.join(
+            init_dir, '{}.override'.format(service_name))
+        with open(override_path, 'w') as fh:
+            fh.write("manual\n")
+    elif os.path.exists(sysv_file):
+        subprocess.check_call(["update-rc.d", service_name, "disable"])
     else:
-        if os.path.exists(upstart_file):
-            override_path = os.path.join(
-                init_dir, '{}.override'.format(service_name))
-            with open(override_path, 'w') as fh:
-                fh.write("manual\n")
-        elif os.path.exists(sysv_file):
-            subprocess.check_call(["update-rc.d", service_name, "disable"])
-        else:
-            raise ValueError(
-                "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
-                    service_name, upstart_file, sysv_file))
+        raise ValueError(
+            "Unable to detect {0} as SystemD, Upstart {1} or"
+            " SysV {2}".format(
+                service_name, upstart_file, sysv_file))
     return stopped
 
 
@@ -98,19 +98,18 @@ def service_resume(service_name, init_dir="/etc/init",
     sysv_file = os.path.join(initd_dir, service_name)
     if init_is_systemd():
         service('enable', service_name)
+    elif os.path.exists(upstart_file):
+        override_path = os.path.join(
+            init_dir, '{}.override'.format(service_name))
+        if os.path.exists(override_path):
+            os.unlink(override_path)
+    elif os.path.exists(sysv_file):
+        subprocess.check_call(["update-rc.d", service_name, "enable"])
     else:
-        if os.path.exists(upstart_file):
-            override_path = os.path.join(
-                init_dir, '{}.override'.format(service_name))
-            if os.path.exists(override_path):
-                os.unlink(override_path)
-        elif os.path.exists(sysv_file):
-            subprocess.check_call(["update-rc.d", service_name, "enable"])
-        else:
-            # XXX: Support SystemD too
-            raise ValueError(
-                "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
-                    service_name, upstart_file, sysv_file))
+        raise ValueError(
+            "Unable to detect {0} as SystemD, Upstart {1} or"
+            " SysV {2}".format(
+                service_name, upstart_file, sysv_file))
 
     started = service_running(service_name)
     if not started:
@@ -161,7 +160,7 @@ SYSTEMD_SYSTEM = '/run/systemd/system'
 
 
 def init_is_systemd():
-    if os.path.exists(SYSTEMD_SYSTEM) and os.path.isdir(SYSTEMD_SYSTEM):
+    if os.path.isdir(SYSTEMD_SYSTEM):
         return True
     else:
         return False
