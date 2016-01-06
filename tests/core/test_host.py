@@ -103,7 +103,6 @@ class HelpersTest(TestCase):
         self.assertTrue(result)
         mock_call.assert_called_with(['systemctl', action, service_name])
 
-
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
     def test_returns_false_when_service_fails(self, mock_call, systemd):
