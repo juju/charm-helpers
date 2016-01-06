@@ -91,6 +91,21 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
+    def test_runs_systemctl_action(self, mock_call, systemd):
+        """Ensure that service calls under systemd call 'systemctl'."""
+        systemd.return_value = True
+        mock_call.return_value = 0
+        action = 'some-action'
+        service_name = 'foo-service'
+
+        result = host.service(action, service_name)
+
+        self.assertTrue(result)
+        mock_call.assert_called_with(['systemctl', action, service_name])
+
+
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
     def test_returns_false_when_service_fails(self, mock_call, systemd):
         systemd.return_value = False
         mock_call.return_value = 1
@@ -125,6 +140,34 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_restart(service_name))
 
         service.assert_called_with('restart', service_name)
+
+    @patch.object(host, 'service_running')
+    @patch.object(host, 'init_is_systemd')
+    @patch.object(host, 'service')
+    def test_pauses_a_running_systemd_unit(self, service, systemd,
+                                           service_running):
+        """Pause on a running systemd unit will be stopped and disabled."""
+        service_name = 'foo-service'
+        service_running.return_value = True
+        systemd.return_value = True
+        self.assertTrue(host.service_pause(service_name))
+        service.assert_has_calls([
+            call('stop', service_name),
+            call('disable', service_name)])
+
+    @patch.object(host, 'service_running')
+    @patch.object(host, 'init_is_systemd')
+    @patch.object(host, 'service')
+    def test_resumes_a_stopped_systemd_unit(self, service, systemd,
+                                            service_running):
+        """Resume on a stopped systemd unit will be started and enabled."""
+        service_name = 'foo-service'
+        service_running.return_value = False
+        systemd.return_value = True
+        self.assertTrue(host.service_resume(service_name))
+        service.assert_has_calls([
+            call('enable', service_name),
+            call('start', service_name)])
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
