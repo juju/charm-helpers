@@ -25,6 +25,7 @@ class NRPEBaseTestCase(TestCase):
         'relation_ids': {'object': nrpe},
         'relation_set': {'object': nrpe},
         'relations_of_type': {'object': nrpe},
+        'service': {'object': nrpe},
     }
 
     def setUp(self):
@@ -108,10 +109,9 @@ class NRPETestCase(NRPEBaseTestCase):
 
         self.assertEqual(None, checker.write())
 
-        expected = ['service', 'nagios-nrpe-server', 'restart']
-        self.assertEqual(expected, self.patched['call'].call_args[0][0])
+        self.patched['service'].assert_called_with('restart', 'nagios-nrpe-server')
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
-                               exists=1, call=1)
+                               exists=1, service=1)
 
     def test_update_nrpe(self):
         self.patched['config'].return_value = {'nagios_context': 'a',
