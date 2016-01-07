@@ -476,6 +476,8 @@ TO_PATCH = [
     'get_host_ip',
     'charm_name',
     'sysctl_create',
+    'kv',
+    'pwgen',
 ]
 
 
@@ -498,6 +500,23 @@ class fake_is_relation_made():
         return self.relations[relation]
 
 
+class TestDB(object):
+    '''Test KV store for unitdata testing'''
+    def __init__(self):
+        self.data = {}
+        self.flushed = False
+
+    def get(self, key, default=None):
+        return self.data.get(key, default)
+
+    def set(self, key, value):
+        self.data[key] = value
+        return value
+
+    def flush(self):
+        self.flushed = True
+
+
 class ContextTests(unittest.TestCase):
 
     def setUp(self):
@@ -509,6 +528,8 @@ class ContextTests(unittest.TestCase):
         self.local_unit.return_value = 'localunit'
         self.format_ipv6_addr.return_value = None
         self.get_host_ip.side_effect = lambda hostname: hostname
+        self.kv.side_effect = TestDB
+        self.pwgen.return_value = 'testpassword'
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -1293,7 +1314,8 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
-            'stat_port': ':8888',
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
         }
         # the context gets generated.
         self.assertEquals(ex, result)
@@ -1345,7 +1367,8 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
-            'stat_port': ':8888',
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
             'haproxy_client_timeout': 50000,
             'haproxy_server_timeout': 50000,
         }
@@ -1430,7 +1453,8 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
-            'stat_port': ':8888',
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
         }
         # the context gets generated.
         self.assertEquals(ex, result)
@@ -1487,7 +1511,8 @@ class ContextTests(unittest.TestCase):
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
-            'stat_port': ':::8888',
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
             'ipv6': True
         }
         # the context gets generated.
@@ -1561,7 +1586,8 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
-            'stat_port': ':8888'
+            'stat_port': '8888',
+            'stat_password': 'testpassword',
         }
         self.assertEquals(ex, result)
         # and /etc/default/haproxy is updated.
