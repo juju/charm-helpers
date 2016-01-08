@@ -49,8 +49,8 @@ class GitUrlFetchHandler(BaseFetchHandler):
             cmd = ['git', '-C', dest, 'pull', source, branch]
         else:
             cmd = ['git', 'clone', source, dest, '--branch', branch]
-        if depth:
-            cmd.extend(['--depth', depth])
+            if depth:
+                cmd.extend(['--depth', depth])
         check_call(cmd)
 
     def install(self, source, branch="master", dest=None, depth=None):
