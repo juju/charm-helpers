@@ -89,8 +89,7 @@ class GitUrlFetchHandlerTest(TestCase):
             if dst:
                 shutil.rmtree(dst, ignore_errors=True)
 
-    @patch('charmhelpers.fetch.giturl.mkdir')
-    def test_installs(self, _mkdir):
+    def test_installs(self):
         self.fh.clone = MagicMock()
 
         for url in self.valid_urls:
@@ -100,10 +99,8 @@ class GitUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 where = self.fh.install(url)
             self.assertEqual(where, dest)
-            _mkdir.assert_called_with(where, perms=0o755)
 
-    @patch('charmhelpers.fetch.giturl.mkdir')
-    def test_installs_specified_dest(self, _mkdir):
+    def test_installs_specified_dest(self):
         self.fh.clone = MagicMock()
 
         for url in self.valid_urls:
