@@ -714,7 +714,7 @@ class OpenStackHelpersTestCase(TestCase):
              - {name: requirements,
                 repository: 'git://git.openstack.org/openstack/requirements',
                 branch: stable/juno}"""
-        openstack.git_clone_and_install(git_wrong_order_1, 'keystone', depth=1)
+        openstack.git_clone_and_install(git_wrong_order_1, 'keystone')
         error_out.assert_called_with('keystone git repo must be specified last')
 
         git_wrong_order_2 = """
@@ -722,7 +722,7 @@ class OpenStackHelpersTestCase(TestCase):
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
                 branch: stable/juno}"""
-        openstack.git_clone_and_install(git_wrong_order_2, 'keystone', depth=1)
+        openstack.git_clone_and_install(git_wrong_order_2, 'keystone')
         error_out.assert_called_with('requirements git repo must be specified first')
 
     @patch('os.path.join')
@@ -740,7 +740,7 @@ class OpenStackHelpersTestCase(TestCase):
         _git_install_single.return_value = '/mnt/openstack-git/requirements'
         join.return_value = '/mnt/openstack-git/venv'
 
-        openstack.git_clone_and_install(openstack_origin_git, proj, depth=1)
+        openstack.git_clone_and_install(openstack_origin_git, proj)
         self.assertTrue(pip_venv.called)
         pip_install.assert_called_with('setuptools', upgrade=True,
                                        proxy=None,
@@ -748,10 +748,10 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
-                 'stable/juno', 1, '/mnt/openstack-git', None,
+                 'stable/juno', '1', '/mnt/openstack-git', None,
                  update_requirements=False),
             call('git://git.openstack.org/openstack/keystone',
-                 'stable/juno', 1, '/mnt/openstack-git', None,
+                 'stable/juno', '1', '/mnt/openstack-git', None,
                  update_requirements=True)
         ]
         self.assertEquals(expected, _git_install_single.call_args_list)
