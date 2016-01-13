@@ -248,6 +248,34 @@ class OpenStackHelpersTestCase(TestCase):
         expected_err = 'Could not derive OpenStack version for codename: foo'
         mocked_error.assert_called_with(expected_err)
 
+    def test_os_version_swift_from_codename(self):
+        '''Test mapping a swift codename to numerical version'''
+        self.assertEquals(openstack.get_os_version_codename_swift('liberty'),
+                          '2.5.0')
+
+    def test_get_swift_codename_single_version_kilo(self):
+        self.assertEquals(openstack.get_swift_codename('2.2.2'), 'kilo')
+
+    @patch('charmhelpers.contrib.openstack.utils.error_out')
+    def test_os_version_swift_from_bad_codename(self, mocked_error):
+        '''Test mapping a bad swift codename to numerical version'''
+        openstack.get_os_version_codename_swift('foo')
+        expected_err = 'Could not derive swift version for codename: foo'
+        mocked_error.assert_called_with(expected_err)
+
+    def test_get_swift_codename_multiple_versions_liberty(self):
+        with patch('subprocess.check_output') as _subp:
+            _subp.return_value = "... trusty-updates/liberty/main ..."
+            self.assertEquals(openstack.get_swift_codename('2.5.0'), 'liberty')
+
+    def test_get_swift_codename_multiple_versions_mitaka(self):
+        with patch('subprocess.check_output') as _subp:
+            _subp.return_value = "... trusty-updates/mitaka/main ..."
+            self.assertEquals(openstack.get_swift_codename('2.5.0'), 'mitaka')
+
+    def test_get_swift_codename_none(self):
+        self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
+
     def test_os_codename_from_package(self):
         '''Test deriving OpenStack codename from an installed package'''
         with patch('apt_pkg.Cache') as cache:
@@ -507,8 +535,10 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
+    @patch.object(openstack, 'get_os_version_codename_swift')
     @patch.object(openstack, 'config')
-    def test_openstack_upgrade_detection_true(self, config, vers_pkg, lsb):
+    def test_openstack_upgrade_detection_true(self, config, vers_swift,
+                                              vers_pkg, lsb):
         """Test it detects when an openstack package has available upgrade"""
         lsb.return_value = FAKE_RELEASE
         config.return_value = 'cloud:precise-havana'
@@ -518,6 +548,7 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '2013.2~b1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
         vers_pkg.return_value = '1.9.0'
+        vers_swift.return_value = '2.5.0'
         self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')

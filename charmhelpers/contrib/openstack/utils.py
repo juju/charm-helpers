@@ -105,16 +105,26 @@ OPENSTACK_CODENAMES = OrderedDict([
 
 # The ugly duckling - must list releases oldest to newest
 SWIFT_CODENAMES = OrderedDict([
-    ('diablo',   ['1.4.3']),
-    ('essex',    ['1.4.8']),
-    ('folsom',   ['1.7.4']),
-    ('grizzly',  ['1.7.6', '1.7.7', '1.8.0']),
-    ('havana',   ['1.9.0', '1.9.1', '1.10.0']),
-    ('icehouse', ['1.11.0', '1.12.0', '1.13.0', '1.13.1']),
-    ('juno',     ['2.0.0', '2.1.0', '2.2.0']),
-    ('kilo',     ['2.2.1', '2.2.2']),
-    ('liberty',  ['2.3.0', '2.4.0', '2.5.0']),
-    ('mitaka',   ['2.5.0']),
+    ('diablo',
+        ['1.4.3']),
+    ('essex',
+        ['1.4.8']),
+    ('folsom',
+        ['1.7.4']),
+    ('grizzly',
+        ['1.7.6', '1.7.7', '1.8.0']),
+    ('havana',
+        ['1.9.0', '1.9.1', '1.10.0']),
+    ('icehouse',
+        ['1.11.0', '1.12.0', '1.13.0', '1.13.1']),
+    ('juno',
+        ['2.0.0', '2.1.0', '2.2.0']),
+    ('kilo',
+        ['2.2.1', '2.2.2']),
+    ('liberty',
+        ['2.3.0', '2.4.0', '2.5.0']),
+    ('mitaka',
+        ['2.5.0']),
 ])
 
 # >= Liberty version->codename mapping
