@@ -103,29 +103,28 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2016.1', 'mitaka'),
 ])
 
-# The ugly duckling
+# The ugly duckling - must list releases oldest to newest
 SWIFT_CODENAMES = OrderedDict([
-    ('1.4.3', 'diablo'),
-    ('1.4.8', 'essex'),
-    ('1.7.4', 'folsom'),
-    ('1.8.0', 'grizzly'),
-    ('1.7.7', 'grizzly'),
-    ('1.7.6', 'grizzly'),
-    ('1.10.0', 'havana'),
-    ('1.9.1', 'havana'),
-    ('1.9.0', 'havana'),
-    ('1.13.1', 'icehouse'),
-    ('1.13.0', 'icehouse'),
-    ('1.12.0', 'icehouse'),
-    ('1.11.0', 'icehouse'),
-    ('2.0.0', 'juno'),
-    ('2.1.0', 'juno'),
-    ('2.2.0', 'juno'),
-    ('2.2.1', 'kilo'),
-    ('2.2.2', 'kilo'),
-    ('2.3.0', 'liberty'),
-    ('2.4.0', 'liberty'),
-    ('2.5.0', 'liberty'),
+    ('diablo',
+        ['1.4.3']),
+    ('essex',
+        ['1.4.8']),
+    ('folsom',
+        ['1.7.4']),
+    ('grizzly',
+        ['1.7.6', '1.7.7', '1.8.0']),
+    ('havana',
+        ['1.9.0', '1.9.1', '1.10.0']),
+    ('icehouse',
+        ['1.11.0', '1.12.0', '1.13.0', '1.13.1']),
+    ('juno',
+        ['2.0.0', '2.1.0', '2.2.0']),
+    ('kilo',
+        ['2.2.1', '2.2.2']),
+    ('liberty',
+        ['2.3.0', '2.4.0', '2.5.0']),
+    ('mitaka',
+        ['2.5.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -227,6 +226,33 @@ def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
     error_out(e)
 
 
+def get_os_version_codename_swift(codename):
+    '''Determine OpenStack version number of swift from codename.'''
+    for k, v in six.iteritems(SWIFT_CODENAMES):
+        if k == codename:
+            return v[-1]
+    e = 'Could not derive swift version for '\
+        'codename: %s' % codename
+    error_out(e)
+
+
+def get_swift_codename(version):
+    '''Determine OpenStack codename that corresponds to swift version.'''
+    codenames = [k for k, v in six.iteritems(SWIFT_CODENAMES) if version in v]
+    if len(codenames) > 1:
+        # If more than one release codename contains this version we determine
+        # the actual codename based on the highest available install source.
+        for codename in reversed(codenames):
+            releases = UBUNTU_OPENSTACK_RELEASE
+            release = [k for k, v in six.iteritems(releases) if codename in v]
+            ret = subprocess.check_output(['apt-cache', 'policy', 'swift'])
+            if codename in ret or release[0] in ret:
+                return codename
+    elif len(codenames) == 1:
+        return codenames[0]
+    return None
+
+
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     import apt_pkg as apt
@@ -270,7 +296,7 @@ def get_os_codename_package(package, fatal=True):
         # < Liberty co-ordinated project versions
         try:
             if 'swift' in pkg.name:
-                return SWIFT_CODENAMES[vers]
+                return get_swift_codename(vers)
             else:
                 return OPENSTACK_CODENAMES[vers]
         except KeyError:
@@ -289,12 +315,14 @@ def get_os_version_package(pkg, fatal=True):
 
     if 'swift' in pkg:
         vers_map = SWIFT_CODENAMES
+        for cname, version in six.iteritems(vers_map):
+            if cname == codename:
+                return version[-1]
     else:
         vers_map = OPENSTACK_CODENAMES
-
-    for version, cname in six.iteritems(vers_map):
-        if cname == codename:
-            return version
+        for version, cname in six.iteritems(vers_map):
+            if cname == codename:
+                return version
     # e = "Could not determine OpenStack version for package: %s" % pkg
     # error_out(e)
 
@@ -460,11 +488,16 @@ def openstack_upgrade_available(package):
     cur_vers = get_os_version_package(package)
     if "swift" in package:
         codename = get_os_codename_install_source(src)
-        available_vers = get_os_version_codename(codename, SWIFT_CODENAMES)
+        avail_vers = get_os_version_codename_swift(codename)
     else:
-        available_vers = get_os_version_install_source(src)
+        avail_vers = get_os_version_install_source(src)
     apt.init()
-    return apt.version_compare(available_vers, cur_vers) == 1
+    if "swift" in package:
+        major_cur_vers = cur_vers.split('.', 1)[0]
+        major_avail_vers = avail_vers.split('.', 1)[0]
+        major_diff = apt.version_compare(major_avail_vers, major_cur_vers)
+        return avail_vers > cur_vers and (major_diff == 1 or major_diff == 0)
+    return apt.version_compare(avail_vers, cur_vers) == 1
 
 
 def ensure_block_device(block_device):
