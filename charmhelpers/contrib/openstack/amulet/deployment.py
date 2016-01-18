@@ -125,7 +125,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         # Charms which can not use openstack-origin, ie. many subordinates
         no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe',
-                     'openvswitch-odl', 'neutron-api-odl', 'odl-controller']
+                     'openvswitch-odl', 'neutron-api-odl', 'odl-controller',
+                     'cinder-backup']
 
         if self.openstack:
             for svc in services:
