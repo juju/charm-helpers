@@ -34,9 +34,11 @@ class NeutronTests(unittest.TestCase):
 
     @patch.object(neutron, 'kernel_version')
     def test_determine_dkms_package_old_kernel(self, _kernel_version):
+        self.check_output.return_value = b'3.4.0-19-generic'
         _kernel_version.return_value = (3, 10)
         dkms_package = neutron.determine_dkms_package()
-        self.assertEquals(dkms_package, ['openvswitch-datapath-dkms'])
+        self.assertEquals(dkms_package, ['linux-headers-3.4.0-19-generic',
+                                         'openvswitch-datapath-dkms'])
 
     @patch.object(neutron, 'kernel_version')
     def test_determine_dkms_package_new_kernel(self, _kernel_version):
