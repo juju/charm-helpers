@@ -476,6 +476,13 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
+    def test_service_running_on_running_service_pxc(self, check_output, systemd):
+        systemd.return_value = False
+        check_output.return_value = b' * Percona XtraDB Cluster up and running'
+        self.assertTrue(host.service_running('foo'))
+
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.check_output')
     def test_service_running_on_unknown_service(self, check_output, systemd):
         systemd.return_value = False
         exc = subprocess.CalledProcessError(1, ['status'])
