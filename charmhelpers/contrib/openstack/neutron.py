@@ -233,6 +233,13 @@ def neutron_plugins():
                                              'neutron-plugin-ml2']
         # NOTE: patch in vmware renames nvp->nsx for icehouse onwards
         plugins['nvp'] = plugins['nsx']
+    if release >= 'kilo':
+        plugins['midonet']['driver'] = (
+            'neutron.plugins.midonet.plugin.MidonetPluginV2')
+    if release >= 'liberty':
+        if config('midonet-origin')[4:5] == '1':
+            plugins['midonet']['driver'] = (
+                'midonet.neutron.plugin_v1.MidonetPluginV2')
     return plugins
 
 
