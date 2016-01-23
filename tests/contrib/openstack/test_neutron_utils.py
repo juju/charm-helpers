@@ -86,6 +86,7 @@ class NeutronTests(unittest.TestCase):
                           'neutron.plugins.midonet.plugin.MidonetPluginV2')
 
         self.os_release.return_value = 'liberty'
+        self.config.return_value = 'mem-1.9'
         plugins = neutron.neutron_plugins()
         self.assertEquals(plugins['midonet']['driver'],
                           'midonet.neutron.plugin_v1.MidonetPluginV2')
