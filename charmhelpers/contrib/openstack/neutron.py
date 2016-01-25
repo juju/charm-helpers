@@ -237,7 +237,8 @@ def neutron_plugins():
         plugins['midonet']['driver'] = (
             'neutron.plugins.midonet.plugin.MidonetPluginV2')
     if release >= 'liberty':
-        if config('midonet-origin')[4:5] == '1':
+        midonet_origin = config('midonet-origin')
+        if midonet_origin is not None and midonet_origin[4:5] == '1':
             plugins['midonet']['driver'] = (
                 'midonet.neutron.plugin_v1.MidonetPluginV2')
     return plugins
