@@ -80,6 +80,17 @@ class NeutronTests(unittest.TestCase):
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 
+        self.os_release.return_value = 'kilo'
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['midonet']['driver'],
+                          'neutron.plugins.midonet.plugin.MidonetPluginV2')
+
+        self.os_release.return_value = 'liberty'
+        self.config.return_value = 'mem-1.9'
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['midonet']['driver'],
+                          'midonet.neutron.plugin_v1.MidonetPluginV2')
+
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_quantum(self, _network_manager):
         self.config.return_value = 'foo'
