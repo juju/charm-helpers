@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import re
+import itertools
 
 import six
 import traceback
@@ -58,6 +59,7 @@ from charmhelpers.contrib.storage.linux.lvm import (
 from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
     is_ipv6,
+    port_has_listener,
 )
 
 from charmhelpers.contrib.python.packages import (
@@ -65,7 +67,7 @@ from charmhelpers.contrib.python.packages import (
     pip_install,
 )
 
-from charmhelpers.core.host import lsb_release, mounts, umount
+from charmhelpers.core.host import lsb_release, mounts, umount, service_running
 from charmhelpers.fetch import apt_install, apt_cache, install_remote
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
@@ -795,13 +797,23 @@ def os_workload_status(configs, required_interfaces, charm_func=None):
     return wrap
 
 
-def set_os_workload_status(configs, required_interfaces, charm_func=None):
+def set_os_workload_status(configs, required_interfaces, charm_func=None, services=None, ports=None):
     """
     Set workload status based on complete contexts.
     status-set missing or incomplete contexts
     and juju-log details of missing required data.
     charm_func is a charm specific function to run checking
     for charm specific requirements such as a VIP setting.
+
+    This function also checks for whether the services defined are ACTUALLY
+    running and that the ports they advertise are open and being listened to.
+
+    @param services - OPTIONAL: a [{'service': <string>, 'ports': [<int>]]
+                      The ports are optional.
+                      If services is a [<string>] then ports are ignored.
+    @param ports - OPTIONAL: an [<int>] representing ports that shoudl be
+                   open.
+    @returns None
     """
     incomplete_rel_data = incomplete_relation_data(configs, required_interfaces)
     state = 'active'
@@ -879,6 +891,58 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
                 message = "{}, {}".format(message, charm_message)
             else:
                 message = charm_message
+
+    # If the charm thinks the unit is active, check that the actual services
+    # really are active.
+    if services is not None and state == 'active':
+        # if we're passed the dict() then just grab the values as a list.
+        if isinstance(services, dict):
+            services = services.values()
+        _s = [s['service'] for s in services]
+        services_running = [service_running(s) for s in _s]
+        if not all(services_running):
+            not_running = [s for s, running in zip(_s, services_running)
+                           if not running]
+            message = ("Services not running that should be: {}"
+                       .format(", ".join(not_running)))
+            state = 'unknown'
+        # also verify that the ports that should be open are open
+        # NB, that ServiceManager objects only OPTIONALLY have ports
+        port_map = OrderedDict([(s['service'], s['ports'])
+                                for s in services if 'ports' in s])
+        if state == 'active' and port_map:
+            all_ports = list(itertools.chain(*port_map.values()))
+            ports_open = [port_has_listener('0.0.0.0', p)
+                          for p in all_ports]
+            if not all(ports_open):
+                not_opened = [p for p, opened in zip(all_ports, ports_open)
+                              if not opened]
+                map_not_open = OrderedDict()
+                for service, ports in port_map.items():
+                    closed_ports = set(ports).intersection(not_opened)
+                    if closed_ports:
+                        map_not_open[service] = closed_ports
+                # find which service has missing ports. They are in service
+                # order which makes it a bit easier.
+                message = (
+                    "Services with ports not open that should be: {}"
+                    .format(
+                        ", ".join([
+                            "{}: [{}]".format(
+                                service,
+                                ", ".join([str(v) for v in ports]))
+                            for service, ports in map_not_open.items()])))
+                state = 'unknown'
+
+    if ports is not None and state == 'active':
+        # and we can also check ports which we don't know the service for
+        ports_open = [port_has_listener('0.0.0.0', p) for p in ports]
+        if not all(ports_open):
+            message = (
+                "Ports which should be open, but are not: {}"
+                .format(", ".join([str(p) for p, v in zip(ports, ports_open)
+                                   if not v])))
+            state = 'unknown'
 
     # Set to active if all requirements have been met
     if state == 'active':
