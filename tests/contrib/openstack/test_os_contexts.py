@@ -2367,6 +2367,24 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.NotificationDriverContext()(),
                           {'notifications': 'True'})
 
+    @patch.object(context, 'psutil')
+    def test_workerconfig_context_xenial(self, _psutil):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 1,
+        })
+        _psutil.cpu_count.return_value = 4
+        worker = context.WorkerConfigContext()
+        self.assertTrue(worker.num_cpus, 4)
+
+    @patch.object(context, 'psutil')
+    def test_workerconfig_context_trusty(self, _psutil):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 2,
+        })
+        _psutil.NUM_CPUS = 4
+        worker = context.WorkerConfigContext()
+        self.assertTrue(worker.num_cpus, 2)
+
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
         with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
