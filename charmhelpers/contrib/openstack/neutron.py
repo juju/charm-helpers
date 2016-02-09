@@ -241,6 +241,10 @@ def neutron_plugins():
         if midonet_origin is not None and midonet_origin[4:5] == '1':
             plugins['midonet']['driver'] = (
                 'midonet.neutron.plugin_v1.MidonetPluginV2')
+            plugins['midonet']['server_packages'].remove(
+                'python-neutron-plugin-midonet')
+            plugins['midonet']['server_packages'].append(
+                'python-networking-midonet')
     return plugins
 
 
