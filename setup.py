@@ -56,7 +56,7 @@ SETUP = {
         "bin/contrib/charmsupport/charmsupport",
         "bin/contrib/saltstack/salt-call",
     ],
-    'license': "Affero GNU Public License v3",
+    'license': "GNU Lesser General Public License v3 (LGPLv3)",
     'long_description': open('README.txt').read(),
     'description': 'Helpers for Juju Charm development',
 }

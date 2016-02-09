@@ -34,9 +34,11 @@ class NeutronTests(unittest.TestCase):
 
     @patch.object(neutron, 'kernel_version')
     def test_determine_dkms_package_old_kernel(self, _kernel_version):
+        self.check_output.return_value = b'3.4.0-19-generic'
         _kernel_version.return_value = (3, 10)
         dkms_package = neutron.determine_dkms_package()
-        self.assertEquals(dkms_package, ['openvswitch-datapath-dkms'])
+        self.assertEquals(dkms_package, ['linux-headers-3.4.0-19-generic',
+                                         'openvswitch-datapath-dkms'])
 
     @patch.object(neutron, 'kernel_version')
     def test_determine_dkms_package_new_kernel(self, _kernel_version):
@@ -77,6 +79,17 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/midonet/midonet.ini')
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
+
+        self.os_release.return_value = 'kilo'
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['midonet']['driver'],
+                          'neutron.plugins.midonet.plugin.MidonetPluginV2')
+
+        self.os_release.return_value = 'liberty'
+        self.config.return_value = 'mem-1.9'
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['midonet']['driver'],
+                          'midonet.neutron.plugin_v1.MidonetPluginV2')
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_quantum(self, _network_manager):
