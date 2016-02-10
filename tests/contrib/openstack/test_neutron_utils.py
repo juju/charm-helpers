@@ -90,6 +90,8 @@ class NeutronTests(unittest.TestCase):
         plugins = neutron.neutron_plugins()
         self.assertEquals(plugins['midonet']['driver'],
                           'midonet.neutron.plugin_v1.MidonetPluginV2')
+        self.assertTrue('python-networking-midonet' in
+                        plugins['midonet']['server_packages'])
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_quantum(self, _network_manager):
