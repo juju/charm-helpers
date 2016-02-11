@@ -1,6 +1,7 @@
 import io
 import os
 import subprocess
+import tempfile
 import unittest
 from copy import copy
 from testtools import TestCase
@@ -113,6 +114,21 @@ openstack_origin_git = \
             branch: stable/juno}"""
 
 # Mock python-dnspython resolver used by get_host_ip()
+
+PGP_KEY_ASCII_ARMOR = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: SKS 1.1.5
+Comment: Hostname: keyserver.ubuntu.com
+
+mI0EUCEyTAEEAMuUxyfiegCCwn4J/c0nw5PUTSJdn5FqiUTq6iMfij65xf1vl0g/Mxqw0gfg
+AJIsCDvO9N9dloLAwF6FUBMg5My7WyhRPTAKF505TKJboyX3Pp4J1fU1LV8QFVOp87vUh1Rz
+B6GU7cSglhnbL85gmbJTllkzkb3h4Yw7W+edjcQ/ABEBAAG0K0xhdW5jaHBhZCBQUEEgZm9y
+IFVidW50dSBDbG91ZCBBcmNoaXZlIFRlYW2IuAQTAQIAIgUCUCEyTAIbAwYLCQgHAwIGFQgC
+CQoLBBYCAwECHgECF4AACgkQimhEop9oEE7kJAP/eTBgq3Mhbvo0d8elMOuqZx3nmU7gSyPh
+ep0zYIRZ5TJWl/7PRtvp0CJA6N6ZywYTQ/4ANHhpibcHZkh8K0AzUvsGXnJRSFoJeqyDbD91
+EhoO+4ZfHs2HvRBQEDZILMa2OyuB497E5Mmyua3HDEOrG2cVLllsUZzpTFCx8NgeMHk=
+=jLBm
+-----END PGP PUBLIC KEY BLOCK-----
+"""
 
 
 class FakeAnswer(object):
@@ -414,7 +430,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
-    @patch('charmhelpers.contrib.openstack.utils.import_key')
+    @patch('charmhelpers.contrib.openstack.utils.import_pgp_key')
     def test_configure_install_source_deb_url(self, _import, _log, _open):
         '''Test configuring installation source from deb repo url'''
         _file = MagicMock(spec=io.FileIO)
@@ -490,25 +506,40 @@ class OpenStackHelpersTestCase(TestCase):
         _e = 'Invalid Cloud Archive release specified: foo-bar'
         mocked_error.assert_called_with(_e)
 
-    def test_import_apt_key(self):
+    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
+    def test_import_apt_key_radix(self):
         '''Ensure shell out apt-key during key import'''
         with patch('subprocess.check_call') as _subp:
-            openstack.import_key('foo')
-            cmd = ['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
-                   '--recv-keys', 'foo']
+            openstack.import_pgp_key('foo')
+            cmd = ['apt-key', 'adv', '--keyserver',
+                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
             _subp.assert_called_with(cmd)
 
+    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
+    def test_import_apt_key_ascii_armor(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            with patch.object(openstack, 'tempfile') as \
+                    mock_tmpfile:
+                tmpfile = mock_tmpfile.NamedTemporaryFile.return_value
+                tmpfile.__enter__.return_value = tmpfile
+                tmpfile.name = tmp.name
+                with patch('subprocess.check_call') as _subp:
+                    openstack.import_pgp_key(PGP_KEY_ASCII_ARMOR)
+                    cmd = ['apt-key', 'add', tmp.name]
+                    _subp.assert_called_with(cmd)
+
+    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_import_bad_apt_key(self, mocked_error):
         '''Ensure error when importing apt key fails'''
         with patch('subprocess.check_call') as _subp:
-            cmd = ['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
-                   '--recv-keys', 'foo']
+            cmd = ['apt-key', 'adv', '--keyserver',
+                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
             _subp.side_effect = subprocess.CalledProcessError(1, cmd, '')
-            openstack.import_key('foo')
-            cmd = ['apt-key', 'adv', '--keyserver', 'hkp://keyserver.ubuntu.com:80',
-                   '--recv-keys', 'foo']
-        mocked_error.assert_called_with('Error importing repo key foo')
+            openstack.import_pgp_key('foo')
+            cmd = ['apt-key', 'adv', '--keyserver',
+                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
+        mocked_error.assert_called_with("Error importing PGP key 'foo'")
 
     @patch('os.mkdir')
     @patch('os.path.exists')
