@@ -430,7 +430,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
-    @patch('charmhelpers.contrib.openstack.utils.import_pgp_key')
+    @patch('charmhelpers.contrib.openstack.utils.import_key')
     def test_configure_install_source_deb_url(self, _import, _log, _open):
         '''Test configuring installation source from deb repo url'''
         _file = MagicMock(spec=io.FileIO)
@@ -510,7 +510,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_import_apt_key_radix(self):
         '''Ensure shell out apt-key during key import'''
         with patch('subprocess.check_call') as _subp:
-            openstack.import_pgp_key('foo')
+            openstack.import_key('foo')
             cmd = ['apt-key', 'adv', '--keyserver',
                    'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
             _subp.assert_called_with(cmd)
@@ -524,7 +524,7 @@ class OpenStackHelpersTestCase(TestCase):
                 tmpfile.__enter__.return_value = tmpfile
                 tmpfile.name = tmp.name
                 with patch('subprocess.check_call') as _subp:
-                    openstack.import_pgp_key(PGP_KEY_ASCII_ARMOR)
+                    openstack.import_key(PGP_KEY_ASCII_ARMOR)
                     cmd = ['apt-key', 'add', tmp.name]
                     _subp.assert_called_with(cmd)
 
@@ -536,7 +536,7 @@ class OpenStackHelpersTestCase(TestCase):
             cmd = ['apt-key', 'adv', '--keyserver',
                    'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
             _subp.side_effect = subprocess.CalledProcessError(1, cmd, '')
-            openstack.import_pgp_key('foo')
+            openstack.import_key('foo')
             cmd = ['apt-key', 'adv', '--keyserver',
                    'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
         mocked_error.assert_called_with("Error importing PGP key 'foo'")
