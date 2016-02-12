@@ -931,14 +931,21 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
         # if we're passed the dict() then just grab the values as a list.
         if isinstance(services, dict):
             services = services.values()
-        _s = [s['service'] for s in services]
+        # either extract the list of services from the dictionary, or if
+        # it is a simple string, use that. i.e. works with mixed lists.
+        _s = []
+        for s in services:
+            if isinstance(s, dict) and 'service' in s:
+                _s.append(s['service'])
+            if isinstance(s, str):
+                _s.append(s)
         services_running = [service_running(s) for s in _s]
         if not all(services_running):
             not_running = [s for s, running in zip(_s, services_running)
                            if not running]
             message = ("Services not running that should be: {}"
                        .format(", ".join(not_running)))
-            state = 'unknown'
+            state = 'blocked'
         # also verify that the ports that should be open are open
         # NB, that ServiceManager objects only OPTIONALLY have ports
         port_map = OrderedDict([(s['service'], s['ports'])
@@ -965,7 +972,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
                                 service,
                                 ", ".join([str(v) for v in ports]))
                             for service, ports in map_not_open.items()])))
-                state = 'unknown'
+                state = 'blocked'
 
     if ports is not None and state == 'active':
         # and we can also check ports which we don't know the service for
@@ -975,7 +982,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
                 "Ports which should be open, but are not: {}"
                 .format(", ".join([str(p) for p, v in zip(ports, ports_open)
                                    if not v])))
-            state = 'unknown'
+            state = 'blocked'
 
     # Set to active if all requirements have been met
     if state == 'active':
