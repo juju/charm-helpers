@@ -76,6 +76,8 @@ class LoginContext(object):
                 'login_retries': defaults.get('os_auth_retries'),
                 'login_timeout': defaults.get('os_auth_timeout'),
                 'chfn_restrict': defaults.get('os_chfn_restrict'),
+                'allow_login_without_home':
+                defaults.get('os_auth_allow_homeless')
                 }
 
         return ctxt
@@ -84,7 +86,6 @@ class LoginContext(object):
 class ProfileContext(object):
 
     def __call__(self):
-        defaults = get_defaults()
         ctxt = {}
         return ctxt
 
@@ -100,7 +101,6 @@ class SecureTTYContext(object):
 class SecurityLimitsContext(object):
 
     def __call__(self):
-        defaults = get_defaults()
         ctxt = {}
         return ctxt
 
