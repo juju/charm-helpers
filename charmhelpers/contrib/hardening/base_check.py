@@ -1,6 +1,18 @@
+# Copyright 2016 Canonical Limited.
 #
+# This file is part of charm-helpers.
 #
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
 #
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 import grp
 import os
 import pwd
@@ -76,7 +88,7 @@ class BaseFileCheck(BaseCheck):
 
             log('File %s is not in compliance.' % p, level=INFO)
             if self._take_action():
-                self.become_compliant(p)
+                self.comply(p)
 
     def is_compliant(self, path):
         """Audits the path to see if it is compliance.
@@ -85,7 +97,7 @@ class BaseFileCheck(BaseCheck):
         """
         raise NotImplementedError
 
-    def become_compliant(self, path):
+    def comply(self, path):
         """Enforces the compliance of a path.
 
         :param path: the path to the file that should be enforced.
@@ -176,7 +188,7 @@ class FilePermissionCheck(BaseFileCheck):
 
         return compliant
 
-    def become_compliant(self, path):
+    def comply(self, path):
         """Issues a chown and chmod to the file paths specified."""
         os.chown(path, self.user.pw_uid, self.group.gr_gid)
         os.chmod(path, self.mode)
@@ -212,7 +224,7 @@ class DirectoryPermissionCheck(FilePermissionCheck):
 
         return compliant
 
-    def become_compliant(self, path):
+    def comply(self, path):
         for root, dirs, files in os.walk(path):
             if len(dirs) > 0:
-                super(DirectoryPermissionCheck, self).become_compliant(root)
+                super(DirectoryPermissionCheck, self).comply(root)

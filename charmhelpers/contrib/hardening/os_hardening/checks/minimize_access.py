@@ -61,7 +61,7 @@ class NoWritePermsForPathFolders(BaseFileCheck):
             # continually looping on the failure.
             return True
 
-    def become_compliant(self, path):
+    def comply(self, path):
         try:
             check_output(['chmod', 'go-w', '-R', path])
         except CalledProcessError as e:
