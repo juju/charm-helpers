@@ -13,7 +13,3 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-
-# Run all hardeners at import time. They will individually determine if
-# should actually be run or not.
-import charmhelpers.contrib.hardening.os_hardening  # NOQA

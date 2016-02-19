@@ -39,8 +39,8 @@ class HardeningConfigException(Exception):
 
 class TemplateContext(object):
     def __init__(self, target, context):
+        self.context = {}
         for ctxt in context['contexts']:
-            self.context = {}
             self.context.update(ctxt())
 
         self.service_actions = context.get('service_actions')
