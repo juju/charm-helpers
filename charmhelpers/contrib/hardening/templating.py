@@ -39,12 +39,23 @@ class HardeningConfigException(Exception):
 
 class TemplateContext(object):
     def __init__(self, target, context):
-        for ctxt in context['contexts']:
-            self.context = {}
-            self.context.update(ctxt())
-
+        self.contexts = context['contexts']
         self.service_actions = context.get('service_actions')
         self.post_hooks = context.get('post-hooks')
+
+    @property
+    def context(self):
+        self.enabled = True
+        _context = {}
+        for ctxt in self.contexts:
+            c = ctxt()
+            if c and not c.get('__disabled__'):
+                _context.update()
+
+            if c.get('__disabled__'):
+                self.enabled = False
+
+        return _context
 
 
 class HardeningConfigRenderer(object):
@@ -62,11 +73,16 @@ class HardeningConfigRenderer(object):
         self.templates[target] = TemplateContext(target, context)
 
     def render(self, target):
-        ctxt = self.templates[target].context
+        context = self.templates[target].context
+        if not self.templates[target].enabled:
+            log("Template context for '%s' disabled - skipping" %
+                (target), level=INFO)
+            return
+
         env = Environment(loader=FileSystemLoader(self.templates_dir))
         template = env.get_template(os.path.basename(target))
         log('Rendering from template: %s' % template.name, level=INFO)
-        return template.render(ctxt)
+        return template.render(context)
 
     def write(self, config_file):
         """Render template and write to config file"""
@@ -76,6 +92,10 @@ class HardeningConfigRenderer(object):
             raise HardeningConfigException(msg)
 
         rendered = self.render(config_file)
+        if not rendered:
+            log("Render returned None - skipping '%s'" % (config_file))
+            return
+
         with open(config_file, 'wb') as out:
             out.write(rendered)
 
