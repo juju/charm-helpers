@@ -52,7 +52,7 @@ userinstall:
 	.venv3/bin/pip install -I -r test_requirements.txt
 
 # Note we don't even attempt to run tests if lint isn't passing.
-test: lint test2 test3
+test: test2 test3
 	@echo OK
 
 test2:
