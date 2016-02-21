@@ -15,4 +15,4 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 # NOTE: this will run the hardeners.
-import harden  # NOQA
+from .harden import *  # NOQA

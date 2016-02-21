@@ -31,7 +31,7 @@ class BaseCheck(object):  # NO-QA
     """
     def __init__(self, *args, **kwargs):
         self.unless = kwargs['unless'] if 'unless' in kwargs else None
-        super(BaseCheck, self).__init__(*args, **kwargs)
+        super(BaseCheck, self).__init__()
 
     def ensure_compliance(self):
         """Checks to see if the current hardening check is in compliance or not.
