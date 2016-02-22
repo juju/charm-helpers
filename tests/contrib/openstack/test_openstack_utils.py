@@ -1021,6 +1021,165 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertTrue(actual_parm1 == 'blocked')
         self.assertTrue(actual_parm2 == expected1 or actual_parm2 == expected2)
 
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete_with_services_list(
+            self, status_set, log, port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        services = ['database', 'identity']
+        # Assume that the service and ports are open.
+        port_has_listener.return_value = True
+        service_running.return_value = True
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with('active', 'Unit is ready')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete_services_list_not_running(
+            self, status_set, log, port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        services = ['database', 'identity']
+        port_has_listener.return_value = True
+        # Fail the identity service
+        service_running.side_effect = [True, False]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with(
+            'blocked',
+            'Services not running that should be: identity')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete_with_services(
+            self, status_set, log, port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.return_value = True
+        service_running.return_value = True
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with('active', 'Unit is ready')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete_service_not_running(
+            self, status_set, log, port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        port_has_listener.return_value = True
+        # Fail the identity service
+        service_running.side_effect = [True, False]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with(
+            'blocked',
+            'Services not running that should be: identity')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete_port_not_open(
+            self, status_set, log, port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        port_has_listener.side_effect = [True, False, True]
+        # Fail the identity service
+        service_running.return_value = True
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with(
+            'blocked',
+            'Services with ports not open that should be:'
+            ' database: [20]')
+
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    def test_set_os_workload_status_complete_ports_not_open(
+            self, status_set, log, port_has_listener):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db',
+                                                  'amqp',
+                                                  'identity-service']
+        required_interfaces = {
+            'database': ['shared-db', 'pgsql-db'],
+            'message': ['amqp', 'zeromq-configuration'],
+            'identity': ['identity-service']}
+
+        ports = [50, 60, 70]
+        port_has_listener.side_effect = [True, False, True]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, ports=ports)
+        status_set.assert_called_with(
+            'blocked',
+            'Ports which should be open, but are not: 60')
+
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')

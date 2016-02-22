@@ -703,3 +703,12 @@ class IPTest(unittest.TestCase):
         with patch(builtin_import, side_effect=[fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
         self.assertEquals(hn, "www.ubuntu.com")
+
+    @patch('charmhelpers.contrib.network.ip.subprocess.call')
+    def test_port_has_listener(self, subprocess_call):
+        subprocess_call.return_value = 1
+        self.assertEqual(net_ip.port_has_listener('ip-address', 50), False)
+        subprocess_call.assert_called_with(['nc', '-z', 'ip-address', '50'])
+        subprocess_call.return_value = 0
+        self.assertEqual(net_ip.port_has_listener('ip-address', 70), True)
+        subprocess_call.assert_called_with(['nc', '-z', 'ip-address', '70'])
