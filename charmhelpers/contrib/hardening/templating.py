@@ -24,6 +24,9 @@ from charmhelpers.core.hookenv import (
     ERROR,
     INFO
 )
+from charmhelpers.contrib.hardening.utils import (
+    ensure_permissions,
+)
 
 try:
     from jinja2 import FileSystemLoader, Environment
@@ -38,60 +41,107 @@ class HardeningConfigException(Exception):
 
 
 class TemplateContext(object):
-    def __init__(self, target, context):
-        for ctxt in context['contexts']:
-            self.context = {}
-            self.context.update(ctxt())
+    """
+    SCHEMA:
 
+        {config_file_path:
+         {'contexts': [MyContext()],
+          'service-actions': [(service, action)],
+          'permissions': [(path, user, group, permissions)],
+          'posthooks': [(function, args, kwargs)]}
+        }
+    """
+    def __init__(self, target, context):
+        self.contexts = context['contexts']
+        self.permissions = context.get('permissions')
         self.service_actions = context.get('service_actions')
-        self.post_hooks = context.get('post-hooks')
+        self.post_hooks = context.get('posthooks')
+
+    @property
+    def context(self):
+        self.enabled = True
+        _context = {}
+        for ctxt in self.contexts:
+            c = ctxt()
+            if c and not c.get('__disabled__'):
+                _context.update()
+
+            if c.get('__disabled__'):
+                self.enabled = False
+
+        return _context
 
 
 class HardeningConfigRenderer(object):
 
-    def __init__(self, templates_dir):
+    # NOTE(dosaboy): we maintain template catalog in class context to provide
+    #                access to whoever instantiates this class.
+    templates = {}
+
+    def __init__(self, harden_type, templates_dir):
         if not os.path.isdir(templates_dir):
             msg = ("Could not find templates dir '%s'" % templates_dir)
             log(msg, level=ERROR)
             raise HardeningConfigException(msg)
 
+        self.harden_type = harden_type
         self.templates_dir = templates_dir
-        self.templates = {}
 
-    def register(self, target, context):
-        self.templates[target] = TemplateContext(target, context)
+    @classmethod
+    def register(cls, harden_type, target, context):
+        if harden_type not in cls.templates:
+            cls.templates[harden_type] = {}
+
+        cls.templates[harden_type][target] = TemplateContext(target, context)
 
     def render(self, target):
-        ctxt = self.templates[target].context
+        context = self.templates[self.harden_type][target].context
+        if not self.templates[self.harden_type][target].enabled:
+            log("Template context for '%s' disabled - skipping" %
+                (target), level=INFO)
+            return
+
         env = Environment(loader=FileSystemLoader(self.templates_dir))
         template = env.get_template(os.path.basename(target))
         log('Rendering from template: %s' % template.name, level=INFO)
-        return template.render(ctxt)
+        return template.render(context)
 
     def write(self, config_file):
         """Render template and write to config file"""
-        if config_file not in self.templates:
+        if config_file not in self.templates[self.harden_type]:
             msg = ("Config template '%s' is not registered" % config_file)
             log(msg, level=ERROR)
             raise HardeningConfigException(msg)
 
         rendered = self.render(config_file)
+        if not rendered:
+            log("Render returned None - skipping '%s'" % (config_file))
+            return
+
         with open(config_file, 'wb') as out:
             out.write(rendered)
 
         log('Wrote template %s.' % config_file, level=INFO)
-        service_actions = self.templates[config_file].service_actions
+        service_actions = self.templates[self.harden_type][config_file].\
+            service_actions
         if service_actions:
             log('Running service action(s)', level=INFO)
             cmd = ['sudo', 'service']
             # This will intentionally fail if any actions fail to complete
             [subprocess.check_call(cmd + [s, a]) for s, a in service_actions]
 
-        hooks = self.templates[config_file].post_hooks
+        # Permissions
+        perms = self.templates[self.harden_type][config_file].permissions
+        if perms:
+            log('Applying permissions', level=INFO)
+            [ensure_permissions(*args) for args in perms]
+
+        # Post hooks
+        hooks = self.templates[self.harden_type][config_file].post_hooks
         if hooks:
             log('Running post hook(s)', level=INFO)
-            [f(*a, **kwa) for f, a, kwa in hooks]
+            [f(*args, **kwargs) for f, args, kwargs in hooks]
 
     def write_all(self):
         """Write out all registered config files."""
-        [self.write(k) for k in six.iterkeys(self.templates)]
+        [self.write(k) for k in six.iterkeys(self.templates[self.harden_type])]
