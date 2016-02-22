@@ -212,7 +212,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_small_osds(self, get_osds):
-        get_osds.return_value = 4
+        get_osds.return_value = range(1, 4)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
@@ -222,7 +222,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_medium_osds(self, get_osds):
-        get_osds.return_value = 8
+        get_osds.return_value = range(1, 8)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
@@ -232,7 +232,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_large_osds(self, get_osds):
-        get_osds.return_value = 40
+        get_osds.return_value = range(1, 40)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
@@ -242,7 +242,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_xlarge_osds(self, get_osds):
-        get_osds.return_value = 1000
+        get_osds.return_value = range(1, 1000)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
@@ -272,7 +272,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'get_erasure_profile')
     @patch.object(ceph_utils, 'get_osds')
     def test_erasure_pool_create(self, get_osds, erasure_profile):
-        get_osds.return_value = 60
+        get_osds.return_value = range(1, 60)
         erasure_profile.return_value = {
             'directory': '/usr/lib/x86_64-linux-gnu/ceph/erasure-code',
             'k': '2',
@@ -283,7 +283,7 @@ class CephUtilsTests(TestCase):
         p.create()
         self.check_call.assert_has_calls(
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(8192),
-                  'erasure', 'default'])
+                  str(8192), 'erasure', 'default'])
         )
 
     def test_get_erasure_profile_none(self):
@@ -328,7 +328,7 @@ class CephUtilsTests(TestCase):
         self.check_call.return_value = 0
         ceph_utils.set_pool_quota(service='admin', pool_name='data', max_bytes=1024)
         self.check_call.assert_has_calls(
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', 1024])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '1024'])
         )
 
     def test_remove_pool_quota(self):
