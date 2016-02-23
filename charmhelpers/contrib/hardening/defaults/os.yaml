@@ -32,10 +32,12 @@ ignore_users: ['vagrant']
 # sysctl
 security_kernel_enable_module_loading: true
 security_kernel_enable_core_dump: false
+security_kernel_secure_sysrq: 4 + 16 + 32 + 64 + 128
 security_suid_sgid_enforce: true
-network.forwarding: false
-network.ipv6.enable: false
-network.arp.restricted: true
+security_kernel_enable_sysrq: false
+network_forwarding: false
+network_ipv6_enable: false
+network_arp_restricted: true
 
 # user-defined blacklist and whitelist
 security_suid_sgid_blacklist: []
