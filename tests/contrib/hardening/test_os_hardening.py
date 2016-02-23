@@ -1,4 +1,5 @@
 import six
+import tempfile
 
 from mock import patch
 from testtools import TestCase
@@ -29,6 +30,16 @@ class OSHardeningTestCase(TestCase):
     def test_configs_render(self, mock_apt_install, mock_apt_purge):
         configs = harden.register_configs()
         [configs.render(k) for k in six.iterkeys(configs.templates['os'])]
+
+    @patch.object(harden, 'apt_purge')
+    @patch.object(harden, 'apt_install')
+    def test_configs_write(self, mock_apt_install, mock_apt_purge):
+        configs = harden.register_configs()
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            for k in six.iterkeys(configs.templates['os']):
+                with open(tmpfile.name, 'w+') as fd:
+                    r = configs.render(k)
+                    fd.write(r.encode('utf-8').strip())
 
     def test_sysctl(self):
         ctxt = sysctl.SysCtlHardeningContext()()
