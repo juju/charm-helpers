@@ -18,25 +18,21 @@ import os
 import platform
 import re
 import subprocess
-import yaml
 
-from charmhelpers.contrib.hardening import templating
-from charmhelpers.contrib.hardening.utils import (
-    ensure_permissions,
+from charmhelpers.contrib.hardening import (
+    templating,
+    utils,
 )
 from charmhelpers.core.hookenv import config
 from charmhelpers.fetch import (
     apt_install,
     apt_purge,
 )
+from charmhelpers.contrib.hardening.os_hardening.sysctl import (
+    SysCtlHardeningContext,
+)
 
 OS_TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
-
-
-def get_defaults():
-    defaults = os.path.join(os.path.dirname(__file__),
-                            'defaults/main.yaml')
-    return yaml.safe_load(open(defaults))
 
 
 class PAMContext(object):
@@ -46,7 +42,7 @@ class PAMContext(object):
 
     def __call__(self):
         ctxt = {}
-        defaults = get_defaults()
+        defaults = utils.get_defaults('os')
 
         # Always remove?
         apt_purge('libpam-ccreds')
@@ -90,7 +86,7 @@ class ModulesContext(object):
         elif vendor == "AuthenticAMD":
             vendor = "amd"
 
-        defaults = get_defaults()
+        defaults = utils.get_defaults('os')
         ctxt = {'arch': platform.processor(),
                 'cpuVendor': vendor,
                 'desktop_enable': defaults.get('desktop_enable', False)}
@@ -101,7 +97,7 @@ class ModulesContext(object):
 class LoginContext(object):
 
     def __call__(self):
-        defaults = get_defaults()
+        defaults = utils.get_defaults('os')
         ctxt = {'additional_user_paths':
                 defaults.get('env_extra_user_paths'),
                 'umask': defaults.get('env_umask'),
@@ -133,7 +129,7 @@ class ProfileContext(object):
 class SecureTTYContext(object):
 
     def __call__(self):
-        defaults = get_defaults()
+        defaults = utils.get_defaults('os')
         ctxt = {'ttys': defaults.get('auth_root_ttys')}
         return ctxt
 
@@ -141,66 +137,59 @@ class SecureTTYContext(object):
 class SecurityLimitsContext(object):
 
     def __call__(self):
-        defaults = get_defaults()
+        defaults = utils.get_defaults('os')
         ctxt = {'disable_core_dump':
                 not defaults.get('enable_core_dump', False)}
         return ctxt
 
 
 def register_configs():
-    configs = templating.HardeningConfigRenderer(templates_dir=OS_TEMPLATES)
-
-    confs = {'/etc/modules':
+    configs = templating.HardeningConfigRenderer('os',
+                                                 templates_dir=OS_TEMPLATES)
+    # See templating.TemplateContext for schema
+    confs = {'/etc/initramfs-tools/modules':
              {'contexts': [ModulesContext()],
-              'service_actions': [],
-              'post-hooks': [(ensure_permissions,
-                              ('/etc/sysctl.conf', 'root', 0o0440), {}),
-                             (ensure_permissions,
-                              ('/etc/modules', 'root', 0o0440), {})]},
+              'permissions': [('/etc/initramfs-tools/modules', 'root', 'root',
+                               0o0440)]},
              '/etc/login.defs':
              {'contexts': [LoginContext()],
-              'post-hooks': [(ensure_permissions,
-                              ('/etc/login.defs', 'root', 0o0444), {})]
-              },
+              'permissions': [('/etc/login.defs', 'root', 'root', 0o0444)]},
              '/etc/profile.d/pinerolo_profile.sh':
              {'contexts': [ProfileContext()],
-              'post-hooks': [(ensure_permissions,
-                              ('/etc/profile.d/pinerolo_profile.sh', 0o0755,
-                               'root'), {})]
-              },
+              'permissions': [('/etc/profile.d/pinerolo_profile.sh', 'root',
+                               'root', 0o0755)]},
              '/etc/securetty':
              {'contexts': [SecureTTYContext()],
-              'post-hooks': [(ensure_permissions,
-                              ('/etc/securetty', 0o0400, 'root'), {})]
+              'permissions': [('/etc/securetty', 'root', 'root', 0o0400)]
               },
              '/etc/security/limits.d/10.hardcore.conf':
              {'contexts': [SecurityLimitsContext()],
-              'post-hooks': [(ensure_permissions,
-                              ('/etc/security/limits.d', 'root', 0o0755), {}),
-                             (ensure_permissions,
+              'permissions': [('/etc/security/limits.d', 'root', 'root',
+                               0o0755),
                               ('/etc/security/limits.d/10.hardcore.conf',
-                               'root', 0o0440), {})]},
+                               'root', 'root', 0o0440)]},
              '/usr/share/pam-configs/tally2':
              {'contexts': [PAMContext('tally2')],
-              'extra_files': '/usr/share/pam-configs/passwdqc',
-              'service_actions': [],
-              'post-hooks': [(ensure_permissions,
-                              ('/usr/share/pam-configs/tally2', 'root',
-                               0o0640), {}),
-                             (subprocess.check_output,
-                              (['pam-auth-update', '--package']))]},
+              'permissions': [('/usr/share/pam-configs/tally2', 'root',
+                               'root', 0o0640)],
+              'posthooks': [(subprocess.check_output,
+                            ['pam-auth-update', '--package'], {})]},
              '/usr/share/pam-configs/passwdqc':
              {'contexts': [PAMContext('passwdqc')],
-              'service_actions': [],
-              'post-hooks': [(ensure_permissions,
-                              ('/usr/share/pam-configs/passwdqc', 'root',
-                               0o0640), {}),
-                             (subprocess.check_output,
-                              (['pam-auth-update', '--package']))]}
+              'permissions': [('/usr/share/pam-configs/passwdqc', 'root',
+                               'root', 0o0640)],
+              'posthooks': [(subprocess.check_output,
+                            ['pam-auth-update', '--package'], {})]
+              },
+             '/etc/sysctl.conf':
+             {'contexts': [SysCtlHardeningContext()],
+              'permissions': [('/etc/sysctl.conf', 'root', 'root', 0o0440)],
+              'posthooks': [(subprocess.check_output,
+                            ['sysctl', '-p', '/etc/sysctl.conf'], {})]}
              }
 
     for conf in confs:
-        configs.register(conf, confs[conf])
+        configs.register('os', conf, confs[conf])
 
     return configs
 

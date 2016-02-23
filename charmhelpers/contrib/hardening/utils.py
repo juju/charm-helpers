@@ -15,8 +15,10 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import glob
+import grp
 import os
 import pwd
+import yaml
 
 from charmhelpers.core.hookenv import (
     log,
@@ -24,7 +26,13 @@ from charmhelpers.core.hookenv import (
 )
 
 
-def ensure_permissions(path, user, permissions, maxdepth=-1):
+def get_defaults(type):
+    defaults = os.path.join(os.path.dirname(__file__),
+                            'defaults/%s.yaml' % (type))
+    return yaml.safe_load(open(defaults))
+
+
+def ensure_permissions(path, user, group, permissions, maxdepth=-1):
     """Ensure permissions for path.
 
     If path is a file, apply to file and return.
@@ -39,7 +47,7 @@ def ensure_permissions(path, user, permissions, maxdepth=-1):
         return
 
     user = pwd.getpwnam(user)
-    os.chown(path, user.pw_uid, user.pw_gid)
+    os.chown(path, user.pw_uid, grp.getgrnam(group).gr_gid)
     os.chmod(path, permissions)
 
     if maxdepth == 0:
@@ -51,5 +59,5 @@ def ensure_permissions(path, user, permissions, maxdepth=-1):
     if os.path.isdir(path):
         contents = glob.glob("%s/*" % (path))
         for c in contents:
-            ensure_permissions(c, user=user, permissions=permissions,
-                               maxdepth=maxdepth)
+            ensure_permissions(c, user=user, group=group,
+                               permissions=permissions, maxdepth=maxdepth)
