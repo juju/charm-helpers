@@ -23,6 +23,9 @@ from charmhelpers.contrib.hardening import (
     templating,
     utils,
 )
+from charmhelpers.contrib.hardening.os_hardening.checks import (
+    run_checks,
+)
 from charmhelpers.core.hookenv import config
 from charmhelpers.fetch import (
     apt_install,
@@ -30,6 +33,9 @@ from charmhelpers.fetch import (
 )
 from charmhelpers.contrib.hardening.os_hardening.sysctl import (
     SysCtlHardeningContext,
+)
+from charmhelpers.contrib.hardening.os_hardening.suid_guid import (
+    suid_guid_harden,
 )
 
 OS_TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
@@ -194,16 +200,25 @@ def register_configs():
     return configs
 
 
-# Run on import
-if config('harden'):
-    OS_CONFIGS = register_configs()
-    OS_CONFIGS.write_all()
+OS_CONFIGS = register_configs()
 
 
-def harden_os(f):
+def harden_os():
     OS_CONFIGS.write_all()
+    suid_guid_harden()
+    run_checks()
+
+
+def dec_harden_os(f):
+    if config('harden'):
+        harden_os()
 
     def _harden_os(*args, **kwargs):
         return f(*args, **kwargs)
 
     return _harden_os
+
+
+# Run on import
+if config('harden'):
+    harden_os()
