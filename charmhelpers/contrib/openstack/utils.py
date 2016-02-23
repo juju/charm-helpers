@@ -862,7 +862,8 @@ def os_workload_status(configs, required_interfaces, charm_func=None):
     return wrap
 
 
-def set_os_workload_status(configs, required_interfaces, charm_func=None, services=None, ports=None):
+def set_os_workload_status(configs, required_interfaces, charm_func=None,
+                           services=None, ports=None):
     """
     Set workload status based on complete contexts.
     status-set missing or incomplete contexts
@@ -876,7 +877,7 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
     @param services - OPTIONAL: a [{'service': <string>, 'ports': [<int>]]
                       The ports are optional.
                       If services is a [<string>] then ports are ignored.
-    @param ports - OPTIONAL: an [<int>] representing ports that shoudl be
+    @param ports - OPTIONAL: an [<int>] representing ports that should be
                    open.
     @returns None
     """
@@ -960,40 +961,19 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
     # If the charm thinks the unit is active, check that the actual services
     # really are active.
     if services is not None and state == 'active':
-        # if we're passed the dict() then just grab the values as a list.
-        if isinstance(services, dict):
-            services = services.values()
-        # either extract the list of services from the dictionary, or if
-        # it is a simple string, use that. i.e. works with mixed lists.
-        _s = []
-        for s in services:
-            if isinstance(s, dict) and 'service' in s:
-                _s.append(s['service'])
-            if isinstance(s, str):
-                _s.append(s)
-        services_running = [service_running(s) for s in _s]
-        if not all(services_running):
-            not_running = [s for s, running in zip(_s, services_running)
-                           if not running]
-            message = ("Services not running that should be: {}"
-                       .format(", ".join(not_running)))
+        services = _extract_services_list_helper(services)
+        services_running, all_running = _check_running_services(services)
+        if not all_running:
+            message = (
+                "Services not running that should be: {}"
+                .format(", ".join(_filter_tuples(services_running, False))))
             state = 'blocked'
         # also verify that the ports that should be open are open
         # NB, that ServiceManager objects only OPTIONALLY have ports
-        port_map = OrderedDict([(s['service'], s['ports'])
-                                for s in services if 'ports' in s])
-        if state == 'active' and port_map:
-            all_ports = list(itertools.chain(*port_map.values()))
-            ports_open = [port_has_listener('0.0.0.0', p)
-                          for p in all_ports]
-            if not all(ports_open):
-                not_opened = [p for p, opened in zip(all_ports, ports_open)
-                              if not opened]
-                map_not_open = OrderedDict()
-                for service, ports in port_map.items():
-                    closed_ports = set(ports).intersection(not_opened)
-                    if closed_ports:
-                        map_not_open[service] = closed_ports
+        if state == 'active':
+            map_not_open, all_ports_open = (
+                _check_listening_on_services_ports(services))
+            if not(all_ports_open):
                 # find which service has missing ports. They are in service
                 # order which makes it a bit easier.
                 message = (
@@ -1002,17 +982,17 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
                         ", ".join([
                             "{}: [{}]".format(
                                 service,
-                                ", ".join([str(v) for v in ports]))
-                            for service, ports in map_not_open.items()])))
+                                ", ".join([str(v) for v in open_ports]))
+                            for service, open_ports in map_not_open.items()])))
                 state = 'blocked'
 
     if ports is not None and state == 'active':
         # and we can also check ports which we don't know the service for
-        ports_open = [port_has_listener('0.0.0.0', p) for p in ports]
-        if not all(ports_open):
+        ports_open, all_ports_open = _check_listening_on_ports_list(ports)
+        if not all_ports_open:
             message = (
                 "Ports which should be open, but are not: {}"
-                .format(", ".join([str(p) for p, v in zip(ports, ports_open)
+                .format(", ".join([str(p) for p, v in ports_open
                                    if not v])))
             state = 'blocked'
 
@@ -1022,6 +1002,97 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None, servic
         juju_log(message, "INFO")
 
     status_set(state, message)
+
+
+def _extract_services_list_helper(services):
+    """Extract a OrderedDict of {service: [ports]} of the supplied services
+    for use by the other functions.
+
+    The services object can either be:
+      - None : no services were passed (an empty dict is returned)
+      - a list of strings
+      - A dictionary (optionally OrderedDict) {service_name: {'service': ..}}
+      - An array of [{'service': service_name, ...}, ...]
+
+    @param services: see above
+    @returns OrderedDict(service: [ports], ...)
+    """
+    if services is None:
+        return {}
+    if isinstance(services, dict):
+        services = services.values()
+    # either extract the list of services from the dictionary, or if
+    # it is a simple string, use that. i.e. works with mixed lists.
+    _s = OrderedDict()
+    for s in services:
+        if isinstance(s, dict) and 'service' in s:
+            _s[s['service']] = s.get('ports', [])
+        if isinstance(s, str):
+            _s[s] = []
+    return _s
+
+
+def _check_running_services(services):
+    """Check that the services dict provided is actually running and provide
+    a list of (service, boolean) tuples for each service.
+
+    Returns both a zipped list of (service, boolean) and just the booleans
+    in the same order as the services.
+
+    @param services: OrderedDict of strings: [ports], one for each service to
+                     check.
+    @returns [(service, boolean), ...], : results for checks
+             boolean                    : just the result of the service checks
+    """
+    services_running = [service_running(s) for s in services]
+    return list(zip(services, services_running)), all(services_running)
+
+
+def _check_listening_on_services_ports(services):
+    """Check that the unit is actually listening (has the port open) on the
+    ports that the service specifies are open.
+
+    Returns an OrderedDict of service: ports-not-opened and a boolean AND of
+    all of the states.
+
+    @param services: OrderedDict(service: [port, ...], ...)
+    @returns OrderedDict(service: [port-not-open, ...]...), boolean
+    """
+    all_ports = list(itertools.chain(*services.values()))
+    ports_open = [port_has_listener('0.0.0.0', p) for p in all_ports]
+    map_not_open = OrderedDict()
+    if not all(ports_open):
+        not_opened = [p for p, opened in zip(all_ports, ports_open)
+                      if not opened]
+        for service, ports in services.items():
+            closed_ports = set(ports).intersection(not_opened)
+            if closed_ports:
+                map_not_open[service] = closed_ports
+    return map_not_open, all(ports_open)
+
+
+def _check_listening_on_ports_list(ports):
+    """Check that the ports list given are being listened to
+
+    Returns a list of ports being listened to and a global AND of the
+    booleans.
+
+    @param ports: LIST or port numbers.
+    @returns [(port_num, boolean), ...], AND(all ports)
+    """
+    ports_open = [port_has_listener('0.0.0.0', p) for p in ports]
+    return zip(ports, ports_open), all(ports_open)
+
+
+def _filter_tuples(services_states, state):
+    """Return a simple list from a list of tuples according to the condition
+
+    @param services_states: LIST of (string, boolean): service and running
+           state.
+    @param state: Boolean to match the tuple against.
+    @returns [LIST of strings] that matched the tuple RHS.
+    """
+    return [s for s, b in services_states if b == state]
 
 
 def workload_state_compare(current_workload_state, workload_state):
