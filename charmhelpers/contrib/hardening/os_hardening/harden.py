@@ -26,7 +26,11 @@ from charmhelpers.contrib.hardening import (
 from charmhelpers.contrib.hardening.os_hardening.checks import (
     run_checks,
 )
-from charmhelpers.core.hookenv import config
+from charmhelpers.core.hookenv import (
+    log,
+    INFO,
+    config,
+)
 from charmhelpers.fetch import (
     apt_install,
     apt_purge,
@@ -204,8 +208,12 @@ OS_CONFIGS = register_configs()
 
 
 def harden_os():
+    log("Hardening OS", level=INFO)
+    log("applying configs", level=INFO)
     OS_CONFIGS.write_all()
+    log("suid guid hardening", level=INFO)
     suid_guid_harden()
+    log("running checks", level=INFO)
     run_checks()
 
 
