@@ -46,8 +46,8 @@ def ensure_permissions(path, user, group, permissions, maxdepth=-1):
             level=WARNING)
         return
 
-    user = pwd.getpwnam(user)
-    os.chown(path, user.pw_uid, grp.getgrnam(group).gr_gid)
+    _user = pwd.getpwnam(user)
+    os.chown(path, _user.pw_uid, grp.getgrnam(group).gr_gid)
     os.chmod(path, permissions)
 
     if maxdepth == 0:

@@ -64,7 +64,7 @@ class TemplateContext(object):
         for ctxt in self.contexts:
             c = ctxt()
             if c and not c.get('__disabled__'):
-                _context.update()
+                _context.update(c)
 
             if c.get('__disabled__'):
                 self.enabled = False
@@ -119,7 +119,7 @@ class HardeningConfigRenderer(object):
             return
 
         with open(config_file, 'wb') as out:
-            out.write(rendered)
+            out.write(rendered.encode('utf-8').strip())
 
         log('Wrote template %s.' % config_file, level=INFO)
         service_actions = self.templates[self.harden_type][config_file].\

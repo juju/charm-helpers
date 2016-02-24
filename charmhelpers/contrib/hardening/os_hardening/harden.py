@@ -59,7 +59,7 @@ class PAMContext(object):
 
         if self.pam_name == 'passwdqc':
             if defaults.get('auth_pam_passwdqc_enable'):
-                apt_purge('libpam-cracklibtapt')
+                apt_purge('libpam-cracklibt')
                 apt_install('libpam-passwdqc')
                 ctxt['auth_pam_passwdqc_options'] = \
                     defaults.get('auth_pam_passwdqc_options')
@@ -183,19 +183,19 @@ def register_configs():
               'permissions': [('/usr/share/pam-configs/tally2', 'root',
                                'root', 0o0640)],
               'posthooks': [(subprocess.check_output,
-                            ['pam-auth-update', '--package'], {})]},
+                            [['pam-auth-update', '--package']], {})]},
              '/usr/share/pam-configs/passwdqc':
              {'contexts': [PAMContext('passwdqc')],
               'permissions': [('/usr/share/pam-configs/passwdqc', 'root',
                                'root', 0o0640)],
               'posthooks': [(subprocess.check_output,
-                            ['pam-auth-update', '--package'], {})]
+                            [['pam-auth-update', '--package']], {})]
               },
              '/etc/sysctl.conf':
              {'contexts': [SysCtlHardeningContext()],
               'permissions': [('/etc/sysctl.conf', 'root', 'root', 0o0440)],
               'posthooks': [(subprocess.check_output,
-                            ['sysctl', '-p', '/etc/sysctl.conf'], {})]}
+                            [['sysctl', '-p', '/etc/sysctl.conf']], {})]}
              }
 
     for conf in confs:
