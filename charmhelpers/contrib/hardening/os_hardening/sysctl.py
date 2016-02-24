@@ -1,6 +1,9 @@
+import os
+
 from charmhelpers.core.hookenv import (
     log,
     INFO,
+    WARNING,
 )
 from charmhelpers.contrib.hardening import (
     utils,
@@ -88,6 +91,13 @@ class SysCtlHardeningContext(object):
         defaults.update(extras)
         for d in (sysctl_defaults % defaults).split():
             d = d.strip().partition('=')
-            ctxt['sysctl'][d[0]] = d[2] or None
+            key = d[0].strip()
+            path = os.path.join('/proc/sys', key.replace('.', '/'))
+            if not os.path.exists(path):
+                log("Skipping '%s' since '%s' does not exist" % (key, path),
+                    level=WARNING)
+                continue
+
+            ctxt['sysctl'][key] = d[2] or None
 
         return ctxt
