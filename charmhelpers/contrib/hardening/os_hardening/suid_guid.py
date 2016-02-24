@@ -61,7 +61,7 @@ WHITELIST = ['/bin/mount', '/bin/ping', '/bin/su', '/bin/umount',
 
 
 def suid_guid_harden():
-    log("Applying SUID/GUID hardening", level=INFO)
+    log("Applying suid/guid hardening", level=INFO)
     defaults = utils.get_defaults('os')
 
     u_b = defaults.get('blacklist', [])
@@ -72,7 +72,7 @@ def suid_guid_harden():
 
     for path in blacklist:
         if os.path.exists(path):
-            log("Removing SUID/GUID from %s" % (path), level=DEBUG)
+            log("Removing suid/guid from %s" % (path), level=DEBUG)
             subprocess.check_call(['chmod', '-s', path])
 
     root_path = defaults.get('env_root_path', '/')
