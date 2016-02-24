@@ -59,7 +59,7 @@ class PAMContext(object):
 
         if self.pam_name == 'passwdqc':
             if defaults.get('auth_pam_passwdqc_enable'):
-                apt_purge('libpam-cracklibt')
+                apt_purge('libpam-cracklib')
                 apt_install('libpam-passwdqc')
                 ctxt['auth_pam_passwdqc_options'] = \
                     defaults.get('auth_pam_passwdqc_options')
