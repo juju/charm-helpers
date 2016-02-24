@@ -133,8 +133,10 @@ class HardeningConfigRenderer(object):
         # Permissions
         perms = self.templates[self.harden_type][config_file].permissions
         if perms:
-            log('Applying permissions', level=INFO)
-            [ensure_permissions(*args) for args in perms]
+            for args in perms:
+                path = args[0]
+                log("Applying permissions to '%s'" % (path), level=INFO)
+                ensure_permissions(path, *args)
 
         # Post hooks
         hooks = self.templates[self.harden_type][config_file].post_hooks

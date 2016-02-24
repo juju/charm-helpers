@@ -82,5 +82,5 @@ def suid_guid_harden():
     out, err = p.communicate()
     for path in out.split('\n'):
         if os.path.exists(path) and path not in whitelist:
-            log("Removing SUID/GUID from %s" % (path), level=DEBUG)
+            log("Removing suid/guid from %s" % (path), level=DEBUG)
             subprocess.check_call(['chmod', '-s', path])
