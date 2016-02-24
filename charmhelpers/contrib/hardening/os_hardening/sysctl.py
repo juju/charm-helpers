@@ -1,3 +1,7 @@
+from charmhelpers.core.hookenv import (
+    log,
+    INFO,
+)
 from charmhelpers.contrib.hardening import (
     utils,
 )
@@ -7,6 +11,7 @@ class SysCtlHardeningContext(object):
     def __call__(self):
         ctxt = {}
 
+        log("Applying SYSCTL settings", level=INFO)
         defaults = utils.get_defaults('os')
         extras = {'net_ipv4_ip_forward': 0,
                   'net_ipv6_conf_all_forwarding': 0,
