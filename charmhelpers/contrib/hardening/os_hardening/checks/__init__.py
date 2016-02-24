@@ -16,6 +16,7 @@
 
 from charmhelpers.contrib.hardening.os_hardening.checks import minimize_access
 
+
 def run_checks():
     checks = [minimize_access.NoWritePermsForPathFolders()]
     for check in checks:
