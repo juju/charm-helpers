@@ -1,6 +1,11 @@
 import os
 import subprocess
 
+from charmhelpers.core.hookenv import (
+    log,
+    DEBUG,
+    INFO,
+)
 from charmhelpers.contrib.hardening import (
     utils,
 )
@@ -56,6 +61,7 @@ WHITELIST = ['/bin/mount', '/bin/ping', '/bin/su', '/bin/umount',
 
 
 def suid_guid_harden():
+    log("Applying SUID/GUID hardening", level=INFO)
     defaults = utils.get_defaults('os')
 
     u_b = defaults.get('blacklist', [])
@@ -66,12 +72,15 @@ def suid_guid_harden():
 
     for path in blacklist:
         if os.path.exists(path):
-            subprocess.check_output(['chmod', '-s', path])
+            log("Removing SUID/GUID from %s" % (path), level=DEBUG)
+            subprocess.check_call(['chmod', '-s', path])
 
-    cmd = ['find', '/run', '-perm', '-4000', '-o', '-perm', '-2000', '-type',
-           'f', '!', '-path', '/proc/*', '-print']
+    root_path = defaults.get('env_root_path', '/')
+    cmd = ['find', root_path, '-perm', '-4000', '-o', '-perm', '-2000',
+           '-type', 'f', '!', '-path', '/proc/*', '-print']
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     for path in out.split('\n'):
         if os.path.exists(path) and path not in whitelist:
-            subprocess.check_output(['chmod', '-s', path])
+            log("Removing SUID/GUID from %s" % (path), level=DEBUG)
+            subprocess.check_call(['chmod', '-s', path])
