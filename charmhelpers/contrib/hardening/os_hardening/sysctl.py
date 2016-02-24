@@ -9,7 +9,7 @@ from charmhelpers.contrib.hardening import (
 
 class SysCtlHardeningContext(object):
     def __call__(self):
-        ctxt = {}
+        ctxt = {'sysctl': {}}
 
         log("Applying SYSCTL settings", level=INFO)
         defaults = utils.get_defaults('os')
@@ -88,6 +88,6 @@ class SysCtlHardeningContext(object):
         defaults.update(extras)
         for d in (sysctl_defaults % defaults).split():
             d = d.strip().partition('=')
-            ctxt[d[0]] = d[2] or None
+            ctxt['sysctl'][d[0]] = d[2] or None
 
         return ctxt
