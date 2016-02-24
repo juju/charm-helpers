@@ -962,8 +962,8 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None,
     # really are active.
     if services is not None and state == 'active':
         services = _extract_services_list_helper(services)
-        services_running, all_running = _check_running_services(services)
-        if not all_running:
+        services_running, running = _check_running_services(services)
+        if not all(running):
             message = (
                 "Services not running that should be: {}"
                 .format(", ".join(_filter_tuples(services_running, False))))
@@ -971,9 +971,9 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None,
         # also verify that the ports that should be open are open
         # NB, that ServiceManager objects only OPTIONALLY have ports
         if state == 'active':
-            map_not_open, all_ports_open = (
+            map_not_open, ports_open = (
                 _check_listening_on_services_ports(services))
-            if not(all_ports_open):
+            if not all(ports_open):
                 # find which service has missing ports. They are in service
                 # order which makes it a bit easier.
                 message = (
@@ -988,8 +988,8 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None,
 
     if ports is not None and state == 'active':
         # and we can also check ports which we don't know the service for
-        ports_open, all_ports_open = _check_listening_on_ports_list(ports)
-        if not all_ports_open:
+        ports_open, ports_open_bools = _check_listening_on_ports_list(ports)
+        if not all(ports_open_bools):
             message = (
                 "Ports which should be open, but are not: {}"
                 .format(", ".join([str(p) for p, v in ports_open
@@ -1036,52 +1036,54 @@ def _check_running_services(services):
     """Check that the services dict provided is actually running and provide
     a list of (service, boolean) tuples for each service.
 
-    Returns both a zipped list of (service, boolean) and just the booleans
+    Returns both a zipped list of (service, boolean) and a list of booleans
     in the same order as the services.
 
     @param services: OrderedDict of strings: [ports], one for each service to
                      check.
     @returns [(service, boolean), ...], : results for checks
-             boolean                    : just the result of the service checks
+             [boolean]                  : just the result of the service checks
     """
     services_running = [service_running(s) for s in services]
-    return list(zip(services, services_running)), all(services_running)
+    return list(zip(services, services_running)), services_running
 
 
-def _check_listening_on_services_ports(services):
+def _check_listening_on_services_ports(services, test=False):
     """Check that the unit is actually listening (has the port open) on the
-    ports that the service specifies are open.
+    ports that the service specifies are open. If test is True then the
+    function returns the services with ports that are open rather than
+    closed.
 
-    Returns an OrderedDict of service: ports-not-opened and a boolean AND of
-    all of the states.
+    Returns an OrderedDict of service: ports and a list of booleans
 
     @param services: OrderedDict(service: [port, ...], ...)
-    @returns OrderedDict(service: [port-not-open, ...]...), boolean
+    @param test: default=False, if False, test for closed, otherwise open.
+    @returns OrderedDict(service: [port-not-open, ...]...), [boolean]
     """
+    test = not(not(test))  # ensure test is True or False
     all_ports = list(itertools.chain(*services.values()))
-    ports_open = [port_has_listener('0.0.0.0', p) for p in all_ports]
-    map_not_open = OrderedDict()
-    if not all(ports_open):
-        not_opened = [p for p, opened in zip(all_ports, ports_open)
-                      if not opened]
-        for service, ports in services.items():
-            closed_ports = set(ports).intersection(not_opened)
-            if closed_ports:
-                map_not_open[service] = closed_ports
-    return map_not_open, all(ports_open)
+    ports_states = [port_has_listener('0.0.0.0', p) for p in all_ports]
+    map_ports = OrderedDict()
+    matched_ports = [p for p, opened in zip(all_ports, ports_states)
+                     if opened == test]  # essentially opened xor test
+    for service, ports in services.items():
+        set_ports = set(ports).intersection(matched_ports)
+        if set_ports:
+            map_ports[service] = set_ports
+    return map_ports, ports_states
 
 
 def _check_listening_on_ports_list(ports):
     """Check that the ports list given are being listened to
 
-    Returns a list of ports being listened to and a global AND of the
+    Returns a list of ports being listened to and a list of the
     booleans.
 
     @param ports: LIST or port numbers.
-    @returns [(port_num, boolean), ...], AND(all ports)
+    @returns [(port_num, boolean), ...], [boolean]
     """
     ports_open = [port_has_listener('0.0.0.0', p) for p in ports]
-    return zip(ports, ports_open), all(ports_open)
+    return zip(ports, ports_open), ports_open
 
 
 def _filter_tuples(services_states, state):
@@ -1093,6 +1095,52 @@ def _filter_tuples(services_states, state):
     @returns [LIST of strings] that matched the tuple RHS.
     """
     return [s for s, b in services_states if b == state]
+
+
+def check_actually_paused(services=None, ports=None):
+    """Check that services listed in the services object and and ports
+    are actually closed (not listened to), to verify that the unit is
+    properly paused.
+
+    @param services: See _extract_services_list_helper
+    @returns status, : string for status (None if okay)
+             message : string for problem for status_set
+    """
+    state = None
+    message = None
+    messages = []
+    if services is not None:
+        services = _extract_services_list_helper(services)
+        services_running, services_states = _check_running_services(services)
+        if any(services_states):
+            # there shouldn't be any running so this is a problem
+            messages.append("Should be paused, but these services running: {}"
+                            .format(", ".join(
+                                _filter_tuples(services_running, True))))
+            state = "blocked"
+        ports_open, ports_open_bools = (
+            _check_listening_on_services_ports(services, True))
+        if any(ports_open_bools):
+            messages.append(
+                "these service:ports are open: {}"
+                .format(
+                    ", ".join([
+                        "{}: [{}]".format(
+                            service,
+                            ", ".join([str(v) for v in open_ports]))
+                        for service, open_ports in ports_open.items()])))
+            state = 'blocked'
+    if ports is not None:
+        ports_open, bools = _check_listening_on_ports_list(ports)
+        if any(bools):
+            messages.append(
+                "these ports which should be closed, but are open: {}"
+                .format(", ".join([str(p) for p, v in ports_open if v])))
+            state = 'blocked'
+    if messages:
+        message = ("Services should be paused but: {}"
+                   .format(", ".join(messages)))
+    return state, message
 
 
 def workload_state_compare(current_workload_state, workload_state):

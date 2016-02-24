@@ -1180,6 +1180,119 @@ class OpenStackHelpersTestCase(TestCase):
             'blocked',
             'Ports which should be open, but are not: 60')
 
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_simple_services(
+            self, port_has_listener, service_running):
+        services = ['database', 'identity']
+        port_has_listener.return_value = False
+        service_running.return_value = False
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, None)
+        self.assertEquals(message, None)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_simple_services_fail(
+            self, port_has_listener, service_running):
+        services = ['database', 'identity']
+        port_has_listener.return_value = False
+        service_running.side_effect = [False, True]
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(message,
+                          'Services should be paused but: '
+                          'Should be paused, but these services running: '
+                          'identity')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_services_dict(
+            self, port_has_listener, service_running):
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.return_value = False
+        service_running.return_value = False
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, None)
+        self.assertEquals(message, None)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_services_dict_fail(
+            self, port_has_listener, service_running):
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.return_value = False
+        service_running.side_effect = [False, True]
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(message,
+                          'Services should be paused but: '
+                          'Should be paused, but these services running: '
+                          'identity')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_services_dict_ports_fail(
+            self, port_has_listener, service_running):
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.side_effect = [False, True, False]
+        service_running.return_value = False
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(message,
+                          'Services should be paused but: these service:ports'
+                          ' are open: database: [20]')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_ports_okay(
+            self, port_has_listener, service_running):
+        port_has_listener.side_effect = [False, False, False]
+        service_running.return_value = False
+        ports = [50, 60, 70]
+
+        state, message = openstack.check_actually_paused(
+            ports=ports)
+        self.assertEquals(state, None)
+        self.assertEquals(state, None)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_ports_fail(
+            self, port_has_listener, service_running):
+        port_has_listener.side_effect = [False, True, False]
+        service_running.return_value = False
+        ports = [50, 60, 70]
+
+        state, message = openstack.check_actually_paused(
+            ports=ports)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(message,
+                          'Services should be paused but: these ports '
+                          'which should be closed, but are open: 60')
+
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
