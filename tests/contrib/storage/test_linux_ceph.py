@@ -81,6 +81,32 @@ OSD_DUMP = """
 }
 """
 
+MONMAP_DUMP = """{
+    "name": "ip-172-31-13-119", "rank": 0, "state": "leader",
+    "election_epoch": 18, "quorum": [0, 1, 2],
+    "outside_quorum": [],
+    "extra_probe_peers": [],
+    "sync_provider": [],
+    "monmap": {
+        "epoch": 1,
+        "fsid": "9fdc313c-db30-11e5-9805-0242fda74275",
+        "modified": "0.000000",
+        "created": "0.000000",
+        "mons": [
+            {
+                "rank": 0,
+                "name": "ip-172-31-13-119",
+                "addr": "172.31.13.119:6789\/0"},
+            {
+                "rank": 1,
+                "name": "ip-172-31-24-50",
+                "addr": "172.31.24.50:6789\/0"},
+            {
+                "rank": 2,
+                "name": "ip-172-31-33-107",
+                "addr": "172.31.33.107:6789\/0"}
+        ]}}"""
+
 CEPH_CLIENT_RELATION = {
     'ceph:8': {
         'ceph/0': {
@@ -385,6 +411,41 @@ class CephUtilsTests(TestCase):
                'super-profile']
         self.check_call.assert_called_with(cmd)
         self.assertEqual(True, profile_exists)
+
+    def test_set_monitor_key(self):
+        cmd = ['ceph', '--id', 'admin',
+               'ceph', 'config-key', 'put', 'foo', 'bar']
+        ceph_utils.monitor_key_set(service='admin', key='foo', value='bar')
+        self.check_output.assert_called_with(cmd)
+
+    def test_get_monitor_key(self):
+        cmd = ['ceph', '--id', 'admin',
+               'ceph', 'config-key', 'get', 'foo']
+        ceph_utils.monitor_key_get(service='admin', key='foo')
+        self.check_output.assert_called_with(cmd)
+
+    def test_delete_monitor_key(self):
+        ceph_utils.monitor_key_delete(service='admin', key='foo')
+        cmd = ['ceph', '--id', 'admin',
+               'ceph', 'config-key', 'del', 'foo']
+        self.check_output.assert_called_with(cmd)
+
+    def test_get_monmap(self):
+        self.check_output.return_value = MONMAP_DUMP
+        cmd = ['ceph', '--id', 'admin',
+               'ceph', 'mon_status', '--format=json']
+        ceph_utils.get_mon_map(service='admin')
+        self.check_output.assert_called_with(cmd)
+
+    @patch.object(ceph_utils, 'get_mon_map')
+    def test_hash_monitor_names(self, monmap):
+        expected_hash_list = [
+            '010d57d581604d411b315dd64112bff832ab92c7323fa06077134b50',
+            '8e0a9705c1aeafa1ce250cc9f1bb443fc6e5150e5edcbeb6eeb82e3c',
+            'c3f8d36ba098c23ee920cb08cfb9beda6b639f8433637c190bdd56ec']
+        monmap.return_value = json.loads(MONMAP_DUMP)
+        hashed_mon_list = ceph_utils.hash_monitor_names(service='admin')
+        self.assertEqual(expected=expected_hash_list, observed=hashed_mon_list)
 
     def test_get_cache_mode(self):
         self.check_output.return_value = OSD_DUMP
