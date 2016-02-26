@@ -864,65 +864,153 @@ def os_workload_status(configs, required_interfaces, charm_func=None):
 
 def set_os_workload_status(configs, required_interfaces, charm_func=None,
                            services=None, ports=None):
-    """
-    Set workload status based on complete contexts.
-    status-set missing or incomplete contexts
-    and juju-log details of missing required data.
-    charm_func is a charm specific function to run checking
-    for charm specific requirements such as a VIP setting.
+    """Set the state of the workload status for the charm.
 
-    This function also checks for whether the services defined are ACTUALLY
-    running and that the ports they advertise are open and being listened to.
+    This calls _determine_os_workload_status() to get the new state, message
+    and sets the status using status_set()
 
-    @param services - OPTIONAL: a [{'service': <string>, 'ports': [<int>]]
-                      The ports are optional.
-                      If services is a [<string>] then ports are ignored.
-    @param ports - OPTIONAL: an [<int>] representing ports that should be
-                   open.
-    @returns None
+    @param configs: a templating.OSConfigRenderer() object
+    @param required_interfaces: {generic: [specific, specific2, ...]}
+    @param charm_func: a callable function that returns state, message. The
+                       signature is charm_func(configs) -> (state, message)
+    @param services: list of strings OR dictionary specifying services/ports
+    @param ports: OPTIONAL list of port numbers.
+    @returns state, message: the new workload status, user message
     """
-    incomplete_rel_data = incomplete_relation_data(configs, required_interfaces)
-    state = 'active'
-    missing_relations = []
-    incomplete_relations = []
+    state, message = _determine_os_workload_status(
+        configs, required_interfaces, charm_func, services, ports)
+    status_set(state, message)
+
+
+def _determine_os_workload_status(
+        configs, required_interfaces, charm_func=None,
+        services=None, ports=None):
+    """Determine the state of the workload status for the charm.
+
+    This function returns the new workload status for the charm based
+    on the state of the interfaces, the paused state and whether the
+    services are actually running and any specified ports are open.
+
+    This checks:
+
+     1. if the unit should be paused, that it is actually paused.  If so the
+        state is 'maintenance' + message, else 'broken'.
+     2. that the interfaces/relations are complete.  If they are not then
+        it sets the state to either 'broken' or 'waiting' and an appropriate
+        message.
+     3. If all the relation data is set, then it checks that the actual
+        services really are running.  If not it sets the state to 'broken'.
+
+    If everything is okay then the state returns 'active'.
+
+    @param configs: a templating.OSConfigRenderer() object
+    @param required_interfaces: {generic: [specific, specific2, ...]}
+    @param charm_func: a callable function that returns state, message. The
+                       signature is charm_func(configs) -> (state, message)
+    @param services: list of strings OR dictionary specifying services/ports
+    @param ports: OPTIONAL list of port numbers.
+    @returns state, message: the new workload status, user message
+    """
+    state, message = _ows_check_if_paused(services, ports)
+
+    if state is None:
+        state, message = _ows_check_generic_interfaces(
+            configs, required_interfaces)
+
+    if state != 'maintenance' and charm_func:
+        # _ows_check_charm_func() may modify the state, message
+        state, message = _ows_check_charm_func(
+            state, message, lambda: charm_func(configs))
+
+    if state is None:
+        state, message = _ows_check_services_running(services, ports)
+
+    if state is None:
+        state = 'active'
+        message = "Unit is ready"
+        juju_log(message, 'INFO')
+
+    return state, message
+
+
+def _ows_check_if_paused(services=None, ports=None):
+    """Check if the unit is supposed to be paused, and if so check that the
+    services/ports (if passed) are actually stopped/not being listened to.
+
+    if the unit isn't supposed to be paused, just return None, None
+
+    @param services: OPTIONAL services spec or list of service names.
+    @param ports: OPTIONAL list of port numbers.
+    @returns state, message or None, None
+    """
+    if is_unit_paused_set():
+        state, message = check_actually_paused(services=services,
+                                               ports=ports)
+        if state is None:
+            # we're paused okay, so set maintenance and return
+            state = "maintenance"
+            message = "Paused. Use 'resume' action to resume normal service."
+        return state, message
+    return None, None
+
+
+def _ows_check_generic_interfaces(configs, required_interfaces):
+    """Check the complete contexts to determine the workload status.
+
+     - Checks for missing or incomplete contexts
+     - juju log details of missing required data.
+     - determines the correct workload status
+     - creates an appropriate message for status_set(...)
+
+    if there are no problems then the function returns None, None
+
+    @param configs: a templating.OSConfigRenderer() object
+    @params required_interfaces: {generic_interface: [specific_interface], }
+    @returns state, message or None, None
+    """
+    incomplete_rel_data = incomplete_relation_data(configs,
+                                                   required_interfaces)
+    state = None
     message = None
-    charm_state = None
-    charm_message = None
+    missing_relations = set()
+    incomplete_relations = set()
 
-    for generic_interface in incomplete_rel_data.keys():
+    for generic_interface, relations_states in incomplete_rel_data.items():
         related_interface = None
         missing_data = {}
         # Related or not?
-        for interface in incomplete_rel_data[generic_interface]:
-            if incomplete_rel_data[generic_interface][interface].get('related'):
+        for interface, relation_state in relations_states.items():
+            if relation_state.get('related'):
                 related_interface = interface
-                missing_data = incomplete_rel_data[generic_interface][interface].get('missing_data')
-        # No relation ID for the generic_interface
+                missing_data = relation_state.get('missing_data')
+                break
+        # No relation ID for the generic_interface?
         if not related_interface:
             juju_log("{} relation is missing and must be related for "
                      "functionality. ".format(generic_interface), 'WARN')
             state = 'blocked'
-            if generic_interface not in missing_relations:
-                missing_relations.append(generic_interface)
+            missing_relations.add(generic_interface)
         else:
-            # Relation ID exists but no related unit
+            # Relation ID eists but no related unit
             if not missing_data:
-                # Edge case relation ID exists but departing
-                if ('departed' in hook_name() or 'broken' in hook_name()) \
-                        and related_interface in hook_name():
+                # Edge case - relation ID exists but departings
+                _hook_name = hook_name()
+                if (('departed' in _hook_name or 'broken' in _hook_name)
+                        and related_interface in _hook_name):
                     state = 'blocked'
-                    if generic_interface not in missing_relations:
-                        missing_relations.append(generic_interface)
+                    missing_relations.add(generic_interface)
                     juju_log("{} relation's interface, {}, "
                              "relationship is departed or broken "
                              "and is required for functionality."
-                             "".format(generic_interface, related_interface), "WARN")
+                             "".format(generic_interface, related_interface),
+                             "WARN")
                 # Normal case relation ID exists but no related unit
                 # (joining)
                 else:
                     juju_log("{} relations's interface, {}, is related but has "
                              "no units in the relation."
-                             "".format(generic_interface, related_interface), "INFO")
+                             "".format(generic_interface, related_interface),
+                             "INFO")
             # Related unit exists and data missing on the relation
             else:
                 juju_log("{} relation's interface, {}, is related awaiting "
@@ -931,9 +1019,8 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None,
                                    ", ".join(missing_data)), "INFO")
             if state != 'blocked':
                 state = 'waiting'
-            if generic_interface not in incomplete_relations \
-                    and generic_interface not in missing_relations:
-                incomplete_relations.append(generic_interface)
+            if generic_interface not in missing_relations:
+                incomplete_relations.add(generic_interface)
 
     if missing_relations:
         message = "Missing relations: {}".format(", ".join(missing_relations))
@@ -946,9 +1033,22 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None,
                   "".format(", ".join(incomplete_relations))
         state = 'waiting'
 
-    # Run charm specific checks
+    return state, message
+
+
+def _ows_check_charm_func(state, message, charm_func_with_configs):
+    """Run a custom check function for the charm to see if it wants to
+    change the state.  This is only run if not in 'maintenance' and
+    tests to see if the new state is more important that the previous
+    one determined by the interfaces/relations check.
+
+    @param state: the previously determined state so far.
+    @param message: the user orientated message so far.
+    @param charm_func: a callable function that returns state, message
+    @returns state, message strings.
+    """
     if charm_func:
-        charm_state, charm_message = charm_func(configs)
+        charm_state, charm_message = charm_func_with_configs()
         if charm_state != 'active' and charm_state != 'unknown':
             state = workload_state_compare(state, charm_state)
             if message:
@@ -957,51 +1057,59 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None,
                 message = "{}, {}".format(message, charm_message)
             else:
                 message = charm_message
+    return state, message
 
-    # If the charm thinks the unit is active, check that the actual services
-    # really are active.
-    if services is not None and state == 'active':
+
+def _ows_check_services_running(services, ports):
+    """Check that the services that should be running are actually running
+    and that any ports specified are being listened to.
+
+    @param services: list of strings OR dictionary specifying services/ports
+    @param ports: list of ports
+    @returns state, message: strings or None, None
+    """
+    messages = []
+    state = None
+    if services is not None:
         services = _extract_services_list_helper(services)
         services_running, running = _check_running_services(services)
         if not all(running):
-            message = (
+            messages.append(
                 "Services not running that should be: {}"
                 .format(", ".join(_filter_tuples(services_running, False))))
             state = 'blocked'
         # also verify that the ports that should be open are open
         # NB, that ServiceManager objects only OPTIONALLY have ports
-        if state == 'active':
-            map_not_open, ports_open = (
-                _check_listening_on_services_ports(services))
-            if not all(ports_open):
-                # find which service has missing ports. They are in service
-                # order which makes it a bit easier.
-                message = (
-                    "Services with ports not open that should be: {}"
-                    .format(
-                        ", ".join([
-                            "{}: [{}]".format(
-                                service,
-                                ", ".join([str(v) for v in open_ports]))
-                            for service, open_ports in map_not_open.items()])))
-                state = 'blocked'
+        map_not_open, ports_open = (
+            _check_listening_on_services_ports(services))
+        if not all(ports_open):
+            # find which service has missing ports. They are in service
+            # order which makes it a bit easier.
+            messages.append(
+                "Services with ports not open that should be: {}"
+                .format(
+                    ", ".join([
+                        "{}: [{}]".format(
+                            service,
+                            ", ".join([str(v) for v in open_ports]))
+                        for service, open_ports in map_not_open.items()])))
+            state = 'blocked'
 
-    if ports is not None and state == 'active':
+    if ports is not None:
         # and we can also check ports which we don't know the service for
         ports_open, ports_open_bools = _check_listening_on_ports_list(ports)
         if not all(ports_open_bools):
-            message = (
+            messages.append(
                 "Ports which should be open, but are not: {}"
                 .format(", ".join([str(p) for p, v in ports_open
                                    if not v])))
             state = 'blocked'
 
-    # Set to active if all requirements have been met
-    if state == 'active':
-        message = "Unit is ready"
-        juju_log(message, "INFO")
+    if state is not None:
+        message = "; ".join(messages)
+        return state, message
 
-    status_set(state, message)
+    return None, None
 
 
 def _extract_services_list_helper(services):
@@ -1114,7 +1222,7 @@ def check_actually_paused(services=None, ports=None):
         services_running, services_states = _check_running_services(services)
         if any(services_states):
             # there shouldn't be any running so this is a problem
-            messages.append("Should be paused, but these services running: {}"
+            messages.append("these services running: {}"
                             .format(", ".join(
                                 _filter_tuples(services_running, True))))
             state = "blocked"
@@ -1138,9 +1246,35 @@ def check_actually_paused(services=None, ports=None):
                 .format(", ".join([str(p) for p, v in ports_open if v])))
             state = 'blocked'
     if messages:
-        message = ("Services should be paused but: {}"
+        message = ("Services should be paused but {}"
                    .format(", ".join(messages)))
     return state, message
+
+
+def set_unit_paused():
+    """Set the unit to a paused state in the local kv() store.
+    This does NOT actually pause the unit
+    """
+    with unitdata.HookData()() as kv:
+        kv.set('unit-paused', True)
+
+def clear_unit_paused():
+    """Clear the unit from a paused state in the local kv() store
+    This does NOT actually restart any services - it only clears the
+    local state.
+    """
+    with unitdata.HookData()() as kv:
+        kv.set('unit-paused', False)
+
+
+def is_unit_paused_set():
+    """Return the state of the kv().get('unit-paused').
+    This does NOT verify that the unit really is pasued.  See
+    is_paused() for that functionality
+    """
+    with unitdata.HookData()() as kv:
+        # transform something truth-y into a Boolean.
+        return not(not(kv.get('unit-paused')))
 
 
 def workload_state_compare(current_workload_state, workload_state):
@@ -1165,8 +1299,7 @@ def workload_state_compare(current_workload_state, workload_state):
 
 
 def incomplete_relation_data(configs, required_interfaces):
-    """
-    Check complete contexts against required_interfaces
+    """Check complete contexts against required_interfaces
     Return dictionary of incomplete relation data.
 
     configs is an OSConfigRenderer object with configs registered
@@ -1191,19 +1324,13 @@ def incomplete_relation_data(configs, required_interfaces):
               'shared-db': {'related': True}}}
     """
     complete_ctxts = configs.complete_contexts()
-    incomplete_relations = []
-    for svc_type in required_interfaces.keys():
-        # Avoid duplicates
-        found_ctxt = False
-        for interface in required_interfaces[svc_type]:
-            if interface in complete_ctxts:
-                found_ctxt = True
-        if not found_ctxt:
-            incomplete_relations.append(svc_type)
-    incomplete_context_data = {}
-    for i in incomplete_relations:
-        incomplete_context_data[i] = configs.get_incomplete_context_data(required_interfaces[i])
-    return incomplete_context_data
+    incomplete_relations = [
+        svc_type
+        for svc_type, interfaces in required_interfaces.items()
+        if not set(interfaces).intersection(complete_ctxts)]
+    return {
+        i: configs.get_incomplete_context_data(required_interfaces[i])
+        for i in incomplete_relations}
 
 
 def do_action_openstack_upgrade(package, upgrade_callback, configs):
