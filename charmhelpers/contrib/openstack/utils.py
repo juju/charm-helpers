@@ -69,7 +69,14 @@ from charmhelpers.contrib.python.packages import (
     pip_install,
 )
 
-from charmhelpers.core.host import lsb_release, mounts, umount, service_running
+from charmhelpers.core.host import (
+    lsb_release,
+    mounts,
+    umount,
+    service_running,
+    service_pause,
+    service_resume
+)
 from charmhelpers.fetch import apt_install, apt_cache, install_remote
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
@@ -995,8 +1002,8 @@ def _ows_check_generic_interfaces(configs, required_interfaces):
             if not missing_data:
                 # Edge case - relation ID exists but departings
                 _hook_name = hook_name()
-                if (('departed' in _hook_name or 'broken' in _hook_name)
-                        and related_interface in _hook_name):
+                if (('departed' in _hook_name or 'broken' in _hook_name) and
+                        related_interface in _hook_name):
                     state = 'blocked'
                     missing_relations.add(generic_interface)
                     juju_log("{} relation's interface, {}, "
@@ -1047,7 +1054,7 @@ def _ows_check_charm_func(state, message, charm_func_with_configs):
     @param charm_func: a callable function that returns state, message
     @returns state, message strings.
     """
-    if charm_func:
+    if charm_func_with_configs:
         charm_state, charm_message = charm_func_with_configs()
         if charm_state != 'active' and charm_state != 'unknown':
             state = workload_state_compare(state, charm_state)
@@ -1205,78 +1212,6 @@ def _filter_tuples(services_states, state):
     return [s for s, b in services_states if b == state]
 
 
-def check_actually_paused(services=None, ports=None):
-    """Check that services listed in the services object and and ports
-    are actually closed (not listened to), to verify that the unit is
-    properly paused.
-
-    @param services: See _extract_services_list_helper
-    @returns status, : string for status (None if okay)
-             message : string for problem for status_set
-    """
-    state = None
-    message = None
-    messages = []
-    if services is not None:
-        services = _extract_services_list_helper(services)
-        services_running, services_states = _check_running_services(services)
-        if any(services_states):
-            # there shouldn't be any running so this is a problem
-            messages.append("these services running: {}"
-                            .format(", ".join(
-                                _filter_tuples(services_running, True))))
-            state = "blocked"
-        ports_open, ports_open_bools = (
-            _check_listening_on_services_ports(services, True))
-        if any(ports_open_bools):
-            messages.append(
-                "these service:ports are open: {}"
-                .format(
-                    ", ".join([
-                        "{}: [{}]".format(
-                            service,
-                            ", ".join([str(v) for v in open_ports]))
-                        for service, open_ports in ports_open.items()])))
-            state = 'blocked'
-    if ports is not None:
-        ports_open, bools = _check_listening_on_ports_list(ports)
-        if any(bools):
-            messages.append(
-                "these ports which should be closed, but are open: {}"
-                .format(", ".join([str(p) for p, v in ports_open if v])))
-            state = 'blocked'
-    if messages:
-        message = ("Services should be paused but {}"
-                   .format(", ".join(messages)))
-    return state, message
-
-
-def set_unit_paused():
-    """Set the unit to a paused state in the local kv() store.
-    This does NOT actually pause the unit
-    """
-    with unitdata.HookData()() as kv:
-        kv.set('unit-paused', True)
-
-def clear_unit_paused():
-    """Clear the unit from a paused state in the local kv() store
-    This does NOT actually restart any services - it only clears the
-    local state.
-    """
-    with unitdata.HookData()() as kv:
-        kv.set('unit-paused', False)
-
-
-def is_unit_paused_set():
-    """Return the state of the kv().get('unit-paused').
-    This does NOT verify that the unit really is pasued.  See
-    is_paused() for that functionality
-    """
-    with unitdata.HookData()() as kv:
-        # transform something truth-y into a Boolean.
-        return not(not(kv.get('unit-paused')))
-
-
 def workload_state_compare(current_workload_state, workload_state):
     """ Return highest priority of two states"""
     hierarchy = {'unknown': -1,
@@ -1391,3 +1326,201 @@ def remote_restart(rel_name, remote_service=None):
             relation_set(relation_id=rid,
                          relation_settings=trigger,
                          )
+
+
+def check_actually_paused(services=None, ports=None):
+    """Check that services listed in the services object and and ports
+    are actually closed (not listened to), to verify that the unit is
+    properly paused.
+
+    @param services: See _extract_services_list_helper
+    @returns status, : string for status (None if okay)
+             message : string for problem for status_set
+    """
+    state = None
+    message = None
+    messages = []
+    if services is not None:
+        services = _extract_services_list_helper(services)
+        services_running, services_states = _check_running_services(services)
+        if any(services_states):
+            # there shouldn't be any running so this is a problem
+            messages.append("these services running: {}"
+                            .format(", ".join(
+                                _filter_tuples(services_running, True))))
+            state = "blocked"
+        ports_open, ports_open_bools = (
+            _check_listening_on_services_ports(services, True))
+        if any(ports_open_bools):
+            messages.append(
+                "these service:ports are open: {}"
+                .format(
+                    ", ".join([
+                        "{}: [{}]".format(
+                            service,
+                            ", ".join([str(v) for v in open_ports]))
+                        for service, open_ports in ports_open.items()])))
+            state = 'blocked'
+    if ports is not None:
+        ports_open, bools = _check_listening_on_ports_list(ports)
+        if any(bools):
+            messages.append(
+                "these ports which should be closed, but are open: {}"
+                .format(", ".join([str(p) for p, v in ports_open if v])))
+            state = 'blocked'
+    if messages:
+        message = ("Services should be paused but {}"
+                   .format(", ".join(messages)))
+    return state, message
+
+
+def set_unit_paused():
+    """Set the unit to a paused state in the local kv() store.
+    This does NOT actually pause the unit
+    """
+    with unitdata.HookData()() as kv:
+        kv.set('unit-paused', True)
+
+
+def clear_unit_paused():
+    """Clear the unit from a paused state in the local kv() store
+    This does NOT actually restart any services - it only clears the
+    local state.
+    """
+    with unitdata.HookData()() as kv:
+        kv.set('unit-paused', False)
+
+
+def is_unit_paused_set():
+    """Return the state of the kv().get('unit-paused').
+    This does NOT verify that the unit really is pasued.  See
+    is_paused() for that functionality
+    """
+    with unitdata.HookData()() as kv:
+        # transform something truth-y into a Boolean.
+        return not(not(kv.get('unit-paused')))
+
+
+def pause_unit(assess_status_func, services=None, ports=None,
+               charm_func=None):
+    """Pause a unit by stopping the services and setting 'unit-paused'
+    in the local kv() store.
+
+    Also checks that the services have stopped and ports are no longer
+    being listened to.
+
+    An optional charm_func() can be called that can either raise an
+    Exception or return non None, None to indicate that the unit
+    didn't pause cleanly.
+
+    The signature for charm_func is:
+    charm_func() -> message: string
+
+    charm_func() is executed after any services are stopped, if supplied.
+
+    The services object can either be:
+      - None : no services were passed (an empty dict is returned)
+      - a list of strings
+      - A dictionary (optionally OrderedDict) {service_name: {'service': ..}}
+      - An array of [{'service': service_name, ...}, ...]
+
+    @param assess_status_func: (f() -> message: string | None) or None
+    @param services: OPTIONAL see above
+    @param ports: OPTIONAL list of port
+    @param charm_func: function to run for custom charm pausing.
+    @returns None
+    @raises Exception(message) on an error for action_fail().
+    """
+    services = _extract_services_list_helper(services)
+    messages = []
+    if services:
+        for service in services.keys():
+            stopped = service_pause(service)
+            if not stopped:
+                messages.append("{} didn't stop cleanly.".format(service))
+    if charm_func:
+        try:
+            message = charm_func()
+            if message:
+                messages.append(message)
+        except Exception as e:
+            message.append(str(e))
+    set_unit_paused()
+    if assess_status_func:
+        message = assess_status_func()
+        if message:
+            messages.append(message)
+    if messages:
+        raise Exception("Couldn't pause: {}".format("; ".join(messages)))
+
+
+def resume_unit(assess_status_func, services=None, ports=None,
+                charm_func=None):
+    """Resume a unit by starting the services and clearning 'unit-paused'
+    in the local kv() store.
+
+    Also checks that the services have started and ports are being listened to.
+
+    An optional charm_func() can be called that can either raise an
+    Exception or return non None to indicate that the unit
+    didn't resume cleanly.
+
+    The signature for charm_func is:
+    charm_func() -> message: string
+
+    charm_func() is executed after any services are started, if supplied.
+
+    The services object can either be:
+      - None : no services were passed (an empty dict is returned)
+      - a list of strings
+      - A dictionary (optionally OrderedDict) {service_name: {'service': ..}}
+      - An array of [{'service': service_name, ...}, ...]
+
+    @param assess_status_func: (f() -> message: string | None) or None
+    @param services: OPTIONAL see above
+    @param ports: OPTIONAL list of port
+    @param charm_func: function to run for custom charm resuming.
+    @returns None
+    @raises Exception(message) on an error for action_fail().
+    """
+    services = _extract_services_list_helper(services)
+    messages = []
+    if services:
+        for service in services.keys():
+            started = service_resume(service)
+            if not started:
+                messages.append("{} didn't start cleanly.".format(service))
+    if charm_func:
+        try:
+            message = charm_func()
+            if message:
+                messages.append(message)
+        except Exception as e:
+            message.append(str(e))
+    clear_unit_paused()
+    if assess_status_func:
+        message = assess_status_func()
+        if message:
+            messages.append(message)
+    if messages:
+        raise Exception("Couldn't resume: {}".format("; ".join(messages)))
+
+
+def make_assess_status_func(*args, **kwargs):
+    """Creates an assess_status_func() suitable for handing to pause_unit()
+    and resume_unit().
+
+    This uses the _determine_os_workload_status(...) function to determine
+    what the workload_status should be for the unit.  If the unit is
+    not in maintenance or active states, then the message is returned to
+    the caller.  This is so an action that doesn't result in either a
+    complete pause or complete resume can signal failure with an action_fail()
+    """
+    def _assess_status_func():
+        state, message = _determine_os_workload_status(*args, **kwargs)
+        status_set(state, message)
+        if state not in ['maintenance', 'active']:
+            return message
+        return None
+
+    return _assess_status_func
