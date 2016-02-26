@@ -1431,6 +1431,153 @@ class OpenStackHelpersTestCase(TestCase):
                           'Services should be paused but these ports '
                           'which should be closed, but are open: 60')
 
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_okay(self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.side_effect = [True, True]
+        openstack.pause_unit(None, services=services)
+        set_unit_paused.assert_called_once_with()
+        self.assertEquals(service_pause.call_count, 2)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_service_fails(self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.side_effect = [True, True]
+        openstack.pause_unit(None, services=services)
+        set_unit_paused.assert_called_once_with()
+        self.assertEquals(service_pause.call_count, 2)
+        # Fail the 2nd service
+        service_pause.side_effect = [True, False]
+        try:
+            openstack.pause_unit(None, services=services)
+            raise Exception("pause_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't pause: service2 didn't stop cleanly.")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_service_charm_func(
+            self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.return_value = True
+        charm_func = MagicMock()
+        charm_func.return_value = None
+        openstack.pause_unit(None, services=services, charm_func=charm_func)
+        charm_func.assert_called_once_with()
+        # fail the charm_func
+        charm_func.return_value = "Custom charm failed"
+        try:
+            openstack.pause_unit(
+                None, services=services, charm_func=charm_func)
+            raise Exception("pause_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't pause: Custom charm failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_assess_status_func(
+            self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.return_value = True
+        assess_status_func = MagicMock()
+        assess_status_func.return_value = None
+        openstack.pause_unit(assess_status_func, services=services)
+        assess_status_func.assert_called_once_with()
+        # fail the assess_status_func
+        assess_status_func.return_value = "assess_status_func failed"
+        try:
+            openstack.pause_unit(assess_status_func, services=services)
+            raise Exception("pause_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't pause: assess_status_func failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_okay(self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.side_effect = [True, True]
+        openstack.resume_unit(None, services=services)
+        clear_unit_paused.assert_called_once_with()
+        self.assertEquals(service_resume.call_count, 2)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_service_fails(self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.side_effect = [True, True]
+        openstack.resume_unit(None, services=services)
+        clear_unit_paused.assert_called_once_with()
+        self.assertEquals(service_resume.call_count, 2)
+        # Fail the 2nd service
+        service_resume.side_effect = [True, False]
+        try:
+            openstack.resume_unit(None, services=services)
+            raise Exception("resume_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't resume: service2 didn't start cleanly.")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_service_charm_func(
+            self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.return_value = True
+        charm_func = MagicMock()
+        charm_func.return_value = None
+        openstack.resume_unit(None, services=services, charm_func=charm_func)
+        charm_func.assert_called_once_with()
+        # fail the charm_func
+        charm_func.return_value = "Custom charm failed"
+        try:
+            openstack.resume_unit(
+                None, services=services, charm_func=charm_func)
+            raise Exception("resume_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't resume: Custom charm failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_assess_status_func(
+            self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.return_value = True
+        assess_status_func = MagicMock()
+        assess_status_func.return_value = None
+        openstack.resume_unit(assess_status_func, services=services)
+        assess_status_func.assert_called_once_with()
+        # fail the assess_status_func
+        assess_status_func.return_value = "assess_status_func failed"
+        try:
+            openstack.resume_unit(assess_status_func, services=services)
+            raise Exception("resume_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't resume: assess_status_func failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.'
+           '_determine_os_workload_status')
+    def test_make_assess_status_func(self, _determine_os_workload_status,
+                                     status_set):
+        _determine_os_workload_status.return_value = ('active', 'fine')
+        f = openstack.make_assess_status_func('one', 'two', three='three')
+        r = f()
+        self.assertEquals(r, None)
+        _determine_os_workload_status.assert_called_once_with(
+            'one', 'two', three='three')
+        status_set.assert_called_once_with('active', 'fine')
+        # return something other than 'active' or 'maintenance'
+        _determine_os_workload_status.return_value = ('broken', 'damaged')
+        r = f()
+        self.assertEquals(r, 'damaged')
+
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
