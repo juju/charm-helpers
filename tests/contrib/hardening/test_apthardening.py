@@ -34,27 +34,27 @@ class APTTestCase(TestCase):
                   lambda arg: {'security_packages_clean': True,
                                'security_packages_list': ['foo']})
     @patch.object(apthardening, 'apt')
+    @patch.object(apthardening.subprocess, 'check_call')
     @patch.object(apthardening, 'log', lambda *args, **kwargs: None)
-    def test_apt_harden(self, mock_apt):
-        pm = mock_apt.apt_pkg.PackageManager.return_value
+    def test_apt_harden(self, mock_check_call, mock_apt):
         pkg = self.create_package('foo')
-        mock_apt.apt_pkg.Cache.return_value = {'foo': pkg}
+        mock_apt.Cache.return_value = {'foo': pkg}
         apthardening.apt_harden()
-        self.assertTrue(mock_apt.apt_pkg.Cache.called)
-        self.assertTrue(mock_apt.apt_pkg.PackageManager.called)
-        pm.remove.assert_has_calls([call('foo', purge=True)])
+        self.assertTrue(mock_apt.Cache.called)
+        cmd = ['apt-get', '--assume-yes', 'purge', pkg.name]
+        mock_check_call.assert_has_calls([call(cmd)])
 
     @patch.object(apthardening.utils, 'get_defaults',
                   lambda arg: {'security_packages_clean': True,
                                'security_packages_list': ['foo']})
     @patch.object(apthardening, 'apt')
+    @patch.object(apthardening.subprocess, 'check_call')
     @patch.object(apthardening, 'log', lambda *args, **kwargs: None)
-    def test_apt_harden_virtual_package(self, mock_apt):
-        pm = mock_apt.apt_pkg.PackageManager.return_value
+    def test_apt_harden_virtual_package(self, mock_check_call, mock_apt):
         vpkg = self.create_package('virtualfoo', virtual=True)
-        mock_apt.apt_pkg.Cache.return_value = {'foo': vpkg}
+        mock_apt.Cache.return_value = {'foo': vpkg}
         apthardening.apt_harden()
-        self.assertTrue(mock_apt.apt_pkg.Cache.called)
-        self.assertTrue(mock_apt.apt_pkg.PackageManager.called)
-        pm.remove.assert_has_calls([call('foo', purge=True),
-                                    call('virtualfoo', purge=True)])
+        self.assertTrue(mock_apt.Cache.called)
+        cmd1 = ['apt-get', '--assume-yes', 'purge', 'foo']
+        cmd2 = ['apt-get', '--assume-yes', 'purge', 'virtualfoo']
+        mock_check_call.assert_has_calls([call(cmd1), call(cmd2)])
