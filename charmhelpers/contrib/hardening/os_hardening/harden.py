@@ -41,6 +41,9 @@ from charmhelpers.contrib.hardening.os_hardening.sysctl import (
 from charmhelpers.contrib.hardening.os_hardening.suid_guid import (
     suid_guid_harden,
 )
+from charmhelpers.contrib.hardening.os_hardening.apt import (
+    apt_harden,
+)
 
 OS_TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
 
@@ -214,11 +217,11 @@ OS_CONFIGS = register_configs()
 
 def harden_os():
     log("Hardening OS", level=INFO)
-    log("applying configs", level=INFO)
+    log("Applying configs", level=INFO)
     OS_CONFIGS.write_all()
-    log("suid guid hardening", level=INFO)
     suid_guid_harden()
-    log("running checks", level=INFO)
+    apt_harden()
+    log("Running checks", level=INFO)
     run_checks()
 
 
