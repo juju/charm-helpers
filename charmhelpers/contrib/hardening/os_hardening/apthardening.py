@@ -36,10 +36,11 @@ def delete_package(pkg):
 def apt_harden():
     log("Hardening packages", level=INFO)
     defaults = utils.get_defaults('os')
+    apt.apt_pkg.init()
 
     clean = defaults.get('security_packages_clean')
     security_packages = defaults.get('security_packages_list', [])
-    cache = apt.Cache()
+    cache = apt.apt_pkg.Cache()
     cache.update()
 
     if clean:

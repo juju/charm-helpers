@@ -38,9 +38,9 @@ class APTTestCase(TestCase):
     @patch.object(apthardening, 'log', lambda *args, **kwargs: None)
     def test_apt_harden(self, mock_check_call, mock_apt):
         pkg = self.create_package('foo')
-        mock_apt.Cache.return_value = {'foo': pkg}
+        mock_apt.apt_pkg.Cache.return_value = {'foo': pkg}
         apthardening.apt_harden()
-        self.assertTrue(mock_apt.Cache.called)
+        self.assertTrue(mock_apt.apt_pkg.Cache.called)
         cmd = ['apt-get', '--assume-yes', 'purge', pkg.name]
         mock_check_call.assert_has_calls([call(cmd)])
 
@@ -52,9 +52,9 @@ class APTTestCase(TestCase):
     @patch.object(apthardening, 'log', lambda *args, **kwargs: None)
     def test_apt_harden_virtual_package(self, mock_check_call, mock_apt):
         vpkg = self.create_package('virtualfoo', virtual=True)
-        mock_apt.Cache.return_value = {'foo': vpkg}
+        mock_apt.apt_pkg.Cache.return_value = {'foo': vpkg}
         apthardening.apt_harden()
-        self.assertTrue(mock_apt.Cache.called)
+        self.assertTrue(mock_apt.apt_pkg.Cache.called)
         cmd1 = ['apt-get', '--assume-yes', 'purge', 'foo']
         cmd2 = ['apt-get', '--assume-yes', 'purge', 'virtualfoo']
         mock_check_call.assert_has_calls([call(cmd1), call(cmd2)])
