@@ -127,6 +127,9 @@ class LoginContext(object):
                 defaults.get('auth_allow_homeless')
                 }
 
+        if 'change_user' not in defaults.get('security_users_allow', []):
+            utils.ensure_permissions('/bin/su', 'root', 'root', 0o0750)
+
         return ctxt
 
 
@@ -164,7 +167,8 @@ def register_configs():
                                0o0440)]},
              '/etc/login.defs':
              {'contexts': [LoginContext()],
-              'permissions': [('/etc/login.defs', 'root', 'root', 0o0444)]},
+              'permissions': [('/etc/login.defs', 'root', 'root', 0o0444),
+                              ('/etc/shadow', 'root', 'root', 0o0600)]},
              '/etc/profile.d/pinerolo_profile.sh':
              {'contexts': [ProfileContext()],
               'permissions': [('/etc/profile.d/pinerolo_profile.sh', 'root',
