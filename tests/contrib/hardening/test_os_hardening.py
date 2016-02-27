@@ -26,20 +26,26 @@ class OSHardeningTestCase(TestCase):
         self.assertEquals(type(configs), HardeningConfigRenderer)
         self.assertFalse(mock_render.called)
 
+    @patch.object(harden.utils, 'ensure_permissions')
     @patch.object(harden, 'apt_purge')
     @patch.object(harden, 'apt_install')
     @patch.object(harden.templating, 'log', lambda *args, **kwargs: None)
     @patch.object(sysctl, 'log', lambda *args, **kwargs: None)
-    def test_configs_render(self, mock_apt_install, mock_apt_purge):
+    def test_configs_render(self, mock_apt_install, mock_apt_purge,
+                            mock_ensure_permissions):
         configs = harden.register_configs()
         for k in six.iterkeys(configs.templates['os']):
             configs.render(k)
 
+        mock_ensure_permissions.assert_has_calls([])
+
+    @patch.object(harden.utils, 'ensure_permissions')
     @patch.object(harden, 'apt_purge')
     @patch.object(harden, 'apt_install')
     @patch.object(harden.templating, 'log', lambda *args, **kwargs: None)
     @patch.object(sysctl, 'log', lambda *args, **kwargs: None)
-    def test_configs_write(self, mock_apt_install, mock_apt_purge):
+    def test_configs_write(self, mock_apt_install, mock_apt_purge,
+                           mock_ensure_permissions):
         configs = harden.register_configs()
         with tempfile.NamedTemporaryFile() as tmpfile:
             for k in six.iterkeys(configs.templates['os']):
@@ -49,6 +55,8 @@ class OSHardeningTestCase(TestCase):
                         fd.write(r)
                     except UnicodeError:
                         fd.write(r.encode('utf-8').strip())
+
+        mock_ensure_permissions.assert_has_calls([])
 
     @patch.object(sysctl.os.path, 'exists')
     @patch.object(sysctl, 'log', lambda *args, **kwargs: None)
