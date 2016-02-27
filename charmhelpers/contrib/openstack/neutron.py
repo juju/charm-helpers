@@ -243,6 +243,8 @@ def neutron_plugins():
             'python-neutron-plugin-midonet')
         plugins['midonet']['server_packages'].append(
             'python-networking-midonet')
+        plugins['plumgrid']['driver'] = (
+            'networking_plumgrid.neutron.plugins.plugin.NeutronPluginPLUMgridV2')
     return plugins
 
 
