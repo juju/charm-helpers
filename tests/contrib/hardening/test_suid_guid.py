@@ -24,7 +24,9 @@ class SUIDGUIDTestCase(TestCase):
     @patch.object(utils, 'get_defaults')
     @patch.object(suid_guid, 'log', lambda *args, **kwargs: None)
     def test_suid_guid_harden(self, mock_get_defaults, mock_subprocess):
-        mock_get_defaults.return_value = {}
+        defaults = {'security_suid_sgid_enforce': True,
+                    'security_suid_sgid_remove_from_unknown': True}
+        mock_get_defaults.return_value = defaults
         p = mock_subprocess.Popen.return_value
         with tempfile.NamedTemporaryFile() as tmp:
             name = tmp.name
@@ -38,3 +40,15 @@ class SUIDGUIDTestCase(TestCase):
         mock_subprocess.Popen.assert_has_calls(calls)
         c = call(['chmod', '-s', name])
         self.assertTrue(c in mock_subprocess.check_call.call_args_list)
+
+    @patch.object(suid_guid, 'subprocess')
+    @patch.object(utils, 'get_defaults')
+    @patch.object(suid_guid, 'log', lambda *args, **kwargs: None)
+    def test_suid_guid_harden_disabled(self, mock_get_defaults,
+                                       mock_subprocess):
+        defaults = {'security_suid_sgid_enforce': False}
+        mock_get_defaults.return_value = defaults
+        p = mock_subprocess.Popen.return_value
+        suid_guid.suid_guid_harden()
+        self.assertFalse(p.communicate.called)
+        self.assertFalse(mock_subprocess.called)

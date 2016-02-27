@@ -61,11 +61,14 @@ WHITELIST = ['/bin/mount', '/bin/ping', '/bin/su', '/bin/umount',
 
 
 def suid_guid_harden():
-    log("Applying suid/guid hardening", level=INFO)
     defaults = utils.get_defaults('os')
+    if not defaults.get('security_suid_sgid_enforce'):
+        log("Skipping suid/guid hardening", level=INFO)
+        return
 
-    u_b = defaults.get('blacklist', [])
-    u_w = defaults.get('whitelist', [])
+    log("Applying suid/guid hardening", level=INFO)
+    u_b = defaults.get('security_suid_sgid_blacklist', [])
+    u_w = defaults.get('security_suid_sgid_whitelist', [])
 
     blacklist = set(BLACKLIST) - set(u_w + u_b)
     whitelist = set(WHITELIST) - set(u_b + u_w)
@@ -74,6 +77,9 @@ def suid_guid_harden():
         if os.path.exists(path):
             log("Removing suid/guid from %s" % (path), level=DEBUG)
             subprocess.check_call(['chmod', '-s', path])
+
+    if not defaults.get('security_suid_sgid_remove_from_unknown'):
+        return
 
     root_path = defaults.get('env_root_path', '/')
     cmd = ['find', root_path, '-perm', '-4000', '-o', '-perm', '-2000',
