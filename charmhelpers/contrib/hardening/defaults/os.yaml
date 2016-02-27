@@ -26,8 +26,6 @@ chfn_restrict: ''
 
 # users
 security_users_allow: []
-# specify system accounts those login should not be disabled and password not changed
-ignore_users: ['vagrant']
 
 # sysctl
 security_kernel_enable_module_loading: true
@@ -48,8 +46,3 @@ security_suid_sgid_remove_from_unknown: false
 # remove packages with known issues
 security_packages_clean: true
 security_packages_list: ['xinetd','inetd','ypserv','telnet-server','rsh-server','rsync']
-
-# Allow interactive startup (rhel, centos)
-security_init_prompt: true
-# Require root password for single user mode. (rhel, centos)
-security_init_single: false
