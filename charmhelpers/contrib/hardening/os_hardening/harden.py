@@ -58,6 +58,7 @@ class PAMContext(object):
         apt_purge('libpam-ccreds')
 
         if self.pam_name == 'passwdqc':
+            # NOTE: see man passwdqc.conf
             if defaults.get('auth_pam_passwdqc_enable'):
                 apt_purge('libpam-cracklib')
                 apt_install('libpam-passwdqc')
@@ -184,9 +185,9 @@ def register_configs():
                                'root', 0o0640)],
               'posthooks': [(subprocess.check_output,
                             [['pam-auth-update', '--package']], {})]},
-             '/usr/share/pam-configs/passwdqc':
+             '/etc/passwdqc.conf':
              {'contexts': [PAMContext('passwdqc')],
-              'permissions': [('/usr/share/pam-configs/passwdqc', 'root',
+              'permissions': [('/etc/passwdqc.conf', 'root',
                                'root', 0o0640)],
               'posthooks': [(subprocess.check_output,
                             [['pam-auth-update', '--package']], {})]

@@ -18,6 +18,7 @@ class UtilsTestCase(TestCase):
     @patch.object(utils.grp, 'getgrnam')
     @patch.object(utils.pwd, 'getpwnam')
     @patch.object(utils, 'os')
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
     def test_ensure_permissions(self, mock_os, mock_getpwnam, mock_getgrnam):
         user = MagicMock()
         user.pw_uid = '12'
