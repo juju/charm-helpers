@@ -41,7 +41,7 @@ from charmhelpers.contrib.hardening.os_hardening.sysctl import (
 from charmhelpers.contrib.hardening.os_hardening.suid_guid import (
     suid_guid_harden,
 )
-from charmhelpers.contrib.hardening.os_hardening.apt import (
+from charmhelpers.contrib.hardening.os_hardening.apthardening import (
     apt_harden,
 )
 

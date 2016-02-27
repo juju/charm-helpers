@@ -9,7 +9,7 @@ CONFIG = {'harden': False}
 
 
 with patch('charmhelpers.core.hookenv.config', lambda key: CONFIG.get('key')):
-    from charmhelpers.contrib.hardening.os_hardening import apt
+    from charmhelpers.contrib.hardening.os_hardening import apthardening
 
 
 class APTTestCase(TestCase):
@@ -30,30 +30,30 @@ class APTTestCase(TestCase):
 
         return pkg
 
-    @patch.object(apt.utils, 'get_defaults',
+    @patch.object(apthardening.utils, 'get_defaults',
                   lambda arg: {'security_packages_clean': True,
                                'security_packages_list': ['foo']})
-    @patch.object(apt, 'apt')
-    @patch.object(apt, 'log', lambda *args, **kwargs: None)
+    @patch.object(apthardening, 'apt')
+    @patch.object(apthardening, 'log', lambda *args, **kwargs: None)
     def test_apt_harden(self, mock_apt):
         pm = mock_apt.apt_pkg.PackageManager.return_value
         pkg = self.create_package('foo')
         mock_apt.apt_pkg.Cache.return_value = {'foo': pkg}
-        apt.apt_harden()
+        apthardening.apt_harden()
         self.assertTrue(mock_apt.apt_pkg.Cache.called)
         self.assertTrue(mock_apt.apt_pkg.PackageManager.called)
         pm.remove.assert_has_calls([call('foo', purge=True)])
 
-    @patch.object(apt.utils, 'get_defaults',
+    @patch.object(apthardening.utils, 'get_defaults',
                   lambda arg: {'security_packages_clean': True,
                                'security_packages_list': ['foo']})
-    @patch.object(apt, 'apt')
-    @patch.object(apt, 'log', lambda *args, **kwargs: None)
+    @patch.object(apthardening, 'apt')
+    @patch.object(apthardening, 'log', lambda *args, **kwargs: None)
     def test_apt_harden_virtual_package(self, mock_apt):
         pm = mock_apt.apt_pkg.PackageManager.return_value
         vpkg = self.create_package('virtualfoo', virtual=True)
         mock_apt.apt_pkg.Cache.return_value = {'foo': vpkg}
-        apt.apt_harden()
+        apthardening.apt_harden()
         self.assertTrue(mock_apt.apt_pkg.Cache.called)
         self.assertTrue(mock_apt.apt_pkg.PackageManager.called)
         pm.remove.assert_has_calls([call('foo', purge=True),
