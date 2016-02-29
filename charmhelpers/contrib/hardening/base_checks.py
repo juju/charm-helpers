@@ -17,9 +17,11 @@ import grp
 import os
 import pwd
 
-from charmhelpers.core.hookenv import ERROR
-from charmhelpers.core.hookenv import INFO
-from charmhelpers.core.hookenv import log
+from charmhelpers.core.hookenv import (
+    log,
+    INFO,
+    ERROR,
+)
 
 
 class BaseCheck(object):  # NO-QA
