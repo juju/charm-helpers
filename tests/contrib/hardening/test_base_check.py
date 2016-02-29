@@ -14,14 +14,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from mock import call
-from mock import patch
+from mock import (
+    call,
+    patch,
+)
 from testtools import TestCase
 
-from charmhelpers.contrib.hardening.base_check import BaseCheck
-from charmhelpers.contrib.hardening.base_check import BaseFileCheck
-# from charmhelpers.contrib.hardening.base_check import FilePermissionCheck
-# from charmhelpers.contrib.hardening.base_check import DirectoryPermissionCheck
+from charmhelpers.contrib.hardening.base_checks import (
+    BaseCheck,
+    BaseFileCheck,
+    # FilePermissionCheck,
+    # DirectoryPermissionCheck,
+)
 
 
 class BaseCheckTestCase(TestCase):
@@ -66,7 +70,7 @@ class BaseFileCheckTestCase(TestCase):
         super(BaseFileCheckTestCase, self).setUp()
         self._patch_obj(BaseFileCheck, 'is_compliant')
         self._patch_obj(BaseFileCheck, 'comply')
-        self._patch('charmhelpers.contrib.hardening.base_check.log')
+        self._patch('charmhelpers.contrib.hardening.base_checks.log')
 
     def _patch_obj(self, obj, method):
         _m = patch.object(obj, method)

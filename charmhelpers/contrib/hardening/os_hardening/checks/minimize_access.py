@@ -13,21 +13,27 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from charmhelpers.core.hookenv import ERROR
-from charmhelpers.core.hookenv import log
-
-from charmhelpers.contrib.hardening.base_check import BaseFileCheck
-# from charmhelpers.contrib.hardening.base_check import FilePermissionCheck
-
-from subprocess import CalledProcessError
-from subprocess import check_output
 from traceback import format_exc
+
+from charmhelpers.core.hookenv import (
+    log,
+    ERROR,
+)
+from charmhelpers.contrib.hardening.base_checks import (
+    # FilePermissionCheck,
+    BaseFileCheck,
+)
+
+from subprocess import (
+    CalledProcessError,
+    check_output,
+)
 
 
 class NoWritePermsForPathFolders(BaseFileCheck):
-    """Checks that folders on $PATH is not writeable.
+    """Checks that folders on $PATH is not writable.
 
-    Checks that folders on the $PATH variable is not writeable.
+    Checks that folders on the $PATH variable is not writable.
     """
     def __init__(self, *args, **kwargs):
         # TODO(wolsen) Append user-driven paths to these restricted paths.

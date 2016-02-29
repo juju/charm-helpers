@@ -15,7 +15,7 @@
 
 # import os
 
-# from charmhelpers.contrib.hardening.base_check import DirectoryPermissionCheck
+# from charmhelpers.contrib.hardening.base_checks import DirectoryPermissionCheck
 
 # register(
 #    DirectoryPermissionCheck(paths='/etc/security/limits.d', user='root',
