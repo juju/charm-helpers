@@ -17,9 +17,11 @@ import grp
 import os
 import pwd
 
-from charmhelpers.core.hookenv import ERROR
-from charmhelpers.core.hookenv import INFO
-from charmhelpers.core.hookenv import log
+from charmhelpers.core.hookenv import (
+    log,
+    INFO,
+    ERROR,
+)
 
 
 class BaseCheck(object):  # NO-QA
@@ -51,7 +53,7 @@ class BaseCheck(object):  # NO-QA
         on files and sysctl settings for compliance checks on sysctl options.
 
         :param name: The name of the resource.
-        """ 
+        """
         raise NotImplementedError()
 
     def comply(self, name):
@@ -243,7 +245,8 @@ class DirectoryPermissionCheck(FilePermissionCheck):
         for root, dirs, files in os.walk(path):
             if len(dirs) > 0:
                 continue
-            if super(DirectoryPermissionCheck, self).is_compliant(root):
+
+            if not super(DirectoryPermissionCheck, self).is_compliant(root):
                 compliant = False
                 continue
 
