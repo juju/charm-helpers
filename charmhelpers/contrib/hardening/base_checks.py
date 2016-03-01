@@ -36,7 +36,8 @@ class BaseCheck(object):  # NO-QA
         super(BaseCheck, self).__init__()
 
     def ensure_compliance(self):
-        """Checks to see if the current hardening check is in compliance or not.
+        """Checks to see if the current hardening check is in compliance or
+        not.
 
         If the check that is performed is not in compliance, then an exception
         should be raised.
@@ -242,7 +243,7 @@ class DirectoryPermissionCheck(FilePermissionCheck):
             raise ValueError("%s is not a directory." % path)
 
         compliant = True
-        for root, dirs, files in os.walk(path):
+        for root, dirs, _ in os.walk(path):
             if len(dirs) > 0:
                 continue
 
@@ -253,6 +254,6 @@ class DirectoryPermissionCheck(FilePermissionCheck):
         return compliant
 
     def comply(self, path):
-        for root, dirs, files in os.walk(path):
+        for root, dirs, _ in os.walk(path):
             if len(dirs) > 0:
                 super(DirectoryPermissionCheck, self).comply(root)

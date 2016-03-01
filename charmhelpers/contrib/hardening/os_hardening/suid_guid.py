@@ -85,7 +85,7 @@ def suid_guid_harden():
     cmd = ['find', root_path, '-perm', '-4000', '-o', '-perm', '-2000',
            '-type', 'f', '!', '-path', '/proc/*', '-print']
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = p.communicate()
+    out, _ = p.communicate()
     for path in out.split('\n'):
         if os.path.exists(path) and path not in whitelist:
             log("Removing suid/guid from %s" % (path), level=DEBUG)
