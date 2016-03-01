@@ -14,13 +14,16 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 from traceback import format_exc
+from subprocess import (
+    CalledProcessError,
+    check_output,
+)
 
 from charmhelpers.contrib.hardening.base_checks import BaseFileCheck
-from charmhelpers.core.hookenv import ERROR
-from charmhelpers.core.hookenv import log
-
-from subprocess import CalledProcessError
-from subprocess import check_output
+from charmhelpers.core.hookenv import (
+    log,
+    ERROR,
+)
 
 
 class NoWritePermsForPathFolders(BaseFileCheck):
