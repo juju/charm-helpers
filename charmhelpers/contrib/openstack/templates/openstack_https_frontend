@@ -8,7 +8,6 @@ Listen {{ ext_port }}
     SSLEngine on
     SSLProtocol +TLSv1 +TLSv1.1 +TLSv1.2
     SSLCipherSuite HIGH:!RC4:!MD5:!aNULL:!eNULL:!EXP:!LOW:!MEDIUM
-    SSLSessionTickets Off
     SSLCertificateFile /etc/apache2/ssl/{{ namespace }}/cert_{{ endpoint }}
     SSLCertificateKeyFile /etc/apache2/ssl/{{ namespace }}/key_{{ endpoint }}
     ProxyPass / http://localhost:{{ int }}/
