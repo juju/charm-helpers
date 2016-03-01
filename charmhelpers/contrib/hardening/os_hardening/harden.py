@@ -46,7 +46,7 @@ from charmhelpers.contrib.hardening.os_hardening.apthardening import (
     apt_harden,
 )
 
-OS_TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
+TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
 
 
 class PAMContext(object):
@@ -77,7 +77,8 @@ class PAMContext(object):
                 apt_install('libpam-modules')
             else:
                 os.remove('/usr/share/pam-configs/tally2')
-                # Stop template frombeing written since we want to disable tally2
+                # Stop template frombeing written since we want to disable
+                # tally2
                 ctxt['__disable__'] = True
         else:
             raise Exception("Unrecognised PAM name '%s'" % (self.pam_name))
@@ -163,7 +164,7 @@ class SecurityLimitsContext(object):
 
 def register_configs():
     configs = templating.HardeningConfigRenderer('os',
-                                                 templates_dir=OS_TEMPLATES)
+                                                 templates_dir=TEMPLATES)
     # See templating.TemplateContext for schema
     confs = {'/etc/initramfs-tools/modules':
              {'contexts': [ModulesContext()],
