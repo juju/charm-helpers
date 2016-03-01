@@ -17,11 +17,9 @@ import grp
 import os
 import pwd
 
-from charmhelpers.core.hookenv import (
-    log,
-    INFO,
-    ERROR,
-)
+from charmhelpers.core.hookenv import ERROR
+from charmhelpers.core.hookenv import INFO
+from charmhelpers.core.hookenv import log
 
 
 class BaseCheck(object):  # NO-QA
@@ -42,6 +40,28 @@ class BaseCheck(object):  # NO-QA
         should be raised.
         """
         pass
+
+    def is_compliant(self, name):
+        """Checks to see if the named resource is in compliance.
+
+        Checks to see if the named resource is in compliance with current
+        policies. The name is specific to the type, and will be interpreted
+        however the specific compliance check needs to interpret it. For
+        example, the name will represent a file path for compliance checks
+        on files and sysctl settings for compliance checks on sysctl options.
+
+        :param name: The name of the resource.
+        """ 
+        raise NotImplementedError()
+
+    def comply(self, name):
+        """Asks the check to comply with current policies.
+
+        Attempts to bring the named resource in compliance with current
+        policies. The specific implementation of how to comply is up to the
+        specific check.
+        """
+        raise NotImplementedError()
 
     def _take_action(self):
         """Determines whether to perform the action or not.
@@ -106,7 +126,8 @@ class BaseFileCheck(BaseCheck):
         """
         raise NotImplementedError
 
-    def _get_stat(self, path):
+    @classmethod
+    def _get_stat(cls, path):
         """Returns the Posix st_stat information for the specified file path.
 
         :param path: the path to get the st_stat information for.
@@ -128,7 +149,8 @@ class FilePermissionCheck(BaseFileCheck):
         self.user = user
         self.group = group
         self.mode = mode
-        super(FilePermissionCheck, self).__init__(**kwargs)
+        super(FilePermissionCheck, self).__init__(paths, user, group, mode,
+                                                  **kwargs)
 
     @property
     def user(self):
@@ -200,8 +222,9 @@ class DirectoryPermissionCheck(FilePermissionCheck):
     """Performs a permission check for the  specified directory path.
 
     """
-    def __init__(self, *args, **kwargs):
-        super(DirectoryPermissionCheck, self).__init__(self, *args, **kwargs)
+    def __init__(self, paths, user, group=None, mode=0o600, **kwargs):
+        super(DirectoryPermissionCheck, self).__init__(paths, user, group,
+                                                       mode, **kwargs)
 
     def is_compliant(self, path):
         """Checks if the directory is compliant.
