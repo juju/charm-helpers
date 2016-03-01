@@ -14,10 +14,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+from charmhelpers.contrib.hardening.base_checks import DirectoryPermissionCheck
+from charmhelpers.contrib.hardening.base_checks import FilePermissionCheck
 from charmhelpers.contrib.hardening.os_hardening.checks import minimize_access
 
 
 def run_checks():
-    checks = [minimize_access.NoWritePermsForPathFolders()]
+    checks = [
+        DirectoryPermissionCheck(paths='/etc/security/limits.d',
+                                 user='root', group='root', mode=0o755),
+        # minimize access checks
+        minimize_access.NoWritePermsForPathFolders(),
+        FilePermissionCheck('/etc/shadow', 'root', 'root', 0o600),
+        FilePermissionCheck('/bin/su', 'root', 'root', 0o600),
+        # TODO(wolsen) ^^ add unless for user override
+    ]
     for check in checks:
         check.ensure_compliance()

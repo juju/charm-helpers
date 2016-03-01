@@ -15,19 +15,12 @@
 
 from traceback import format_exc
 
-from charmhelpers.core.hookenv import (
-    log,
-    ERROR,
-)
-from charmhelpers.contrib.hardening.base_checks import (
-    # FilePermissionCheck,
-    BaseFileCheck,
-)
+from charmhelpers.contrib.hardening.base_checks import BaseFileCheck
+from charmhelpers.core.hookenv import ERROR
+from charmhelpers.core.hookenv import log
 
-from subprocess import (
-    CalledProcessError,
-    check_output,
-)
+from subprocess import CalledProcessError
+from subprocess import check_output
 
 
 class NoWritePermsForPathFolders(BaseFileCheck):
@@ -75,22 +68,3 @@ class NoWritePermsForPathFolders(BaseFileCheck):
                 'Error information is: command %s failed with returncode '
                 '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
                                            format_exc(e)), level=ERROR)
-
-# TODO(wolsen) need to clearly feel for how we're going to include these
-# modules so that they are run properly. There's various ways, but I do think
-# we want to have the ability to disable or enable some of them. Dynamic
-# loading provides some advantages and has some disadvantages/risks. I think it
-# might look something like the following:
-#
-# register_checks(
-#     # Check no permissions to write and modify files in folders that
-#     # exist on the standard $PATH.
-#     NoWritePermsForPathFolders(),
-#
-#     # Make sure that only the root user can read/write the shadow file
-#     FilePermissionCheck('/etc/shadow', 'root', 'root', 0o600),
-#
-#     # Make sure that only the root user can access the su file,
-#     FilePermissionCheck('/bin/su', 'root', 'root', 0o600,
-#                         unless=config('security.users.allow.change_user')),
-# )
