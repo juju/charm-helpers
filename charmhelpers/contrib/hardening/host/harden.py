@@ -23,7 +23,7 @@ from charmhelpers.contrib.hardening import (
     templating,
     utils,
 )
-from charmhelpers.contrib.hardening.os_hardening.checks import (
+from charmhelpers.contrib.hardening.host.checks import (
     run_os_checks,
 )
 from charmhelpers.core.hookenv import (
@@ -36,13 +36,13 @@ from charmhelpers.fetch import (
     apt_install,
     apt_purge,
 )
-from charmhelpers.contrib.hardening.os_hardening.sysctl import (
+from charmhelpers.contrib.hardening.host.sysctl import (
     SysCtlHardeningContext,
 )
-from charmhelpers.contrib.hardening.os_hardening.suid_guid import (
+from charmhelpers.contrib.hardening.host.suid_guid import (
     suid_guid_harden,
 )
-from charmhelpers.contrib.hardening.os_hardening.apthardening import (
+from charmhelpers.contrib.hardening.host.apthardening import (
     apt_harden,
 )
 

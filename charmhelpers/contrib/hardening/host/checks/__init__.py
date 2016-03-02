@@ -16,23 +16,25 @@
 from charmhelpers.core.hookenv import DEBUG
 from charmhelpers.core.hookenv import log
 
-from charmhelpers.contrib.hardening.os_hardening.checks import apt
-from charmhelpers.contrib.hardening.os_hardening.checks import limits
-from charmhelpers.contrib.hardening.os_hardening.checks import minimize_access
-from charmhelpers.contrib.hardening.os_hardening.checks import suid_guid
+from charmhelpers.contrib.hardening.host.checks import apt
+from charmhelpers.contrib.hardening.host.checks import limits
+from charmhelpers.contrib.hardening.host.checks import minimize_access
+from charmhelpers.contrib.hardening.host.checks import pam
+from charmhelpers.contrib.hardening.host.checks import suid_guid
 
 
 def run_os_checks():
     log("Starting OS hardening checks.", level=DEBUG)
 
-    checks = []
+    audits = []
 
-    checks.extend(apt.get_audits())
-    checks.extend(limits.get_audits())
-    checks.extend(minimize_access.get_audits())
-    checks.extend(suid_guid.get_audits())
+    audits.extend(apt.get_audits())
+    audits.extend(limits.get_audits())
+    audits.extend(minimize_access.get_audits())
+    audits.extend(pam.get_audits())
+    audits.extend(suid_guid.get_audits())
 
-    for check in checks:
-        check.ensure_compliance()
+    for audit in audits:
+        audit.ensure_compliance()
 
     log("OS hardening checks complete.", level=DEBUG)

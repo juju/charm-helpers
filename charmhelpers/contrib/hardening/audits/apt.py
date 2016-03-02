@@ -13,14 +13,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-import apt
-import subprocess
-
 from six import string_types
+
+from charmhelpers.fetch import apt_cache
+from charmhelpers.fetch import apt_purge
+
 from charmhelpers.contrib.hardening.audits import BaseAudit
 
 from charmhelpers.core.hookenv import DEBUG
-from charmhelpers.core.hookenv import INFO
 from charmhelpers.core.hookenv import WARNING
 from charmhelpers.core.hookenv import log
 
@@ -36,8 +36,7 @@ class RestrictedPackages(BaseAudit):
             self.pkgs = pkgs
 
     def ensure_compliance(self):
-        apt.apt_pkg.init()
-        cache = apt.apt_pkg.Cache(apt.progress.base.OpProgress())
+        cache = apt_cache()
 
         for p in self.pkgs:
             if p not in cache:
@@ -50,30 +49,28 @@ class RestrictedPackages(BaseAudit):
 
             log("Restricted package '%s' is installed" % pkg.name,
                 level=WARNING)
-            self.delete_package(pkg)
+            self.delete_package(cache, pkg)
 
-    def delete_package(self, pkg):
+    def delete_package(self, cache, pkg):
         """Deletes the package from the system.
 
         Deletes the package form the system, properly handling virtual
         packages.
+
+        :param cache: the apt cache
+        :param pkg: the package to remove
         """
         if self.is_virtual_package(pkg):
             log("Package '%s' appears to be virtual - purging provides" %
                 pkg.name, level=DEBUG)
             for _p in pkg.provides_list:
-                self.delete_package(_p[2].parent_pkg)
+                self.delete_package(cache, _p[2].parent_pkg)
         elif not pkg.current_ver:
             log("Package '%s' not installed" % pkg.name, level=DEBUG)
             return
 
         log("Purging package '%s'" % pkg.name, level=DEBUG)
-        cmd = ['apt-get', '--assume-yes', 'purge', pkg.name]
-        try:
-            subprocess.check_call(cmd)
-        except subprocess.CalledProcessError:
-            log("Failed to delete package '%s'" % pkg.name, level=INFO)
+        apt_purge(pkg.name)
 
     def is_virtual_package(self, pkg):
-        """Determines if the package is a virtual package or not."""
         return pkg.has_provides and not pkg.has_versions

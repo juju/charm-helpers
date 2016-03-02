@@ -28,7 +28,7 @@ def get_audits():
     # su should only be accessible to user and group root, unless it is
     # expressly defined to allow users to change to root via the
     # security_users_allow config option.
-    checks.append(FilePermissionAudit('/bin/su', 'root', 'root', 0o600,
+    checks.append(FilePermissionAudit('/bin/su', 'root', 'root', 0o750,
                                       unless=allows_change_user))
 
     # Remove write permissions from $PATH folders for all regular users.

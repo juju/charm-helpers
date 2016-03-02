@@ -8,9 +8,9 @@ CONFIG = {'harden': False}
 
 
 with patch('charmhelpers.core.hookenv.config', lambda key: CONFIG.get('key')):
-    from charmhelpers.contrib.hardening.os_hardening import harden
+    from charmhelpers.contrib.hardening.host import harden
 
-from charmhelpers.contrib.hardening.os_hardening import sysctl
+from charmhelpers.contrib.hardening.host import sysctl
 from charmhelpers.contrib.hardening.templating import HardeningConfigRenderer
 
 
