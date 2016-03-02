@@ -24,6 +24,7 @@ import os
 import sys
 import re
 import itertools
+import functools
 
 import six
 import tempfile
@@ -75,7 +76,8 @@ from charmhelpers.core.host import (
     umount,
     service_running,
     service_pause,
-    service_resume
+    service_resume,
+    restart_on_change_helper,
 )
 from charmhelpers.fetch import apt_install, apt_cache, install_remote
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
@@ -1524,3 +1526,41 @@ def make_assess_status_func(*args, **kwargs):
         return None
 
     return _assess_status_func
+
+
+def pausable_restart_on_change(restart_map, stopstart=False):
+    """A restart_on_change decorator that checks to see if the unit is
+    paused. If it is paused then the decorated function doesn't fire.
+
+    This is provided as a helper, as the @restart_on_change(...) decorator
+    is in core.host, yet the openstack specific helpers are in this file
+    (contrib.openstack.utils).  Thus, this needs to be an optional feature
+    for openstack charms (or charms that wish to use the openstack
+    pause/resume type features).
+
+    It is used as follows:
+
+        from contrib.openstack.utils import (
+            pausable_restart_on_change as restart_on_change)
+
+        @restart_on_change(restart_map, stopstart=<boolean>)
+        def some_hook(...):
+            pass
+
+    see core.utils.restart_on_change() for more details.
+
+    @param f: the function to decorate
+    @param restart_map: the restart map {conf_file: [services]}
+    @param stopstart: DEFAULT false; whether to stop, start or just restart
+    @returns decorator to use a restart_on_change with pausability
+    """
+    def wrap(f):
+        @functools.wraps(f)
+        def wrapped_f(*args, **kwargs):
+            if is_unit_paused_set():
+                return f(*args, **kwargs)
+            # otherwise, normal restart_on_change functionality
+            return restart_on_change_helper(
+                (lambda: f(*args, **kwargs)), restart_map, stopstart)
+        return wrapped_f
+    return wrap
