@@ -1396,10 +1396,16 @@ def clear_unit_paused():
 def is_unit_paused_set():
     """Return the state of the kv().get('unit-paused').
     This does NOT verify that the unit really is paused.
+
+    To help with units that don't have HookData() (testing)
+    if it excepts, return False
     """
-    with unitdata.HookData()() as kv:
-        # transform something truth-y into a Boolean.
-        return not(not(kv.get('unit-paused')))
+    try:
+        with unitdata.HookData()() as kv:
+            # transform something truth-y into a Boolean.
+            return not(not(kv.get('unit-paused')))
+    except:
+        return False
 
 
 def pause_unit(assess_status_func, services=None, ports=None,
