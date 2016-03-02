@@ -16,7 +16,7 @@
 
 import os
 
-from charmhelpers.contrib.hardening.apache_hardening.checks import (
+from charmhelpers.contrib.hardening.apache.checks import (
     run_apache_checks,
 )
 from charmhelpers.core.hookenv import (

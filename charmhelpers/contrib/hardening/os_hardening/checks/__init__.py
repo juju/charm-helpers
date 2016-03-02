@@ -13,30 +13,25 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+from charmhelpers.core.hookenv import DEBUG
+from charmhelpers.core.hookenv import log
 
-from charmhelpers.core.hookenv import (
-    log,
-    DEBUG,
-)
-from charmhelpers.contrib.hardening.base_checks import (
-    DirectoryPermissionCheck,
-    FilePermissionCheck,
-)
+from charmhelpers.contrib.hardening.os_hardening.checks import apt
+from charmhelpers.contrib.hardening.os_hardening.checks import limits
 from charmhelpers.contrib.hardening.os_hardening.checks import minimize_access
+from charmhelpers.contrib.hardening.os_hardening.checks import suid_guid
 
 
 def run_os_checks():
     log("Starting OS hardening checks.", level=DEBUG)
 
-    checks = [
-        DirectoryPermissionCheck(paths='/etc/security/limits.d',
-                                 user='root', group='root', mode=0o755),
-        # minimize access checks
-        minimize_access.NoWritePermsForPathFolders(),
-        FilePermissionCheck('/etc/shadow', 'root', 'root', 0o600),
-        FilePermissionCheck('/bin/su', 'root', 'root', 0o600),
-        # TODO(wolsen) ^^ add unless for user override
-    ]
+    checks = []
+
+    checks.extend(apt.get_audits())
+    checks.extend(limits.get_audits())
+    checks.extend(minimize_access.get_audits())
+    checks.extend(suid_guid.get_audits())
+
     for check in checks:
         check.ensure_compliance()
 

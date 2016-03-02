@@ -17,89 +17,32 @@ import grp
 import os
 import pwd
 
-from charmhelpers.core.hookenv import (
-    log,
-    INFO,
-    ERROR,
-)
+from subprocess import CalledProcessError
+from subprocess import check_output
+from traceback import format_exc
+
+from six import string_types
+
+from stat import S_ISGID
+from stat import S_ISUID
+
+from charmhelpers.core.hookenv import DEBUG
+from charmhelpers.core.hookenv import ERROR
+from charmhelpers.core.hookenv import INFO
+from charmhelpers.core.hookenv import log
+
+from charmhelpers.contrib.hardening.audits import BaseAudit
 
 
-class BaseCheck(object):  # NO-QA
-    """Base class for hardening checks.
-
-    The lifecycle of a hardening check is to first check to see if the system
-    is in compliance for the specified check. If it is not in compliance, the
-    check method will return a value which will be supplied to the.
-    """
-    def __init__(self, *args, **kwargs):
-        self.unless = kwargs['unless'] if 'unless' in kwargs else None
-        super(BaseCheck, self).__init__()
-
-    def ensure_compliance(self):
-        """Checks to see if the current hardening check is in compliance or
-        not.
-
-        If the check that is performed is not in compliance, then an exception
-        should be raised.
-        """
-        pass
-
-    def is_compliant(self, name):
-        """Checks to see if the named resource is in compliance.
-
-        Checks to see if the named resource is in compliance with current
-        policies. The name is specific to the type, and will be interpreted
-        however the specific compliance check needs to interpret it. For
-        example, the name will represent a file path for compliance checks
-        on files and sysctl settings for compliance checks on sysctl options.
-
-        :param name: The name of the resource.
-        """
-        raise NotImplementedError()
-
-    def comply(self, name):
-        """Asks the check to comply with current policies.
-
-        Attempts to bring the named resource in compliance with current
-        policies. The specific implementation of how to comply is up to the
-        specific check.
-        """
-        raise NotImplementedError()
-
-    def _take_action(self):
-        """Determines whether to perform the action or not.
-
-        Checks whether or not an action should be taken. This is determined by
-        the truthy value for the unless parameter. If unless is a callback
-        method, it will be invoked with no parameters in order to determine
-        whether or not the action should be taken. Otherwise, the truthy value
-        of the unless attribute will determine if the action should be
-        performed.
-        """
-        # Do the action if there isn't an unless override.
-        if self.unless is None:
-            return True
-
-        # Invoke the callback if there is one.
-        if hasattr(self.unless, '__call__'):
-            results = self.unless()
-            if results:
-                return False
-            else:
-                return True
-
-        if self.unless:
-            return False
-        else:
-            return True
-
-
-class BaseFileCheck(BaseCheck):
-    """Implements base file checks."""
+class BaseFileAudit(BaseAudit):
+    """Implements base file audits."""
 
     def __init__(self, paths, *args, **kwargs):
-        super(BaseFileCheck, self).__init__(*args, **kwargs)
-        self.paths = paths if hasattr(paths, '__iter__') else [paths]
+        super(BaseFileAudit, self).__init__(*args, **kwargs)
+        if isinstance(paths, string_types) or not hasattr(paths, '__iter__'):
+            self.paths = [paths]
+        else:
+            self.paths = paths
 
     def ensure_compliance(self):
         for p in self.paths:
@@ -111,7 +54,7 @@ class BaseFileCheck(BaseCheck):
             if self.is_compliant(p):
                 continue
 
-            log('File %s is not in compliance.' % p, level=INFO)
+            log('File %s is not in compliance.' % p, level=DEBUG)
             if self._take_action():
                 self.comply(p)
 
@@ -140,8 +83,8 @@ class BaseFileCheck(BaseCheck):
         return os.stat(path)
 
 
-class FilePermissionCheck(BaseFileCheck):
-    """Implements a check for file permissions and ownership for a user.
+class FilePermissionAudit(BaseFileAudit):
+    """Implements an audit for file permissions and ownership for a user.
 
     This class implements functionality that ensures that a specific user/group
     will own the file(s) specified and that the permissions specified are
@@ -152,7 +95,7 @@ class FilePermissionCheck(BaseFileCheck):
         self.user = user
         self.group = group
         self.mode = mode
-        super(FilePermissionCheck, self).__init__(paths, user, group, mode,
+        super(FilePermissionAudit, self).__init__(paths, user, group, mode,
                                                   **kwargs)
 
     @property
@@ -206,7 +149,7 @@ class FilePermissionCheck(BaseFileCheck):
 
         # POSIX refers to the st_mode bits as corresponding to both the
         # file type and file permission bits, where the least significant 9
-        # bits (0777) are the 'file permission bits'
+        # bits (o777) are the 'file permission bits'
         perms = stat.st_mode & 0o777
         if perms != self.mode:
             log('File %s has incorrect permissions, currently set to %s' %
@@ -221,12 +164,11 @@ class FilePermissionCheck(BaseFileCheck):
         os.chmod(path, self.mode)
 
 
-class DirectoryPermissionCheck(FilePermissionCheck):
-    """Performs a permission check for the  specified directory path.
+class DirectoryPermissionAudit(FilePermissionAudit):
+    """Performs a permission check for the  specified directory path."""
 
-    """
     def __init__(self, paths, user, group=None, mode=0o600, **kwargs):
-        super(DirectoryPermissionCheck, self).__init__(paths, user, group,
+        super(DirectoryPermissionAudit, self).__init__(paths, user, group,
                                                        mode, **kwargs)
 
     def is_compliant(self, path):
@@ -247,7 +189,7 @@ class DirectoryPermissionCheck(FilePermissionCheck):
             if len(dirs) > 0:
                 continue
 
-            if not super(DirectoryPermissionCheck, self).is_compliant(root):
+            if not super(DirectoryPermissionAudit, self).is_compliant(root):
                 compliant = False
                 continue
 
@@ -256,4 +198,64 @@ class DirectoryPermissionCheck(FilePermissionCheck):
     def comply(self, path):
         for root, dirs, _ in os.walk(path):
             if len(dirs) > 0:
-                super(DirectoryPermissionCheck, self).comply(root)
+                super(DirectoryPermissionAudit, self).comply(root)
+
+
+class ReadOnlyAudit(BaseFileAudit):
+    """Audits that files and folders are read only."""
+    def __init__(self, paths, *args, **kwargs):
+        super(ReadOnlyAudit, self).__init__(paths=paths, *args, **kwargs)
+
+    def is_compliant(self, path):
+        try:
+            output = check_output(['find', path, '-perm', '-go+w',
+                                   '-type', 'f']).strip()
+
+            # The find above will find any files which have permission sets
+            # which allow too broad of write access. As such, the path is
+            # compliant if there is no output.
+            if output:
+                return False
+            else:
+                return True
+        except CalledProcessError as e:
+            log('Error occurred checking write permissions for %s. '
+                'Error information is: command %s failed with returncode '
+                '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
+                                           format_exc(e)), level=ERROR)
+            # TODO(wolsen) not sure if we can safely assume that the file
+            # shouldn't be modified, however this will prevent the code from
+            # continually looping on the failure.
+            return True
+
+    def comply(self, path):
+        try:
+            check_output(['chmod', 'go-w', '-R', path])
+        except CalledProcessError as e:
+            log('Error occurred removing writeable permissions for %s. '
+                'Error information is: command %s failed with returncode '
+                '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
+                                           format_exc(e)), level=ERROR)
+
+
+class NoSUIDGUIDAudit(BaseFileAudit):
+    """Audits that specified files do not have SUID/GUID bits set."""
+    def __init__(self, paths, *args, **kwargs):
+        super(NoSUIDGUIDAudit, self).__init__(paths=paths, *args, **kwargs)
+
+    def is_compliant(self, path):
+        stat = self._get_stat(path)
+        if (stat.st_mode & (S_ISGID | S_ISUID)) != 0:
+            return False
+        else:
+            return True
+
+    def comply(self, path):
+        try:
+            log('Removing suid/guid from %s.' % path)
+            check_output(['chmod', '-s', path])
+        except CalledProcessError as e:
+            log('Error occurred removing suid/sgid from %s.'
+                'Error information is: command %s failed with returncode '
+                '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
+                                           format_exc(e)), level=ERROR)

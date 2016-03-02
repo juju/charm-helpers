@@ -16,8 +16,8 @@
 
 import os
 
-from charmhelpers.contrib.hardening.mysql_hardening.checks import (
-    run_mysql_checks,
+from charmhelpers.contrib.hardening.ssh.checks import (
+    run_ssh_checks,
 )
 from charmhelpers.core.hookenv import (
     log,
@@ -29,23 +29,23 @@ from charmhelpers.core.hookenv import (
 TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
 
 
-def harden_mysql():
-    log("Hardening MySQL", level=INFO)
+def harden_ssh():
+    log("Hardening SSH", level=INFO)
     log("Running checks", level=DEBUG)
-    run_mysql_checks()
-    log("MySQL hardening complete", level=INFO)
+    run_ssh_checks()
+    log("SSH hardening complete", level=INFO)
 
 
-def dec_harden_mysql(f):
+def dec_harden_ssh(f):
     if config('harden'):
-        harden_mysql()
+        harden_ssh()
 
-    def _harden_mysql(*args, **kwargs):
+    def _harden_ssh(*args, **kwargs):
         return f(*args, **kwargs)
 
-    return _harden_mysql
+    return _harden_ssh
 
 
 # Run on import
 if config('harden'):
-    harden_mysql()
+    harden_ssh()
