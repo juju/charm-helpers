@@ -1395,8 +1395,7 @@ def clear_unit_paused():
 
 def is_unit_paused_set():
     """Return the state of the kv().get('unit-paused').
-    This does NOT verify that the unit really is pasued.  See
-    is_paused() for that functionality
+    This does NOT verify that the unit really is paused.
     """
     with unitdata.HookData()() as kv:
         # transform something truth-y into a Boolean.
