@@ -39,27 +39,24 @@ class RestrictedPackagesTestCase(TestCase):
 
         return pkg
 
-    @patch.object(apt, 'apt')
-    @patch.object(apt.subprocess, 'check_call')
+    @patch.object(apt, 'apt_cache')
+    @patch.object(apt, 'apt_purge')
     @patch.object(apt, 'log', lambda *args, **kwargs: None)
-    def test_ensure_compliance(self, mock_check_call, mock_apt):
+    def test_ensure_compliance(self, mock_purge, mock_apt_cache):
         pkg = self.create_package('bar')
-        mock_apt.apt_pkg.Cache.return_value = {'bar': pkg}
+        mock_apt_cache.return_value = {'bar': pkg}
 
         audit = apt.RestrictedPackages(pkgs=['bar'])
         audit.ensure_compliance()
-        cmd = ['apt-get', '--assume-yes', 'purge', pkg.name]
-        mock_check_call.assert_has_calls(call(cmd))
+        mock_purge.assert_has_calls(call(pkg.name))
 
-    @patch.object(apt, 'apt')
-    @patch.object(apt.subprocess, 'check_call')
+    @patch.object(apt, 'apt_purge')
+    @patch.object(apt, 'apt_cache')
     @patch.object(apt, 'log', lambda *args, **kwargs: None)
-    def test_apt_harden_virtual_package(self, mock_check_call, mock_apt):
+    def test_apt_harden_virtual_package(self, mock_apt_cache, mock_apt_purge):
         vpkg = self.create_package('virtualfoo', virtual=True)
-        mock_apt.apt_pkg.Cache.return_value = {'foo': vpkg}
+        mock_apt_cache.return_value = {'foo': vpkg}
         audit = apt.RestrictedPackages(pkgs=['foo'])
         audit.ensure_compliance()
-        self.assertTrue(mock_apt.apt_pkg.Cache.called)
-        cmd1 = ['apt-get', '--assume-yes', 'purge', 'foo']
-        cmd2 = ['apt-get', '--assume-yes', 'purge', 'virtualfoo']
-        mock_check_call.assert_has_calls([call(cmd1), call(cmd2)])
+        self.assertTrue(mock_apt_cache.called)
+        mock_apt_purge.assert_has_calls([call('foo'), call('virtualfoo')])

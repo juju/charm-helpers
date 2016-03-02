@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 import grp
+import hashlib
 import os
 import pwd
 
@@ -32,6 +33,7 @@ from charmhelpers.core.hookenv import INFO
 from charmhelpers.core.hookenv import log
 
 from charmhelpers.contrib.hardening.audits import BaseAudit
+from charmhelpers.contrib.hardening.templating import HardeningConfigRenderer
 
 
 class BaseFileAudit(BaseAudit):
@@ -77,8 +79,8 @@ class BaseFileAudit(BaseAudit):
         """Returns the Posix st_stat information for the specified file path.
 
         :param path: the path to get the st_stat information for.
-        :return: an st_stat object for the path or None if the path doesn't
-                 exist.
+        :returns: an st_stat object for the path or None if the path doesn't
+                  exist.
         """
         return os.stat(path)
 
@@ -91,7 +93,6 @@ class FilePermissionAudit(BaseFileAudit):
     applied properly to the file.
     """
     def __init__(self, paths, user, group=None, mode=0o600, **kwargs):
-        self.paths = paths if hasattr(paths, '__iter__') else [paths]
         self.user = user
         self.group = group
         self.mode = mode
@@ -134,7 +135,7 @@ class FilePermissionAudit(BaseFileAudit):
         requirements to be in compliance with the check itself.
 
         :param path: the file path to check
-        :return: True if the path is compliant, False otherwise.
+        :returns: True if the path is compliant, False otherwise.
         """
         stat = self._get_stat(path)
         user = self.user
@@ -148,12 +149,13 @@ class FilePermissionAudit(BaseFileAudit):
             compliant = False
 
         # POSIX refers to the st_mode bits as corresponding to both the
-        # file type and file permission bits, where the least significant 9
-        # bits (o777) are the 'file permission bits'
-        perms = stat.st_mode & 0o777
+        # file type and file permission bits, where the least significant 12
+        # bits (o7777) are the suid (11), guid (10), sticky bits (9), and the
+        # file permission bits (8-0)
+        perms = stat.st_mode & 0o7777
         if perms != self.mode:
             log('File %s has incorrect permissions, currently set to %s' %
-                (path, oct(perms)), level=INFO)
+                (path, oct(stat.st_mode & 0o7777)), level=INFO)
             compliant = False
 
         return compliant
@@ -178,7 +180,7 @@ class DirectoryPermissionAudit(FilePermissionAudit):
         directories are in compliance with the check itself.
 
         :param path: the directory path to check
-        :param: True if the directory tree is compliant, False otherewise.
+        :returns: True if the directory tree is compliant, False otherewise.
         """
         if not os.path.isdir(path):
             log('Path specified %s is not a directory.' % path, level=ERROR)
@@ -259,3 +261,87 @@ class NoSUIDGUIDAudit(BaseFileAudit):
                 'Error information is: command %s failed with returncode '
                 '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
                                            format_exc(e)), level=ERROR)
+
+
+class TemplatedFileAudit(BaseFileAudit):
+    """The TemplatedFileAudit audits the contents of a templated file.
+
+    This audit renders a file from a template, sets the appropriate file
+    permissions, then generates a hashsum with which to check the content
+    changed.
+    """
+    def __init__(self, path, context, user, group, mode, **kwargs):
+        self.context = context
+        self.user = user
+        self.group = group
+        self.mode = mode
+        if path not in HardeningConfigRenderer.templates['os']:
+            render_context = {
+                'contexts': [context],
+                'permissions': [(path, user, group, mode)],
+            }
+            HardeningConfigRenderer.register('os', path, render_context)
+        super(TemplatedFileAudit, self).__init__(paths=path, **kwargs)
+
+    def is_compliant(self, path):
+        """Determines if the templated file is compliant.
+
+        A templated file is only compliant if it has not changed (as
+        determined by its sha256 hashsum) AND its file permissions are set
+        appropriately.
+
+        :param path: the path to check compliance.
+        """
+        same_content = self.contents_match(path)
+        same_permissions = self.permissions_match(path)
+
+        if same_content and same_permissions:
+            return True
+        else:
+            return False
+
+    def comply(self, path):
+        """Ensures the contents and the permissions of the file.
+
+        :param path: the path to correct
+        """
+        # It should be as simple as this:
+        #HardeningConfigRenderer.render(path)
+        self.post_hooks()
+        pass
+
+    def post_hooks(self):
+        """Invoked after templates have been rendered."""
+        pass
+
+    def contents_match(self, path):
+        """Determines if the file content is the same.
+
+        This is determined by comparing hashsum of the file contents and
+        the saved hashsum. If there is no hashsum, then the content cannot
+        be sure to be the same so treat them as if they are not the same.
+        Otherwise, return True if the hashsums are the same, False if they
+        are not the same.
+
+        :param path: the file to check.
+        """
+        hasher = hashlib.sha256()
+        with open(path, 'rb') as f:
+            BLK_SZ = 65535 # 65K ought to be good enough
+            buf = f.read(BLK_SZ)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = f.read(BLK_SZ)
+        content_cksum = hasher.hexdigest()
+
+        # TODO(wolsen) save the hashsum to the unitdata store.
+        return False
+
+    def permissions_match(self, path):
+        """Determines if the file owner and permissions match.
+
+        :param path: the path to check.
+        """
+        _, user, group, perms = self.permissions
+        audit = FilePermissionAudit(path, user, group, perms)
+        return audit.is_compliant(path)

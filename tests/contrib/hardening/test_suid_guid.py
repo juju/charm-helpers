@@ -12,7 +12,7 @@ CONFIG = {'harden': False}
 
 
 with patch('charmhelpers.core.hookenv.config', lambda key: CONFIG.get('key')):
-    from charmhelpers.contrib.hardening.os_hardening import suid_guid
+    from charmhelpers.contrib.hardening.host import suid_guid
 
 
 class SUIDGUIDTestCase(TestCase):
