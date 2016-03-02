@@ -424,11 +424,41 @@ class CephUtilsTests(TestCase):
         ceph_utils.monitor_key_get(service='admin', key='foo')
         self.check_output.assert_called_with(cmd)
 
+    def test_get_monitor_key_failed(self):
+        self.check_output.side_effect = CalledProcessError(
+            returncode=2,
+            cmd='ceph',
+            output='key foo does not exist')
+        output = ceph_utils.monitor_key_get(service='admin', key='foo')
+        self.assertEqual(None, output)
+
+    def test_monitor_key_exists(self):
+        cmd = ['ceph', '--id', 'admin',
+               'config-key', 'exists', 'foo']
+        ceph_utils.monitor_key_exists(service='admin', key='foo')
+        self.check_call.assert_called_with(cmd)
+
+    def test_monitor_key_doesnt_exist(self):
+        self.check_call.side_effect = CalledProcessError(
+            returncode=2,
+            cmd='ceph',
+            output='key foo does not exist')
+        output = ceph_utils.monitor_key_exists(service='admin', key='foo')
+        self.assertEqual(False, output)
+
     def test_delete_monitor_key(self):
         ceph_utils.monitor_key_delete(service='admin', key='foo')
         cmd = ['ceph', '--id', 'admin',
                'ceph', 'config-key', 'del', 'foo']
         self.check_output.assert_called_with(cmd)
+
+    def test_delete_monitor_key_failed(self):
+        self.check_output.side_effect = CalledProcessError(
+            returncode=2,
+            cmd='ceph',
+            output='deletion failed')
+        self.assertRaises(CalledProcessError, ceph_utils.monitor_key_delete,
+                          service='admin', key='foo')
 
     def test_get_monmap(self):
         self.check_output.return_value = MONMAP_DUMP

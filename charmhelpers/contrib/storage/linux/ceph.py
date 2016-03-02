@@ -324,7 +324,7 @@ def monitor_key_delete(service, key):
              'ceph', 'config-key', 'del', str(key)])
     except CalledProcessError as e:
         log("Monitor config-key put failed with message: {}".format(
-            e.message))
+            e.output))
         raise
 
 
@@ -342,7 +342,7 @@ def monitor_key_set(service, key, value):
              'ceph', 'config-key', 'put', str(key), str(value)])
     except CalledProcessError as e:
         log("Monitor config-key put failed with message: {}".format(
-            e.message))
+            e.output))
         raise
 
 
@@ -360,7 +360,7 @@ def monitor_key_get(service, key):
         return output
     except CalledProcessError as e:
         log("Monitor config-key get failed with message: {}".format(
-            e.message))
+            e.output))
         return None
 
 
@@ -385,7 +385,7 @@ def monitor_key_exists(service, key):
             return False
         else:
             log("Unknown error from ceph config-get exists: {} {}".format(
-                e.returncode, e.message))
+                e.returncode, e.output))
             raise
 
 
