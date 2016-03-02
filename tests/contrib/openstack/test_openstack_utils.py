@@ -1459,7 +1459,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
     @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
-    def test_pause_unit_service_charm_func(
+    def test_pausee_unit_service_charm_func(
             self, set_unit_paused, service_pause):
         services = ['service1', 'service2']
         service_pause.return_value = True
@@ -1577,6 +1577,24 @@ class OpenStackHelpersTestCase(TestCase):
         _determine_os_workload_status.return_value = ('broken', 'damaged')
         r = f()
         self.assertEquals(r, 'damaged')
+
+    @patch.object(openstack, 'restart_on_change_helper')
+    @patch.object(openstack, 'is_unit_paused_set')
+    def test_pausable_restart_on_change(
+            self, is_unit_paused_set, restart_on_change_helper):
+        @openstack.pausable_restart_on_change({})
+        def test_func():
+            pass
+
+        # test with pause: restart_on_change_helper should not be called.
+        is_unit_paused_set.return_value = True
+        test_func()
+        self.assertEquals(restart_on_change_helper.call_count, 0)
+
+        # test without pause: restart_on_change_helper should be called.
+        is_unit_paused_set.return_value = False
+        test_func()
+        self.assertEquals(restart_on_change_helper.call_count, 1)
 
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
