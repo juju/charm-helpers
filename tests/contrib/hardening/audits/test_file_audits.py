@@ -13,62 +13,27 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-
 import shutil
 import tempfile
 
-from mock import (
-    call,
-    patch,
-)
+from mock import call
+from mock import patch
+
 from testtools import TestCase
-
-from charmhelpers.contrib.hardening import base_checks
-
-
-class BaseCheckTestCase(TestCase):
-
-    def setUp(self):
-        super(BaseCheckTestCase, self).setUp()
-
-    def test_take_action_default(self):
-        check = base_checks.BaseCheck()
-        take_action = check._take_action()
-        self.assertTrue(take_action)
-
-    def test_take_action_unless_true(self):
-        check = base_checks.BaseCheck(unless=True)
-        take_action = check._take_action()
-        self.assertFalse(take_action)
-
-    def test_take_action_unless_false(self):
-        check = base_checks.BaseCheck(unless=False)
-        take_action = check._take_action()
-        self.assertTrue(take_action)
-
-    def test_take_action_unless_callback_false(self):
-        def callback():
-            return False
-        check = base_checks.BaseCheck(unless=callback)
-        take_action = check._take_action()
-        self.assertTrue(take_action)
-
-    def test_take_action_unless_callback_true(self):
-        def callback():
-            return True
-        check = base_checks.BaseCheck(unless=callback)
-        take_action = check._take_action()
-        self.assertFalse(take_action)
+from charmhelpers.contrib.hardening.audits.file import BaseFileAudit
+from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
+from charmhelpers.contrib.hardening.audits.file import DirectoryPermissionAudit
+from charmhelpers.contrib.hardening.audits.file import NoSUIDGUIDAudit
 
 
 @patch('os.path.exists')
-class BaseFileCheckTestCase(TestCase):
+class BaseFileAuditTestCase(TestCase):
 
     def setUp(self):
-        super(BaseFileCheckTestCase, self).setUp()
-        self._patch_obj(base_checks.BaseFileCheck, 'is_compliant')
-        self._patch_obj(base_checks.BaseFileCheck, 'comply')
-        self._patch('charmhelpers.contrib.hardening.base_checks.log')
+        super(BaseFileAuditTestCase, self).setUp()
+        self._patch_obj(BaseFileAudit, 'is_compliant')
+        self._patch_obj(BaseFileAudit, 'comply')
+        self._patch('charmhelpers.contrib.hardening.audits.file.log')
 
     def _patch_obj(self, obj, method):
         _m = patch.object(obj, method)
@@ -85,14 +50,14 @@ class BaseFileCheckTestCase(TestCase):
 
     def test_ensure_compliance(self, mock_exists):
         mock_exists.return_value = False
-        check = base_checks.BaseFileCheck(paths='/tmp/foo')
+        check = BaseFileAudit(paths='/tmp/foo')
         check.ensure_compliance()
         self.assertFalse(self.comply.called)
 
     def test_ensure_compliance_in_compliance(self, mock_exists):
         mock_exists.return_value = True
         self.is_compliant.return_value = True
-        check = base_checks.BaseFileCheck(paths=['/tmp/foo'])
+        check = BaseFileAudit(paths=['/tmp/foo'])
         check.ensure_compliance()
         mock_exists.assert_has_calls(call('/tmp/foo'))
         self.is_compliant.assert_has_calls(call('/tmp/foo'))
@@ -102,7 +67,7 @@ class BaseFileCheckTestCase(TestCase):
     def test_ensure_compliance_out_of_compliance(self, mock_exists):
         mock_exists.return_value = True
         self.is_compliant.return_value = False
-        check = base_checks.BaseFileCheck(paths=['/tmp/foo'])
+        check = BaseFileAudit(paths=['/tmp/foo'])
         check.ensure_compliance()
         mock_exists.assert_has_calls(call('/tmp/foo'))
         self.is_compliant.assert_has_calls(call('/tmp/foo'))
@@ -115,12 +80,12 @@ class EasyMock(dict):
     __setattr__ = dict.__setitem__
 
 
-class FilePermissionCheckTestCase(TestCase):
+class FilePermissionAuditTestCase(TestCase):
     def setUp(self):
-        super(FilePermissionCheckTestCase, self).setUp()
-        self._patch('charmhelpers.contrib.hardening.base_checks.grp.getgrnam')
-        self._patch('charmhelpers.contrib.hardening.base_checks.pwd.getpwnam')
-        self._patch_obj(base_checks.FilePermissionCheck, '_get_stat')
+        super(FilePermissionAuditTestCase, self).setUp()
+        self._patch('charmhelpers.contrib.hardening.audits.file.grp.getgrnam')
+        self._patch('charmhelpers.contrib.hardening.audits.file.pwd.getpwnam')
+        self._patch_obj(FilePermissionAudit, '_get_stat')
         self.getpwnam.return_value = EasyMock({'pw_name': 'ubuntu',
                                                'pw_uid': 1000})
         self.getgrnam.return_value = EasyMock({'gr_name': 'ubuntu',
@@ -143,27 +108,25 @@ class FilePermissionCheckTestCase(TestCase):
         setattr(self, method_name, mock)
 
     def test_is_compliant(self):
-        check = base_checks.FilePermissionCheck(paths=['/foo/bar'],
-                                                user='ubuntu',
-                                                group='ubuntu', mode=0o644)
+        check = FilePermissionAudit(paths=['/foo/bar'],
+                                    user='ubuntu',
+                                    group='ubuntu', mode=0o644)
         compliant = check.is_compliant('/foo/bar')
         self.assertTrue(compliant)
 
     def test_not_compliant_wrong_group(self):
         self.getgrnam.return_value = EasyMock({'gr_name': 'admin',
                                                'gr_gid': 222})
-        check = base_checks.FilePermissionCheck(paths=['/foo/bar'],
-                                                user='ubuntu',
-                                                group='ubuntu', mode=0o644)
+        check = FilePermissionAudit(paths=['/foo/bar'], user='ubuntu',
+                                    group='ubuntu', mode=0o644)
         compliant = check.is_compliant('/foo/bar')
         self.assertFalse(compliant)
 
     def test_not_compliant_wrong_user(self):
         self.getpwnam.return_value = EasyMock({'pw_name': 'fred',
                                                'pw_uid': 123})
-        check = base_checks.FilePermissionCheck(paths=['/foo/bar'],
-                                                user='ubuntu',
-                                                group='ubuntu', mode=0o644)
+        check = FilePermissionAudit(paths=['/foo/bar'], user='ubuntu',
+                                    group='ubuntu', mode=0o644)
         compliant = check.is_compliant('/foo/bar')
         self.assertFalse(compliant)
 
@@ -171,45 +134,70 @@ class FilePermissionCheckTestCase(TestCase):
         self._get_stat.return_value = EasyMock({'st_mode': 0o777,
                                                 'st_uid': 1000,
                                                 'st_gid': 1000})
-        check = base_checks.FilePermissionCheck(paths=['/foo/bar'],
-                                                user='ubuntu',
-                                                group='ubuntu', mode=0o644)
+        check = FilePermissionAudit(paths=['/foo/bar'], user='ubuntu',
+                                    group='ubuntu', mode=0o644)
         compliant = check.is_compliant('/foo/bar')
         self.assertFalse(compliant)
 
-    @patch('charmhelpers.contrib.hardening.base_checks.os.chown')
-    @patch('charmhelpers.contrib.hardening.base_checks.os.chmod')
+    @patch('charmhelpers.contrib.hardening.audits.file.os.chown')
+    @patch('charmhelpers.contrib.hardening.audits.file.os.chmod')
     def test_comply(self, mock_chmod, mock_chown):
-        check = base_checks.FilePermissionCheck(paths=['/foo/bar'],
-                                                user='ubuntu',
-                                                group='ubuntu', mode=0o644)
+        check = FilePermissionAudit(paths=['/foo/bar'], user='ubuntu',
+                                    group='ubuntu', mode=0o644)
         check.comply('/foo/bar')
         mock_chown.assert_has_calls(call('/foo/bar', 1000, 1000))
         mock_chmod.assert_has_calls(call('/foo/bar', 0o644))
 
 
-class DirectoryPermissionCheckTestCase(TestCase):
+class DirectoryPermissionAuditTestCase(TestCase):
     def setUp(self):
-        super(DirectoryPermissionCheckTestCase, self).setUp()
+        super(DirectoryPermissionAuditTestCase, self).setUp()
 
-    @patch('charmhelpers.contrib.hardening.base_checks.os.path.isdir')
+    @patch('charmhelpers.contrib.hardening.audits.file.os.path.isdir')
     def test_is_compliant_not_directory(self, mock_isdir):
         mock_isdir.return_value = False
-        check = base_checks.DirectoryPermissionCheck(paths=['/foo/bar'],
-                                                     user='ubuntu',
-                                                     group='ubuntu', mode=0o0700)
+        check = DirectoryPermissionAudit(paths=['/foo/bar'], user='ubuntu',
+                                         group='ubuntu', mode=0o0700)
         self.assertRaises(ValueError, check.is_compliant, '/foo/bar')
 
-    @patch.object(base_checks.FilePermissionCheck, 'is_compliant')
+    @patch.object(FilePermissionAudit, 'is_compliant')
     def test_is_compliant_file_not_compliant(self, mock_is_compliant):
         mock_is_compliant.return_value = False
         tmpdir = tempfile.mkdtemp()
         try:
-            check = base_checks.DirectoryPermissionCheck(paths=[tmpdir],
-                                                         user='ubuntu',
-                                                         group='ubuntu',
-                                                         mode=0o0700)
+            check = DirectoryPermissionAudit(paths=[tmpdir], user='ubuntu',
+                                             group='ubuntu', mode=0o0700)
             compliant = check.is_compliant(tmpdir)
             self.assertFalse(compliant)
         finally:
             shutil.rmtree(tmpdir)
+
+
+class NoSUIDGUIDAuditTestCase(TestCase):
+    def setUp(self):
+        super(NoSUIDGUIDAuditTestCase, self).setUp()
+
+    @patch.object(NoSUIDGUIDAudit, '_get_stat')
+    def test_is_compliant(self, mock_get_stat):
+        mock_get_stat.return_value = EasyMock({'st_mode': 0o0644,
+                                               'st_uid': 0,
+                                               'st_gid': 0})
+        audit = NoSUIDGUIDAudit('/foo/bar')
+        compliant = audit.is_compliant('/foo/bar')
+        self.assertTrue(compliant)
+
+    @patch.object(NoSUIDGUIDAudit, '_get_stat')
+    def test_is_noncompliant(self, mock_get_stat):
+        mock_get_stat.return_value = EasyMock({'st_mode': 0o6644,
+                                               'st_uid': 0,
+                                               'st_gid': 0})
+        audit = NoSUIDGUIDAudit('/foo/bar')
+        compliant = audit.is_compliant('/foo/bar')
+        self.assertFalse(compliant)
+
+    @patch('charmhelpers.contrib.hardening.audits.file.log')
+    @patch('charmhelpers.contrib.hardening.audits.file.check_output')
+    def test_comply(self, mock_check_output, mock_log):
+        audit = NoSUIDGUIDAudit('/foo/bar')
+        audit.comply('/foo/bar')
+        mock_check_output.assert_has_calls(call(['chmod', '-s', '/foo/bar']))

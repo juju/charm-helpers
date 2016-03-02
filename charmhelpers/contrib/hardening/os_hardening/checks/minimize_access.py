@@ -1,3 +1,4 @@
+# Copyright 2016 Canonical Limited.
 #
 # This file is part of charm-helpers.
 #
@@ -12,62 +13,42 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-
-from traceback import format_exc
-from subprocess import (
-    CalledProcessError,
-    check_output,
-)
-
-from charmhelpers.contrib.hardening.base_checks import BaseFileCheck
-from charmhelpers.core.hookenv import (
-    log,
-    ERROR,
-)
+from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
+from charmhelpers.contrib.hardening.audits.file import ReadOnlyAudit
+from charmhelpers.contrib.hardening.utils import get_defaults
 
 
-class NoWritePermsForPathFolders(BaseFileCheck):
-    """Checks that folders on $PATH is not writable.
+def get_audits():
+    """Returns the audits that should be performed for folders in $PATH."""
+    checks = []
 
-    Checks that folders on the $PATH variable is not writable.
-    """
-    def __init__(self, *args, **kwargs):
-        # TODO(wolsen) Append user-driven paths to these restricted paths.
-        paths = ['/usr/local/sbin',
-                 '/usr/local/bin',
-                 '/usr/sbin',
-                 '/usr/bin',
-                 '/bin']
-        super(NoWritePermsForPathFolders, self).__init__(paths=paths,
-                                                         *args, **kwargs)
+    # Only allow the root user to have access to the shadow file.
+    checks.append(FilePermissionAudit('/etc/shadow', 'root', 'root', 0o600))
 
-    def is_compliant(self, path):
-        try:
-            output = check_output(['find', path, '-perm', '-go+w',
-                                   '-type', 'f']).strip()
+    # su should only be accessible to user and group root, unless it is
+    # expressly defined to allow users to change to root via the
+    # security_users_allow config option.
+    checks.append(FilePermissionAudit('/bin/su', 'root', 'root', 0o600,
+                                      unless=allows_change_user))
 
-            # The find above will find any files which have permission sets
-            # which allow too broad of write access. As such, the path is
-            # compliant if there is no output.
-            if output:
-                return False
-            else:
-                return True
-        except CalledProcessError as e:
-            log('Error occurred checking write permissions for %s. '
-                'Error information is: command %s failed with returncode '
-                '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
-                                           format_exc(e)), level=ERROR)
-            # TODO(wolsen) not sure if we can safely assume that the file
-            # shouldn't be modified, however this will prevent the code from
-            # continually looping on the failure.
-            return True
+    # Remove write permissions from $PATH folders for all regular users.
+    # This prevents changing system-wide commands from normal users.
+    path_folders = {'/usr/local/sbin',
+                    '/usr/local/bin',
+                    '/usr/sbin',
+                    '/usr/bin',
+                    '/bin'}
+    extra_user_paths = get_defaults('os').get('env_extra_user_paths', [])
+    path_folders.update(extra_user_paths)
+    checks.append(ReadOnlyAudit(path_folders))
 
-    def comply(self, path):
-        try:
-            check_output(['chmod', 'go-w', '-R', path])
-        except CalledProcessError as e:
-            log('Error occurred removing writeable permissions for %s. '
-                'Error information is: command %s failed with returncode '
-                '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
-                                           format_exc(e)), level=ERROR)
+    return checks
+
+
+def allows_change_user():
+    """Determines if current settings allow a change of user using su."""
+    allowed_actions = get_defaults('os').get('security_users_allow', [])
+    if 'change_user' in allowed_actions:
+        return True
+    else:
+        return False
