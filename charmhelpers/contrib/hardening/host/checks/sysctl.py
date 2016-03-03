@@ -191,7 +191,7 @@ class SysctlConf(TemplatedFile):
         self.conffile = '/etc/sysctl.conf'
         super(SysctlConf, self).__init__(self.conffile,
                                          SysCtlHardeningContext(),
-                                         templates_dir=TEMPLATES_DIR,
+                                         template_dir=TEMPLATES_DIR,
                                          user='root', group='root', mode=0o644)
 
     def post_write(self):

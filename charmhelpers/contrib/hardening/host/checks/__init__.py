@@ -24,6 +24,7 @@ from charmhelpers.contrib.hardening.host.checks import pam
 from charmhelpers.contrib.hardening.host.checks import profile
 from charmhelpers.contrib.hardening.host.checks import securetty
 from charmhelpers.contrib.hardening.host.checks import suid_sgid
+from charmhelpers.contrib.hardening.host.checks import sysctl
 
 
 def run_os_checks():
@@ -39,6 +40,7 @@ def run_os_checks():
     audits.extend(profile.get_audits())
     audits.extend(securetty.get_audits())
     audits.extend(suid_sgid.get_audits())
+    audits.extend(sysctl.get_audits())
 
     for audit in audits:
         audit.ensure_compliance()
