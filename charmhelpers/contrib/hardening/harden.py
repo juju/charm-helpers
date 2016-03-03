@@ -40,6 +40,7 @@ def harden(overrides=None):
     """
     def _harden_inner1(f):
         log("Hardening function '%s'" % (f.__name__), level=DEBUG)
+
         def _harden_inner2(*args, **kwargs):
             harden = overrides or (config("harden") or "").split()
             if harden:
@@ -61,7 +62,7 @@ def harden(overrides=None):
                     log("Executing hardener '%s'" % (hardener.__name__))
                     hardener()
             else:
-                log("No hardening applied to '%s'" % (f.__name__), level=INFO)    
+                log("No hardening applied to '%s'" % (f.__name__), level=INFO)
 
             return f(*args, **kwargs)
         return _harden_inner2
