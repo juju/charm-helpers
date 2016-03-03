@@ -39,8 +39,11 @@ def get_audits():
     audits.append(SysctlConf())
     # Make sure that only root has access to the sysctl.conf file, and
     # that it is read-only.
-    audits.append(FilePermissionAudit('/etc/sysctl.conf', user='root',
-                                      group='root', mode=0o0440))
+    # TODO(wolsen) currently handled via /etc/sysctl.conf but I'm not
+    # sure that's the right place? I think /etc/sysctl.d/99-hardening.conf
+    # is likely a better place for our configuration options.
+    # audits.append(FilePermissionAudit('/etc/sysctl.conf', user='root',
+    #                                   group='root', mode=0o0440))
     # Make sure the sysctl directory is read only to users which are not
     # the root user.
     # TODO(wolsen) determine if this check is valid or if we just want
@@ -192,7 +195,7 @@ class SysctlConf(TemplatedFile):
         super(SysctlConf, self).__init__(self.conffile,
                                          SysCtlHardeningContext(),
                                          template_dir=TEMPLATES_DIR,
-                                         user='root', group='root', mode=0o644)
+                                         user='root', group='root', mode=0o0440)
 
     def post_write(self):
         try:
