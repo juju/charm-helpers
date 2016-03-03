@@ -37,8 +37,8 @@ class AptConfig(BaseAudit):
     def verify_config(self):
         apt_pkg.init()
         for cfg in self.config:
-            value = apt_pkg.config.get(cfg['key'], cfg.get('default'))
-            if value != cfg['expected']:
+            value = apt_pkg.config.get(cfg['key'], cfg.get('default', ''))
+            if value and value != cfg['expected']:
                 log("APT config '%s' has unexpected value '%s' "
                     "(expected='%s')" %
                     (cfg['key'], value, cfg['expected']), level=WARNING)
