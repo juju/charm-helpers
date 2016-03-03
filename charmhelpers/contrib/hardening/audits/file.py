@@ -336,11 +336,13 @@ class TemplatedFile(BaseFileAudit):
         kv = unitdata.kv()
         stored_checksum = kv.get('hardening:%s' % path)
         if not stored_checksum:
+            # If the checksum hasn't been generated, return False to ensure
+            # the file is written and the checksum stored.
             return False
         elif stored_checksum != checksum:
             return False
         else:
-            return False
+            return True
 
     def permissions_match(self, path):
         """Determines if the file owner and permissions match.
