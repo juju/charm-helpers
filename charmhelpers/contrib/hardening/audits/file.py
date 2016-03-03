@@ -338,8 +338,10 @@ class TemplatedFile(BaseFileAudit):
         if not stored_checksum:
             # If the checksum hasn't been generated, return False to ensure
             # the file is written and the checksum stored.
+            log('Checksum for %s has not been calculated.' % path, level=DEBUG)
             return False
         elif stored_checksum != checksum:
+            log('Checksum mismatch for %s.' % path, level=DEBUG)
             return False
         else:
             return True
@@ -360,6 +362,7 @@ class TemplatedFile(BaseFileAudit):
         checksum = file_hash(path)
         kv = unitdata.kv()
         kv.set('hardening:%s' % path, checksum)
+        kv.flush()
 
 
 class DeletedFile(BaseFileAudit):
