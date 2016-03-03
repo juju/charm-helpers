@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 import grp
-import hashlib
 import os
 import pwd
 
@@ -31,6 +30,9 @@ from charmhelpers.core.hookenv import DEBUG
 from charmhelpers.core.hookenv import ERROR
 from charmhelpers.core.hookenv import INFO
 from charmhelpers.core.hookenv import log
+
+from charmhelpers.core import unitdata
+from charmhelpers.core.host import file_hash
 
 from charmhelpers.contrib.hardening.audits import BaseAudit
 from charmhelpers.contrib.hardening.templating import render_and_write
@@ -231,10 +233,7 @@ class ReadOnly(BaseFileAudit):
                 'Error information is: command %s failed with returncode '
                 '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
                                            format_exc(e)), level=ERROR)
-            # TODO(wolsen) not sure if we can safely assume that the file
-            # shouldn't be modified, however this will prevent the code from
-            # continually looping on the failure.
-            return True
+            return False
 
     def comply(self, path):
         try:
@@ -310,6 +309,7 @@ class TemplatedFile(BaseFileAudit):
         self.pre_write()
         render_and_write(self.template_dir, path, self.context())
         utils.ensure_permissions(path, self.user, self.group, self.mode)
+        self.save_checksum(path)
         self.post_write()
 
     def pre_write(self):
@@ -331,19 +331,16 @@ class TemplatedFile(BaseFileAudit):
 
         :param path: the file to check.
         """
-        hasher = hashlib.sha256()
-        with open(path, 'rb') as f:
-            block_size = 65535  # 65K ought to be good enough
-            buf = f.read(block_size)
-            while len(buf) > 0:
-                hasher.update(buf)
-                buf = f.read(block_size)
-        content_cksum = hasher.hexdigest()
+        checksum = file_hash(path)
 
-        if content_cksum:
+        kv = unitdata.kv()
+        stored_checksum = kv.get('hardening:%s' % path)
+        if not stored_checksum:
             return False
-        # TODO(wolsen) save the hashsum to the unitdata store.
-        return False
+        elif stored_checksum != checksum:
+            return False
+        else:
+            return False
 
     def permissions_match(self, path):
         """Determines if the file owner and permissions match.
@@ -352,6 +349,15 @@ class TemplatedFile(BaseFileAudit):
         """
         audit = FilePermissionAudit(path, self.user, self.group, self.mode)
         return audit.is_compliant(path)
+
+    def save_checksum(self, path):
+        """Calculates and saves the checksum for the path specified.
+
+        :param path: the path of the file to save the checksum.
+        """
+        checksum = file_hash(path)
+        kv = unitdata.kv()
+        kv.set('hardening:%s' % path, checksum)
 
 
 class DeletedFile(BaseFileAudit):
