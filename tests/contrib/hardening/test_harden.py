@@ -18,10 +18,6 @@ from mock import patch
 from testtools import TestCase
 
 from charmhelpers.contrib.hardening import harden
-from charmhelpers.contrib.hardening.host import harden as harden_host
-from charmhelpers.contrib.hardening.ssh import harden as harden_ssh
-from charmhelpers.contrib.hardening.apache import harden as harden_apache
-from charmhelpers.contrib.hardening.mysql import harden as harden_mysql
 
 
 class HardenTestCase(TestCase):
@@ -29,11 +25,11 @@ class HardenTestCase(TestCase):
     def setUp(self):
         super(HardenTestCase, self).setUp()
 
-    @patch.object(harden_host, 'harden_os')
-    @patch.object(harden_mysql, 'harden_mysql')
-    @patch.object(harden_apache, 'harden_apache')
-    @patch.object(harden_ssh, 'harden_ssh')
-    @patch.object(harden, 'log', lambda *args: None)
+    @patch.object(harden, 'harden_os')
+    @patch.object(harden, 'harden_mysql')
+    @patch.object(harden, 'harden_apache')
+    @patch.object(harden, 'harden_ssh')
+    @patch.object(harden, 'log', lambda *args, **kwargs: None)
     def test_harden(self, mock_ssh, mock_apache, mock_mysql, mock_host):
         mock_ssh.__name__ = 'ssh'
         mock_mysql.__name__ = 'mysql'
