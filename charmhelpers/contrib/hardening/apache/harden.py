@@ -23,7 +23,6 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     INFO,
-    config,
 )
 
 TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
@@ -34,18 +33,3 @@ def harden_apache():
     log("Running checks", level=DEBUG)
     run_apache_checks()
     log("Apache hardening complete", level=INFO)
-
-
-def dec_harden_apache(f):
-    if config('harden'):
-        harden_apache()
-
-    def _harden_apache(*args, **kwargs):
-        return f(*args, **kwargs)
-
-    return _harden_apache
-
-
-# Run on import
-if config('harden'):
-    harden_apache()
