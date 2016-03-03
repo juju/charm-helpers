@@ -350,8 +350,7 @@ class TemplatedFile(BaseFileAudit):
 
         :param path: the path to check.
         """
-        _, user, group, perms = self.permissions
-        audit = FilePermissionAudit(path, user, group, perms)
+        audit = FilePermissionAudit(path, self.user, self.group, self.mode)
         return audit.is_compliant(path)
 
 
