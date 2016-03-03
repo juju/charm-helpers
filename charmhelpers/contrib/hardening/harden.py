@@ -23,6 +23,8 @@ from charmhelpers.contrib.hardening import (
 
 from charmhelpers.core.hookenv import (
     log,
+    DEBUG,
+    INFO,
     WARNING,
     config,
 )
@@ -39,6 +41,7 @@ def harden(overrides=None):
                       with 'harden' config.
     """
     def _harden_inner1(f):
+        log("Hardening function '%s'" % (f.__name__), level=DEBUG)
         def _harden_inner2(*args, **kwargs):
             harden = overrides or (config("harden") or "").split()
             if harden:
@@ -59,6 +62,8 @@ def harden(overrides=None):
                 for hardener in stacks:
                     log("Executing hardener '%s'" % (hardener.__name__))
                     hardener()
+            else:
+                log("No hardening applied to '%s'" % (f.__name__), level=INFO)    
 
             return f(*args, **kwargs)
         return _harden_inner2
