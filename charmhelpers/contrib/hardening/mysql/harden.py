@@ -23,7 +23,6 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     INFO,
-    config,
 )
 
 TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
@@ -34,18 +33,3 @@ def harden_mysql():
     log("Running checks", level=DEBUG)
     run_mysql_checks()
     log("MySQL hardening complete", level=INFO)
-
-
-def dec_harden_mysql(f):
-    if config('harden'):
-        harden_mysql()
-
-    def _harden_mysql(*args, **kwargs):
-        return f(*args, **kwargs)
-
-    return _harden_mysql
-
-
-# Run on import
-if config('harden'):
-    harden_mysql()

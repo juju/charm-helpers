@@ -19,7 +19,6 @@ from charmhelpers.contrib.hardening.host.checks import (
 from charmhelpers.core.hookenv import (
     log,
     INFO,
-    config,
 )
 
 
@@ -27,18 +26,3 @@ def harden_os():
     log("Hardening OS", level=INFO)
     run_os_checks()
     log("OS hardening complete", level=INFO)
-
-
-def dec_harden_os(f):
-    if config('harden'):
-        harden_os()
-
-    def _harden_os(*args, **kwargs):
-        return f(*args, **kwargs)
-
-    return _harden_os
-
-
-# Run on import
-if config('harden'):
-    harden_os()
