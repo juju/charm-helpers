@@ -90,9 +90,9 @@ class RestrictedPackages(BaseAudit):
         elif not pkg.current_ver:
             log("Package '%s' not installed" % pkg.name, level=DEBUG)
             return
-
-        log("Purging package '%s'" % pkg.name, level=DEBUG)
-        apt_purge(pkg.name)
+        else:
+            log("Purging package '%s'" % pkg.name, level=DEBUG)
+            apt_purge(pkg.name)
 
     def is_virtual_package(self, pkg):
         return pkg.has_provides and not pkg.has_versions
