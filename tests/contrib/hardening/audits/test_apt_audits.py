@@ -59,7 +59,7 @@ class RestrictedPackagesTestCase(TestCase):
         audit = apt.RestrictedPackages(pkgs=['foo'])
         audit.ensure_compliance()
         self.assertTrue(mock_apt_cache.called)
-        mock_apt_purge.assert_has_calls([call('foo'), call('virtualfoo')])
+        mock_apt_purge.assert_has_calls([call('foo')])
 
 
 class AptConfigTestCase(TestCase):
