@@ -614,7 +614,11 @@ class AmuletUtils(object):
                                                  a_pids))
 
                 # If expected is not bool, ensure PID quantities match
-                if not isinstance(e_pids_length, bool) and \
+                if isinstance(e_pids_length, list) and \
+                        a_pids_length not in e_pids_length:
+                    return fail_msg
+                elif not isinstance(e_pids_length, bool) and \
+                        not isinstance(e_pids_length, list) and \
                         a_pids_length != e_pids_length:
                     return fail_msg
                 # If expected is bool True, ensure 1 or more PIDs exist
