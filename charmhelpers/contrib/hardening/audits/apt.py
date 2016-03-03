@@ -13,6 +13,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
+from __future__ import absolute_import
+from apt import apt_pkg
+
 from six import string_types
 
 from charmhelpers.fetch import apt_cache
@@ -23,6 +27,24 @@ from charmhelpers.contrib.hardening.audits import BaseAudit
 from charmhelpers.core.hookenv import DEBUG
 from charmhelpers.core.hookenv import WARNING
 from charmhelpers.core.hookenv import log
+
+
+class AptConfig(BaseAudit):
+
+    def __init__(self, config, **kwargs):
+        self.config = config
+
+    def verify_config(self):
+        apt_pkg.init()
+        for cfg in self.config:
+            value = apt_pkg.config.get(cfg['key'], cfg.get('default'))
+            if value != cfg['expected']:
+                log("APT config '%s' has unexpected value '%s' "
+                    "(expected='%s')" %
+                    (cfg['key'], value, cfg['expected']), level=WARNING)
+
+    def ensure_compliance(self):
+        self.verify_config()
 
 
 class RestrictedPackages(BaseAudit):

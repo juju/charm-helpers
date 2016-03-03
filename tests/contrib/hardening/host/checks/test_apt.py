@@ -28,7 +28,7 @@ class AptHardeningTestCase(TestCase):
     })
     def test_dont_clean_packages(self):
         audits = apt.get_audits()
-        self.assertEqual(0, len(audits))
+        self.assertEqual(1, len(audits))
 
     @patch.object(apt, 'get_defaults', lambda x: {
         'security_packages_clean': True,
@@ -36,7 +36,7 @@ class AptHardeningTestCase(TestCase):
     })
     def test_no_security_packages(self):
         audits = apt.get_audits()
-        self.assertEqual(0, len(audits))
+        self.assertEqual(1, len(audits))
 
     @patch.object(apt, 'get_defaults', lambda x: {
         'security_packages_clean': True,
@@ -44,5 +44,5 @@ class AptHardeningTestCase(TestCase):
     })
     def test_restricted_packages(self):
         audits = apt.get_audits()
-        self.assertEqual(1, len(audits))
-        self.assertTrue(isinstance(audits[0], apt.RestrictedPackages))
+        self.assertEqual(2, len(audits))
+        self.assertTrue(isinstance(audits[1], apt.RestrictedPackages))
