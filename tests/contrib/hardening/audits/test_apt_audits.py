@@ -60,3 +60,16 @@ class RestrictedPackagesTestCase(TestCase):
         audit.ensure_compliance()
         self.assertTrue(mock_apt_cache.called)
         mock_apt_purge.assert_has_calls([call('foo'), call('virtualfoo')])
+
+
+class AptConfigTestCase(TestCase):
+
+    @patch.object(apt, 'apt_pkg')
+    def test_ensure_compliance(self, mock_apt_pkg):
+        mock_apt_pkg.init.return_value = None
+        mock_apt_pkg.config.side_effect = {}
+        mock_apt_pkg.config.get.return_value = None
+        audit = apt.AptConfig([{'key': 'APT::Get::AllowUnauthenticated',
+                                'expected': 'false'}])
+        audit.ensure_compliance()
+        self.assertTrue(mock_apt_pkg.config.get.called)

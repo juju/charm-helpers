@@ -15,12 +15,16 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 from charmhelpers.contrib.hardening.utils import get_defaults
 
-from charmhelpers.contrib.hardening.audits.apt import RestrictedPackages
+from charmhelpers.contrib.hardening.audits.apt import (
+    AptConfig,
+    RestrictedPackages,
+)
 
 
 def get_audits():
     """Returns the set of audits to run around apt packages."""
-    audits = []
+    audits = [AptConfig([{'key': 'APT::Get::AllowUnauthenticated',
+                          'expected': 'false'}])]
 
     defaults = get_defaults('os')
     clean_packages = defaults.get('security_packages_clean')
