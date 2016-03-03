@@ -22,6 +22,7 @@ from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
     log,
     ERROR,
+    WARNING,
     INFO
 )
 from charmhelpers.contrib.hardening.utils import (
@@ -38,6 +39,37 @@ except ImportError:
 
 class HardeningConfigException(Exception):
     pass
+
+
+class Template(object):
+
+    def __init__(self, source_dir, path):
+        self.source_dir = source_dir
+        self.template_file = os.path.basename(path)
+        self.path = path
+
+
+def render_and_write(template_dir, path, context):
+    """Renders the specified template into the file.
+
+    :param template_dir: the directory to load the template from
+    :param path: the path to write the templated contents to
+    :param context: the parameters to pass to the rendering engine
+    """
+    env = Environment(loader=FileSystemLoader(template_dir))
+    template_file = os.path.basename(path)
+    template = env.get_template(template_file)
+    log('Rendering from template: %s' % template.name, level=INFO)
+    rendered_content = template.render(context)
+    if not rendered_content:
+        log("Render returned None - skipping '%s'" % path,
+            level=WARNING)
+        return
+
+    with open(path, 'wb') as out:
+        out.write(rendered_content.encode('utf-8').strip())
+
+    log('Wrote template %s.' % path, level=INFO)
 
 
 class TemplateContext(object):

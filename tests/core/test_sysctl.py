@@ -40,18 +40,18 @@ class SysctlTests(unittest.TestCase):
         _file = MagicMock(spec=io.FileIO)
         mock_open.return_value = _file
 
-        create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-sysctl.conf")
+        create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-10-hardening-io.conf")
 
         _file.__enter__().write.assert_called_with("kernel.max_pid=1337\n")
 
         self.log.assert_called_with(
-            "Updating sysctl_file: /etc/sysctl.d/test-sysctl.conf"
+            "Updating sysctl_file: /etc/sysctl.d/test-10-hardening-io.conf"
             " values: {'kernel.max_pid': 1337}",
             level='DEBUG')
 
         self.check_call.assert_called_with([
             "sysctl", "-p",
-            "/etc/sysctl.d/test-sysctl.conf"])
+            "/etc/sysctl.d/test-10-hardening-io.conf"])
 
     @patch(builtin_open)
     def test_create_invalid_argument(self, mock_open):
@@ -59,7 +59,7 @@ class SysctlTests(unittest.TestCase):
         _file = MagicMock(spec=io.FileIO)
         mock_open.return_value = _file
 
-        create('{"kernel.max_pid": 1337 xxxx', "/etc/sysctl.d/test-sysctl.conf")
+        create('{"kernel.max_pid": 1337 xxxx', "/etc/sysctl.d/test-10-hardening-io.conf")
 
         self.log.assert_called_with(
             'Error parsing YAML sysctl_dict: {"kernel.max_pid": 1337 xxxx',

@@ -13,20 +13,25 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.contrib.hardening.utils import get_defaults
 
-from charmhelpers.contrib.hardening.audits.apt import RestrictedPackages
+from testtools import TestCase
+
+from mock import patch
+
+from charmhelpers.contrib.hardening.host.checks import profile
 
 
-def get_audits():
-    """Returns the set of audits to run around apt packages."""
-    audits = []
+class ProfileTestCase(TestCase):
 
-    defaults = get_defaults('os')
-    clean_packages = defaults.get('security_packages_clean')
-    if clean_packages:
-        security_packages = defaults.get('security_packages_list', [])
-        if security_packages:
-            audits.append(RestrictedPackages(security_packages))
+    @patch.object(profile.utils, 'get_defaults', lambda x: {})
+    def test_core_dump_disabled(self):
+        audits = profile.get_audits()
+        self.assertEqual(1, len(audits))
+        self.assertTrue(isinstance(audits[0], profile.TemplatedFile))
 
-    return audits
+    @patch.object(profile.utils, 'get_defaults', lambda x: {
+        'enable_core_dump': True
+    })
+    def test_core_dump_enabled(self):
+        audits = profile.get_audits()
+        self.assertEqual(0, len(audits))

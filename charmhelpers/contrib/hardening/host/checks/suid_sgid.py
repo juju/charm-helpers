@@ -18,7 +18,7 @@ import subprocess
 from charmhelpers.core.hookenv import INFO
 from charmhelpers.core.hookenv import log
 
-from charmhelpers.contrib.hardening.audits.file import NoSUIDGUIDAudit
+from charmhelpers.contrib.hardening.audits.file import NoSUIDSGIDAudit
 
 from charmhelpers.contrib.hardening import utils
 
@@ -98,7 +98,7 @@ def get_audits():
     blacklist = set(BLACKLIST) - set(u_w + u_b)
     whitelist = set(WHITELIST) - set(u_b + u_w)
 
-    checks.append(NoSUIDGUIDAudit(blacklist))
+    checks.append(NoSUIDSGIDAudit(blacklist))
 
     dry_run = defaults.get('security_suid_sgid_dry_run_on_unknown', False)
 
@@ -108,7 +108,7 @@ def get_audits():
         # bit set and then remove the whitelisted paths.
         root_path = defaults.get('env_root_path', '/')
         unknown_paths = find_paths_with_suid_sgid(root_path) - set(whitelist)
-        checks.append(NoSUIDGUIDAudit(unknown_paths, unless=dry_run))
+        checks.append(NoSUIDSGIDAudit(unknown_paths, unless=dry_run))
 
     return checks
 

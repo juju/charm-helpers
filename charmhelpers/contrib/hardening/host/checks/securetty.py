@@ -13,20 +13,23 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.contrib.hardening.utils import get_defaults
-
-from charmhelpers.contrib.hardening.audits.apt import RestrictedPackages
+from charmhelpers.contrib.hardening.audits.file import TemplatedFile
+from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
+from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the set of audits to run around apt packages."""
+    """Returns the audits and checks necessary to secure the TTY."""
     audits = []
-
-    defaults = get_defaults('os')
-    clean_packages = defaults.get('security_packages_clean')
-    if clean_packages:
-        security_packages = defaults.get('security_packages_list', [])
-        if security_packages:
-            audits.append(RestrictedPackages(security_packages))
-
+    audits.append(TemplatedFile('/etc/securetty', SecureTTYContext(),
+                                template_dir=TEMPLATES_DIR,
+                                mode=0o0400, user='root', group='root'))
     return audits
+
+
+class SecureTTYContext(object):
+
+    def __call__(self):
+        defaults = utils.get_defaults('os')
+        ctxt = {'ttys': defaults.get('auth_root_ttys')}
+        return ctxt

@@ -14,22 +14,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
-from charmhelpers.contrib.hardening.audits.file import ReadOnlyAudit
-from charmhelpers.contrib.hardening.utils import get_defaults
+from charmhelpers.contrib.hardening.audits.file import ReadOnly
+from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
     """Returns the audits that should be performed for folders in $PATH."""
-    checks = []
-
-    # Only allow the root user to have access to the shadow file.
-    checks.append(FilePermissionAudit('/etc/shadow', 'root', 'root', 0o600))
-
-    # su should only be accessible to user and group root, unless it is
-    # expressly defined to allow users to change to root via the
-    # security_users_allow config option.
-    checks.append(FilePermissionAudit('/bin/su', 'root', 'root', 0o750,
-                                      unless=allows_change_user))
+    audits = []
+    defaults = utils.get_defaults('os')
 
     # Remove write permissions from $PATH folders for all regular users.
     # This prevents changing system-wide commands from normal users.
@@ -38,17 +30,17 @@ def get_audits():
                     '/usr/sbin',
                     '/usr/bin',
                     '/bin'}
-    extra_user_paths = get_defaults('os').get('env_extra_user_paths', [])
+    extra_user_paths = defaults.get('env_extra_user_paths', [])
     path_folders.update(extra_user_paths)
-    checks.append(ReadOnlyAudit(path_folders))
+    audits.append(ReadOnly(path_folders))
 
-    return checks
+    # Only allow the root user to have access to the shadow file.
+    audits.append(FilePermissionAudit('/etc/shadow', 'root', 'root', 0o0600))
 
+    if 'change_user' not in defaults.get('security_users_allow', []):
+        # su should only be accessible to user and group root, unless it is
+        # expressly defined to allow users to change to root via the
+        # security_users_allow config option.
+        audits.append(FilePermissionAudit('/bin/su', 'root', 'root', 0o750))
 
-def allows_change_user():
-    """Determines if current settings allow a change of user using su."""
-    allowed_actions = get_defaults('os').get('security_users_allow', [])
-    if 'change_user' in allowed_actions:
-        return True
-    else:
-        return False
+    return audits
