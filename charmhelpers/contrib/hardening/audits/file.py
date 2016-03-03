@@ -33,7 +33,8 @@ from charmhelpers.core.hookenv import INFO
 from charmhelpers.core.hookenv import log
 
 from charmhelpers.contrib.hardening.audits import BaseAudit
-from charmhelpers.contrib.hardening.templating import HardeningConfigRenderer
+from charmhelpers.contrib.hardening.templating import render_and_write
+from charmhelpers.contrib.hardening import utils
 
 
 class BaseFileAudit(BaseAudit):
@@ -122,7 +123,7 @@ class FilePermissionAudit(BaseFileAudit):
             group = None
             if name:
                 group = grp.getgrnam(name)
-            elif self.user is not None:
+            else:
                 group = grp.getgrgid(self.user.pw_gid)
         except KeyError:
             log('Unknown group %s' % name, level=ERROR)
@@ -162,16 +163,18 @@ class FilePermissionAudit(BaseFileAudit):
 
     def comply(self, path):
         """Issues a chown and chmod to the file paths specified."""
-        os.chown(path, self.user.pw_uid, self.group.gr_gid)
-        os.chmod(path, self.mode)
+        utils.ensure_permissions(path, self.user.pw_name, self.group.gr_name,
+                                 self.mode)
 
 
 class DirectoryPermissionAudit(FilePermissionAudit):
     """Performs a permission check for the  specified directory path."""
 
-    def __init__(self, paths, user, group=None, mode=0o600, **kwargs):
+    def __init__(self, paths, user, group=None, mode=0o600,
+                 recursive=True, **kwargs):
         super(DirectoryPermissionAudit, self).__init__(paths, user, group,
                                                        mode, **kwargs)
+        self.recursive = recursive
 
     def is_compliant(self, path):
         """Checks if the directory is compliant.
@@ -185,6 +188,9 @@ class DirectoryPermissionAudit(FilePermissionAudit):
         if not os.path.isdir(path):
             log('Path specified %s is not a directory.' % path, level=ERROR)
             raise ValueError("%s is not a directory." % path)
+
+        if not self.recursive:
+            return super(DirectoryPermissionAudit, self).is_compliant(path)
 
         compliant = True
         for root, dirs, _ in os.walk(path):
@@ -203,10 +209,10 @@ class DirectoryPermissionAudit(FilePermissionAudit):
                 super(DirectoryPermissionAudit, self).comply(root)
 
 
-class ReadOnlyAudit(BaseFileAudit):
+class ReadOnly(BaseFileAudit):
     """Audits that files and folders are read only."""
     def __init__(self, paths, *args, **kwargs):
-        super(ReadOnlyAudit, self).__init__(paths=paths, *args, **kwargs)
+        super(ReadOnly, self).__init__(paths=paths, *args, **kwargs)
 
     def is_compliant(self, path):
         try:
@@ -221,7 +227,7 @@ class ReadOnlyAudit(BaseFileAudit):
             else:
                 return True
         except CalledProcessError as e:
-            log('Error occurred checking write permissions for %s. '
+            log('Error occurred checking finding writable files for %s. '
                 'Error information is: command %s failed with returncode '
                 '%d and output %s.\n%s' % (path, e.cmd, e.returncode, e.output,
                                            format_exc(e)), level=ERROR)
@@ -240,10 +246,10 @@ class ReadOnlyAudit(BaseFileAudit):
                                            format_exc(e)), level=ERROR)
 
 
-class NoSUIDGUIDAudit(BaseFileAudit):
+class NoSUIDSGIDAudit(BaseFileAudit):
     """Audits that specified files do not have SUID/GUID bits set."""
     def __init__(self, paths, *args, **kwargs):
-        super(NoSUIDGUIDAudit, self).__init__(paths=paths, *args, **kwargs)
+        super(NoSUIDSGIDAudit, self).__init__(paths=paths, *args, **kwargs)
 
     def is_compliant(self, path):
         stat = self._get_stat(path)
@@ -263,25 +269,21 @@ class NoSUIDGUIDAudit(BaseFileAudit):
                                            format_exc(e)), level=ERROR)
 
 
-class TemplatedFileAudit(BaseFileAudit):
+class TemplatedFile(BaseFileAudit):
     """The TemplatedFileAudit audits the contents of a templated file.
 
     This audit renders a file from a template, sets the appropriate file
     permissions, then generates a hashsum with which to check the content
     changed.
     """
-    def __init__(self, path, context, user, group, mode, **kwargs):
+    def __init__(self, path, context, template_dir, mode, user='root',
+                 group='root', **kwargs):
         self.context = context
         self.user = user
         self.group = group
         self.mode = mode
-        if path not in HardeningConfigRenderer.templates['os']:
-            render_context = {
-                'contexts': [context],
-                'permissions': [(path, user, group, mode)],
-            }
-            HardeningConfigRenderer.register('os', path, render_context)
-        super(TemplatedFileAudit, self).__init__(paths=path, **kwargs)
+        self.template_dir = template_dir
+        super(TemplatedFile, self).__init__(paths=path, **kwargs)
 
     def is_compliant(self, path):
         """Determines if the templated file is compliant.
@@ -305,13 +307,17 @@ class TemplatedFileAudit(BaseFileAudit):
 
         :param path: the path to correct
         """
-        # It should be as simple as this:
-        #HardeningConfigRenderer.render(path)
-        self.post_hooks()
+        self.pre_write()
+        render_and_write(self.template_dir, path, self.context())
+        utils.ensure_permissions(path, self.user, self.group, self.mode)
+        self.post_write()
+
+    def pre_write(self):
+        """Invoked prior to writing the template."""
         pass
 
-    def post_hooks(self):
-        """Invoked after templates have been rendered."""
+    def post_write(self):
+        """Invoked after writing the template."""
         pass
 
     def contents_match(self, path):
@@ -327,13 +333,15 @@ class TemplatedFileAudit(BaseFileAudit):
         """
         hasher = hashlib.sha256()
         with open(path, 'rb') as f:
-            BLK_SZ = 65535 # 65K ought to be good enough
-            buf = f.read(BLK_SZ)
+            block_size = 65535  # 65K ought to be good enough
+            buf = f.read(block_size)
             while len(buf) > 0:
                 hasher.update(buf)
-                buf = f.read(BLK_SZ)
+                buf = f.read(block_size)
         content_cksum = hasher.hexdigest()
 
+        if content_cksum:
+            return False
         # TODO(wolsen) save the hashsum to the unitdata store.
         return False
 
@@ -345,3 +353,15 @@ class TemplatedFileAudit(BaseFileAudit):
         _, user, group, perms = self.permissions
         audit = FilePermissionAudit(path, user, group, perms)
         return audit.is_compliant(path)
+
+
+class DeletedFile(BaseFileAudit):
+    """Audit to ensure that a file is deleted."""
+    def __init__(self, paths):
+        super(DeletedFile, self).__init__(paths)
+
+    def is_compliant(self, path):
+        return not os.path.exists(path)
+
+    def comply(self, path):
+        os.remove(path)

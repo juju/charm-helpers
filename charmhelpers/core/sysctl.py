@@ -31,7 +31,7 @@ __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 
 def create(sysctl_dict, sysctl_file):
-    """Creates a sysctl.conf file from a YAML associative array
+    """Creates a 10-hardening-io.conf file from a YAML associative array
 
     :param sysctl_dict: a YAML-formatted string of sysctl options eg "{ 'kernel.max_pid': 1337 }"
     :type sysctl_dict: str

@@ -1,4 +1,3 @@
-# Copyright 2016 Canonical Limited.
 #
 # This file is part of charm-helpers.
 #
@@ -13,37 +12,29 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.contrib.hardening.audits.file import DirectoryPermissionAudit
 from charmhelpers.contrib.hardening.audits.file import TemplatedFile
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits necessary for checking and setting limits."""
+    """Returns the audits and checks necessary to secure the TTY."""
     audits = []
-    defaults = utils.get_defaults('os')
 
-    # Ensure that the /etc/security/limits.d directory is only writable
-    # by the root user, but others can execute and read.
-    audits.append(DirectoryPermissionAudit('/etc/security/limits.d',
-                                           user='root', group='root',
-                                           mode=0o755))
+    defaults = utils.get_defaults('os')
 
     # If core dumps are not enabled, then don't allow core dumps to be
     # created as they may contain sensitive information.
     if not defaults.get('enable_core_dump', False):
-        audits.append(TemplatedFile('/etc/security/limits.d/10.hardcore.conf',
-                                    SecurityLimitsContext(),
+        audits.append(TemplatedFile('/etc/profile.d/pinerolo_profile.sh',
+                                    ProfileContext(),
                                     template_dir=TEMPLATES_DIR,
-                                    user='root', group='root', mode=0o0440))
+                                    mode=0o0755, user='root', group='root'))
     return audits
 
 
-class SecurityLimitsContext(object):
+class ProfileContext(object):
 
     def __call__(self):
-        defaults = utils.get_defaults('os')
-        ctxt = {'disable_core_dump':
-                not defaults.get('enable_core_dump', False)}
+        ctxt = {}
         return ctxt

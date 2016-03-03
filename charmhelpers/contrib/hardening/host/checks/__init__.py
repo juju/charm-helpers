@@ -18,9 +18,12 @@ from charmhelpers.core.hookenv import log
 
 from charmhelpers.contrib.hardening.host.checks import apt
 from charmhelpers.contrib.hardening.host.checks import limits
+from charmhelpers.contrib.hardening.host.checks import login
 from charmhelpers.contrib.hardening.host.checks import minimize_access
 from charmhelpers.contrib.hardening.host.checks import pam
-from charmhelpers.contrib.hardening.host.checks import suid_guid
+from charmhelpers.contrib.hardening.host.checks import profile
+from charmhelpers.contrib.hardening.host.checks import securetty
+from charmhelpers.contrib.hardening.host.checks import suid_sgid
 
 
 def run_os_checks():
@@ -30,9 +33,12 @@ def run_os_checks():
 
     audits.extend(apt.get_audits())
     audits.extend(limits.get_audits())
+    audits.extend(login.get_audits())
     audits.extend(minimize_access.get_audits())
     audits.extend(pam.get_audits())
-    audits.extend(suid_guid.get_audits())
+    audits.extend(profile.get_audits())
+    audits.extend(securetty.get_audits())
+    audits.extend(suid_sgid.get_audits())
 
     for audit in audits:
         audit.ensure_compliance()

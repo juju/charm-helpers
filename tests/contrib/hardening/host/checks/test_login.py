@@ -13,20 +13,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.contrib.hardening.utils import get_defaults
 
-from charmhelpers.contrib.hardening.audits.apt import RestrictedPackages
+from testtools import TestCase
+
+from charmhelpers.contrib.hardening.host.checks import login
 
 
-def get_audits():
-    """Returns the set of audits to run around apt packages."""
-    audits = []
+class LoginTestCase(TestCase):
 
-    defaults = get_defaults('os')
-    clean_packages = defaults.get('security_packages_clean')
-    if clean_packages:
-        security_packages = defaults.get('security_packages_list', [])
-        if security_packages:
-            audits.append(RestrictedPackages(security_packages))
-
-    return audits
+    def test_login(self):
+        audits = login.get_audits()
+        self.assertEqual(1, len(audits))
+        audit = audits[0]
+        self.assertTrue(isinstance(audit, login.TemplatedFile))
+        self.assertEqual('/etc/login.defs', audit.paths[0])
