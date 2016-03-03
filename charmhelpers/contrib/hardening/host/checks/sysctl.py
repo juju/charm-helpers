@@ -188,11 +188,18 @@ class SysCtlHardeningContext(object):
 class SysctlConf(TemplatedFile):
     """An audit check for sysctl settings."""
     def __init__(self):
-        super(SysctlConf, self).__init__('/etc/sysctl.d/10-hardening-io.conf',
+        self.conffile = '/etc/sysctl.conf'
+        super(SysctlConf, self).__init__(self.conffile,
                                          SysCtlHardeningContext(),
                                          templates_dir=TEMPLATES_DIR,
                                          user='root', group='root', mode=0o644)
 
     def post_write(self):
-        subprocess.check_call(['sysctl', '-p',
-                               '/etc/sysctl.d/10-hardening-io.conf'])
+        try:
+            subprocess.check_call(['sysctl', '-p', self.conffile])
+        except subprocess.CalledProcessError as e:
+            # NOTE: on some systems if sysctl cannot apply all settings it
+            #       will return non-zero as well.
+            log("sysctl -p %s returned an error - maybe some "
+                "keys could not be set - %s" % (self.conffile, e),
+                level=WARNING)
