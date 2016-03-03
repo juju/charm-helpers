@@ -65,13 +65,19 @@ class RestrictedPackages(BaseAudit):
                 continue
 
             pkg = cache[p]
-            if not self.is_virtual_package(pkg) and not pkg.current_ver:
-                log("Package '%s' is not installed." % pkg.name, level=DEBUG)
-                continue
-
-            log("Restricted package '%s' is installed" % pkg.name,
-                level=WARNING)
-            self.delete_package(cache, pkg)
+            if not self.is_virtual_package(pkg):
+                if not pkg.current_ver:
+                    log("Package '%s' is not installed." % pkg.name,
+                        level=DEBUG)
+                    continue
+                else:
+                    log("Checking restricted package '%s' provides" % pkg.name,
+                        level=DEBUG)
+                    self.delete_package(cache, pkg)
+            else:
+                log("Restricted package '%s' is installed" % pkg.name,
+                    level=WARNING)
+                self.delete_package(cache, pkg)
 
     def delete_package(self, cache, pkg):
         """Deletes the package from the system.

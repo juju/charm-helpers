@@ -19,7 +19,6 @@ import re
 import subprocess
 
 from charmhelpers.contrib.hardening import utils
-from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
 from charmhelpers.contrib.hardening.audits.file import TemplatedFile
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 
