@@ -52,7 +52,7 @@ def harden(overrides=None):
                         stacks.append(harden_mysql)
                     elif stack == 'apache':
                         stacks.append(harden_apache)
-                    elif stack == 'host':
+                    elif stack == 'os':
                         stacks.append(harden_os)
                     else:
                         log("Unknown hardener '%s' - ignoring" % (stack),
