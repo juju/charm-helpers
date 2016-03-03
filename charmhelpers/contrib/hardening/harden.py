@@ -14,12 +14,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from charmhelpers.contrib.hardening import (
-    apache,
-    host,
-    mysql,
-    ssh,
-)
+from charmhelpers.contrib.hardening.ssh.harden import harden_ssh
+from charmhelpers.contrib.hardening.host.harden import harden_os
+from charmhelpers.contrib.hardening.mysql.harden import harden_mysql
+from charmhelpers.contrib.hardening.apache.harden import harden_apache
 
 from charmhelpers.core.hookenv import (
     log,
@@ -48,13 +46,13 @@ def harden(overrides=None):
                 stacks = []
                 for stack in harden:
                     if stack == 'ssh':
-                        stacks.append(ssh.harden.harden_ssh)
+                        stacks.append(harden_ssh)
                     elif stack == 'mysql':
-                        stacks.append(mysql.harden.harden_mysql)
+                        stacks.append(harden_mysql)
                     elif stack == 'apache':
-                        stacks.append(apache.harden.harden_apache)
+                        stacks.append(harden_apache)
                     elif stack == 'host':
-                        stacks.append(host.harden.harden_os)
+                        stacks.append(harden_os)
                     else:
                         log("Unknown hardener '%s' - ignoring" % (stack),
                             level=WARNING)
