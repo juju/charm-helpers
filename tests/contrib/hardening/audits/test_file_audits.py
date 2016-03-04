@@ -13,6 +13,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+import os
 import shutil
 import tempfile
 
@@ -215,8 +216,11 @@ class TemplatedFileTestCase(TestCase):
         class Context(object):
             def __call__(self):
                 return {}
-        f = file.TemplatedFile('/foo/bar', Context(), '/tmp', 0o0644)
-        f.comply('/foo/bar')
-        mock_render_and_write.assert_has_calls(call('/tmp', '/foo/bar', {}))
-        mock_ensure_permissions.assert_has_calls(call('/foo/bar', 'root',
-                                                      'root', 0o0644))
+        with tempfile.NamedTemporaryFile() as ftmp:
+            f = file.TemplatedFile(ftmp.name, Context(),
+                                   os.path.dirname(ftmp.name), 0o0644)
+            f.comply(ftmp.name)
+            calls = [call(os.path.dirname(ftmp.name), ftmp.name, {})]
+            mock_render_and_write.assert_has_calls(calls)
+            mock_ensure_permissions.assert_has_calls([call(ftmp.name, 'root',
+                                                          'root', 0o0644)])
