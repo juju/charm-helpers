@@ -20,7 +20,7 @@ KexAlgorithms {{ kex }}
 # HostKeys for protocol version 2
 {% for keyfile in host_key_files %}
 HostKey {{ keyfile }}
-{% endif %}
+{% endfor %}
 #Privilege Separation is turned on for security
 UsePrivilegeSeparation yes
 
