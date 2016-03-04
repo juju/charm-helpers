@@ -145,7 +145,7 @@ class SSHDConfigContext(SSHConfigContext):
         ctxt = {
             'password_auth_allowed':
             defaults['config']['server_password_authentication'],
-            'ports': defaults['config']['port'],
+            'ports': defaults['config']['ports'],
             'addr_family': addr_family,
             'ciphers': self.get_ciphers(defaults['config']),
             'macs': self.get_macs(defaults['config']),
