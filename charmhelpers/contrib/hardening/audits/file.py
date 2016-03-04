@@ -336,8 +336,8 @@ class TemplatedFile(BaseFileAudit):
 
         :param path: the path to correct
         """
-        dirname = os.path.exists(os.path.dirname(path))
-        if not dirname:
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
             os.makedirs(dirname)
 
         self.pre_write()
