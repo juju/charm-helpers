@@ -26,6 +26,7 @@ def run_ssh_checks():
 
     checks = config.get_audits()
     for check in checks:
+        log("Running '%s' check" % (check.__class__.__name__), level=DEBUG)
         check.ensure_compliance()
 
     log("SSH hardening checks complete.", level=DEBUG)
