@@ -31,7 +31,9 @@ def get_audits():
                             user='root', group='root', mode=0o0644),
               TemplatedFile('/etc/ssh/sshd_conf', SSHDConfigContext(),
                             template_dir=TEMPLATES_DIR,
-                            user='root', group='root', mode=0o0644)]
+                            user='root', group='root', mode=0o0644,
+                            service_actions=[{'service': 'ssh',
+                                              'actions': ['restart']}])]
     return audits
 
 

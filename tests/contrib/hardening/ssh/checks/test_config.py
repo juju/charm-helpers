@@ -14,6 +14,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from os import path
+from testtools import TestCase
 
-TEMPLATES_DIR = path.join(path.dirname(__file__), 'templates')
+from mock import patch
+
+from charmhelpers.contrib.hardening.ssh.checks import config
+
+
+class SSHConfigTestCase(TestCase):
+
+    @patch.object(config.utils, 'get_defaults', lambda x: {})
+    def test_dont_clean_packages(self):
+        audits = config.get_audits()
+        self.assertEqual(2, len(audits))

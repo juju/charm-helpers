@@ -17,8 +17,11 @@ import grp
 import os
 import pwd
 
-from subprocess import CalledProcessError
-from subprocess import check_output
+from subprocess import (
+    CalledProcessError,
+    check_output,
+    check_call,
+)
 from traceback import format_exc
 
 from six import string_types
@@ -26,10 +29,13 @@ from six import string_types
 from stat import S_ISGID
 from stat import S_ISUID
 
-from charmhelpers.core.hookenv import DEBUG
-from charmhelpers.core.hookenv import ERROR
-from charmhelpers.core.hookenv import INFO
-from charmhelpers.core.hookenv import log
+from charmhelpers.core.hookenv import (
+    log,
+    DEBUG,
+    INFO,
+    WARNING,
+    ERROR,
+)
 
 from charmhelpers.core import unitdata
 from charmhelpers.core.host import file_hash
@@ -276,12 +282,13 @@ class TemplatedFile(BaseFileAudit):
     changed.
     """
     def __init__(self, path, context, template_dir, mode, user='root',
-                 group='root', **kwargs):
+                 group='root', service_actions=None, **kwargs):
         self.context = context
         self.user = user
         self.group = group
         self.mode = mode
         self.template_dir = template_dir
+        self.service_actions = service_actions
         super(TemplatedFile, self).__init__(paths=path, **kwargs)
 
     def is_compliant(self, path):
@@ -301,6 +308,22 @@ class TemplatedFile(BaseFileAudit):
         else:
             return False
 
+    def run_service_actions(self):
+        """Run any actions on services requested."""
+        if not self.service_actions:
+            return
+
+        for name, actions in self.service_actions:
+            log("Running service '%s' actions '%s'" % (name, actions),
+                level=DEBUG)
+            for action in actions:
+                cmd = ['sudo', 'service', name, action]
+                try:
+                    check_call(cmd)
+                except CalledProcessError as exc:
+                    log("Service name='%s' action='%s' failed - %s" %
+                        (name, action, exc), level=WARNING)
+
     def comply(self, path):
         """Ensures the contents and the permissions of the file.
 
@@ -309,6 +332,7 @@ class TemplatedFile(BaseFileAudit):
         self.pre_write()
         render_and_write(self.template_dir, path, self.context())
         utils.ensure_permissions(path, self.user, self.group, self.mode)
+        self.run_service_actions()
         self.save_checksum(path)
         self.post_write()
 
