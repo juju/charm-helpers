@@ -1,0 +1,43 @@
+general:
+    client_package: openssh-client
+    server_package: openssh-server
+    service_name: ssh
+    network_ipv6_enable: false # sshd + ssh
+config:
+    client_cbc_required: false # ssh
+    server_cbc_required: false # sshd
+    client_weak_hmac: false # ssh
+    server_weak_hmac: false # sshd
+    client_weak_kex: false # ssh
+    server_weak_kex: false # sshd
+    ports: [22] # sshd + ssh
+    listen_to: ['0.0.0.0 # sshd
+    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key # sshd
+    client_alive_interval: 600 # sshd, 10min
+    client_alive_count: 3 # sshd, ~> 3 x interval
+    remote_hosts: [] # ssh
+    allow_root_with_key: false # sshd
+    allow_tcp_forwarding: false # sshd
+    allow_agent_forwarding: false # sshd
+    allow_x11_forwarding: false # sshd
+    use_pam: false # sshd
+    deny_users: [] # sshd
+    allow_users: [] # sshd
+    deny_groups: [] # sshd
+    allow_groups: [] # sshd
+    print_motd: false # sshd
+    print_last_log: false # sshd
+    # set this to nil to let us use the default OpenSSH in case it's not set by the user
+    use_dns: nil # sshd
+    # set this to nil to let us detect the attribute based on the node platform
+    use_privilege_separation = nil
+    max_auth_tries: 2 # sshd
+    max_sessions: 10 # sshd
+    client_password_authentication = false # ssh
+    server_password_authentication = false # sshd
+    # http://undeadly.org/cgi?action=article&sid=20160114142733
+    client_roaming: false
+    # Define SFTP options
+    sftp_enable: false
+    sftp_group: 'sftponly'
+    sftp_chroot: '/home/%u'

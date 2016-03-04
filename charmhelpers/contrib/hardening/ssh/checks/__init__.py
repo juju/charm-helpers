@@ -18,13 +18,13 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
 )
+from charmhelpers.contrib.hardening.ssh.checks import config
 
 
 def run_ssh_checks():
     log("Starting SSH hardening checks.", level=DEBUG)
 
-    checks = [
-    ]
+    checks = [config.get_audits()]
     for check in checks:
         check.ensure_compliance()
 

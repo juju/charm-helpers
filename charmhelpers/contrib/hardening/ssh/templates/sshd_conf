@@ -1,0 +1,169 @@
+# Package generated configuration file
+# See the sshd_config(5) manpage for details
+
+# What ports, IPs and protocols we listen for
+Port {{ ports }}
+AddressFamily {{ addr_family }}
+# Use these options to restrict which interfaces/protocols sshd will bind to
+#ListenAddress ::
+#ListenAddress 0.0.0.0
+Protocol 2
+{% if ciphers %}
+Ciphers {{ ciphers }}
+{% endif %}
+{% if macs %}
+MACs {{ macs }}
+{% endif %}
+{% if kex %}
+KexAlgorithms {{ kex }}
+{% endif %}
+# HostKeys for protocol version 2
+{% for keyfile in host_key_files %}
+HostKey {{ keyfile }}
+{% endif %}
+#Privilege Separation is turned on for security
+UsePrivilegeSeparation yes
+
+# Lifetime and size of ephemeral version 1 server key
+KeyRegenerationInterval 3600
+ServerKeyBits 1024
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO
+
+# Authentication:
+LoginGraceTime 120
+{% if allow_root_with_key %}
+PermitRootLogin without-password
+{% else %}
+PermitRootLogin no
+{% endif %}
+StrictModes yes
+
+RSAAuthentication yes
+PubkeyAuthentication yes
+#AuthorizedKeysFile %h/.ssh/authorized_keys
+
+# Don't read the user's ~/.rhosts and ~/.shosts files
+IgnoreRhosts yes
+# For this to work you will also need host keys in /etc/ssh_known_hosts
+RhostsRSAAuthentication no
+# similar for protocol version 2
+HostbasedAuthentication no
+# Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
+#IgnoreUserKnownHosts yes
+
+# To enable empty passwords, change to yes (NOT RECOMMENDED)
+PermitEmptyPasswords no
+
+# Change to yes to enable challenge-response passwords (beware issues with
+# some PAM modules and threads)
+ChallengeResponseAuthentication no
+
+# Change to no to disable tunnelled clear text passwords
+{% if password_authentication -%}
+PasswordAuthentication yes
+{% else %}
+PasswordAuthentication no
+{% endif %}
+
+# Kerberos options
+#KerberosAuthentication no
+#KerberosGetAFSToken no
+#KerberosOrLocalPasswd yes
+#KerberosTicketCleanup yes
+
+# GSSAPI options
+#GSSAPIAuthentication no
+#GSSAPICleanupCredentials yes
+
+X11Forwarding {{ allow_x11_forwarding }}
+X11DisplayOffset 10
+PrintMotd {{ print_motd }}
+PrintLastLog {{ print_last_log }}
+TCPKeepAlive yes
+#UseLogin no
+
+ClientAliveInterval {{ client_alive_interval }}
+ClientAliveCountMax {{ client_alive_count }}
+AllowTcpForwarding {{ allow_tcp_forwarding }}
+AllowAgentForwarding  {{ allow_agent_forwarding }}
+
+#MaxStartups 10:30:60
+#Banner /etc/issue.net
+
+# Allow client to pass locale environment variables
+AcceptEnv LANG LC_*
+
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# Set this to 'yes' to enable PAM authentication, account processing,
+# and session processing. If this is enabled, PAM authentication will
+# be allowed through the ChallengeResponseAuthentication and
+# PasswordAuthentication.  Depending on your PAM configuration,
+# PAM authentication via ChallengeResponseAuthentication may bypass
+# the setting of "PermitRootLogin without-password".
+# If you just want the PAM account and session checks to run without
+# PAM authentication, then enable this but set PasswordAuthentication
+# and ChallengeResponseAuthentication to 'no'.
+UsePAM yes
+
+{% if deny_users -%}
+DenyUsers {{ deny_users }}
+{% else %}
+#DenyUsers *
+{% endif %}
+{% if allow_users -%}
+AllowUsers {{ allow_users }}
+{% else %}
+#AllowUsers user1
+{% endif %}
+{% if deny_groups -%}
+DenyGroups {{ deny_groups }}
+{% else %}
+#DenyGroups *
+{% endif %}
+{% if allow_groups -%}
+AllowGroups allow_groups
+{% else %}
+#AllowGroups group1
+{% endif %}
+{% if use_dns %}
+# Since OpenSSH 6.8, this value defaults to 'no'
+#UseDNS no
+{% else %}
+UseDNS yes
+{% endif %}
+
+{% if sftp_enable %}
+# Configuration, in case SFTP is used
+## override default of no subsystems
+## Subsystem sftp /opt/app/openssh5/libexec/sftp-server
+Subsystem sftp internal-sftp -l VERBOSE
+
+## These lines must appear at the *end* of sshd_config
+Match Group {{ sftp_group }}
+ForceCommand internal-sftp -l VERBOSE
+ChrootDirectory {{ sftp_chroot }}
+AllowTcpForwarding no
+AllowAgentForwarding no
+PasswordAuthentication no
+PermitRootLogin no
+X11Forwarding no
+{% else %}
+# Configuration, in case SFTP is used
+## override default of no subsystems
+## Subsystem sftp /opt/app/openssh5/libexec/sftp-server
+#Subsystem sftp internal-sftp -l VERBOSE
+#
+## These lines must appear at the *end* of sshd_config
+#Match Group sftponly
+#ForceCommand internal-sftp -l VERBOSE
+#ChrootDirectory /sftpchroot/home/%u
+#AllowTcpForwarding no
+#AllowAgentForwarding no
+#PasswordAuthentication no
+#PermitRootLogin no
+#X11Forwarding no
+{% endif %}
