@@ -1,0 +1,7 @@
+# A list of TTYs, from which root can log in
+# see `man securetty` for reference
+{% if ttys -%}
+{% for tty in ttys -%}
+{{ tty }}
+{% endfor -%}
+{% endif -%}
