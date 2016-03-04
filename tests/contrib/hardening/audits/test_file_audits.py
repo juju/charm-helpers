@@ -223,4 +223,4 @@ class TemplatedFileTestCase(TestCase):
             calls = [call(os.path.dirname(ftmp.name), ftmp.name, {})]
             mock_render_and_write.assert_has_calls(calls)
             mock_ensure_permissions.assert_has_calls([call(ftmp.name, 'root',
-                                                          'root', 0o0644)])
+                                                           'root', 0o0644)])

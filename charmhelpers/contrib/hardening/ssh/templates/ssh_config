@@ -45,15 +45,15 @@ Port {{ port }}
 {% endfor %}
 Protocol 2
 #   Cipher 3des
-{% for cipher in ciphers -%}
+{% if ciphers -%}
 Ciphers {{ ciphers }}
-{% endfor %}
-{% for mac in macs -%}
+{% endif %}
+{% if macs -%}
 MACs {{ macs }}
-{% endfor %}
-{% for kex in kexs -%}
-KexAlgorithms {{ kex }}
-{% endfor %}
+{% endif %}
+{% if kexs -%}
+KexAlgorithms {{ kexs }}
+{% endif %}
 #   EscapeChar ~
 #   Tunnel no
 #   TunnelDevice any:any

@@ -142,6 +142,26 @@ class SSHDConfigContext(SSHConfigContext):
         else:
             addr_family = 'inet'
 
+        allow_tcp_forwarding = "no"
+        if defaults['config']['allow_tcp_forwarding']:
+            allow_tcp_forwarding = "yes"
+
+        allow_x11_forwarding = "no"
+        if defaults['config']['allow_x11_forwarding']:
+            allow_x11_forwarding = "yes"
+
+        allow_agent_forwarding = "no"
+        if defaults['config']['allow_agent_forwarding']:
+            allow_agent_forwarding = "yes"
+
+        print_motd = "no"
+        if defaults['config']['print_motd']:
+            print_motd = "yes"
+
+        print_last_log = "no"
+        if defaults['config']['print_last_log']:
+            print_last_log = "yes"
+
         ctxt = {
             'password_auth_allowed':
             defaults['config']['server_password_authentication'],
@@ -154,16 +174,14 @@ class SSHDConfigContext(SSHConfigContext):
             'allow_root_with_key': defaults['config']['allow_root_with_key'],
             'password_authentication':
             defaults['config']['server_password_authentication'],
-            'allow_x11_forwarding': defaults['config']['allow_x11_forwarding'],
-            'print_motd': defaults['config']['print_motd'],
-            'print_last_log': defaults['config']['print_last_log'],
+            'allow_x11_forwarding': allow_x11_forwarding,
+            'print_motd': print_motd,
+            'print_last_log': print_last_log,
             'client_alive_interval':
             defaults['config']['client_alive_interval'],
             'client_alive_count': defaults['config']['client_alive_count'],
-            'allow_tcp_forwarding':
-            defaults['config']['allow_tcp_forwarding'],
-            'allow_agent_forwarding':
-            defaults['config']['allow_agent_forwarding'],
+            'allow_tcp_forwarding': allow_tcp_forwarding,
+            'allow_agent_forwarding': allow_agent_forwarding,
             'deny_users': defaults['config']['deny_users'],
             'allow_users': defaults['config']['allow_users'],
             'deny_groups': defaults['config']['deny_groups'],
