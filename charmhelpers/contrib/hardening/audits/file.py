@@ -317,7 +317,9 @@ class TemplatedFile(BaseFileAudit):
         if not self.service_actions:
             return
 
-        for name, actions in self.service_actions:
+        for svc_action in self.service_actions:
+            name = svc_action['service']
+            actions = svc_action['actions']
             log("Running service '%s' actions '%s'" % (name, actions),
                 level=DEBUG)
             for action in actions:
