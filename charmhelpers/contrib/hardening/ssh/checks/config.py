@@ -125,7 +125,7 @@ class SSHConfigContext(object):
             'ports': defaults['config']['ports'],
             'ciphers': self.get_ciphers(defaults['config']),
             'macs': self.get_macs(defaults['config']),
-            'kex': self.get_kexs(defaults['config']),
+            'kexs': self.get_kexs(defaults['config']),
             'roaming': defaults['config']['client_roaming'],
         }
         return ctxt
@@ -149,7 +149,7 @@ class SSHDConfigContext(SSHConfigContext):
             'addr_family': addr_family,
             'ciphers': self.get_ciphers(defaults['config']),
             'macs': self.get_macs(defaults['config']),
-            'kex': self.get_kexs(defaults['config']),
+            'kexs': self.get_kexs(defaults['config']),
             'host_key_files': defaults['config']['host_key_files'],
             'allow_root_with_key': defaults['config']['allow_root_with_key'],
             'password_authentication':
@@ -160,7 +160,7 @@ class SSHDConfigContext(SSHConfigContext):
             'client_alive_interval':
             defaults['config']['client_alive_interval'],
             'client_alive_count': defaults['config']['client_alive_count'],
-            'allow_tcp_forwarding ':
+            'allow_tcp_forwarding':
             defaults['config']['allow_tcp_forwarding'],
             'allow_agent_forwarding':
             defaults['config']['allow_agent_forwarding'],
@@ -170,7 +170,7 @@ class SSHDConfigContext(SSHConfigContext):
             'allow_groups': defaults['config']['allow_groups'],
             'use_dns': defaults['config']['use_dns'],
             'sftp_enable': defaults['config']['sftp_enable'],
-            'sftp_group ': defaults['config']['sftp_group'],
+            'sftp_group': defaults['config']['sftp_group'],
             'sftp_chroot': defaults['config']['sftp_chroot'],
         }
         return ctxt

@@ -2,7 +2,9 @@
 # See the sshd_config(5) manpage for details
 
 # What ports, IPs and protocols we listen for
-Port {{ ports }}
+{% for port in ports -%}
+Port {{ port }}
+{% endfor %}
 AddressFamily {{ addr_family }}
 # Use these options to restrict which interfaces/protocols sshd will bind to
 #ListenAddress ::
@@ -18,7 +20,7 @@ MACs {{ macs }}
 KexAlgorithms {{ kex }}
 {% endif %}
 # HostKeys for protocol version 2
-{% for keyfile in host_key_files %}
+{% for keyfile in host_key_files -%}
 HostKey {{ keyfile }}
 {% endfor %}
 #Privilege Separation is turned on for security
@@ -88,7 +90,7 @@ TCPKeepAlive yes
 ClientAliveInterval {{ client_alive_interval }}
 ClientAliveCountMax {{ client_alive_count }}
 AllowTcpForwarding {{ allow_tcp_forwarding }}
-AllowAgentForwarding  {{ allow_agent_forwarding }}
+AllowAgentForwarding {{ allow_agent_forwarding }}
 
 #MaxStartups 10:30:60
 #Banner /etc/issue.net

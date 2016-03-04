@@ -17,7 +17,9 @@
 # ssh_config(5) man page.
 
 # Restrict the following configuration to be limited to this Host.
-Host {{ remote_hosts }}
+{% if remote_hosts -%}
+Host {{ ' '.join(remote_hosts) }}
+{% endif %}
 #   ForwardAgent no
 #   ForwardX11 no
 #   ForwardX11Trusted yes
@@ -38,18 +40,20 @@ PasswordAuthentication {{ password_auth_allowed }}
 #   IdentityFile ~/.ssh/id_rsa
 #   IdentityFile ~/.ssh/id_dsa
 # The port at the destination should be defined
-{% if ports -%}
-Port {{ ports }}
-{% endif %}
+{% for port in ports -%}
+Port {{ port }}
+{% endfor %}
 Protocol 2
 #   Cipher 3des
+{% for cipher in ciphers -%}
 Ciphers {{ ciphers }}
-{% if macs -%}
+{% endfor %}
+{% for mac in macs -%}
 MACs {{ macs }}
-{% endif %}
-{% if kmax -%}
+{% endfor %}
+{% for kex in kexs -%}
 KexAlgorithms {{ kex }}
-{% endif %}
+{% endfor %}
 #   EscapeChar ~
 #   Tunnel no
 #   TunnelDevice any:any
