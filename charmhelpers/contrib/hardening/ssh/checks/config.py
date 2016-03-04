@@ -150,7 +150,7 @@ class SSHDConfigContext(SSHConfigContext):
             'ciphers': self.get_ciphers(defaults['config']),
             'macs': self.get_macs(defaults['config']),
             'kex': self.get_kexs(defaults['config']),
-            'host_key_files': defaults['config']['ssh_host_key_files'],
+            'host_key_files': defaults['config']['host_key_files'],
             'allow_root_with_key': defaults['config']['allow_root_with_key'],
             'password_authentication':
             defaults['config']['server_password_authentication'],
