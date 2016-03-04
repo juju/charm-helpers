@@ -31,20 +31,21 @@ class LoginContext(object):
     def __call__(self):
         defaults = utils.get_defaults('os')
         ctxt = {
-            'additional_user_paths': defaults.get('env_extra_user_paths'),
-            'umask': defaults.get('env_umask'),
-            'pwd_max_age': defaults.get('auth_pw_max_age'),
-            'pwd_min_age': defaults.get('auth_pw_min_age'),
-            'uid_min': defaults.get('auth_uid_min'),
-            'sys_uid_min': defaults.get('auth_sys_uid_min'),
-            'sys_uid_max': defaults.get('auth_sys_uid_max'),
-            'gid_min': defaults.get('auth_gid_min'),
-            'sys_gid_min': defaults.get('auth_sys_gid_min'),
-            'sys_gid_max': defaults.get('auth_sys_gid_max'),
-            'login_retries': defaults.get('auth_retries'),
-            'login_timeout': defaults.get('auth_timeout'),
-            'chfn_restrict': defaults.get('chfn_restrict'),
-            'allow_login_without_home': defaults.get('auth_allow_homeless')
+            'additional_user_paths':
+            defaults['environment']['extra_user_paths'],
+            'umask': defaults['environment']['umask'],
+            'pwd_max_age': defaults['auth']['pw_max_age'],
+            'pwd_min_age': defaults['auth']['pw_min_age'],
+            'uid_min': defaults['auth']['uid_min'],
+            'sys_uid_min': defaults['auth']['sys_uid_min'],
+            'sys_uid_max': defaults['auth']['sys_uid_max'],
+            'gid_min': defaults['auth']['gid_min'],
+            'sys_gid_min': defaults['auth']['sys_gid_min'],
+            'sys_gid_max': defaults['auth']['sys_gid_max'],
+            'login_retries': defaults['auth']['retries'],
+            'login_timeout': defaults['auth']['timeout'],
+            'chfn_restrict': defaults['auth']['chfn_restrict'],
+            'allow_login_without_home': defaults['auth']['allow_homeless']
         }
 
         return ctxt

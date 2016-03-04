@@ -53,7 +53,7 @@ def get_audits():
 
     # If module loading is not enabled, then ensure that the modules
     # file has the appropriate permissions and rebuild the initramfs
-    if not defaults.get('security_kernel_enable_module_loading', False):
+    if not defaults['security']['kernel_enable_module_loading']:
         audits.append(ModulesTemplate())
 
     return audits
@@ -77,7 +77,7 @@ class ModulesContext(object):
 
         ctxt = {'arch': platform.processor(),
                 'cpuVendor': vendor,
-                'desktop_enable': defaults.get('desktop_enable', False)}
+                'desktop_enable': defaults['general']['desktop_enable']}
 
         return ctxt
 
@@ -110,24 +110,24 @@ class SysCtlHardeningContext(object):
                   'fs_suid_dumpable': 0,
                   'kernel_modules_disabled': 1}
 
-        if defaults.get('network_ipv6_enable'):
+        if defaults['sysctl']['ipv6_enable']:
             extras['net_ipv6_conf_all_disable_ipv6'] = 0
 
-        if defaults.get('network_forwarding'):
+        if defaults['sysctl']['forwarding']:
             extras['net_ipv4_ip_forward'] = 1
             extras['net_ipv6_conf_all_forwarding'] = 1
 
-        if defaults.get('network_arp_restricted'):
+        if defaults['sysctl']['arp_restricted']:
             extras['net_ipv4_conf_all_arp_ignore'] = 1
 
-        if defaults.get('security_kernel_enable_module_loading'):
+        if defaults['security']['kernel_enable_module_loading']:
             extras['kernel_modules_disabled'] = 0
 
-        if defaults.get('security_kernel_enable_sysrq'):
-            sysrq_val = defaults.get('security_kernel_secure_sysrq')
+        if defaults['sysctl']['kernel_enable_sysrq']:
+            sysrq_val = defaults['sysctl']['kernel_secure_sysrq']
             extras['kernel_sysrq'] = sysrq_val
 
-        if defaults.get('security_kernel_enable_core_dump'):
+        if defaults['security']['kernel_enable_core_dump']:
             extras['fs_suid_dumpable'] = 1
 
         sysctl_defaults = """
@@ -202,6 +202,6 @@ class SysctlConf(TemplatedFile):
         except subprocess.CalledProcessError as e:
             # NOTE: on some systems if sysctl cannot apply all settings it
             #       will return non-zero as well.
-            log("sysctl -p %s returned an error - maybe some "
-                "keys could not be set - %s" % (self.conffile, e),
+            log("sysctl command returned an error (maybe some "
+                "keys could not be set) - %s" % (e),
                 level=WARNING)

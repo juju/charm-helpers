@@ -31,5 +31,5 @@ class SecureTTYContext(object):
 
     def __call__(self):
         defaults = utils.get_defaults('os')
-        ctxt = {'ttys': defaults.get('auth_root_ttys')}
+        ctxt = {'ttys': defaults['auth']['root_ttys']}
         return ctxt

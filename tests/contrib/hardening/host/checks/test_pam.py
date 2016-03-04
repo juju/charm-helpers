@@ -24,7 +24,8 @@ from charmhelpers.contrib.hardening.host.checks import pam
 class PAMTestCase(TestCase):
 
     @patch.object(pam.utils, 'get_defaults', lambda x: {
-        'auth_pam_passwdqc_enable': True
+        'auth': {'pam_passwdqc_enable': True,
+                 'retries': False}
     })
     def test_enable_passwdqc(self):
         audits = pam.get_audits()
@@ -36,7 +37,8 @@ class PAMTestCase(TestCase):
         self.assertEqual('/usr/share/pam-configs/tally2', audit.paths[0])
 
     @patch.object(pam.utils, 'get_defaults', lambda x: {
-        'auth_pam_passwdqc_enable': False
+        'auth': {'pam_passwdqc_enable': False,
+                 'retries': True}
     })
     def test_disable_passwdqc(self):
         audits = pam.get_audits()
@@ -44,8 +46,8 @@ class PAMTestCase(TestCase):
         self.assertFalse(isinstance(audits[0], pam.PasswdqcPAM))
 
     @patch.object(pam.utils, 'get_defaults', lambda x: {
-        'auth_pam_passwdqc_enable': False,
-        'auth_retries': True,
+        'auth': {'pam_passwdqc_enable': False,
+                 'retries': True}
     })
     def test_auth_retries(self):
         audits = pam.get_audits()

@@ -23,7 +23,9 @@ from charmhelpers.contrib.hardening.host.checks import minimize_access
 
 class MinimizeAccessTestCase(TestCase):
 
-    @patch.object(minimize_access.utils, 'get_defaults', lambda x: {})
+    @patch.object(minimize_access.utils, 'get_defaults', lambda x:
+                  {'environment': {'extra_user_paths': []},
+                   'security': {'users_allow': []}})
     def test_default_options(self):
         audits = minimize_access.get_audits()
         self.assertEqual(3, len(audits))
@@ -47,9 +49,9 @@ class MinimizeAccessTestCase(TestCase):
         self.assertEqual(audits[2].paths[0], '/bin/su')
         self.assertEqual(audits[2].mode, 0o0750)
 
-    @patch.object(minimize_access.utils, 'get_defaults', lambda x: {
-        'security_users_allow': ['change_user']
-    })
+    @patch.object(minimize_access.utils, 'get_defaults', lambda x:
+                  {'environment': {'extra_user_paths': []},
+                   'security': {'users_allow': ['change_user']}})
     def test_allow_change_user(self):
         audits = minimize_access.get_audits()
         self.assertEqual(2, len(audits))
