@@ -26,10 +26,10 @@ from charmhelpers.core.host import lsb_release
 
 def get_audits():
     """Returns the audits used to verify the ssh"""
-    audits = [TemplatedFile('/etc/ssh/ssh_conf', SSHConfigContext(),
+    audits = [TemplatedFile('/etc/ssh/ssh_config', SSHConfigContext(),
                             template_dir=TEMPLATES_DIR,
                             user='root', group='root', mode=0o0644),
-              TemplatedFile('/etc/ssh/sshd_conf', SSHDConfigContext(),
+              TemplatedFile('/etc/ssh/sshd_config', SSHDConfigContext(),
                             template_dir=TEMPLATES_DIR,
                             user='root', group='root', mode=0o0644,
                             service_actions=[{'service': 'ssh',

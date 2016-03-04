@@ -60,7 +60,7 @@ class BaseFileAudit(BaseAudit):
             # Skip any paths which do not exist.
             if not os.path.exists(p):
                 log("Skipping compliance check for non-existent path '%s'"
-                    % (p), level=WARNING)
+                    % (p), level=INFO)
                 continue
 
             # Skip any paths which are compliant.
