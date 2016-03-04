@@ -11,8 +11,8 @@ config:
     client_weak_kex: false # ssh
     server_weak_kex: false # sshd
     ports: [22] # sshd + ssh
-    listen_to: ['0.0.0.0 # sshd
-    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key # sshd
+    listen_to: ['0.0.0.0'] # sshd
+    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key'] # sshd
     client_alive_interval: 600 # sshd, 10min
     client_alive_count: 3 # sshd, ~> 3 x interval
     remote_hosts: [] # ssh
@@ -30,11 +30,11 @@ config:
     # set this to nil to let us use the default OpenSSH in case it's not set by the user
     use_dns: nil # sshd
     # set this to nil to let us detect the attribute based on the node platform
-    use_privilege_separation = nil
+    use_privilege_separation: nil
     max_auth_tries: 2 # sshd
     max_sessions: 10 # sshd
-    client_password_authentication = false # ssh
-    server_password_authentication = false # sshd
+    client_password_authentication: false # ssh
+    server_password_authentication: false # sshd
     # http://undeadly.org/cgi?action=article&sid=20160114142733
     client_roaming: false
     # Define SFTP options
