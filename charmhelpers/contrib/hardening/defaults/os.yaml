@@ -1,48 +1,57 @@
-# Misc
-desktop_enable: false
-
-# Environment
-env_extra_user_paths: []
-env_umask: '027'
-env_root_path: '/'
-
-# /etc/login
-auth_pw_max_age: 60
-auth_pw_min_age: 7 # discourage password cycling
-auth_retries: 5
-auth_lockout_time: 600 # 10min
-auth_timeout: 60
-auth_allow_homeless: false
-auth_pam_passwdqc_enable: true
-auth_pam_passwdqc_options: 'min=disabled,disabled,16,12,8'
-auth_root_ttys: [console, tty1, tty2, tty3, tty4, tty5, tty6]
-auth_uid_min: 1000
-auth_gid_min: 1000
-auth_sys_uid_min: 100
-auth_sys_uid_max: 999
-auth_sys_gid_min: 100
-auth_sys_gid_max: 999
-chfn_restrict: ''
-
-# users
-security_users_allow: []
-
-# sysctl
-security_kernel_enable_module_loading: true
-security_kernel_enable_core_dump: false
-security_kernel_secure_sysrq: 4 + 16 + 32 + 64 + 128
-security_suid_sgid_enforce: true
-security_kernel_enable_sysrq: false
-network_forwarding: false
-network_ipv6_enable: false
-network_arp_restricted: true
-
-# user-defined blacklist and whitelist
-security_suid_sgid_blacklist: []
-security_suid_sgid_whitelist: []
-# if this is true, remove any suid/sgid bits from files that were not in the whitelist
-security_suid_sgid_remove_from_unknown: false
-
-# remove packages with known issues
-security_packages_clean: true
-security_packages_list: ['xinetd','inetd','ypserv','telnet-server','rsh-server','rsync']
+general:
+    desktop_enable: False
+environment:
+    extra_user_paths: []
+    umask: 027
+    root_path: /
+auth:
+    pw_max_age: 60
+    # discourage password cycling
+    pw_min_age: 7
+    retries: 5
+    lockout_time: 600
+    timeout: 60
+    allow_homeless: False
+    pam_passwdqc_enable: True
+    pam_passwdqc_options: 'min=disabled,disabled,16,12,8'
+    root_ttys:
+        console
+        tty1
+        tty2
+        tty3
+        tty4
+        tty5
+        tty6
+    uid_min: 1000
+    gid_min: 1000
+    sys_uid_min: 100
+    sys_uid_max: 999
+    sys_gid_min: 100
+    sys_gid_max: 999
+    chfn_restrict:
+security:
+    users_allow: []
+    suid_sgid_enforce: True
+    # user-defined blacklist and whitelist
+    suid_sgid_blacklist: []
+    suid_sgid_whitelist: []
+    # if this is True, remove any suid/sgid bits from files that were not in the whitelist
+    suid_sgid_dry_run_on_unknown: False
+    suid_sgid_remove_from_unknown: False
+    # remove packages with known issues
+    packages_clean: True
+    packages_list:
+        xinetd
+        inetd
+        ypserv
+        telnet-server
+        rsh-server
+        rsync
+    kernel_enable_module_loading: True
+    kernel_enable_core_dump: False
+sysctl:
+    kernel_secure_sysrq: 4 + 16 + 32 + 64 + 128
+    kernel_enable_sysrq: False
+    forwarding: False
+    ipv6_enable: False
+    arp_restricted: True

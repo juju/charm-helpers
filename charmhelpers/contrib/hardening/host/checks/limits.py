@@ -32,7 +32,7 @@ def get_audits():
 
     # If core dumps are not enabled, then don't allow core dumps to be
     # created as they may contain sensitive information.
-    if not defaults.get('enable_core_dump', False):
+    if not defaults['security']['kernel_enable_core_dump']:
         audits.append(TemplatedFile('/etc/security/limits.d/10.hardcore.conf',
                                     SecurityLimitsContext(),
                                     template_dir=TEMPLATES_DIR,
@@ -45,5 +45,5 @@ class SecurityLimitsContext(object):
     def __call__(self):
         defaults = utils.get_defaults('os')
         ctxt = {'disable_core_dump':
-                not defaults.get('enable_core_dump', False)}
+                not defaults['security']['kernel_enable_core_dump']}
         return ctxt

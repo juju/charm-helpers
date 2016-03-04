@@ -27,9 +27,9 @@ def get_audits():
                           'expected': 'false'}])]
 
     defaults = get_defaults('os')
-    clean_packages = defaults.get('security_packages_clean')
+    clean_packages = defaults['security']['packages_clean']
     if clean_packages:
-        security_packages = defaults.get('security_packages_list', [])
+        security_packages = defaults['security']['packages_list']
         if security_packages:
             audits.append(RestrictedPackages(security_packages))
 

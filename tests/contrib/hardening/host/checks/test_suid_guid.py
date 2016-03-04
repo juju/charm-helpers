@@ -27,7 +27,7 @@ from charmhelpers.contrib.hardening.host.checks import suid_sgid
 class SUIDSGIDTestCase(TestCase):
 
     @patch.object(suid_sgid.utils, 'get_defaults', lambda x: {
-        'security_suid_sgid_enforce': False
+        'security': {'suid_sgid_enforce': False}
     })
     def test_no_enforcement(self):
         audits = suid_sgid.get_audits()
@@ -35,8 +35,12 @@ class SUIDSGIDTestCase(TestCase):
 
     @patch.object(suid_sgid, 'subprocess')
     @patch.object(suid_sgid.utils, 'get_defaults', lambda x: {
-        'security_suid_sgid_enforce': True,
-        'security_suid_sgid_remove_from_unknown': True
+        'security': {'suid_sgid_enforce': True,
+                     'suid_sgid_remove_from_unknown': True,
+                     'suid_sgid_blacklist': [],
+                     'suid_sgid_whitelist': [],
+                     'suid_sgid_dry_run_on_unknown': True},
+        'environment': {'root_path': '/'}
     })
     def test_suid_guid_harden(self, mock_subprocess):
         p = mock_subprocess.Popen.return_value
