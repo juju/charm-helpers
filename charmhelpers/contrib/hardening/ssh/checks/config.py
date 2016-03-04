@@ -39,8 +39,10 @@ def get_audits():
 
 class SSHConfigContext(object):
 
+    type = 'client'
+
     def get_macs(self, settings):
-        if settings['weak_hmac']:
+        if settings['%s_weak_hmac' % (self.type)]:
             weak_macs = 'weak'
         else:
             weak_macs = 'default'
@@ -64,7 +66,7 @@ class SSHConfigContext(object):
         return macs[weak_macs]
 
     def get_kexs(self, settings):
-        if settings['weak_kex']:
+        if settings['%s_weak_kex' % (self.type)]:
             weak_kex = 'weak'
         else:
             weak_kex = 'default'
@@ -93,7 +95,7 @@ class SSHConfigContext(object):
         return kex[weak_kex]
 
     def get_ciphers(self, settings):
-        if settings['cbc_required']:
+        if settings['%s_cbc_required' % (self.type)]:
             weak_ciphers = 'weak'
         else:
             weak_ciphers = 'default'
@@ -130,6 +132,8 @@ class SSHConfigContext(object):
 
 
 class SSHDConfigContext(SSHConfigContext):
+
+    type = 'server'
 
     def __call__(self):
         defaults = utils.get_defaults('ssh')
