@@ -30,19 +30,20 @@ from charmhelpers.contrib.hardening.host.checks import sysctl
 def run_os_checks():
     log("Starting OS hardening checks.", level=DEBUG)
 
-    audits = []
+    checks = []
 
-    audits.extend(apt.get_audits())
-    audits.extend(limits.get_audits())
-    audits.extend(login.get_audits())
-    audits.extend(minimize_access.get_audits())
-    audits.extend(pam.get_audits())
-    audits.extend(profile.get_audits())
-    audits.extend(securetty.get_audits())
-    audits.extend(suid_sgid.get_audits())
-    audits.extend(sysctl.get_audits())
+    checks.extend(apt.get_audits())
+    checks.extend(limits.get_audits())
+    checks.extend(login.get_audits())
+    checks.extend(minimize_access.get_audits())
+    checks.extend(pam.get_audits())
+    checks.extend(profile.get_audits())
+    checks.extend(securetty.get_audits())
+    checks.extend(suid_sgid.get_audits())
+    checks.extend(sysctl.get_audits())
 
-    for audit in audits:
-        audit.ensure_compliance()
+    for check in checks:
+        log("Running '%s' check" % (check.__class__.__name__), level=DEBUG)
+        check.ensure_compliance()
 
     log("OS hardening checks complete.", level=DEBUG)

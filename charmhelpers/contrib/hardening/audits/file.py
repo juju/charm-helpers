@@ -59,15 +59,19 @@ class BaseFileAudit(BaseAudit):
         for p in self.paths:
             # Skip any paths which do not exist.
             if not os.path.exists(p):
+                log("Skipping compliance check for non-existent path '%s'"
+                    % (p), level=WARNING)
                 continue
 
             # Skip any paths which are compliant.
             if self.is_compliant(p):
                 continue
 
-            log('File %s is not in compliance.' % p, level=DEBUG)
+            log('File %s is not in compliance.' % p, level=INFO)
             if self._take_action():
+                log("Starting compliance", level=INFO)
                 self.comply(p)
+                log("Compliance completed", level=INFO)
 
     def is_compliant(self, path):
         """Audits the path to see if it is compliance.

@@ -23,7 +23,7 @@ class BaseAudit(object):  # NO-QA
     check method will return a value which will be supplied to the.
     """
     def __init__(self, *args, **kwargs):
-        self.unless = kwargs['unless'] if 'unless' in kwargs else None
+        self.unless = kwargs.get('unless', None)
         super(BaseAudit, self).__init__()
 
     def ensure_compliance(self):
