@@ -170,7 +170,7 @@ class SSHDConfigContext(SSHConfigContext):
             'allow_groups': defaults['config']['allow_groups'],
             'use_dns': defaults['config']['use_dns'],
             'sftp_enable': defaults['config']['sftp_enable'],
-            'sftp_group ': defaults['config']['stfp_group'],
+            'sftp_group ': defaults['config']['sftp_group'],
             'sftp_chroot': defaults['config']['sftp_chroot'],
         }
         return ctxt
