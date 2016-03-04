@@ -23,11 +23,11 @@ from subprocess import (
     check_call,
 )
 from traceback import format_exc
-
 from six import string_types
-
-from stat import S_ISGID
-from stat import S_ISUID
+from stat import (
+    S_ISGID,
+    S_ISUID
+)
 
 from charmhelpers.core.hookenv import (
     log,
@@ -48,8 +48,9 @@ from charmhelpers.contrib.hardening import utils
 class BaseFileAudit(BaseAudit):
     """Implements base file audits."""
 
-    def __init__(self, paths, *args, **kwargs):
+    def __init__(self, paths, force_compliance=False, *args, **kwargs):
         super(BaseFileAudit, self).__init__(*args, **kwargs)
+        self.force_compliance = force_compliance
         if isinstance(paths, string_types) or not hasattr(paths, '__iter__'):
             self.paths = [paths]
         else:
@@ -57,21 +58,20 @@ class BaseFileAudit(BaseAudit):
 
     def ensure_compliance(self):
         for p in self.paths:
-            # Skip any paths which do not exist.
-            if not os.path.exists(p):
-                log("Skipping compliance check for non-existent path '%s'"
-                    % (p), level=INFO)
-                continue
+            if os.path.exists(p):
+                if self.is_compliant(p):
+                    continue
 
-            # Skip any paths which are compliant.
-            if self.is_compliant(p):
-                continue
+                log('File %s is not in compliance.' % p, level=INFO)
+            else:
+                if not self.force_compliance:
+                    log("Skipping compliance check for non-existent path '%s'"
+                        % (p), level=INFO)
+                    continue
 
-            log('File %s is not in compliance.' % p, level=INFO)
             if self._take_action():
-                log("Starting compliance", level=INFO)
+                log("Applying compliance criteria to '%s'" % (p), level=INFO)
                 self.comply(p)
-                log("Compliance completed", level=INFO)
 
     def is_compliant(self, path):
         """Audits the path to see if it is compliance.
@@ -293,7 +293,8 @@ class TemplatedFile(BaseFileAudit):
         self.mode = mode
         self.template_dir = template_dir
         self.service_actions = service_actions
-        super(TemplatedFile, self).__init__(paths=path, **kwargs)
+        super(TemplatedFile, self).__init__(paths=path, force_compliance=True,
+                                            **kwargs)
 
     def is_compliant(self, path):
         """Determines if the templated file is compliant.
@@ -335,6 +336,10 @@ class TemplatedFile(BaseFileAudit):
 
         :param path: the path to correct
         """
+        dirname = os.path.exists(os.path.dirname(path))
+        if not dirname:
+            os.makedirs(dirname)
+
         self.pre_write()
         render_and_write(self.template_dir, path, self.context())
         utils.ensure_permissions(path, self.user, self.group, self.mode)
