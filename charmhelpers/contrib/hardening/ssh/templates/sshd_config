@@ -10,14 +10,14 @@ AddressFamily {{ addr_family }}
 #ListenAddress ::
 #ListenAddress 0.0.0.0
 Protocol 2
-{% if ciphers %}
+{% if ciphers -%}
 Ciphers {{ ciphers }}
 {% endif %}
-{% if macs %}
+{% if macs -%}
 MACs {{ macs }}
 {% endif %}
-{% if kex %}
-KexAlgorithms {{ kex }}
+{% if kexs -%}
+KexAlgorithms {{ kexs }}
 {% endif %}
 # HostKeys for protocol version 2
 {% for keyfile in host_key_files -%}
@@ -36,9 +36,9 @@ LogLevel INFO
 
 # Authentication:
 LoginGraceTime 120
-{% if allow_root_with_key %}
+{% if allow_root_with_key -%}
 PermitRootLogin without-password
-{% else %}
+{% else -%}
 PermitRootLogin no
 {% endif %}
 StrictModes yes
@@ -131,11 +131,11 @@ AllowGroups allow_groups
 {% else %}
 #AllowGroups group1
 {% endif %}
-{% if use_dns %}
+{% if use_dns -%}
+UseDNS yes
+{% else %}
 # Since OpenSSH 6.8, this value defaults to 'no'
 #UseDNS no
-{% else %}
-UseDNS yes
 {% endif %}
 
 {% if sftp_enable %}
