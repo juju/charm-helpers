@@ -113,27 +113,27 @@ UsePAM yes
 
 {% if deny_users -%}
 DenyUsers {{ deny_users }}
-{% else %}
+{% else -%}
 #DenyUsers *
 {% endif %}
 {% if allow_users -%}
 AllowUsers {{ allow_users }}
-{% else %}
+{% else -%}
 #AllowUsers user1
 {% endif %}
 {% if deny_groups -%}
 DenyGroups {{ deny_groups }}
-{% else %}
+{% else -%}
 #DenyGroups *
 {% endif %}
 {% if allow_groups -%}
 AllowGroups allow_groups
-{% else %}
+{% else -%}
 #AllowGroups group1
 {% endif %}
 {% if use_dns -%}
 UseDNS yes
-{% else %}
+{% else -%}
 # Since OpenSSH 6.8, this value defaults to 'no'
 #UseDNS no
 {% endif %}
