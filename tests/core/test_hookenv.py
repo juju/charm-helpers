@@ -1160,6 +1160,21 @@ class HelpersTest(TestCase):
             self.assertEqual(hookenv.charm_dir(), '/var/empty')
 
     @patch('subprocess.check_output')
+    def test_resource_get_unsupported(self, check_output_):
+        check_output_.side_effect = OSError(2, 'resource-get')
+        self.assertRaises(NotImplementedError, hookenv.resource_get, 'foo')
+
+    @patch('subprocess.check_output')
+    def test_resource_get(self, check_output_):
+        check_output_.return_value = b'/tmp/file'
+        self.assertEqual(hookenv.resource_get('file'), '/tmp/file')
+        check_output_.side_effect = CalledProcessError(
+            1, '/foo/bin/resource-get',
+            'error: could not download resource: resource#foo/file not found')
+        self.assertFalse(hookenv.resource_get('no-file'))
+        self.assertFalse(hookenv.resource_get(None))
+
+    @patch('subprocess.check_output')
     def test_is_leader_unsupported(self, check_output_):
         check_output_.side_effect = OSError(2, 'is-leader')
         self.assertRaises(NotImplementedError, hookenv.is_leader)
@@ -1613,7 +1628,7 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_network_get_primary_unsupported(self, check_output):
-        '''Ensure that NotImplementedError is thrown when run on Juju < 2.0''' 
+        '''Ensure that NotImplementedError is thrown when run on Juju < 2.0'''
         check_output.side_effect = OSError(2, 'network-get')
         self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
                           'mybinding')
