@@ -151,8 +151,19 @@ class SSHConfig(TemplatedFile):
                                         group='root',
                                         mode=0o0644)
 
+    def pre_write(self):
+        apt_update(fatal=True)
+        apt_install('openssh-client')
+        if not os.path.exists('/etc/ssh'):
+            os.makedir('/etc/ssh')
+            # NOTE: don't recurse
+            utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755,
+                                     maxdepth=0)
+
     def post_write(self):
-        utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755)
+        # NOTE: don't recurse
+        utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755,
+                                 maxdepth=0)
 
 
 class SSHDConfigContext(SSHConfigContext):
@@ -233,10 +244,14 @@ class SSHDConfig(TemplatedFile):
 
     def pre_write(self):
         apt_update(fatal=True)
-        apt_install('ssh')
+        apt_install('openssh-server')
         if not os.path.exists('/etc/ssh'):
             os.makedir('/etc/ssh')
-            utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755)
+            # NOTE: don't recurse
+            utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755,
+                                     maxdepth=0)
 
     def post_write(self):
-        utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755)
+        # NOTE: don't recurse
+        utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755,
+                                 maxdepth=0)

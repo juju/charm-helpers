@@ -224,3 +224,34 @@ class TemplatedFileTestCase(TestCase):
             mock_render_and_write.assert_has_calls(calls)
             mock_ensure_permissions.assert_has_calls([call(ftmp.name, 'root',
                                                            'root', 0o0644)])
+
+
+CONTENTS_PASS = """Ciphers aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512,hmac-sha2-256,hmac-ripemd160
+KexAlgorithms diffie-hellman-group-exchange-sha256
+"""
+
+
+CONTENTS_FAIL = """Ciphers aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512,hmac-sha2-256,hmac-ripemd160
+KexAlgorithms 'diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
+"""
+
+
+class FileContentAuditTestCase(TestCase):
+
+    def test_audit_contents_pass(self):
+        patterns = []
+        with tempfile.NamedTemporaryFile() as ftmp:
+            with open(ftmp.name, 'w') as fd:
+                fd.write(CONTENTS_PASS)
+
+            file.FileContentAudit(ftmp.name, patterns)
+
+    def test_audit_contents_fail(self):
+        patterns = []
+        with tempfile.NamedTemporaryFile() as ftmp:
+            with open(ftmp.name, 'w') as fd:
+                fd.write(CONTENTS_FAIL)
+
+            file.FileContentAudit(ftmp.name, patterns)
