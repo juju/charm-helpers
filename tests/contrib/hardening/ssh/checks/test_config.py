@@ -26,4 +26,4 @@ class SSHConfigTestCase(TestCase):
     @patch.object(config.utils, 'get_defaults', lambda x: {})
     def test_dont_clean_packages(self):
         audits = config.get_audits()
-        self.assertEqual(2, len(audits))
+        self.assertEqual(4, len(audits))
