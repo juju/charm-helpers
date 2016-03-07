@@ -16,6 +16,7 @@
 import grp
 import os
 import pwd
+import re
 
 from subprocess import (
     CalledProcessError,
@@ -410,3 +411,24 @@ class DeletedFile(BaseFileAudit):
 
     def comply(self, path):
         os.remove(path)
+
+
+class FileContentAudit(BaseFileAudit):
+    """Audit the contents of a file."""
+    def __init__(self, paths, patterns, **kwargs):
+        self.patterns = patterns
+        super(FileContentAudit, self).__init__(paths, **kwargs)
+
+    def is_compliant(self, path):
+        log("Auditing contents of file '%s'" % (path), level=DEBUG)
+        compliant = True
+        with open(path, 'r') as fd:
+            contents = fd.read()
+
+        for pattern in self.patterns:
+            key = re.compile(pattern)
+            results = re.search(key, contents, flags=re.MULTILINE)
+            if not results:
+                compliant = False
+
+        return compliant

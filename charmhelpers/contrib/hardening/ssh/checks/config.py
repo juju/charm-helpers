@@ -13,27 +13,37 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.contrib.hardening.audits.file import TemplatedFile
-from charmhelpers.contrib.hardening.ssh import TEMPLATES_DIR
-from charmhelpers.contrib.hardening import utils
+
+import os
 
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
 )
+from charmhelpers.fetch import (
+    apt_install,
+    apt_update,
+)
 from charmhelpers.core.host import lsb_release
+from charmhelpers.contrib.hardening.audits.file import (
+    TemplatedFile,
+    FileContentAudit,
+)
+from charmhelpers.contrib.hardening.ssh import TEMPLATES_DIR
+from charmhelpers.contrib.hardening import utils
+
+
+SSH_CONFIG_AUDIT_PATTERNS = []
+SSHD_CONFIG_AUDIT_PATTERNS = []
 
 
 def get_audits():
     """Returns the audits used to verify the ssh"""
-    audits = [TemplatedFile('/etc/ssh/ssh_config', SSHConfigContext(),
-                            template_dir=TEMPLATES_DIR,
-                            user='root', group='root', mode=0o0644),
-              TemplatedFile('/etc/ssh/sshd_config', SSHDConfigContext(),
-                            template_dir=TEMPLATES_DIR,
-                            user='root', group='root', mode=0o0644,
-                            service_actions=[{'service': 'ssh',
-                                              'actions': ['restart']}])]
+    audits = [SSHConfig(), SSHDConfig(),
+              FileContentAudit('/etc/ssh/ssh_config',
+                               SSH_CONFIG_AUDIT_PATTERNS),
+              FileContentAudit('/etc/ssh/sshd_config',
+                               SSHD_CONFIG_AUDIT_PATTERNS)]
     return audits
 
 
@@ -131,6 +141,20 @@ class SSHConfigContext(object):
         return ctxt
 
 
+class SSHConfig(TemplatedFile):
+    def __init__(self):
+        path = '/etc/ssh/ssh_config'
+        super(SSHConfig, self).__init__(path=path,
+                                        template_dir=TEMPLATES_DIR,
+                                        context=SSHConfigContext(),
+                                        user='root',
+                                        group='root',
+                                        mode=0o0644)
+
+    def post_write(self):
+        utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755)
+
+
 class SSHDConfigContext(SSHConfigContext):
 
     type = 'server'
@@ -192,3 +216,27 @@ class SSHDConfigContext(SSHConfigContext):
             'sftp_chroot': defaults['config']['sftp_chroot'],
         }
         return ctxt
+
+
+class SSHDConfig(TemplatedFile):
+    def __init__(self):
+        path = '/etc/ssh/sshd_config'
+        super(SSHDConfig, self).__init__(path=path,
+                                         template_dir=TEMPLATES_DIR,
+                                         context=SSHDConfigContext(),
+                                         user='root',
+                                         group='root',
+                                         mode=0o0600,
+                                         service_actions=[{'service': 'ssh',
+                                                           'actions':
+                                                           ['restart']}])
+
+    def pre_write(self):
+        apt_update(fatal=True)
+        apt_install('ssh')
+        if not os.path.exists('/etc/ssh'):
+            os.makedir('/etc/ssh')
+            utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755)
+
+    def post_write(self):
+        utils.ensure_permissions('/etc/ssh', 'root', 'root', 0o0755)
