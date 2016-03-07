@@ -976,3 +976,16 @@ def _run_atexit():
     for callback, args, kwargs in reversed(_atexit):
         callback(*args, **kwargs)
     del _atexit[:]
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def network_get_primary_address(binding):
+    '''
+    Retrieve the primary network address for a named binding
+
+    :param binding: string. The name of a relation of extra-binding
+    :return: string. The primary IP address for the named binding
+    :raise: NotImplementedError if run on Juju < 2.0
+    '''
+    cmd = ['network-get', '--primary-address', binding]
+    return subprocess.check_output(cmd).strip()
