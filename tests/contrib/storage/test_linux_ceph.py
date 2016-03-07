@@ -414,13 +414,13 @@ class CephUtilsTests(TestCase):
 
     def test_set_monitor_key(self):
         cmd = ['ceph', '--id', 'admin',
-               'ceph', 'config-key', 'put', 'foo', 'bar']
+               'config-key', 'put', 'foo', 'bar']
         ceph_utils.monitor_key_set(service='admin', key='foo', value='bar')
         self.check_output.assert_called_with(cmd)
 
     def test_get_monitor_key(self):
         cmd = ['ceph', '--id', 'admin',
-               'ceph', 'config-key', 'get', 'foo']
+               'config-key', 'get', 'foo']
         ceph_utils.monitor_key_get(service='admin', key='foo')
         self.check_output.assert_called_with(cmd)
 
@@ -449,7 +449,7 @@ class CephUtilsTests(TestCase):
     def test_delete_monitor_key(self):
         ceph_utils.monitor_key_delete(service='admin', key='foo')
         cmd = ['ceph', '--id', 'admin',
-               'ceph', 'config-key', 'del', 'foo']
+               'config-key', 'del', 'foo']
         self.check_output.assert_called_with(cmd)
 
     def test_delete_monitor_key_failed(self):
@@ -463,7 +463,7 @@ class CephUtilsTests(TestCase):
     def test_get_monmap(self):
         self.check_output.return_value = MONMAP_DUMP
         cmd = ['ceph', '--id', 'admin',
-               'ceph', 'mon_status', '--format=json']
+               'mon_status', '--format=json']
         ceph_utils.get_mon_map(service='admin')
         self.check_output.assert_called_with(cmd)
 
