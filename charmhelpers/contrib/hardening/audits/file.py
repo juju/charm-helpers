@@ -415,20 +415,35 @@ class DeletedFile(BaseFileAudit):
 
 class FileContentAudit(BaseFileAudit):
     """Audit the contents of a file."""
-    def __init__(self, paths, patterns, **kwargs):
-        self.patterns = patterns
+    def __init__(self, paths, cases, **kwargs):
+        # Cases we expect to pass
+        self.pass_cases = cases.get('pass', [])
+        # Cases we expect to fail
+        self.fail_cases = cases.get('fail', [])
         super(FileContentAudit, self).__init__(paths, **kwargs)
 
     def is_compliant(self, path):
         log("Auditing contents of file '%s'" % (path), level=DEBUG)
-        compliant = True
         with open(path, 'r') as fd:
             contents = fd.read()
 
-        for pattern in self.patterns:
-            key = re.compile(pattern)
-            results = re.search(key, contents, flags=re.MULTILINE)
-            if not results:
-                compliant = False
+        matches = 0
+        for pattern in self.pass_cases:
+            key = re.compile(pattern, flags=re.MULTILINE)
+            results = re.search(key, contents)
+            if results:
+                matches += 1
+            else:
+                log("Pattern '%s' was expected to pass but instead it failed"
+                    % (pattern), level=WARNING)
 
-        return compliant
+        for pattern in self.fail_cases:
+            key = re.compile(pattern, flags=re.MULTILINE)
+            results = re.search(key, contents)
+            if not results:
+                matches += 1
+            else:
+                log("Pattern '%s' was expected to fail but instead it passed"
+                    % (pattern), level=WARNING)
+
+        return matches == len(self.pass_cases) + len(self.fail_cases)
