@@ -234,24 +234,28 @@ KexAlgorithms diffie-hellman-group-exchange-sha256
 
 CONTENTS_FAIL = """Ciphers aes256-ctr,aes192-ctr,aes128-ctr
 MACs hmac-sha2-512,hmac-sha2-256,hmac-ripemd160
-KexAlgorithms 'diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
+KexAlgorithms diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
 """
 
 
 class FileContentAuditTestCase(TestCase):
 
     def test_audit_contents_pass(self):
-        patterns = []
+        conditions = {'pass': [r'^KexAlgorithms\s+diffie-hellman-group-exchange-sha256$'],
+                      'fail': [r'^KexAlgorithms\s+diffie-hellman-group-exchange-sha256.+$']}
         with tempfile.NamedTemporaryFile() as ftmp:
             with open(ftmp.name, 'w') as fd:
                 fd.write(CONTENTS_PASS)
 
-            file.FileContentAudit(ftmp.name, patterns)
+            audit = file.FileContentAudit(ftmp.name, conditions)
+            self.assertTrue(audit.is_compliant(ftmp.name))
 
     def test_audit_contents_fail(self):
-        patterns = []
+        conditions = {'pass': [r'^KexAlgorithms\s+diffie-hellman-group-exchange-sha256$'],
+                      'fail': [r'^KexAlgorithms\s+diffie-hellman-group-exchange-sha256.+$']}
         with tempfile.NamedTemporaryFile() as ftmp:
             with open(ftmp.name, 'w') as fd:
                 fd.write(CONTENTS_FAIL)
 
-            file.FileContentAudit(ftmp.name, patterns)
+            audit = file.FileContentAudit(ftmp.name, conditions)
+            self.assertFalse(audit.is_compliant(ftmp.name))

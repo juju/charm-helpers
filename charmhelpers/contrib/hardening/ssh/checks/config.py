@@ -33,18 +33,102 @@ from charmhelpers.contrib.hardening.ssh import TEMPLATES_DIR
 from charmhelpers.contrib.hardening import utils
 
 
-SSH_CONFIG_AUDIT_PATTERNS = []
-SSHD_CONFIG_AUDIT_PATTERNS = []
-
-
 def get_audits():
     """Returns the audits used to verify the ssh"""
-    audits = [SSHConfig(), SSHDConfig(),
-              FileContentAudit('/etc/ssh/ssh_config',
-                               SSH_CONFIG_AUDIT_PATTERNS),
-              FileContentAudit('/etc/ssh/sshd_config',
-                               SSHD_CONFIG_AUDIT_PATTERNS)]
+    audits = [SSHConfig(), SSHDConfig(), SSHConfigFileContentAudit(),
+              SSHDConfigFileContentAudit()]
     return audits
+
+
+class SSHConfigFileContentAudit(FileContentAudit):
+    def __init__(self):
+        path = '/etc/ssh/ssh_config'
+        super(SSHConfigFileContentAudit, self).__init__(path, {})
+
+    def is_compliant(self, *args, **kwargs):
+        self.pass_cases = []
+        self.fail_cases = []
+        settings = utils.get_defaults('ssh')
+
+        if not settings['config']['client_weak_hmac']:
+            self.fail_cases.append(r'^MACs\shmac-sha1[,\s]?')
+        else:
+            self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
+
+        if settings['config']['client_weak_kexs']:
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+        else:
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+
+        if settings['config']['client_cbc_required']:
+            self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
+            self.fail_cases.append(r'^Ciphers\s.*aes128-ctr[,\s]?')
+            self.fail_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
+            self.fail_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
+        else:
+            self.fail_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
+            self.pass_cases.append(r'^Ciphers\s.*aes128-ctr[,\s]?')
+            self.pass_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
+            self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
+
+        if settings['config']['client_roaming']:
+            self.pass_cases.append(r'^UseRoaming yes^')
+        else:
+            self.pass_cases.append(r'^UseRoaming no^')
+
+        super(SSHConfigFileContentAudit, self).is_compliant(*args, **kwargs)
+
+
+class SSHDConfigFileContentAudit(FileContentAudit):
+    def __init__(self):
+        path = '/etc/ssh/sshd_config'
+        super(SSHDConfigFileContentAudit, self).__init__(path, {})
+
+    def is_compliant(self, *args, **kwargs):
+        self.pass_cases = []
+        self.fail_cases = []
+        settings = utils.get_defaults('ssh')
+
+        if not settings['config']['client_weak_hmac']:
+            self.fail_cases.append(r'^MACs\shmac-sha1[,\s]?')
+        else:
+            self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
+
+        if settings['config']['client_weak_kexs']:
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+        else:
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+
+        if settings['config']['client_cbc_required']:
+            self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
+            self.fail_cases.append(r'^Ciphers\s.*aes128-ctr[,\s]?')
+            self.fail_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
+            self.fail_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
+        else:
+            self.fail_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
+            self.pass_cases.append(r'^Ciphers\s.*aes128-ctr[,\s]?')
+            self.pass_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
+            self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
+
+        if settings['config']['sftp_enable']:
+            self.pass_cases.append(r'^Subsystem\ssftp^')
+        else:
+            self.pass_cases.append(r'^#Subsystem\ssftp^')
+            self.fail_cases.append(r'^Subsystem\ssftp^')
+
+        super(SSHConfigFileContentAudit, self).is_compliant(*args, **kwargs)
 
 
 class SSHConfigContext(object):
