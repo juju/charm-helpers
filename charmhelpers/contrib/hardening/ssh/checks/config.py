@@ -56,12 +56,12 @@ class SSHConfigFileContentAudit(FileContentAudit):
             self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
 
         if settings['config']['client_weak_kex']:
-            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
+            self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
         else:
-            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
+            self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256$')
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
@@ -78,9 +78,9 @@ class SSHConfigFileContentAudit(FileContentAudit):
             self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
 
         if settings['config']['client_roaming']:
-            self.pass_cases.append(r'^UseRoaming yes^')
+            self.pass_cases.append(r'^UseRoaming yes$')
         else:
-            self.pass_cases.append(r'^UseRoaming no^')
+            self.pass_cases.append(r'^UseRoaming no$')
 
         super(SSHConfigFileContentAudit, self).is_compliant(*args, **kwargs)
 
