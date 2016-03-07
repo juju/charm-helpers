@@ -1094,14 +1094,13 @@ def _ows_check_services_running(services, ports):
         if not all(ports_open):
             # find which service has missing ports. They are in service
             # order which makes it a bit easier.
+            message_parts = {service: ", ".join([str(v) for v in open_ports])
+                             for service, open_ports in map_not_open.items()}
+            message = ", ".join(
+                ["{}: [{}]".format(s, sp) for s, sp in message_parts.items()])
             messages.append(
                 "Services with ports not open that should be: {}"
-                .format(
-                    ", ".join([
-                        "{}: [{}]".format(
-                            service,
-                            ", ".join([str(v) for v in open_ports]))
-                        for service, open_ports in map_not_open.items()])))
+                .format(message))
             state = 'blocked'
 
     if ports is not None:
@@ -1354,14 +1353,12 @@ def check_actually_paused(services=None, ports=None):
         ports_open, ports_open_bools = (
             _check_listening_on_services_ports(services, True))
         if any(ports_open_bools):
+            message_parts = {service: ", ".join([str(v) for v in open_ports])
+                             for service, open_ports in ports_open.items()}
+            message = ", ".join(
+                ["{}: [{}]".format(s, sp) for s, sp in message_parts.items()])
             messages.append(
-                "these service:ports are open: {}"
-                .format(
-                    ", ".join([
-                        "{}: [{}]".format(
-                            service,
-                            ", ".join([str(v) for v in open_ports]))
-                        for service, open_ports in ports_open.items()])))
+                "these service:ports are open: {}".format(message))
             state = 'blocked'
     if ports is not None:
         ports_open, bools = _check_listening_on_ports_list(ports)
