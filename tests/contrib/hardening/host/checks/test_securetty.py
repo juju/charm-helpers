@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from testtools import TestCase
+from unittest import TestCase
 
 from charmhelpers.contrib.hardening.host.checks import securetty
 

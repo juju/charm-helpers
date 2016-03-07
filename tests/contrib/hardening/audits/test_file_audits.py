@@ -20,7 +20,9 @@ import tempfile
 from mock import call
 from mock import patch
 
-from testtools import TestCase
+from unittest import TestCase
+
+from charmhelpers.core import unitdata
 from charmhelpers.contrib.hardening.audits import file
 
 
@@ -189,26 +191,47 @@ class NoSUIDGUIDAuditTestCase(TestCase):
 class TemplatedFileTestCase(TestCase):
     def setUp(self):
         super(TemplatedFileTestCase, self).setUp()
+        self.kv = patch.object(unitdata, 'kv').start()
+        self.addCleanup(self.kv.stop)
 
+    @patch.object(file.TemplatedFile, 'templates_match')
     @patch.object(file.TemplatedFile, 'contents_match')
     @patch.object(file.TemplatedFile, 'permissions_match')
-    def test_is_not_compliant(self, contents_match_, permissions_match_):
+    def test_is_not_compliant(self, contents_match_, permissions_match_,
+                              templates_match_):
         contents_match_.return_value = False
         permissions_match_.return_value = False
+        templates_match_.return_value = False
 
         f = file.TemplatedFile('/foo/bar', None, '/tmp', 0o0644)
         compliant = f.is_compliant('/foo/bar')
         self.assertFalse(compliant)
 
+    @patch.object(file.TemplatedFile, 'templates_match')
     @patch.object(file.TemplatedFile, 'contents_match')
     @patch.object(file.TemplatedFile, 'permissions_match')
-    def test_is_compliant(self, contents_match_, permissions_match_):
+    def test_is_compliant(self, contents_match_, permissions_match_,
+                          templates_match_):
         contents_match_.return_value = True
         permissions_match_.return_value = True
+        templates_match_.return_value = True
 
         f = file.TemplatedFile('/foo/bar', None, '/tmp', 0o0644)
         compliant = f.is_compliant('/foo/bar')
         self.assertTrue(compliant)
+
+    @patch.object(file.TemplatedFile, 'templates_match')
+    @patch.object(file.TemplatedFile, 'contents_match')
+    @patch.object(file.TemplatedFile, 'permissions_match')
+    def test_template_changes(self, contents_match_, permissions_match_,
+                              templates_match_):
+        contents_match_.return_value = True
+        permissions_match_.return_value = True
+        templates_match_.return_value = False
+
+        f = file.TemplatedFile('/foo/bar', None, '/tmp', 0o0644)
+        compliant = f.is_compliant('/foo/bar')
+        self.assertFalse(compliant)
 
     @patch.object(file, 'render_and_write')
     @patch.object(file.utils, 'ensure_permissions')

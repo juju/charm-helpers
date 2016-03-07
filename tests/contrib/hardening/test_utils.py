@@ -5,7 +5,7 @@ from mock import (
     call,
     patch
 )
-from testtools import TestCase
+from unittest import TestCase
 
 from charmhelpers.contrib.hardening import utils
 

@@ -15,7 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 import tempfile
 
-from testtools import TestCase
+from unittest import TestCase
 
 from mock import call
 from mock import patch

@@ -15,7 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 from mock import patch
-from testtools import TestCase
+from unittest import TestCase
 
 from charmhelpers.contrib.hardening import harden
 
