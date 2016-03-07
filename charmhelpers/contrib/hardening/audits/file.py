@@ -66,7 +66,7 @@ class BaseFileAudit(BaseAudit):
                 log('File %s is not in compliance.' % p, level=INFO)
             else:
                 if not self.force_compliance:
-                    log("Skipping compliance check for non-existent path '%s'"
+                    log("Non-existent path '%s' - skipping compliance check"
                         % (p), level=INFO)
                     continue
 
