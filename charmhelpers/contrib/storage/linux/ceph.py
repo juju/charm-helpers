@@ -271,7 +271,7 @@ def get_mon_map(service):
     try:
         mon_status = check_output(
             ['ceph', '--id', service,
-             'ceph', 'mon_status', '--format=json'])
+             'mon_status', '--format=json'])
         try:
             return json.loads(mon_status)
         except ValueError as v:
@@ -321,7 +321,7 @@ def monitor_key_delete(service, key):
     try:
         check_output(
             ['ceph', '--id', service,
-             'ceph', 'config-key', 'del', str(key)])
+             'config-key', 'del', str(key)])
     except CalledProcessError as e:
         log("Monitor config-key put failed with message: {}".format(
             e.output))
@@ -339,7 +339,7 @@ def monitor_key_set(service, key, value):
     try:
         check_output(
             ['ceph', '--id', service,
-             'ceph', 'config-key', 'put', str(key), str(value)])
+             'config-key', 'put', str(key), str(value)])
     except CalledProcessError as e:
         log("Monitor config-key put failed with message: {}".format(
             e.output))
@@ -356,7 +356,7 @@ def monitor_key_get(service, key):
     try:
         output = check_output(
             ['ceph', '--id', service,
-             'ceph', 'config-key', 'get', str(key)])
+             'config-key', 'get', str(key)])
         return output
     except CalledProcessError as e:
         log("Monitor config-key get failed with message: {}".format(
