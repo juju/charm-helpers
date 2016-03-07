@@ -16,17 +16,19 @@
 from subprocess import check_output
 from subprocess import CalledProcessError
 
-from charmhelpers.core.hookenv import log
-from charmhelpers.core.hookenv import ERROR
-
+from charmhelpers.core.hookenv import (
+    log,
+    ERROR,
+)
+from charmhelpers.fetch import (
+    apt_install,
+    apt_purge,
+    apt_update,
+)
 from charmhelpers.contrib.hardening.audits.file import TemplatedFile
 from charmhelpers.contrib.hardening.audits.file import DeletedFile
 from charmhelpers.contrib.hardening import utils
-
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
-
-from charmhelpers.fetch import apt_install
-from charmhelpers.fetch import apt_purge
 
 
 def get_audits():
@@ -72,6 +74,7 @@ class PasswdqcPAM(TemplatedFile):
         # Always remove?
         apt_purge('libpam-ccreds')
         apt_purge('libpam-cracklib')
+        apt_update(fatal=True)
         apt_install('libpam-passwdqc')
 
     def post_write(self):
@@ -107,6 +110,7 @@ class Tally2PAM(TemplatedFile):
     def pre_write(self):
         # Always remove?
         apt_purge('libpam-ccreds')
+        apt_update(fatal=True)
         apt_install('libpam-modules')
 
     def post_write(self):
