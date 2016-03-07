@@ -446,7 +446,9 @@ class FileContentAudit(BaseFileAudit):
                 log("Pattern '%s' was expected to fail but instead it passed"
                     % (pattern), level=WARNING)
 
-        return matches == len(self.pass_cases) + len(self.fail_cases)
+        total = len(self.pass_cases) + len(self.fail_cases)
+        log("Checked %s cases and %s passed" % (total, matches))
+        return matches == total
 
     def comply(self, *args, **kwargs):
         """NOOP since we just issue warnings."""
