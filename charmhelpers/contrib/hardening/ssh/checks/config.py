@@ -55,7 +55,7 @@ class SSHConfigFileContentAudit(FileContentAudit):
         else:
             self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
 
-        if settings['config']['client_weak_kexs']:
+        if settings['config']['client_weak_kex']:
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
@@ -100,7 +100,7 @@ class SSHDConfigFileContentAudit(FileContentAudit):
         else:
             self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
 
-        if settings['config']['client_weak_kexs']:
+        if settings['config']['client_weak_kex']:
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256^')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
