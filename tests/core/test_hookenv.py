@@ -1602,3 +1602,18 @@ class HooksTest(TestCase):
         self.assertEqual(result, expect)
         check_output.assert_called_with(['storage-get', '--format=json',
                                          '-s', storage_id])
+
+    @patch('subprocess.check_output')
+    def test_network_get_primary(self, check_output):
+        '''Ensure that network-get is called correctly and output is returned'''
+        check_output.return_value = '192.168.22.1'
+        ip = hookenv.network_get_primary_address('mybinding')
+        check_output.assert_called_with(['network-get', '--primary-address', 'mybinding'])
+        self.assertEqual(ip, '192.168.22.1')
+
+    @patch('subprocess.check_output')
+    def test_network_get_primary_unsupported(self, check_output):
+        '''Ensure that NotImplementedError is thrown when run on Juju < 2.0''' 
+        check_output.side_effect = OSError(2, 'network-get')
+        self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
+                          'mybinding')
