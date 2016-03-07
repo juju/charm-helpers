@@ -32,6 +32,13 @@ except ImportError:
     from jinja2 import FileSystemLoader, Environment
 
 
+# NOTE: function separated from main rendering code to facilitate easier
+#       unit tests writing
+def write(path, data):
+    with open(path, 'wb') as out:
+        out.write(data)
+
+
 def render_and_write(template_dir, path, context):
     """Renders the specified template into the file.
 
@@ -49,7 +56,5 @@ def render_and_write(template_dir, path, context):
             level=WARNING)
         return
 
-    with open(path, 'wb') as out:
-        out.write(rendered_content.encode('utf-8').strip())
-
+    write(path, rendered_content.encode('utf-8').strip())
     log('Wrote template %s.' % path, level=INFO)

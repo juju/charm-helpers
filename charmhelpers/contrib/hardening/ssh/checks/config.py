@@ -42,8 +42,8 @@ def get_audits():
 
 class SSHConfigFileContentAudit(FileContentAudit):
     def __init__(self):
-        path = '/etc/ssh/ssh_config'
-        super(SSHConfigFileContentAudit, self).__init__(path, {})
+        self.path = '/etc/ssh/ssh_config'
+        super(SSHConfigFileContentAudit, self).__init__(self.path, {})
 
     def is_compliant(self, *args, **kwargs):
         self.pass_cases = []
@@ -82,13 +82,14 @@ class SSHConfigFileContentAudit(FileContentAudit):
         else:
             self.fail_cases.append(r'^UseRoaming yes$')
 
-        super(SSHConfigFileContentAudit, self).is_compliant(*args, **kwargs)
+        return super(SSHConfigFileContentAudit, self).is_compliant(*args,
+                                                                   **kwargs)
 
 
 class SSHDConfigFileContentAudit(FileContentAudit):
     def __init__(self):
-        path = '/etc/ssh/sshd_config'
-        super(SSHDConfigFileContentAudit, self).__init__(path, {})
+        self.path = '/etc/ssh/sshd_config'
+        super(SSHDConfigFileContentAudit, self).__init__(self.path, {})
 
     def is_compliant(self, *args, **kwargs):
         self.pass_cases = []
@@ -128,7 +129,8 @@ class SSHDConfigFileContentAudit(FileContentAudit):
             self.pass_cases.append(r'^#Subsystem\ssftp')
             self.fail_cases.append(r'^Subsystem\ssftp')
 
-        super(SSHDConfigFileContentAudit, self).is_compliant(*args, **kwargs)
+        return super(SSHDConfigFileContentAudit, self).is_compliant(*args,
+                                                                    **kwargs)
 
 
 class SSHConfigContext(object):
