@@ -80,7 +80,7 @@ class SSHConfigFileContentAudit(FileContentAudit):
         if settings['config']['client_roaming']:
             self.pass_cases.append(r'^UseRoaming yes$')
         else:
-            self.pass_cases.append(r'^UseRoaming no$')
+            self.fail_cases.append(r'^UseRoaming yes$')
 
         super(SSHConfigFileContentAudit, self).is_compliant(*args, **kwargs)
 
