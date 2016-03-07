@@ -448,6 +448,6 @@ class FileContentAudit(BaseFileAudit):
 
         return matches == len(self.pass_cases) + len(self.fail_cases)
 
-    def comply(self):
+    def comply(self, *args, **kwargs):
         """NOOP since we just issue warnings."""
         log("Not applying any compliance criteria, only checks.", level=INFO)
