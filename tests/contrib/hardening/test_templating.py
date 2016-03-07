@@ -18,7 +18,7 @@ import tempfile
 import os
 
 from mock import patch
-from testtools import TestCase
+from unittest import TestCase
 
 from charmhelpers.contrib.hardening import templating
 from charmhelpers.contrib.hardening import utils

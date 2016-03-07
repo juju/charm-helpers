@@ -42,6 +42,7 @@ from charmhelpers.core import unitdata
 from charmhelpers.core.host import file_hash
 
 from charmhelpers.contrib.hardening.audits import BaseAudit
+from charmhelpers.contrib.hardening.templating import get_template_path
 from charmhelpers.contrib.hardening.templating import render_and_write
 from charmhelpers.contrib.hardening import utils
 
@@ -306,10 +307,11 @@ class TemplatedFile(BaseFileAudit):
 
         :param path: the path to check compliance.
         """
+        same_templates = self.templates_match(path)
         same_content = self.contents_match(path)
         same_permissions = self.permissions_match(path)
 
-        if same_content and same_permissions:
+        if same_content and same_permissions and same_templates:
             return True
         else:
             return False
@@ -355,6 +357,41 @@ class TemplatedFile(BaseFileAudit):
     def post_write(self):
         """Invoked after writing the template."""
         pass
+
+    def templates_match(self, path):
+        """Determines if the template files are the same.
+
+        The template file equality is determined by the hashsum of the
+        template files themselves. If there is no hashsum, then the content
+        cannot be sure to be the same so treat it as if they changed.
+        Otherwise, return whether or not the hashsums are the same.
+
+        :param path: the path to check
+        :return: boolean
+        """
+        template_path = get_template_path(self.template_dir, path)
+        key = 'hardening:template:%s' % template_path
+        template_checksum = file_hash(template_path)
+        kv = unitdata.kv()
+        stored_tmplt_checksum = kv.get(key)
+        if not stored_tmplt_checksum:
+            kv.set(key, template_checksum)
+            kv.flush()
+            log('Saved template checksum for %s.' % template_path,
+                level=DEBUG)
+            # Since we don't have a template checksum, then assume it doesn't
+            # match and return that the template is different.
+            return False
+        elif stored_tmplt_checksum != template_checksum:
+            kv.set(key, template_checksum)
+            kv.flush()
+            log('Updated template checksum for %s.' % template_path,
+                level=DEBUG)
+            return False
+        else:
+            # Here the template hasn't changed based upon the calculated
+            # checksum of the template and what was previously stored.
+            return True
 
     def contents_match(self, path):
         """Determines if the file content is the same.

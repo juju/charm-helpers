@@ -39,6 +39,17 @@ def write(path, data):
         out.write(data)
 
 
+def get_template_path(template_dir, path):
+    """Returns the template file which would be used to render the path.
+
+    The path to the template file is returned.
+    :param template_dir: the directory the templates are located in
+    :param path: the file path to be written to.
+    :returns: path to the template file
+    """
+    return os.path.join(template_dir, os.path.basename(path))
+
+
 def render_and_write(template_dir, path, context):
     """Renders the specified template into the file.
 
