@@ -128,7 +128,7 @@ class SSHDConfigFileContentAudit(FileContentAudit):
             self.pass_cases.append(r'^#Subsystem\ssftp^')
             self.fail_cases.append(r'^Subsystem\ssftp^')
 
-        super(SSHConfigFileContentAudit, self).is_compliant(*args, **kwargs)
+        super(SSHDConfigFileContentAudit, self).is_compliant(*args, **kwargs)
 
 
 class SSHConfigContext(object):
