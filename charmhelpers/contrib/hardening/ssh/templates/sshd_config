@@ -4,35 +4,36 @@
 # What ports, IPs and protocols we listen for
 {% for port in ports -%}
 Port {{ port }}
-{% endfor %}
+{% endfor -%}
 AddressFamily {{ addr_family }}
 # Use these options to restrict which interfaces/protocols sshd will bind to
-{% if ssh_ip %}
+{% if ssh_ip -%}
 {% for ip in ssh_ip -%}
 ListenAddress {{ ip }}
 {% endfor %}
-{% else -%}
+{%- else -%}
 #ListenAddress ::
 #ListenAddress 0.0.0.0
-{% endif %}
+{% endif -%}
 Protocol 2
 {% if ciphers -%}
 Ciphers {{ ciphers }}
-{% endif %}
+{% endif -%}
 {% if macs -%}
 MACs {{ macs }}
-{% endif %}
+{% endif -%}
 {% if kexs -%}
 KexAlgorithms {{ kexs }}
-{% endif %}
+{% endif -%}
 # HostKeys for protocol version 2
 {% for keyfile in host_key_files -%}
 HostKey {{ keyfile }}
-{% endfor %}
+{% endfor -%}
+
 #Privilege Separation is turned on for security
-{% if use_priv_sep %} 
+{% if use_priv_sep -%} 
 UsePrivilegeSeparation {{ use_priv_sep }}
-{% endif %}
+{% endif -%}
 
 # Lifetime and size of ephemeral version 1 server key
 KeyRegenerationInterval 3600
@@ -117,27 +118,27 @@ UsePAM {{ use_pam }}
 DenyUsers {{ deny_users }}
 {% else -%}
 #DenyUsers *
-{% endif %}
+{% endif -%}
 {% if allow_users -%}
 AllowUsers {{ allow_users }}
 {% else -%}
 #AllowUsers user1
-{% endif %}
+{% endif -%}
 {% if deny_groups -%}
 DenyGroups {{ deny_groups }}
 {% else -%}
 #DenyGroups *
-{% endif %}
+{% endif -%}
 {% if allow_groups -%}
 AllowGroups allow_groups
 {% else -%}
 #AllowGroups group1
-{% endif %}
+{% endif -%}
 UseDNS {{ use_dns }}
 MaxAuthTries {{ max_auth_tries }}
 MaxSessions {{ max_sessions }}
 
-{% if sftp_enable %}
+{% if sftp_enable -%}
 # Configuration, in case SFTP is used
 ## override default of no subsystems
 ## Subsystem sftp /opt/app/openssh5/libexec/sftp-server
@@ -152,7 +153,7 @@ AllowAgentForwarding no
 PasswordAuthentication no
 PermitRootLogin no
 X11Forwarding no
-{% else %}
+{% else -%}
 # Configuration, in case SFTP is used
 ## override default of no subsystems
 ## Subsystem sftp /opt/app/openssh5/libexec/sftp-server
