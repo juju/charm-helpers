@@ -21,7 +21,7 @@ server:
     allow_x11_forwarding: 'no'
     use_privilege_separation: 'no'
     listen_to: ['0.0.0.0']
-    use_pam: 'no'
+    use_pam: 'yes'
     package: 'openssh-server'
     password_authentication: 'no'
     alive_interval: '600'
