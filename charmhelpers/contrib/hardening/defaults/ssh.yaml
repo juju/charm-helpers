@@ -24,8 +24,8 @@ server:
     use_pam: 'no'
     package: 'openssh-server'
     password_authentication: 'no'
-    alive_interval: '600, 10min'
-    alive_count: '3, ~> 3 x interval'
+    alive_interval: '600'
+    alive_count: '3'
     sftp_enable: False  # requires:boolean
     sftp_group: 'sftponly'
     sftp_chroot: '/home/%u'
