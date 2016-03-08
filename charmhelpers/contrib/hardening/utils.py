@@ -23,7 +23,9 @@ import yaml
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
+    INFO,
     WARNING,
+    ERROR,
 )
 
 
@@ -31,6 +33,12 @@ def get_defaults(type):
     default = os.path.join(os.path.dirname(__file__),
                            'defaults/%s.yaml' % (type))
     return yaml.safe_load(open(default))
+
+
+def get_schema(type):
+    schema = os.path.join(os.path.dirname(__file__),
+                          'defaults/%s.yaml.schema' % (type))
+    return yaml.safe_load(open(schema))
 
 
 def get_user_provided_overrides(type):
@@ -48,10 +56,30 @@ def get_user_provided_overrides(type):
     return {}
 
 
+def apply_overrides(settings, overrides, schema):
+    if overrides:
+        for k, v in overrides.iteritems():
+            if k in schema:
+                if schema[k] is None:
+                    settings[k] = v
+                elif type(schema[k]) is dict:
+                    settings[k] = apply_overrides(settings[k], overrides[k],
+                                                  schema[k])
+                else:
+                    raise Exception("Unexpected type found in schema '%s'" %
+                                    type(schema[k]), level=ERROR)
+            else:
+                log("Unknown override key '%s' - ignoring" % (k), level=INFO)
+
+    return settings
+
+
 def get_settings(type):
+    schema = get_schema(type)
     settings = get_defaults(type)
-    user_provided = get_user_provided_overrides(type)
-    settings.update(user_provided)
+    overrides = get_user_provided_overrides(type)
+    settings = apply_overrides(settings, overrides, schema)
+
     return settings
 
 
