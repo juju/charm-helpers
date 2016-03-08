@@ -30,6 +30,6 @@ def get_audits():
 class SecureTTYContext(object):
 
     def __call__(self):
-        defaults = utils.get_defaults('os')
-        ctxt = {'ttys': defaults['auth']['root_ttys']}
+        settings = utils.get_settings('os')
+        ctxt = {'ttys': settings['auth']['root_ttys']}
         return ctxt

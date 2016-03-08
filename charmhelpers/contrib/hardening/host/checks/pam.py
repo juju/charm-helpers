@@ -35,12 +35,12 @@ def get_audits():
     """Returns the set of audits for PAM authentication."""
     audits = []
 
-    defaults = utils.get_defaults('os')
+    settings = utils.get_settings('os')
 
-    if defaults['auth']['pam_passwdqc_enable']:
+    if settings['auth']['pam_passwdqc_enable']:
         audits.append(PasswdqcPAM('/etc/passwdqc.conf'))
 
-    if defaults['auth']['retries']:
+    if settings['auth']['retries']:
         audits.append(Tally2PAM('/usr/share/pam-configs/tally2'))
     else:
         audits.append(DeletedFile('/usr/share/pam-configs/tally2'))
@@ -52,10 +52,10 @@ class PasswdqcPAMContext(object):
 
     def __call__(self):
         ctxt = {}
-        defaults = utils.get_defaults('os')
+        settings = utils.get_settings('os')
 
         ctxt['auth_pam_passwdqc_options'] = \
-            defaults['auth']['pam_passwdqc_options']
+            settings['auth']['pam_passwdqc_options']
 
         return ctxt
 
@@ -89,10 +89,10 @@ class Tally2PAMContext(object):
 
     def __call__(self):
         ctxt = {}
-        defaults = utils.get_defaults('os')
+        settings = utils.get_settings('os')
 
-        ctxt['auth_lockout_time'] = defaults['auth']['lockout_time']
-        ctxt['auth_retries'] = defaults['auth']['retries']
+        ctxt['auth_lockout_time'] = settings['auth']['lockout_time']
+        ctxt['auth_retries'] = settings['auth']['retries']
 
         return ctxt
 

@@ -26,7 +26,7 @@ from charmhelpers.contrib.hardening.host.checks import suid_sgid
 @patch.object(suid_sgid, 'log', lambda *args, **kwargs: None)
 class SUIDSGIDTestCase(TestCase):
 
-    @patch.object(suid_sgid.utils, 'get_defaults', lambda x: {
+    @patch.object(suid_sgid.utils, 'get_settings', lambda x: {
         'security': {'suid_sgid_enforce': False}
     })
     def test_no_enforcement(self):
@@ -34,7 +34,7 @@ class SUIDSGIDTestCase(TestCase):
         self.assertEqual(0, len(audits))
 
     @patch.object(suid_sgid, 'subprocess')
-    @patch.object(suid_sgid.utils, 'get_defaults', lambda x: {
+    @patch.object(suid_sgid.utils, 'get_settings', lambda x: {
         'security': {'suid_sgid_enforce': True,
                      'suid_sgid_remove_from_unknown': True,
                      'suid_sgid_blacklist': [],

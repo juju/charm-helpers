@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.contrib.hardening.utils import get_defaults
+from charmhelpers.contrib.hardening.utils import get_settings
 
 from charmhelpers.contrib.hardening.audits.apt import (
     AptConfig,
@@ -26,10 +26,10 @@ def get_audits():
     audits = [AptConfig([{'key': 'APT::Get::AllowUnauthenticated',
                           'expected': 'false'}])]
 
-    defaults = get_defaults('os')
-    clean_packages = defaults['security']['packages_clean']
+    settings = get_settings('os')
+    clean_packages = settings['security']['packages_clean']
     if clean_packages:
-        security_packages = defaults['security']['packages_list']
+        security_packages = settings['security']['packages_list']
         if security_packages:
             audits.append(RestrictedPackages(security_packages))
 

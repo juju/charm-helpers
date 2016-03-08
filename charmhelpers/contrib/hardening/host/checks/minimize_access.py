@@ -21,7 +21,7 @@ from charmhelpers.contrib.hardening import utils
 def get_audits():
     """Returns the audits that should be performed for folders in $PATH."""
     audits = []
-    defaults = utils.get_defaults('os')
+    settings = utils.get_settings('os')
 
     # Remove write permissions from $PATH folders for all regular users.
     # This prevents changing system-wide commands from normal users.
@@ -30,14 +30,14 @@ def get_audits():
                     '/usr/sbin',
                     '/usr/bin',
                     '/bin'}
-    extra_user_paths = defaults['environment']['extra_user_paths']
+    extra_user_paths = settings['environment']['extra_user_paths']
     path_folders.update(extra_user_paths)
     audits.append(ReadOnly(path_folders))
 
     # Only allow the root user to have access to the shadow file.
     audits.append(FilePermissionAudit('/etc/shadow', 'root', 'root', 0o0600))
 
-    if 'change_user' not in defaults['security']['users_allow']:
+    if 'change_user' not in settings['security']['users_allow']:
         # su should only be accessible to user and group root, unless it is
         # expressly defined to allow users to change to root via the
         # security_users_allow config option.

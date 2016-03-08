@@ -22,7 +22,7 @@ from charmhelpers.contrib.hardening import utils
 def get_audits():
     """Returns the audits necessary for checking and setting limits."""
     audits = []
-    defaults = utils.get_defaults('os')
+    settings = utils.get_settings('os')
 
     # Ensure that the /etc/security/limits.d directory is only writable
     # by the root user, but others can execute and read.
@@ -32,7 +32,7 @@ def get_audits():
 
     # If core dumps are not enabled, then don't allow core dumps to be
     # created as they may contain sensitive information.
-    if not defaults['security']['kernel_enable_core_dump']:
+    if not settings['security']['kernel_enable_core_dump']:
         audits.append(TemplatedFile('/etc/security/limits.d/10.hardcore.conf',
                                     SecurityLimitsContext(),
                                     template_dir=TEMPLATES_DIR,
@@ -43,7 +43,7 @@ def get_audits():
 class SecurityLimitsContext(object):
 
     def __call__(self):
-        defaults = utils.get_defaults('os')
+        settings = utils.get_settings('os')
         ctxt = {'disable_core_dump':
-                not defaults['security']['kernel_enable_core_dump']}
+                not settings['security']['kernel_enable_core_dump']}
         return ctxt

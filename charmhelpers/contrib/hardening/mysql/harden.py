@@ -21,7 +21,6 @@ from charmhelpers.contrib.hardening.mysql.checks import (
 )
 from charmhelpers.core.hookenv import (
     log,
-    DEBUG,
     INFO,
 )
 
@@ -30,6 +29,5 @@ TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
 
 def harden_mysql():
     log("Hardening MySQL", level=INFO)
-    log("Running checks", level=DEBUG)
     run_mysql_checks()
     log("MySQL hardening complete", level=INFO)

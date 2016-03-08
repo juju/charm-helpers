@@ -21,7 +21,6 @@ from charmhelpers.contrib.hardening.ssh.checks import (
 )
 from charmhelpers.core.hookenv import (
     log,
-    DEBUG,
     INFO,
 )
 
@@ -30,6 +29,5 @@ TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
 
 def harden_ssh():
     log("Hardening SSH", level=INFO)
-    log("Running checks", level=DEBUG)
     run_ssh_checks()
     log("SSH hardening complete", level=INFO)
