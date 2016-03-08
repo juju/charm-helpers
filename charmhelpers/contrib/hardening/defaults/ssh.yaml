@@ -1,43 +1,40 @@
-general:
-    client_package: openssh-client
-    server_package: openssh-server
-    service_name: ssh
-    network_ipv6_enable: False # sshd + ssh
-config:
-    client_cbc_required: False # ssh
-    server_cbc_required: False # sshd
-    client_weak_hmac: False # ssh
-    server_weak_hmac: False # sshd
-    client_weak_kex: False # ssh
-    server_weak_kex: False # sshd
-    ports: [22] # sshd + ssh
-    listen_to: ['0.0.0.0'] # sshd
-    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key'] # sshd
-    client_alive_interval: 600 # sshd, 10min
-    client_alive_count: 3 # sshd, ~> 3 x interval
-    remote_hosts: [] # ssh
-    allow_root_with_key: False # sshd
-    allow_tcp_forwarding: False # sshd
-    allow_agent_forwarding: False # sshd
-    allow_x11_forwarding: False # sshd
-    use_pam: False # sshd
-    deny_users: [] # sshd
-    allow_users: [] # sshd
-    deny_groups: [] # sshd
-    allow_groups: [] # sshd
-    print_motd: False # sshd
-    print_last_log: False # sshd
-    # set this to nil to let us use the default OpenSSH in case it's not set by the user
-    use_dns: nil # sshd
-    # set this to nil to let us detect the attribute based on the node platform
-    use_privilege_separation: nil
-    max_auth_tries: 2 # sshd
-    max_sessions: 10 # sshd
-    client_password_authentication: False # ssh
-    server_password_authentication: False # sshd
-    # http://undeadly.org/cgi?action=article&sid=20160114142733
-    client_roaming: False
-    # Define SFTP options
-    sftp_enable: False
+common:
+    service_name: 'ssh'
+    network_ipv6_enable: False  # requires:boolean
+    ports: [22]
+    remote_hosts: []
+client:
+    package: 'openssh-client'
+    cbc_required: False  # requires:boolean
+    weak_hmac: False  # requires:boolean
+    weak_kex: False  # requires:boolean
+    roaming: False
+    password_authentication: 'no'
+server:
+    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key']
+    cbc_required: False  # requires:boolean
+    weak_hmac: False  # requires:boolean
+    weak_kex: False  # requires:boolean
+    allow_root_with_key: False  # requires:boolean
+    allow_tcp_forwarding: 'no'
+    allow_agent_forwarding: 'no'
+    allow_x11_forwarding: 'no'
+    use_privilege_separation: 'no'
+    listen_to: ['0.0.0.0']
+    use_pam: 'no'
+    package: 'openssh-server'
+    password_authentication: 'no'
+    alive_interval: '600, 10min'
+    alive_count: '3, ~> 3 x interval'
+    sftp_enable: False  # requires:boolean
     sftp_group: 'sftponly'
     sftp_chroot: '/home/%u'
+    deny_users: []
+    allow_users: []
+    deny_groups: []
+    allow_groups: []
+    print_motd: 'no'
+    print_last_log: 'no'
+    use_dns: 'no'
+    max_auth_tries: 2
+    max_sessions: 10

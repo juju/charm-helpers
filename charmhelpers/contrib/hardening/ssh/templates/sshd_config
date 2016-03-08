@@ -7,8 +7,14 @@ Port {{ port }}
 {% endfor %}
 AddressFamily {{ addr_family }}
 # Use these options to restrict which interfaces/protocols sshd will bind to
+{% if ssh_ip %}
+{% for ip in ssh_ip -%}
+ListenAddress {{ ip }}
+{% endfor %}
+{% else -%}
 #ListenAddress ::
 #ListenAddress 0.0.0.0
+{% endif %}
 Protocol 2
 {% if ciphers -%}
 Ciphers {{ ciphers }}
@@ -24,7 +30,9 @@ KexAlgorithms {{ kexs }}
 HostKey {{ keyfile }}
 {% endfor %}
 #Privilege Separation is turned on for security
-UsePrivilegeSeparation yes
+{% if use_priv_sep %} 
+UsePrivilegeSeparation {{ use_priv_sep }}
+{% endif %}
 
 # Lifetime and size of ephemeral version 1 server key
 KeyRegenerationInterval 3600
@@ -64,11 +72,7 @@ PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 
 # Change to no to disable tunnelled clear text passwords
-{% if password_authentication -%}
-PasswordAuthentication yes
-{% else %}
-PasswordAuthentication no
-{% endif %}
+PasswordAuthentication {{ password_authentication }}
 
 # Kerberos options
 #KerberosAuthentication no
@@ -107,7 +111,7 @@ AcceptEnv LANG LC_*
 # If you just want the PAM account and session checks to run without
 # PAM authentication, then enable this but set PasswordAuthentication
 # and ChallengeResponseAuthentication to 'no'.
-UsePAM yes
+UsePAM {{ use_pam }}
 
 {% if deny_users -%}
 DenyUsers {{ deny_users }}
@@ -129,12 +133,9 @@ AllowGroups allow_groups
 {% else -%}
 #AllowGroups group1
 {% endif %}
-{% if use_dns -%}
-UseDNS yes
-{% else -%}
-# Since OpenSSH 6.8, this value defaults to 'no'
-#UseDNS no
-{% endif %}
+UseDNS {{ use_dns }}
+MaxAuthTries {{ max_auth_retries }}
+MaxSessions {{ max_sessions }}
 
 {% if sftp_enable %}
 # Configuration, in case SFTP is used
