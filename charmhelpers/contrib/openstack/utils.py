@@ -772,7 +772,8 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
         os.mkdir(parent_dir)
 
     juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-    repo_dir = install_remote(repo, dest=parent_dir, branch=branch, depth=depth)
+    repo_dir = install_remote(
+        repo, dest=parent_dir, branch=branch, depth=depth)
 
     venv = os.path.join(parent_dir, 'venv')
 
@@ -1016,8 +1017,8 @@ def _ows_check_generic_interfaces(configs, required_interfaces):
                 # Normal case relation ID exists but no related unit
                 # (joining)
                 else:
-                    juju_log("{} relations's interface, {}, is related but has "
-                             "no units in the relation."
+                    juju_log("{} relations's interface, {}, is related but has"
+                             " no units in the relation."
                              "".format(generic_interface, related_interface),
                              "INFO")
             # Related unit exists and data missing on the relation
@@ -1377,7 +1378,8 @@ def set_unit_paused():
     """Set the unit to a paused state in the local kv() store.
     This does NOT actually pause the unit
     """
-    with unitdata.HookData()() as kv:
+    with unitdata.HookData()() as t:
+        kv = t[0]
         kv.set('unit-paused', True)
 
 
@@ -1386,7 +1388,8 @@ def clear_unit_paused():
     This does NOT actually restart any services - it only clears the
     local state.
     """
-    with unitdata.HookData()() as kv:
+    with unitdata.HookData()() as t:
+        kv = t[0]
         kv.set('unit-paused', False)
 
 
@@ -1398,7 +1401,8 @@ def is_unit_paused_set():
     if it excepts, return False
     """
     try:
-        with unitdata.HookData()() as kv:
+        with unitdata.HookData()() as t:
+            kv = t[0]
             # transform something truth-y into a Boolean.
             return not(not(kv.get('unit-paused')))
     except:
