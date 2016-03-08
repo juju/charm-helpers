@@ -23,14 +23,14 @@ from charmhelpers.contrib.hardening.host.checks import apt
 
 class AptHardeningTestCase(TestCase):
 
-    @patch.object(apt, 'get_defaults', lambda x: {
+    @patch.object(apt, 'get_settings', lambda x: {
         'security': {'packages_clean': False}
     })
     def test_dont_clean_packages(self):
         audits = apt.get_audits()
         self.assertEqual(1, len(audits))
 
-    @patch.object(apt, 'get_defaults', lambda x: {
+    @patch.object(apt, 'get_settings', lambda x: {
         'security': {'packages_clean': True,
                      'packages_list': []}
     })
@@ -38,7 +38,7 @@ class AptHardeningTestCase(TestCase):
         audits = apt.get_audits()
         self.assertEqual(1, len(audits))
 
-    @patch.object(apt, 'get_defaults', lambda x: {
+    @patch.object(apt, 'get_settings', lambda x: {
         'security': {'packages_clean': True,
                      'packages_list': ['foo', 'bar']}
     })

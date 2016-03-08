@@ -23,7 +23,7 @@ from charmhelpers.contrib.hardening.host.checks import limits
 
 class LimitsTestCase(TestCase):
 
-    @patch.object(limits.utils, 'get_defaults',
+    @patch.object(limits.utils, 'get_settings',
                   lambda x: {'security': {'kernel_enable_core_dump': False}})
     def test_core_dump_disabled(self):
         audits = limits.get_audits()
@@ -36,7 +36,7 @@ class LimitsTestCase(TestCase):
         self.assertEqual('/etc/security/limits.d/10.hardcore.conf',
                          audit.paths[0])
 
-    @patch.object(limits.utils, 'get_defaults', lambda x: {
+    @patch.object(limits.utils, 'get_settings', lambda x: {
         'security': {'kernel_enable_core_dump': True}
     })
     def test_core_dump_enabled(self):

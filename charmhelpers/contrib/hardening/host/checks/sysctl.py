@@ -27,12 +27,10 @@ from charmhelpers.core.hookenv import INFO
 from charmhelpers.core.hookenv import WARNING
 
 
-defaults = utils.get_defaults('os')
-
-
 def get_audits():
     """Returns audits necessary for sysctl"""
     audits = []
+    settings = utils.get_settings('os')
 
     # Apply the sysctl settings which are configured to be applied
     audits.append(SysctlConf())
@@ -53,7 +51,7 @@ def get_audits():
 
     # If module loading is not enabled, then ensure that the modules
     # file has the appropriate permissions and rebuild the initramfs
-    if not defaults['security']['kernel_enable_module_loading']:
+    if not settings['security']['kernel_enable_module_loading']:
         audits.append(ModulesTemplate())
 
     return audits
@@ -62,6 +60,7 @@ def get_audits():
 class ModulesContext(object):
 
     def __call__(self):
+        settings = utils.get_settings('os')
         with open('/proc/cpuinfo', 'r') as fd:
             cpuinfo = fd.readlines()
 
@@ -77,7 +76,7 @@ class ModulesContext(object):
 
         ctxt = {'arch': platform.processor(),
                 'cpuVendor': vendor,
-                'desktop_enable': defaults['general']['desktop_enable']}
+                'desktop_enable': settings['general']['desktop_enable']}
 
         return ctxt
 
@@ -97,6 +96,7 @@ class ModulesTemplate(object):
 
 class SysCtlHardeningContext(object):
     def __call__(self):
+        settings = utils.get_settings('os')
         ctxt = {'sysctl': {}}
 
         log("Applying SYSCTL settings", level=INFO)
@@ -110,27 +110,27 @@ class SysCtlHardeningContext(object):
                   'fs_suid_dumpable': 0,
                   'kernel_modules_disabled': 1}
 
-        if defaults['sysctl']['ipv6_enable']:
+        if settings['sysctl']['ipv6_enable']:
             extras['net_ipv6_conf_all_disable_ipv6'] = 0
 
-        if defaults['sysctl']['forwarding']:
+        if settings['sysctl']['forwarding']:
             extras['net_ipv4_ip_forward'] = 1
             extras['net_ipv6_conf_all_forwarding'] = 1
 
-        if defaults['sysctl']['arp_restricted']:
+        if settings['sysctl']['arp_restricted']:
             extras['net_ipv4_conf_all_arp_ignore'] = 1
 
-        if defaults['security']['kernel_enable_module_loading']:
+        if settings['security']['kernel_enable_module_loading']:
             extras['kernel_modules_disabled'] = 0
 
-        if defaults['sysctl']['kernel_enable_sysrq']:
-            sysrq_val = defaults['sysctl']['kernel_secure_sysrq']
+        if settings['sysctl']['kernel_enable_sysrq']:
+            sysrq_val = settings['sysctl']['kernel_secure_sysrq']
             extras['kernel_sysrq'] = sysrq_val
 
-        if defaults['security']['kernel_enable_core_dump']:
+        if settings['security']['kernel_enable_core_dump']:
             extras['fs_suid_dumpable'] = 1
 
-        sysctl_defaults = """
+        sysctl_settings = """
         net.ipv4.ip_forward=%(net_ipv4_ip_forward)s
         net.ipv6.conf.all.forwarding=%(net_ipv6_conf_all_forwarding)s
         net.ipv4.conf.all.rp_filter=1
@@ -172,8 +172,8 @@ class SysCtlHardeningContext(object):
         fs.suid_dumpable=%(fs_suid_dumpable)s
         kernel.randomize_va_space=2
         """
-        defaults.update(extras)
-        for d in (sysctl_defaults % defaults).split():
+        settings.update(extras)
+        for d in (sysctl_settings % settings).split():
             d = d.strip().partition('=')
             key = d[0].strip()
             path = os.path.join('/proc/sys', key.replace('.', '/'))

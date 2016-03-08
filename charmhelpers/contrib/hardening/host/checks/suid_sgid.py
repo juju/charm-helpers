@@ -76,8 +76,8 @@ WHITELIST = ['/bin/mount', '/bin/ping', '/bin/su', '/bin/umount',
 def get_audits():
     """Returns audits used to check the SUID/GUID bits are properly removed."""
     checks = []
-    defaults = utils.get_defaults('os')
-    if not defaults['security']['suid_sgid_enforce']:
+    settings = utils.get_settings('os')
+    if not settings['security']['suid_sgid_enforce']:
         log("Skipping suid/guid hardening", level=INFO)
         return checks
 
@@ -92,21 +92,21 @@ def get_audits():
     # set and the whitelist is the set of paths which MAY have the suid/sgid
     # bit setl. The user whitelist/blacklist effectively override the system
     # whitelist/blacklist.
-    u_b = defaults['security']['suid_sgid_blacklist']
-    u_w = defaults['security']['suid_sgid_whitelist']
+    u_b = settings['security']['suid_sgid_blacklist']
+    u_w = settings['security']['suid_sgid_whitelist']
 
     blacklist = set(BLACKLIST) - set(u_w + u_b)
     whitelist = set(WHITELIST) - set(u_b + u_w)
 
     checks.append(NoSUIDSGIDAudit(blacklist))
 
-    dry_run = defaults['security']['suid_sgid_dry_run_on_unknown']
+    dry_run = settings['security']['suid_sgid_dry_run_on_unknown']
 
-    if defaults['security']['suid_sgid_remove_from_unknown'] or dry_run:
+    if settings['security']['suid_sgid_remove_from_unknown'] or dry_run:
         # If the policy is a dry_run (e.g. complain only) or remove unknown
         # suid/sgid bits then find all of the paths which have the suid/sgid
         # bit set and then remove the whitelisted paths.
-        root_path = defaults['environment']['root_path']
+        root_path = settings['environment']['root_path']
         unknown_paths = find_paths_with_suid_sgid(root_path) - set(whitelist)
         checks.append(NoSUIDSGIDAudit(unknown_paths, unless=dry_run))
 

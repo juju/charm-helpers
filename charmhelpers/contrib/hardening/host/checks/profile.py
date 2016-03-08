@@ -21,11 +21,11 @@ def get_audits():
     """Returns the audits and checks necessary to secure the TTY."""
     audits = []
 
-    defaults = utils.get_defaults('os')
+    settings = utils.get_settings('os')
 
     # If core dumps are not enabled, then don't allow core dumps to be
     # created as they may contain sensitive information.
-    if not defaults['security']['kernel_enable_core_dump']:
+    if not settings['security']['kernel_enable_core_dump']:
         audits.append(TemplatedFile('/etc/profile.d/pinerolo_profile.sh',
                                     ProfileContext(),
                                     template_dir=TEMPLATES_DIR,

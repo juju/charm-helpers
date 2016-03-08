@@ -21,7 +21,6 @@ from charmhelpers.contrib.hardening.apache.checks import (
 )
 from charmhelpers.core.hookenv import (
     log,
-    DEBUG,
     INFO,
 )
 
@@ -30,6 +29,5 @@ TEMPLATES = os.path.join(os.path.dirname(__file__), 'templates')
 
 def harden_apache():
     log("Hardening Apache", level=INFO)
-    log("Running checks", level=DEBUG)
     run_apache_checks()
     log("Apache hardening complete", level=INFO)

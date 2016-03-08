@@ -48,7 +48,7 @@ class SSHConfigFileContentAudit(FileContentAudit):
     def is_compliant(self, *args, **kwargs):
         self.pass_cases = []
         self.fail_cases = []
-        settings = utils.get_defaults('ssh')
+        settings = utils.get_settings('ssh')
 
         if not settings['client']['weak_hmac']:
             self.fail_cases.append(r'^MACs\shmac-sha1[,\s]?')
@@ -94,7 +94,7 @@ class SSHDConfigFileContentAudit(FileContentAudit):
     def is_compliant(self, *args, **kwargs):
         self.pass_cases = []
         self.fail_cases = []
-        settings = utils.get_defaults('ssh')
+        settings = utils.get_settings('ssh')
 
         if not settings['server']['weak_hmac']:
             self.fail_cases.append(r'^MACs\shmac-sha1[,\s]?')
@@ -213,7 +213,7 @@ class SSHConfigContext(object):
         return cipher[weak_ciphers]
 
     def __call__(self):
-        settings = utils.get_defaults('ssh')
+        settings = utils.get_settings('ssh')
         ctxt = {
             'remote_hosts': settings['common']['remote_hosts'],
             'password_auth_allowed':
@@ -238,7 +238,7 @@ class SSHConfig(TemplatedFile):
                                         mode=0o0644)
 
     def pre_write(self):
-        settings = utils.get_defaults('ssh')
+        settings = utils.get_settings('ssh')
         apt_update(fatal=True)
         apt_install(settings['client']['package'])
         if not os.path.exists('/etc/ssh'):
@@ -258,7 +258,7 @@ class SSHDConfigContext(SSHConfigContext):
     type = 'server'
 
     def __call__(self):
-        settings = utils.get_defaults('ssh')
+        settings = utils.get_settings('ssh')
         if settings['common']['network_ipv6_enable']:
             addr_family = 'any'
         else:
@@ -315,7 +315,7 @@ class SSHDConfig(TemplatedFile):
                                                            ['restart']}])
 
     def pre_write(self):
-        settings = utils.get_defaults('ssh')
+        settings = utils.get_settings('ssh')
         apt_update(fatal=True)
         apt_install(settings['server']['package'])
         if not os.path.exists('/etc/ssh'):

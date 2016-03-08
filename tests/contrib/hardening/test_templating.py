@@ -27,6 +27,8 @@ from charmhelpers.contrib.hardening.audits.file import (
     FileContentAudit,
 )
 from charmhelpers.contrib.hardening.ssh.checks import config
+
+os.environ['JUJU_CHARM_DIR'] = '/tmp'
 from charmhelpers.contrib.hardening.host.checks import (
     sysctl,
     securetty,
@@ -74,6 +76,7 @@ class TemplatingTestCase(TestCase):
     @patch.object(utils, 'ensure_permissions')
     @patch.object(templating, 'write')
     @patch.object(templating, 'log', lambda *args, **kwargs: None)
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
     def test_ssh_config_render_and_check(self, mock_write,
                                          mock_ensure_permissions):
         audits = config.get_audits()
@@ -102,6 +105,7 @@ class TemplatingTestCase(TestCase):
     @patch.object(templating, 'write')
     @patch.object(sysctl, 'log', lambda *args, **kwargs: None)
     @patch.object(templating, 'log', lambda *args, **kwargs: None)
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
     def test_os_sysctl_and_check(self, mock_write, mock_ensure_permissions):
         audits = sysctl.get_audits()
         contentcheckers = self.get_contentcheckers(audits)
@@ -128,6 +132,7 @@ class TemplatingTestCase(TestCase):
     @patch.object(templating, 'write')
     @patch.object(sysctl, 'log', lambda *args, **kwargs: None)
     @patch.object(templating, 'log', lambda *args, **kwargs: None)
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
     def test_os_securetty_and_check(self, mock_write, mock_ensure_permissions):
         audits = securetty.get_audits()
         contentcheckers = self.get_contentcheckers(audits)

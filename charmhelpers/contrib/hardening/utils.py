@@ -22,14 +22,37 @@ import yaml
 
 from charmhelpers.core.hookenv import (
     log,
+    DEBUG,
     WARNING,
 )
 
 
 def get_defaults(type):
-    defaults = os.path.join(os.path.dirname(__file__),
-                            'defaults/%s.yaml' % (type))
-    return yaml.safe_load(open(defaults))
+    default = os.path.join(os.path.dirname(__file__),
+                           'defaults/%s.yaml' % (type))
+    return yaml.safe_load(open(default))
+
+
+def get_user_provided_overrides(type):
+    overrides = os.path.join(os.environ['JUJU_CHARM_DIR'],
+                             'hardening.config.yaml')
+    log("Looking for hardening config overrides '%s'" % (overrides),
+        level=DEBUG)
+    if os.path.exists(overrides):
+        settings = yaml.safe_load(open(overrides))
+        if settings and settings.get(type):
+            return settings.get(type)
+
+    log("No hardening config overrides found at '%s'" % (overrides),
+        level=DEBUG)
+    return {}
+
+
+def get_settings(type):
+    settings = get_defaults(type)
+    user_provided = get_user_provided_overrides(type)
+    settings.update(user_provided)
+    return settings
 
 
 def ensure_permissions(path, user, group, permissions, maxdepth=-1):

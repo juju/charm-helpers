@@ -23,7 +23,7 @@ from charmhelpers.contrib.hardening.host.checks import pam
 
 class PAMTestCase(TestCase):
 
-    @patch.object(pam.utils, 'get_defaults', lambda x: {
+    @patch.object(pam.utils, 'get_settings', lambda x: {
         'auth': {'pam_passwdqc_enable': True,
                  'retries': False}
     })
@@ -36,7 +36,7 @@ class PAMTestCase(TestCase):
         self.assertTrue(isinstance(audit, pam.DeletedFile))
         self.assertEqual('/usr/share/pam-configs/tally2', audit.paths[0])
 
-    @patch.object(pam.utils, 'get_defaults', lambda x: {
+    @patch.object(pam.utils, 'get_settings', lambda x: {
         'auth': {'pam_passwdqc_enable': False,
                  'retries': True}
     })
@@ -45,7 +45,7 @@ class PAMTestCase(TestCase):
         self.assertEqual(1, len(audits))
         self.assertFalse(isinstance(audits[0], pam.PasswdqcPAM))
 
-    @patch.object(pam.utils, 'get_defaults', lambda x: {
+    @patch.object(pam.utils, 'get_settings', lambda x: {
         'auth': {'pam_passwdqc_enable': False,
                  'retries': True}
     })
