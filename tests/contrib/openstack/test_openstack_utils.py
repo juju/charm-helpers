@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import tempfile
+import contextlib
 import unittest
 from copy import copy
 from testtools import TestCase
@@ -196,8 +197,9 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_codename_install_source('distro'),
                           'essex')
         # proposed pocket
-        self.assertEquals(openstack.get_os_codename_install_source('distro-proposed'),
-                          'essex')
+        self.assertEquals(openstack.get_os_codename_install_source(
+            'distro-proposed'),
+            'essex')
 
         # various cloud archive pockets
         src = 'cloud:precise-grizzly'
@@ -777,7 +779,8 @@ class OpenStackHelpersTestCase(TestCase):
                 repository: 'git://git.openstack.org/openstack/requirements',
                 branch: stable/juno}"""
         openstack.git_clone_and_install(git_wrong_order_1, 'keystone')
-        error_out.assert_called_with('keystone git repo must be specified last')
+        error_out.assert_called_with(
+            'keystone git repo must be specified last')
 
         git_wrong_order_2 = """
           repositories:
@@ -785,7 +788,8 @@ class OpenStackHelpersTestCase(TestCase):
                 repository: 'git://git.openstack.org/openstack/keystone',
                 branch: stable/juno}"""
         openstack.git_clone_and_install(git_wrong_order_2, 'keystone')
-        error_out.assert_called_with('requirements git repo must be specified first')
+        error_out.assert_called_with(
+            'requirements git repo must be specified first')
 
     @patch('os.path.join')
     @patch.object(openstack, 'charm_dir')
@@ -839,8 +843,8 @@ class OpenStackHelpersTestCase(TestCase):
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, depth, parent_dir,
-                                                http_proxy, False)
+        openstack._git_clone_and_install_single(
+            repo, branch, depth, parent_dir, http_proxy, False)
         mkdir.assert_called_with(parent_dir)
         install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
@@ -855,10 +859,9 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'install_remote')
     @patch.object(openstack, 'pip_install')
     @patch.object(openstack, '_git_update_requirements')
-    def test_git_clone_and_install_single_with_update(self, _git_update_reqs,
-                                                      pip_install,
-                                                      install_remote, log,
-                                                      path_exists, mkdir, join):
+    def test_git_clone_and_install_single_with_update(
+            self, _git_update_reqs, pip_install, install_remote, log,
+            path_exists, mkdir, join):
         repo = 'git://git.openstack.org/openstack/requirements.git'
         branch = 'master'
         depth = 1
@@ -872,8 +875,8 @@ class OpenStackHelpersTestCase(TestCase):
         path_exists.return_value = False
         install_remote.return_value = dest_dir
 
-        openstack._git_clone_and_install_single(repo, branch, depth, parent_dir,
-                                                http_proxy, True)
+        openstack._git_clone_and_install_single(
+            repo, branch, depth, parent_dir, http_proxy, True)
         mkdir.assert_called_with(parent_dir)
         install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
                                           branch=branch)
@@ -914,7 +917,8 @@ class OpenStackHelpersTestCase(TestCase):
             'identity': ['identity-service']}
         expected_result = 'identity'
 
-        result = openstack.incomplete_relation_data(configs, required_interfaces)
+        result = openstack.incomplete_relation_data(
+            configs, required_interfaces)
         self.assertTrue(expected_result in result.keys())
 
     @patch.object(openstack, 'juju_log')
@@ -1431,6 +1435,43 @@ class OpenStackHelpersTestCase(TestCase):
                           'Services should be paused but these ports '
                           'which should be closed, but are open: 60')
 
+    @staticmethod
+    def _unit_paused_helper(hook_data_mock):
+        # HookData()() returns a tuple (kv, delta_config, delta_relation)
+        # but we only want kv in the test.
+        kv = MagicMock()
+
+        @contextlib.contextmanager
+        def hook_data__call__():
+            yield (kv, True, False)
+
+        hook_data__call__.return_value = (kv, True, False)
+        hook_data_mock.return_value = hook_data__call__
+        return kv
+
+    @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
+    def test_set_unit_paused(self, hook_data):
+        kv = self._unit_paused_helper(hook_data)
+        openstack.set_unit_paused()
+        kv.set.assert_called_once_with('unit-paused', True)
+
+    @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
+    def test_clear_unit_paused(self, hook_data):
+        kv = self._unit_paused_helper(hook_data)
+        openstack.clear_unit_paused()
+        kv.set.assert_called_once_with('unit-paused', False)
+
+    @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
+    def test_is_unit_paused_set(self, hook_data):
+        kv = self._unit_paused_helper(hook_data)
+        kv.get.return_value = True
+        r = openstack.is_unit_paused_set()
+        kv.get.assert_called_once_with('unit-paused')
+        self.assertEquals(r, True)
+        kv.get.return_value = False
+        r = openstack.is_unit_paused_set()
+        self.assertEquals(r, False)
+
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
     @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
     def test_pause_unit_okay(self, set_unit_paused, service_pause):
@@ -1507,7 +1548,8 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
-    def test_resume_unit_service_fails(self, clear_unit_paused, service_resume):
+    def test_resume_unit_service_fails(
+            self, clear_unit_paused, service_resume):
         services = ['service1', 'service2']
         service_resume.side_effect = [True, True]
         openstack.resume_unit(None, services=services)
@@ -1519,8 +1561,8 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.resume_unit(None, services=services)
             raise Exception("resume_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(e.args[0],
-                              "Couldn't resume: service2 didn't start cleanly.")
+            self.assertEquals(
+                e.args[0], "Couldn't resume: service2 didn't start cleanly.")
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
