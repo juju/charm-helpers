@@ -919,7 +919,10 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_complete(self, status_set, log):
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
+    def test_set_os_workload_status_complete(
+            self, is_unit_paused_set, status_set, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db',
                                                   'amqp',
@@ -936,9 +939,11 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity': {'identity-service': {'related': True}}})
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_related_incomplete(self, status_set,
-                                                       incomplete_relation_data,
-                                                       log):
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
+    def test_set_os_workload_status_related_incomplete(
+            self, is_unit_paused_set, status_set,
+            incomplete_relation_data, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -954,8 +959,11 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity': {'identity-service': {'related': False}}})
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_absent(self, status_set,
-                                           incomplete_relation_data, log):
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
+    def test_set_os_workload_status_absent(
+            self, is_unit_paused_set, status_set,
+            incomplete_relation_data, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -973,9 +981,11 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.incomplete_relation_data',
            return_value={'identity': {'identity-service': {'related': True}}})
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_related_broken(self, status_set,
-                                                   incomplete_relation_data,
-                                                   hook_name, log):
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
+    def test_set_os_workload_status_related_broken(
+            self, is_unit_paused_set, status_set,
+            incomplete_relation_data, hook_name, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -1000,8 +1010,11 @@ class OpenStackHelpersTestCase(TestCase):
                          {'shared-db': {'related': False}}
                          })
     @patch('charmhelpers.contrib.openstack.utils.status_set')
-    def test_set_os_workload_status_mixed(self, status_set, incomplete_relation_data,
-                                          log):
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
+    def test_set_os_workload_status_mixed(
+            self, is_unit_paused_set, status_set,
+            incomplete_relation_data, log):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['shared-db', 'amqp']
         required_interfaces = {
@@ -1025,16 +1038,14 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
     def test_set_os_workload_status_complete_with_services_list(
-            self, status_set, log, port_has_listener, service_running):
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db',
-                                                  'amqp',
-                                                  'identity-service']
-        required_interfaces = {
-            'database': ['shared-db', 'pgsql-db'],
-            'message': ['amqp', 'zeromq-configuration'],
-            'identity': ['identity-service']}
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
 
         services = ['database', 'identity']
         # Assume that the service and ports are open.
@@ -1049,16 +1060,14 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
     def test_set_os_workload_status_complete_services_list_not_running(
-            self, status_set, log, port_has_listener, service_running):
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db',
-                                                  'amqp',
-                                                  'identity-service']
-        required_interfaces = {
-            'database': ['shared-db', 'pgsql-db'],
-            'message': ['amqp', 'zeromq-configuration'],
-            'identity': ['identity-service']}
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
 
         services = ['database', 'identity']
         port_has_listener.return_value = True
@@ -1075,16 +1084,14 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
     def test_set_os_workload_status_complete_with_services(
-            self, status_set, log, port_has_listener, service_running):
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db',
-                                                  'amqp',
-                                                  'identity-service']
-        required_interfaces = {
-            'database': ['shared-db', 'pgsql-db'],
-            'message': ['amqp', 'zeromq-configuration'],
-            'identity': ['identity-service']}
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
 
         services = [
             {'service': 'database', 'ports': [10, 20]},
@@ -1102,16 +1109,14 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
     def test_set_os_workload_status_complete_service_not_running(
-            self, status_set, log, port_has_listener, service_running):
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db',
-                                                  'amqp',
-                                                  'identity-service']
-        required_interfaces = {
-            'database': ['shared-db', 'pgsql-db'],
-            'message': ['amqp', 'zeromq-configuration'],
-            'identity': ['identity-service']}
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
 
         services = [
             {'service': 'database', 'ports': [10, 20]},
@@ -1131,16 +1136,14 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
     def test_set_os_workload_status_complete_port_not_open(
-            self, status_set, log, port_has_listener, service_running):
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db',
-                                                  'amqp',
-                                                  'identity-service']
-        required_interfaces = {
-            'database': ['shared-db', 'pgsql-db'],
-            'message': ['amqp', 'zeromq-configuration'],
-            'identity': ['identity-service']}
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
 
         services = [
             {'service': 'database', 'ports': [10, 20]},
@@ -1160,16 +1163,13 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
     @patch.object(openstack, 'juju_log')
     @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=False)
     def test_set_os_workload_status_complete_ports_not_open(
-            self, status_set, log, port_has_listener):
+            self, is_unit_paused_set, status_set, log, port_has_listener):
         configs = MagicMock()
-        configs.complete_contexts.return_value = ['shared-db',
-                                                  'amqp',
-                                                  'identity-service']
-        required_interfaces = {
-            'database': ['shared-db', 'pgsql-db'],
-            'message': ['amqp', 'zeromq-configuration'],
-            'identity': ['identity-service']}
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
 
         ports = [50, 60, 70]
         port_has_listener.side_effect = [True, False, True]
@@ -1179,6 +1179,422 @@ class OpenStackHelpersTestCase(TestCase):
         status_set.assert_called_with(
             'blocked',
             'Ports which should be open, but are not: 60')
+
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=True)
+    def test_set_os_workload_status_paused_simple(
+            self, is_unit_paused_set, status_set, log):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
+
+        openstack.set_os_workload_status(configs, required_interfaces)
+        status_set.assert_called_with(
+            'maintenance',
+            "Paused. Use 'resume' action to resume normal service.")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=True)
+    def test_set_os_workload_status_paused_services_check(
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
+
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        port_has_listener.return_value = False
+        service_running.side_effect = [False, False]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with(
+            'maintenance',
+            "Paused. Use 'resume' action to resume normal service.")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=True)
+    def test_set_os_workload_status_paused_services_fail(
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
+
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        port_has_listener.return_value = False
+        # Fail the identity service
+        service_running.side_effect = [False, True]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with(
+            'blocked',
+            "Services should be paused but these services running: identity")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=True)
+    def test_set_os_workload_status_paused_services_ports_fail(
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener, service_running):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
+
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # make the service 20 port be still listening.
+        port_has_listener.side_effect = [False, True, False]
+        service_running.return_value = False
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, services=services)
+        status_set.assert_called_with(
+            'blocked',
+            "Services should be paused but these service:ports are open:"
+            " database: [20]")
+
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=True)
+    def test_set_os_workload_status_paused_ports_check(
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
+
+        ports = [50, 60, 70]
+        port_has_listener.side_effect = [False, False, False]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, ports=ports)
+        status_set.assert_called_with(
+            'maintenance',
+            "Paused. Use 'resume' action to resume normal service.")
+
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    @patch.object(openstack, 'juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.is_unit_paused_set',
+           return_value=True)
+    def test_set_os_workload_status_paused_ports_fail(
+            self, is_unit_paused_set, status_set, log,
+            port_has_listener):
+        configs = MagicMock()
+        configs.complete_contexts.return_value = []
+        required_interfaces = {}
+
+        # fail port 70 to make it seem to be running
+        ports = [50, 60, 70]
+        port_has_listener.side_effect = [False, False, True]
+
+        openstack.set_os_workload_status(
+            configs, required_interfaces, ports=ports)
+        status_set.assert_called_with(
+            'blocked',
+            "Services should be paused but "
+            "these ports which should be closed, but are open: 70")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_simple_services(
+            self, port_has_listener, service_running):
+        services = ['database', 'identity']
+        port_has_listener.return_value = False
+        service_running.return_value = False
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, None)
+        self.assertEquals(message, None)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_simple_services_fail(
+            self, port_has_listener, service_running):
+        services = ['database', 'identity']
+        port_has_listener.return_value = False
+        service_running.side_effect = [False, True]
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(
+            message,
+            "Services should be paused but these services running: identity")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_services_dict(
+            self, port_has_listener, service_running):
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.return_value = False
+        service_running.return_value = False
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, None)
+        self.assertEquals(message, None)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_services_dict_fail(
+            self, port_has_listener, service_running):
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.return_value = False
+        service_running.side_effect = [False, True]
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(
+            message,
+            "Services should be paused but these services running: identity")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_services_dict_ports_fail(
+            self, port_has_listener, service_running):
+        services = [
+            {'service': 'database', 'ports': [10, 20]},
+            {'service': 'identity', 'ports': [30]},
+        ]
+        # Assume that the service and ports are open.
+        port_has_listener.side_effect = [False, True, False]
+        service_running.return_value = False
+
+        state, message = openstack.check_actually_paused(
+            services)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(message,
+                          'Services should be paused but these service:ports'
+                          ' are open: database: [20]')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_ports_okay(
+            self, port_has_listener, service_running):
+        port_has_listener.side_effect = [False, False, False]
+        service_running.return_value = False
+        ports = [50, 60, 70]
+
+        state, message = openstack.check_actually_paused(
+            ports=ports)
+        self.assertEquals(state, None)
+        self.assertEquals(state, None)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_running')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_check_actually_paused_ports_fail(
+            self, port_has_listener, service_running):
+        port_has_listener.side_effect = [False, True, False]
+        service_running.return_value = False
+        ports = [50, 60, 70]
+
+        state, message = openstack.check_actually_paused(
+            ports=ports)
+        self.assertEquals(state, 'blocked')
+        self.assertEquals(message,
+                          'Services should be paused but these ports '
+                          'which should be closed, but are open: 60')
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_okay(self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.side_effect = [True, True]
+        openstack.pause_unit(None, services=services)
+        set_unit_paused.assert_called_once_with()
+        self.assertEquals(service_pause.call_count, 2)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_service_fails(self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.side_effect = [True, True]
+        openstack.pause_unit(None, services=services)
+        set_unit_paused.assert_called_once_with()
+        self.assertEquals(service_pause.call_count, 2)
+        # Fail the 2nd service
+        service_pause.side_effect = [True, False]
+        try:
+            openstack.pause_unit(None, services=services)
+            raise Exception("pause_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't pause: service2 didn't stop cleanly.")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pausee_unit_service_charm_func(
+            self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.return_value = True
+        charm_func = MagicMock()
+        charm_func.return_value = None
+        openstack.pause_unit(None, services=services, charm_func=charm_func)
+        charm_func.assert_called_once_with()
+        # fail the charm_func
+        charm_func.return_value = "Custom charm failed"
+        try:
+            openstack.pause_unit(
+                None, services=services, charm_func=charm_func)
+            raise Exception("pause_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't pause: Custom charm failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    def test_pause_unit_assess_status_func(
+            self, set_unit_paused, service_pause):
+        services = ['service1', 'service2']
+        service_pause.return_value = True
+        assess_status_func = MagicMock()
+        assess_status_func.return_value = None
+        openstack.pause_unit(assess_status_func, services=services)
+        assess_status_func.assert_called_once_with()
+        # fail the assess_status_func
+        assess_status_func.return_value = "assess_status_func failed"
+        try:
+            openstack.pause_unit(assess_status_func, services=services)
+            raise Exception("pause_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't pause: assess_status_func failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_okay(self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.side_effect = [True, True]
+        openstack.resume_unit(None, services=services)
+        clear_unit_paused.assert_called_once_with()
+        self.assertEquals(service_resume.call_count, 2)
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_service_fails(self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.side_effect = [True, True]
+        openstack.resume_unit(None, services=services)
+        clear_unit_paused.assert_called_once_with()
+        self.assertEquals(service_resume.call_count, 2)
+        # Fail the 2nd service
+        service_resume.side_effect = [True, False]
+        try:
+            openstack.resume_unit(None, services=services)
+            raise Exception("resume_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't resume: service2 didn't start cleanly.")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_service_charm_func(
+            self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.return_value = True
+        charm_func = MagicMock()
+        charm_func.return_value = None
+        openstack.resume_unit(None, services=services, charm_func=charm_func)
+        charm_func.assert_called_once_with()
+        # fail the charm_func
+        charm_func.return_value = "Custom charm failed"
+        try:
+            openstack.resume_unit(
+                None, services=services, charm_func=charm_func)
+            raise Exception("resume_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't resume: Custom charm failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_resume')
+    @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
+    def test_resume_unit_assess_status_func(
+            self, clear_unit_paused, service_resume):
+        services = ['service1', 'service2']
+        service_resume.return_value = True
+        assess_status_func = MagicMock()
+        assess_status_func.return_value = None
+        openstack.resume_unit(assess_status_func, services=services)
+        assess_status_func.assert_called_once_with()
+        # fail the assess_status_func
+        assess_status_func.return_value = "assess_status_func failed"
+        try:
+            openstack.resume_unit(assess_status_func, services=services)
+            raise Exception("resume_unit should have raised Exception")
+        except Exception as e:
+            self.assertEquals(e.args[0],
+                              "Couldn't resume: assess_status_func failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.status_set')
+    @patch('charmhelpers.contrib.openstack.utils.'
+           '_determine_os_workload_status')
+    def test_make_assess_status_func(self, _determine_os_workload_status,
+                                     status_set):
+        _determine_os_workload_status.return_value = ('active', 'fine')
+        f = openstack.make_assess_status_func('one', 'two', three='three')
+        r = f()
+        self.assertEquals(r, None)
+        _determine_os_workload_status.assert_called_once_with(
+            'one', 'two', three='three')
+        status_set.assert_called_once_with('active', 'fine')
+        # return something other than 'active' or 'maintenance'
+        _determine_os_workload_status.return_value = ('broken', 'damaged')
+        r = f()
+        self.assertEquals(r, 'damaged')
+
+    @patch.object(openstack, 'restart_on_change_helper')
+    @patch.object(openstack, 'is_unit_paused_set')
+    def test_pausable_restart_on_change(
+            self, is_unit_paused_set, restart_on_change_helper):
+        @openstack.pausable_restart_on_change({})
+        def test_func():
+            pass
+
+        # test with pause: restart_on_change_helper should not be called.
+        is_unit_paused_set.return_value = True
+        test_func()
+        self.assertEquals(restart_on_change_helper.call_count, 0)
+
+        # test without pause: restart_on_change_helper should be called.
+        is_unit_paused_set.return_value = False
+        test_func()
+        self.assertEquals(restart_on_change_helper.call_count, 1)
 
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
