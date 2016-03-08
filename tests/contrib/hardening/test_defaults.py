@@ -27,6 +27,18 @@ class DefaultsTestCase(TestCase):
     def setUp(self):
         super(DefaultsTestCase, self).setUp()
 
+    def get_keys(self, dicto, keys=None):
+        if keys is None:
+            keys = []
+
+        if dicto:
+            for key in dicto.keys():
+                keys.append(key)
+                if type(dicto[key]) is dict:
+                    self.get_keys(dicto[key], keys)
+
+        return keys
+
     def test_defaults(self):
         defaults_paths = glob.glob('%s/*.yaml' % TEMPLATES_DIR)
         for defaults in defaults_paths:
@@ -39,5 +51,6 @@ class DefaultsTestCase(TestCase):
 
             # Test that all keys in default are present in their associated
             # schema.
-            b.update(a)
-            self.assertEqual(b, a)
+            skeys = self.get_keys(a)
+            dkeys = self.get_keys(b)
+            self.assertEqual(set(dkeys).symmetric_difference(skeys), set([]))
