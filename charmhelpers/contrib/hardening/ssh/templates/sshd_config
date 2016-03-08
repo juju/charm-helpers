@@ -134,7 +134,7 @@ AllowGroups allow_groups
 #AllowGroups group1
 {% endif %}
 UseDNS {{ use_dns }}
-MaxAuthTries {{ max_auth_retries }}
+MaxAuthTries {{ max_auth_tries }}
 MaxSessions {{ max_sessions }}
 
 {% if sftp_enable %}
