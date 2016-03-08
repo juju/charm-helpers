@@ -50,12 +50,12 @@ class SSHConfigFileContentAudit(FileContentAudit):
         self.fail_cases = []
         settings = utils.get_defaults('ssh')
 
-        if not settings['config']['client_weak_hmac']:
+        if not settings['client']['weak_hmac']:
             self.fail_cases.append(r'^MACs\shmac-sha1[,\s]?')
         else:
             self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
 
-        if settings['config']['client_weak_kex']:
+        if settings['client']['weak_kex']:
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
@@ -66,7 +66,7 @@ class SSHConfigFileContentAudit(FileContentAudit):
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
 
-        if settings['config']['client_cbc_required']:
+        if settings['client']['cbc_required']:
             self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
             self.fail_cases.append(r'^Ciphers\s.*aes128-ctr[,\s]?')
             self.fail_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
@@ -77,7 +77,7 @@ class SSHConfigFileContentAudit(FileContentAudit):
             self.pass_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
             self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
 
-        if settings['config']['client_roaming']:
+        if settings['client']['roaming']:
             self.pass_cases.append(r'^UseRoaming yes$')
         else:
             self.fail_cases.append(r'^UseRoaming yes$')
@@ -96,12 +96,12 @@ class SSHDConfigFileContentAudit(FileContentAudit):
         self.fail_cases = []
         settings = utils.get_defaults('ssh')
 
-        if not settings['config']['client_weak_hmac']:
+        if not settings['server']['weak_hmac']:
             self.fail_cases.append(r'^MACs\shmac-sha1[,\s]?')
         else:
             self.pass_cases.append(r'^MACs\shmac-sha1[,\s]?')
 
-        if settings['config']['client_weak_kex']:
+        if settings['server']['weak_kex']:
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
             self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
@@ -112,7 +112,7 @@ class SSHDConfigFileContentAudit(FileContentAudit):
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
             self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
 
-        if settings['config']['client_cbc_required']:
+        if settings['server']['cbc_required']:
             self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
             self.fail_cases.append(r'^Ciphers\s.*aes128-ctr[,\s]?')
             self.fail_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
@@ -123,7 +123,7 @@ class SSHDConfigFileContentAudit(FileContentAudit):
             self.pass_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
             self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
 
-        if settings['config']['sftp_enable']:
+        if settings['server']['sftp_enable']:
             self.pass_cases.append(r'^Subsystem\ssftp')
         else:
             self.pass_cases.append(r'^#Subsystem\ssftp')
@@ -137,8 +137,8 @@ class SSHConfigContext(object):
 
     type = 'client'
 
-    def get_macs(self, settings):
-        if settings['%s_weak_hmac' % (self.type)]:
+    def get_macs(self, allow_weak_mac):
+        if allow_weak_mac:
             weak_macs = 'weak'
         else:
             weak_macs = 'default'
@@ -161,8 +161,8 @@ class SSHConfigContext(object):
 
         return macs[weak_macs]
 
-    def get_kexs(self, settings):
-        if settings['%s_weak_kex' % (self.type)]:
+    def get_kexs(self, allow_weak_kex):
+        if allow_weak_kex:
             weak_kex = 'weak'
         else:
             weak_kex = 'default'
@@ -190,8 +190,8 @@ class SSHConfigContext(object):
 
         return kex[weak_kex]
 
-    def get_ciphers(self, settings):
-        if settings['%s_cbc_required' % (self.type)]:
+    def get_ciphers(self, cbc_required):
+        if cbc_required:
             weak_ciphers = 'weak'
         else:
             weak_ciphers = 'default'
@@ -213,16 +213,16 @@ class SSHConfigContext(object):
         return cipher[weak_ciphers]
 
     def __call__(self):
-        defaults = utils.get_defaults('ssh')
+        settings = utils.get_defaults('ssh')
         ctxt = {
-            'remote_hosts': defaults['config']['remote_hosts'],
+            'remote_hosts': settings['common']['remote_hosts'],
             'password_auth_allowed':
-            defaults['config']['client_password_authentication'],
-            'ports': defaults['config']['ports'],
-            'ciphers': self.get_ciphers(defaults['config']),
-            'macs': self.get_macs(defaults['config']),
-            'kexs': self.get_kexs(defaults['config']),
-            'roaming': defaults['config']['client_roaming'],
+            settings['client']['password_authentication'],
+            'ports': settings['common']['ports'],
+            'ciphers': self.get_ciphers(settings['client']['cbc_required']),
+            'macs': self.get_macs(settings['client']['weak_hmac']),
+            'kexs': self.get_kexs(settings['client']['weak_kex']),
+            'roaming': settings['client']['roaming'],
         }
         return ctxt
 
@@ -238,8 +238,9 @@ class SSHConfig(TemplatedFile):
                                         mode=0o0644)
 
     def pre_write(self):
+        settings = utils.get_defaults('ssh')
         apt_update(fatal=True)
-        apt_install('openssh-client')
+        apt_install(settings['client']['package'])
         if not os.path.exists('/etc/ssh'):
             os.makedir('/etc/ssh')
             # NOTE: don't recurse
@@ -257,60 +258,45 @@ class SSHDConfigContext(SSHConfigContext):
     type = 'server'
 
     def __call__(self):
-        defaults = utils.get_defaults('ssh')
-        if defaults['general']['network_ipv6_enable']:
+        settings = utils.get_defaults('ssh')
+        if settings['common']['network_ipv6_enable']:
             addr_family = 'any'
         else:
             addr_family = 'inet'
 
-        allow_tcp_forwarding = "no"
-        if defaults['config']['allow_tcp_forwarding']:
-            allow_tcp_forwarding = "yes"
-
-        allow_x11_forwarding = "no"
-        if defaults['config']['allow_x11_forwarding']:
-            allow_x11_forwarding = "yes"
-
-        allow_agent_forwarding = "no"
-        if defaults['config']['allow_agent_forwarding']:
-            allow_agent_forwarding = "yes"
-
-        print_motd = "no"
-        if defaults['config']['print_motd']:
-            print_motd = "yes"
-
-        print_last_log = "no"
-        if defaults['config']['print_last_log']:
-            print_last_log = "yes"
-
         ctxt = {
+            'ssh_ip': settings['server']['listen_to'],
             'password_auth_allowed':
-            defaults['config']['server_password_authentication'],
-            'ports': defaults['config']['ports'],
+            settings['server']['password_authentication'],
+            'ports': settings['common']['ports'],
             'addr_family': addr_family,
-            'ciphers': self.get_ciphers(defaults['config']),
-            'macs': self.get_macs(defaults['config']),
-            'kexs': self.get_kexs(defaults['config']),
-            'host_key_files': defaults['config']['host_key_files'],
-            'allow_root_with_key': defaults['config']['allow_root_with_key'],
+            'ciphers': self.get_ciphers(settings['server']['cbc_required']),
+            'macs': self.get_macs(settings['server']['weak_hmac']),
+            'kexs': self.get_kexs(settings['server']['weak_kex']),
+            'host_key_files': settings['server']['host_key_files'],
+            'allow_root_with_key': settings['server']['allow_root_with_key'],
             'password_authentication':
-            defaults['config']['server_password_authentication'],
-            'allow_x11_forwarding': allow_x11_forwarding,
-            'print_motd': print_motd,
-            'print_last_log': print_last_log,
+            settings['server']['password_authentication'],
+            'use_priv_sep': settings['server']['use_privilege_separation'],
+            'use_pam': settings['server']['use_pam'],
+            'allow_x11_forwarding': settings['server']['allow_x11_forwarding'],
+            'print_motd': settings['server']['print_motd'],
+            'print_last_log': settings['server']['print_last_log'],
             'client_alive_interval':
-            defaults['config']['client_alive_interval'],
-            'client_alive_count': defaults['config']['client_alive_count'],
-            'allow_tcp_forwarding': allow_tcp_forwarding,
-            'allow_agent_forwarding': allow_agent_forwarding,
-            'deny_users': defaults['config']['deny_users'],
-            'allow_users': defaults['config']['allow_users'],
-            'deny_groups': defaults['config']['deny_groups'],
-            'allow_groups': defaults['config']['allow_groups'],
-            'use_dns': defaults['config']['use_dns'],
-            'sftp_enable': defaults['config']['sftp_enable'],
-            'sftp_group': defaults['config']['sftp_group'],
-            'sftp_chroot': defaults['config']['sftp_chroot'],
+            settings['server']['alive_interval'],
+            'client_alive_count': settings['server']['alive_count'],
+            'allow_tcp_forwarding': settings['server']['allow_tcp_forwarding'],
+            'allow_agent_forwarding': settings['server']['allow_agent_forwarding'],
+            'deny_users': settings['server']['deny_users'],
+            'allow_users': settings['server']['allow_users'],
+            'deny_groups': settings['server']['deny_groups'],
+            'allow_groups': settings['server']['allow_groups'],
+            'use_dns': settings['server']['use_dns'],
+            'sftp_enable': settings['server']['sftp_enable'],
+            'sftp_group': settings['server']['sftp_group'],
+            'sftp_chroot': settings['server']['sftp_chroot'],
+            'max_auth_tries': settings['server']['max_auth_tries'],
+            'max_sessions': settings['server']['max_sessions'],
         }
         return ctxt
 
@@ -329,8 +315,9 @@ class SSHDConfig(TemplatedFile):
                                                            ['restart']}])
 
     def pre_write(self):
+        settings = utils.get_defaults('ssh')
         apt_update(fatal=True)
-        apt_install('openssh-server')
+        apt_install(settings['server']['package'])
         if not os.path.exists('/etc/ssh'):
             os.makedir('/etc/ssh')
             # NOTE: don't recurse

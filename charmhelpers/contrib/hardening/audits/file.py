@@ -484,7 +484,7 @@ class FileContentAudit(BaseFileAudit):
                     % (pattern), level=WARNING)
 
         total = len(self.pass_cases) + len(self.fail_cases)
-        log("Checked %s cases and %s passed" % (total, matches))
+        log("Checked %s cases and %s passed" % (total, matches), level=DEBUG)
         return matches == total
 
     def comply(self, *args, **kwargs):
