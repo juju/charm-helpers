@@ -53,10 +53,9 @@ def get_user_provided_overrides(stack):
             (overrides), level=DEBUG)
         settings = yaml.safe_load(open(overrides))
         if settings and settings.get(stack):
+            log("Applying '%s' overrides found in '%s'" % (stack, overrides),
+                level=DEBUG)
             return settings.get(stack)
-
-        log("No '%s' overrides found in '%s'" % (stack, overrides),
-            level=DEBUG)
     else:
         log("No hardening config overrides file '%s' found in charm "
             "root dir" % (overrides), level=DEBUG)
