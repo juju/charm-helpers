@@ -104,7 +104,7 @@ class SysCtlHardeningContext(object):
                   'net_ipv6_conf_all_forwarding': 0,
                   'net_ipv6_conf_all_disable_ipv6': 1,
                   'net_ipv4_tcp_timestamps': 0,
-                  'net_ipv4_conf_all_arp_ignore': 0,
+                  'net_ipv4_conf_all_arp_ignore': 2,
                   'net_ipv4_conf_all_arp_announce': 0,
                   'kernel_sysrq': 0,
                   'fs_suid_dumpable': 0,
