@@ -221,7 +221,7 @@ class CephUtilsTests(TestCase):
         p.remove_cache_tier(cache_pool='cacher')
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'tier', 'cache-mode', 'cacher', 'forward']),
-            call(['ceph', '--id', 'admin', '-p', 'cacher', 'cache-flush-evict-all']),
+            call(['rados', '--id', 'admin', '-p', 'cacher', 'cache-flush-evict-all']),
             call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove-overlay', 'test']),
             call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove', 'test', 'cacher']),
         ])
