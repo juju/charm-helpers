@@ -47,13 +47,13 @@ Protocol 2
 #   Cipher 3des
 {% if ciphers -%}
 Ciphers {{ ciphers }}
-{% endif %}
+{%- endif %}
 {% if macs -%}
 MACs {{ macs }}
-{% endif %}
+{%- endif %}
 {% if kexs -%}
 KexAlgorithms {{ kexs }}
-{% endif %}
+{%- endif %}
 #   EscapeChar ~
 #   Tunnel no
 #   TunnelDevice any:any
