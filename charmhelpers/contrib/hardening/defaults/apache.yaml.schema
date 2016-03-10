@@ -1,0 +1,7 @@
+common:
+    apache_dir:
+    traceenable:
+
+hardening:
+    allowed_http_methods:
+    modules_to_disable:

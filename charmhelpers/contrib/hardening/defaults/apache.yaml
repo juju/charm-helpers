@@ -1,0 +1,7 @@
+common:
+    apache_dir: '/etc/apache2'
+
+hardening:
+    traceenable: 'off'
+    allowed_http_methods: "GET POST"
+    modules_to_disable: [ cgi, cgid ]
