@@ -1,5 +1,4 @@
-mysql:
-  security:
+security:
     chroot:
     safe-user-create:
     secure-auth:
@@ -9,6 +8,6 @@ mysql:
     allow-suspicious-udfs:
     automatic-sp-privileges:
     secure-file-priv:
-  hardening:
+hardening:
     mysql-conf:
     hardening-conf:
