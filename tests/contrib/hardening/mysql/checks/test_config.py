@@ -13,18 +13,21 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+from unittest import TestCase
 
-from charmhelpers.core.hookenv import DEBUG
-from charmhelpers.core.hookenv import log
+from mock import patch
 
 from charmhelpers.contrib.hardening.mysql.checks import config
 
 
-def run_mysql_checks():
-    log("Starting MySQL hardening checks.", level=DEBUG)
+class MySQLonfigTestCase(TestCase):
 
-    checks = config.get_audits()
-    for check in checks:
-        check.ensure_compliance()
-
-    log("MySQL hardening checks complete.", level=DEBUG)
+    @patch.object(config.utils, 'get_settings', lambda x: {
+        'hardening': {
+            'mysql-conf': {},
+            'hardening-conf': {}
+        }
+    })
+    def test_get_audits(self):
+        audits = config.get_audits()
+        self.assertEqual(3, len(audits))
