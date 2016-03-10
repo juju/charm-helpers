@@ -20,7 +20,7 @@ from mock import patch
 from charmhelpers.contrib.hardening.mysql.checks import config
 
 
-class MySQLonfigTestCase(TestCase):
+class MySQLConfigTestCase(TestCase):
 
     @patch.object(config.utils, 'get_settings', lambda x: {
         'hardening': {

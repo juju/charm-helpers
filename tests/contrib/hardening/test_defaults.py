@@ -32,6 +32,9 @@ class DefaultsTestCase(TestCase):
             keys = []
 
         if dicto:
+            if type(dicto) is not dict:
+                raise Exception("Unexpected entry: %s" % dicto)
+
             for key in dicto.keys():
                 keys.append(key)
                 if type(dicto[key]) is dict:

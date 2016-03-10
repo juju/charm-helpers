@@ -327,7 +327,7 @@ class TemplatedFile(BaseFileAudit):
             log("Running service '%s' actions '%s'" % (name, actions),
                 level=DEBUG)
             for action in actions:
-                cmd = ['sudo', 'service', name, action]
+                cmd = ['service', name, action]
                 try:
                     check_call(cmd)
                 except CalledProcessError as exc:
