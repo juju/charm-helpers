@@ -1,0 +1,14 @@
+mysql:
+  security:
+    chroot:
+    safe-user-create:
+    secure-auth:
+    skip-symbolic-links:
+    skip-show-database:
+    local-infile:
+    allow-suspicious-udfs:
+    automatic-sp-privileges:
+    secure-file-priv:
+  hardening:
+    mysql-conf:
+    hardening-conf:
