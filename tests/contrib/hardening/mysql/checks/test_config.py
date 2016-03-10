@@ -22,6 +22,7 @@ from charmhelpers.contrib.hardening.mysql.checks import config
 
 class MySQLConfigTestCase(TestCase):
 
+    @patch.object(config.subprocess, 'call', lambda *args, **kwargs: 0)
     @patch.object(config.utils, 'get_settings', lambda x: {
         'hardening': {
             'mysql-conf': {},

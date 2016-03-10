@@ -14,20 +14,30 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
-from charmhelpers.contrib.hardening.audits.file import DirectoryPermissionAudit
-from charmhelpers.contrib.hardening.audits.file import TemplatedFile
+import subprocess
 
+from charmhelpers.core.hookenv import (
+    log,
+    WARNING,
+)
+from charmhelpers.contrib.hardening.audits.file import (
+    FilePermissionAudit,
+    DirectoryPermissionAudit,
+    TemplatedFile,
+)
 from charmhelpers.contrib.hardening.mysql import TEMPLATES_DIR
-
 from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
     """Returns the audits which are used for mysql."""
+    if subprocess.call(['which', 'mysql'], stdout=subprocess.PIPE) != 0:
+        log("MySQL does not appear to be installed on this node - "
+            "skipping mysql hardening", level=WARNING)
+        return
+
     settings = utils.get_settings('mysql')
     hardening_settings = settings['hardening']
-
     my_cnf = hardening_settings['mysql-conf']
 
     audits = [
