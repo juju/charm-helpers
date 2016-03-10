@@ -197,7 +197,6 @@ class TemplatingTestCase(TestCase):
         self.assertEqual('/etc/securetty', args_list[0][0][0])
         self.assertEqual(mock_write.call_count, 1)
 
-    
     @patch.object(apache_config_check.utils, 'get_settings', lambda x: {
         'common': {'apache_dir': '/tmp/foo'},
         'hardening': {
@@ -217,7 +216,7 @@ class TemplatingTestCase(TestCase):
     def test_apache_conf_and_check(self, mock_write, mock_ensure_permissions,
                                    mock_re, mock_subprocess):
         mock_group = MagicMock()
-        mock_group.side_effect = "foo" 
+        mock_group.side_effect = "foo"
         mock_re.search.return_value = mock_group
         mock_subprocess.call.return_value = 0
         audits = apache_config_check.get_audits()
@@ -253,8 +252,10 @@ class TemplatingTestCase(TestCase):
            lambda *a, **kwa: True)
     @patch.object(utils, 'ensure_permissions')
     @patch.object(templating, 'write')
-    #@patch.object(templating, 'log', lambda *args, **kwargs: None)
-    #@patch.object(utils, 'log', lambda *args, **kwargs: None)
+    @patch.object(mysql_config_check.subprocess, 'call',
+                  lambda *args, **kwargs: 0)
+    @patch.object(templating, 'log', lambda *args, **kwargs: None)
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
     def test_mysql_conf_and_check(self, mock_write, mock_ensure_permissions):
         audits = mysql_config_check.get_audits()
         contentcheckers = self.get_contentcheckers(audits)
