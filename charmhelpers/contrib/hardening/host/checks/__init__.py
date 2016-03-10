@@ -13,26 +13,27 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from charmhelpers.core.hookenv import DEBUG
-from charmhelpers.core.hookenv import log
 
-from charmhelpers.contrib.hardening.host.checks import apt
-from charmhelpers.contrib.hardening.host.checks import limits
-from charmhelpers.contrib.hardening.host.checks import login
-from charmhelpers.contrib.hardening.host.checks import minimize_access
-from charmhelpers.contrib.hardening.host.checks import pam
-from charmhelpers.contrib.hardening.host.checks import profile
-from charmhelpers.contrib.hardening.host.checks import securetty
-from charmhelpers.contrib.hardening.host.checks import suid_sgid
-from charmhelpers.contrib.hardening.host.checks import sysctl
+from charmhelpers.core.hookenv import (
+    log,
+    DEBUG,
+)
+from charmhelpers.contrib.hardening.host.checks import (
+    apt,
+    limits,
+    login,
+    minimize_access,
+    pam,
+    profile,
+    securetty,
+    suid_sgid,
+    sysctl
+)
 
 
 def run_os_checks():
     log("Starting OS hardening checks.", level=DEBUG)
-
-    checks = []
-
-    checks.extend(apt.get_audits())
+    checks = apt.get_audits()
     checks.extend(limits.get_audits())
     checks.extend(login.get_audits())
     checks.extend(minimize_access.get_audits())

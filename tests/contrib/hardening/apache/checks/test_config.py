@@ -40,7 +40,7 @@ class ApacheConfigTestCase(TestCase):
     @patch.object(config.subprocess, 'call', lambda *args, **kwargs: 1)
     def test_get_audits_apache_not_installed(self):
         audits = config.get_audits()
-        self.assertEqual(None, audits)
+        self.assertEqual([], audits)
 
     @patch.object(config.utils, 'get_settings', lambda x: {
         'common': {'apache_dir': TEST_TMPDIR,

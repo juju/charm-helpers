@@ -36,7 +36,7 @@ def get_audits():
     if subprocess.call(['which', 'apache2'], stdout=subprocess.PIPE) != 0:
         log("Apache server does not appear to be installed on this node - "
             "skipping apache hardening", level=WARNING)
-        return
+        return []
 
     settings = utils.get_settings('apache')
     audits = [
