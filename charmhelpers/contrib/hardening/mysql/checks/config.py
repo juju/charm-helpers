@@ -62,4 +62,4 @@ class MySQLConfContext(object):
     """
     def __call__(self):
         settings = utils.get_settings('mysql')
-        return dict(settings['security'])
+        return {'mysql_settings': settings['security']}

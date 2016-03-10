@@ -17,8 +17,10 @@
 import tempfile
 import os
 
-from mock import patch
+from mock import patch, MagicMock
 from unittest import TestCase
+
+os.environ['JUJU_CHARM_DIR'] = '/tmp'
 
 from charmhelpers.contrib.hardening import templating
 from charmhelpers.contrib.hardening import utils
@@ -29,11 +31,15 @@ from charmhelpers.contrib.hardening.audits.file import (
 from charmhelpers.contrib.hardening.ssh.checks import (
     config as ssh_config_check
 )
-
-os.environ['JUJU_CHARM_DIR'] = '/tmp'
 from charmhelpers.contrib.hardening.host.checks import (
     sysctl,
     securetty,
+)
+from charmhelpers.contrib.hardening.apache.checks import (
+    config as apache_config_check
+)
+from charmhelpers.contrib.hardening.mysql.checks import (
+    config as mysql_config_check
 )
 
 
@@ -189,6 +195,87 @@ class TemplatingTestCase(TestCase):
         self.assertTrue(mock_write.called)
         args_list = mock_write.call_args_list
         self.assertEqual('/etc/securetty', args_list[0][0][0])
+        self.assertEqual(mock_write.call_count, 1)
+
+    
+    @patch.object(apache_config_check.utils, 'get_settings', lambda x: {
+        'common': {'apache_dir': '/tmp/foo'},
+        'hardening': {
+            'allowed_http_methods': {'GOGETEM'},
+            'modules_to_disable': {'modfoo'},
+            'traceenable': 'off'
+        }
+    })
+    @patch('charmhelpers.contrib.hardening.audits.file.os.path.exists',
+           lambda *a, **kwa: True)
+    @patch.object(apache_config_check, 'subprocess')
+    @patch.object(apache_config_check, 're')
+    @patch.object(utils, 'ensure_permissions')
+    @patch.object(templating, 'write')
+    @patch.object(templating, 'log', lambda *args, **kwargs: None)
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
+    def test_apache_conf_and_check(self, mock_write, mock_ensure_permissions,
+                                   mock_re, mock_subprocess):
+        mock_group = MagicMock()
+        mock_group.side_effect = "foo" 
+        mock_re.search.return_value = mock_group
+        mock_subprocess.call.return_value = 0
+        audits = apache_config_check.get_audits()
+        contentcheckers = self.get_contentcheckers(audits)
+        renderers = self.get_renderers(audits)
+
+        def write(path, data):
+            if path in self.pathindex:
+                raise Exception("File already rendered '%s'" % path)
+
+            with tempfile.NamedTemporaryFile(delete=False) as FTMP:
+                self.pathindex[path] = FTMP.name
+                with open(FTMP.name, 'w') as fd:
+                    fd.write(data)
+
+        mock_write.side_effect = write
+        self.render(renderers)
+        self.checkcontents(contentcheckers)
+        self.assertTrue(mock_write.called)
+        args_list = mock_write.call_args_list
+        self.assertEqual('/tmp/foo/mods-available/alias.conf',
+                         args_list[0][0][0])
+        self.assertEqual(mock_write.call_count, 2)
+
+    @patch.object(apache_config_check.utils, 'get_settings', lambda x: {
+        'security': {},
+        'hardening': {
+            'mysql-conf': '/tmp/foo/mysql.cnf',
+            'hardening-conf': '/tmp/foo/conf.d/hardening.cnf'
+        }
+    })
+    @patch('charmhelpers.contrib.hardening.audits.file.os.path.exists',
+           lambda *a, **kwa: True)
+    @patch.object(utils, 'ensure_permissions')
+    @patch.object(templating, 'write')
+    #@patch.object(templating, 'log', lambda *args, **kwargs: None)
+    #@patch.object(utils, 'log', lambda *args, **kwargs: None)
+    def test_mysql_conf_and_check(self, mock_write, mock_ensure_permissions):
+        audits = mysql_config_check.get_audits()
+        contentcheckers = self.get_contentcheckers(audits)
+        renderers = self.get_renderers(audits)
+
+        def write(path, data):
+            if path in self.pathindex:
+                raise Exception("File already rendered '%s'" % path)
+
+            with tempfile.NamedTemporaryFile(delete=False) as FTMP:
+                self.pathindex[path] = FTMP.name
+                with open(FTMP.name, 'w') as fd:
+                    fd.write(data)
+
+        mock_write.side_effect = write
+        self.render(renderers)
+        self.checkcontents(contentcheckers)
+        self.assertTrue(mock_write.called)
+        args_list = mock_write.call_args_list
+        self.assertEqual('/tmp/foo/conf.d/hardening.cnf',
+                         args_list[0][0][0])
         self.assertEqual(mock_write.call_count, 1)
 
     def tearDown(self):
