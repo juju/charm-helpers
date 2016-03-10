@@ -18,14 +18,14 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
 )
+from charmhelpers.contrib.hardening.apache.checks import config
 
 
 def run_apache_checks():
     log("Starting Apache hardening checks.", level=DEBUG)
-
-    checks = [
-    ]
+    checks = config.get_audits()
     for check in checks:
+        log("Running '%s' check" % (check.__class__.__name__), level=DEBUG)
         check.ensure_compliance()
 
     log("Apache hardening checks complete.", level=DEBUG)

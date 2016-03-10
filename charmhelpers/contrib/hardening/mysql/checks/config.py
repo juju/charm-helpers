@@ -34,7 +34,7 @@ def get_audits():
     if subprocess.call(['which', 'mysql'], stdout=subprocess.PIPE) != 0:
         log("MySQL does not appear to be installed on this node - "
             "skipping mysql hardening", level=WARNING)
-        return
+        return []
 
     settings = utils.get_settings('mysql')
     hardening_settings = settings['hardening']
