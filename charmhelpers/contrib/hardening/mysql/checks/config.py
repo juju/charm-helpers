@@ -50,7 +50,7 @@ def get_audits():
                       mode=0o0755,
                       user='mysql',
                       service_actions=[{'service': 'mysql',
-                                        'action': ['restart']}]),
+                                        'actions': ['restart']}]),
 
         # MySQL and Percona charms do not allow configuration of the
         # data directory, so use the default.
