@@ -41,10 +41,10 @@ ServerKeyBits 1024
 
 # Logging
 SyslogFacility AUTH
-LogLevel INFO
+LogLevel VERBOSE
 
 # Authentication:
-LoginGraceTime 120
+LoginGraceTime 30
 {% if allow_root_with_key -%}
 PermitRootLogin without-password
 {% else -%}
@@ -78,7 +78,7 @@ PasswordAuthentication {{ password_authentication }}
 # Kerberos options
 #KerberosAuthentication no
 #KerberosGetAFSToken no
-#KerberosOrLocalPasswd yes
+KerberosOrLocalPasswd no
 #KerberosTicketCleanup yes
 
 # GSSAPI options
@@ -89,7 +89,7 @@ X11Forwarding {{ allow_x11_forwarding }}
 X11DisplayOffset 10
 PrintMotd {{ print_motd }}
 PrintLastLog {{ print_last_log }}
-TCPKeepAlive yes
+TCPKeepAlive no
 #UseLogin no
 
 ClientAliveInterval {{ client_alive_interval }}
@@ -97,7 +97,7 @@ ClientAliveCountMax {{ client_alive_count }}
 AllowTcpForwarding {{ allow_tcp_forwarding }}
 AllowAgentForwarding {{ allow_agent_forwarding }}
 
-#MaxStartups 10:30:60
+MaxStartups 10:30:100
 #Banner /etc/issue.net
 
 # Allow client to pass locale environment variables

@@ -26,7 +26,9 @@ from charmhelpers.contrib.hardening.audits.file import (
     TemplatedFile,
     FileContentAudit,
 )
-from charmhelpers.contrib.hardening.ssh.checks import config
+from charmhelpers.contrib.hardening.ssh.checks import (
+    config as ssh_config_check
+)
 
 os.environ['JUJU_CHARM_DIR'] = '/tmp'
 from charmhelpers.contrib.hardening.host.checks import (
@@ -73,13 +75,47 @@ class TemplatingTestCase(TestCase):
 
             self.assertTrue(check.is_compliant(self.pathindex[check.path]))
 
+    @patch.object(ssh_config_check, 'lsb_release',
+                  lambda: {'DISTRIB_CODENAME': 'precise'})
     @patch.object(utils, 'ensure_permissions')
     @patch.object(templating, 'write')
     @patch.object(templating, 'log', lambda *args, **kwargs: None)
     @patch.object(utils, 'log', lambda *args, **kwargs: None)
-    def test_ssh_config_render_and_check(self, mock_write,
-                                         mock_ensure_permissions):
-        audits = config.get_audits()
+    @patch.object(ssh_config_check, 'log', lambda *args, **kwargs: None)
+    def test_ssh_config_render_and_check_lt_trusty(self, mock_write,
+                                                   mock_ensure_permissions):
+        audits = ssh_config_check.get_audits()
+        contentcheckers = self.get_contentcheckers(audits)
+        renderers = self.get_renderers(audits)
+
+        def write(path, data):
+            with tempfile.NamedTemporaryFile(delete=False) as FTMP:
+                if path in self.pathindex:
+                    raise Exception("File already rendered '%s'" % path)
+
+                self.pathindex[path] = FTMP.name
+                with open(FTMP.name, 'w') as fd:
+                    fd.write(data)
+
+        mock_write.side_effect = write
+        self.render(renderers)
+        self.checkcontents(contentcheckers)
+        self.assertTrue(mock_write.called)
+        args_list = mock_write.call_args_list
+        self.assertEqual('/etc/ssh/ssh_config', args_list[0][0][0])
+        self.assertEqual('/etc/ssh/sshd_config', args_list[1][0][0])
+        self.assertEqual(mock_write.call_count, 2)
+
+    @patch.object(ssh_config_check, 'lsb_release',
+                  lambda: {'DISTRIB_CODENAME': 'trusty'})
+    @patch.object(utils, 'ensure_permissions')
+    @patch.object(templating, 'write')
+    @patch.object(templating, 'log', lambda *args, **kwargs: None)
+    @patch.object(utils, 'log', lambda *args, **kwargs: None)
+    @patch.object(ssh_config_check, 'log', lambda *args, **kwargs: None)
+    def test_ssh_config_render_and_check_gte_trusty(self, mock_write,
+                                                    mock_ensure_permissions):
+        audits = ssh_config_check.get_audits()
         contentcheckers = self.get_contentcheckers(audits)
         renderers = self.get_renderers(audits)
 

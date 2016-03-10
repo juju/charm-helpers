@@ -29,30 +29,37 @@ from charmhelpers.core.hookenv import (
 )
 
 
-def get_defaults(type):
+# Global settings cache
+__SETTINGS__ = None
+
+
+def get_defaults(stack):
     default = os.path.join(os.path.dirname(__file__),
-                           'defaults/%s.yaml' % (type))
+                           'defaults/%s.yaml' % (stack))
     return yaml.safe_load(open(default))
 
 
-def get_schema(type):
+def get_schema(stack):
     schema = os.path.join(os.path.dirname(__file__),
-                          'defaults/%s.yaml.schema' % (type))
+                          'defaults/%s.yaml.schema' % (stack))
     return yaml.safe_load(open(schema))
 
 
-def get_user_provided_overrides(type):
+def get_user_provided_overrides(stack):
     overrides = os.path.join(os.environ['JUJU_CHARM_DIR'],
-                             'hardening.config.yaml')
-    log("Looking for hardening config overrides '%s'" % (overrides),
-        level=DEBUG)
+                             'hardening.yaml')
     if os.path.exists(overrides):
+        log("Found hardening config overrides file '%s' in charm root dir" %
+            (overrides), level=DEBUG)
         settings = yaml.safe_load(open(overrides))
-        if settings and settings.get(type):
-            return settings.get(type)
+        if settings and settings.get(stack):
+            log("Applying '%s' overrides found in '%s'" % (stack, overrides),
+                level=DEBUG)
+            return settings.get(stack)
+    else:
+        log("No hardening config overrides file '%s' found in charm "
+            "root dir" % (overrides), level=DEBUG)
 
-    log("No hardening config overrides found at '%s'" % (overrides),
-        level=DEBUG)
     return {}
 
 
@@ -74,13 +81,16 @@ def apply_overrides(settings, overrides, schema):
     return settings
 
 
-def get_settings(type):
-    schema = get_schema(type)
-    settings = get_defaults(type)
-    overrides = get_user_provided_overrides(type)
-    settings = apply_overrides(settings, overrides, schema)
+def get_settings(stack):
+    global __SETTINGS__
+    if type(__SETTINGS__) is dict and stack in __SETTINGS__:
+        return __SETTINGS__
 
-    return settings
+    schema = get_schema(stack)
+    __SETTINGS__ = get_defaults(stack)
+    overrides = get_user_provided_overrides(stack)
+    __SETTINGS__ = apply_overrides(__SETTINGS__, overrides, schema)
+    return __SETTINGS__
 
 
 def ensure_permissions(path, user, group, permissions, maxdepth=-1):
