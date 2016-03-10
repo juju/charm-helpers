@@ -1,7 +1,7 @@
 [mysqld]
 
 {%- for setting, value in mysql_settings.iteritems() -%}
-{% if ~ value == 'True' -%}
+{% if value == 'True' -%}
 {{ setting }}
 {% else -%}
 {{ setting }} = {{ value }}
