@@ -157,12 +157,12 @@ class OpenStackAmuletUtils(AmuletUtils):
                 if e['name'] == act.name:
                     a = {'enabled': act.enabled, 'name': act.name,
                          'email': act.email, 'id': act.id}
-                    if api_version == 2:
-                        a['tenantId'] = act.tenantId
-                    else:
+                    if api_version == 3:
                         a['default_project_id'] = getattr(act,
                                                           'default_project_id',
                                                           'none')
+                    else:
+                        a['tenantId'] = act.tenantId
                     found = True
                     ret = self._validate_dict_data(e, a)
                     if ret:
