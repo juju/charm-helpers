@@ -17,6 +17,8 @@ from charmhelpers.contrib.hardening.audits.file import TemplatedFile
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 from charmhelpers.contrib.hardening import utils
 
+from six import string_types
+
 
 def get_audits():
     """Returns the audits used to verify the login.defs file"""
@@ -30,10 +32,20 @@ class LoginContext(object):
 
     def __call__(self):
         settings = utils.get_settings('os')
+
+        # Octal numbers in yaml end up being turned into decimal,
+        # so check if the umask is entered as a string (e.g. '027')
+        # or as an octal umask as we know it (e.g. 002). If its not
+        # a string assume it to be octal and turn it into an octal
+        # string.
+        umask = settings['environment']['umask']
+        if not isinstance(umask, string_types):
+            umask = '%s' % oct(umask)
+
         ctxt = {
             'additional_user_paths':
             settings['environment']['extra_user_paths'],
-            'umask': settings['environment']['umask'],
+            'umask': umask,
             'pwd_max_age': settings['auth']['pw_max_age'],
             'pwd_min_age': settings['auth']['pw_min_age'],
             'uid_min': settings['auth']['uid_min'],
