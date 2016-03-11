@@ -13,6 +13,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 from charmhelpers.contrib.hardening.host.checks import (
     run_os_checks,
 )

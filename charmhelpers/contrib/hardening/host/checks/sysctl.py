@@ -13,6 +13,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 import platform
 import re
@@ -143,7 +144,7 @@ class SysCtlHardeningContext(object):
         settings = utils.get_settings('os')
         ctxt = {'sysctl': {}}
 
-        log("Applying SYSCTL settings", level=INFO)
+        log("Applying sysctl settings", level=INFO)
         extras = {'net_ipv4_ip_forward': 0,
                   'net_ipv6_conf_all_forwarding': 0,
                   'net_ipv6_conf_all_disable_ipv6': 1,

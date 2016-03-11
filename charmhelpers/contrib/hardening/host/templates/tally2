@@ -1,3 +1,7 @@
+###############################################################################
+# WARNING: This configuration file is maintained by Juju. Local changes may
+#          be overwritten.
+###############################################################################
 Name: tally2 lockout after failed attempts enforcement
 Default: yes
 Priority: 1024
