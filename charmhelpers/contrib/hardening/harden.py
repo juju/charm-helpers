@@ -46,14 +46,14 @@ def harden(overrides=None):
             if harden:
                 stacks = []
                 for stack in harden:
-                    if stack == 'ssh':
+                    if stack == 'os':
+                        stacks.append(harden_os)
+                    elif stack == 'ssh':
                         stacks.append(harden_ssh)
                     elif stack == 'mysql':
                         stacks.append(harden_mysql)
                     elif stack == 'apache':
                         stacks.append(harden_apache)
-                    elif stack == 'os':
-                        stacks.append(harden_os)
                     else:
                         log("Unknown hardener '%s' - ignoring" % (stack),
                             level=WARNING)
