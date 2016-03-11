@@ -1,3 +1,7 @@
+###############################################################################
+# WARNING: This configuration file is maintained by Juju. Local changes may
+#          be overwritten.
+###############################################################################
 # Package generated configuration file
 # See the sshd_config(5) manpage for details
 

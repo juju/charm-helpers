@@ -13,11 +13,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
-from subprocess import check_output
-from subprocess import CalledProcessError
+
+from subprocess import (
+    check_output,
+    CalledProcessError,
+)
 
 from charmhelpers.core.hookenv import (
     log,
+    DEBUG,
     ERROR,
 )
 from charmhelpers.fetch import (
@@ -25,8 +29,10 @@ from charmhelpers.fetch import (
     apt_purge,
     apt_update,
 )
-from charmhelpers.contrib.hardening.audits.file import TemplatedFile
-from charmhelpers.contrib.hardening.audits.file import DeletedFile
+from charmhelpers.contrib.hardening.audits.file import (
+    TemplatedFile,
+    DeletedFile,
+)
 from charmhelpers.contrib.hardening import utils
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 
@@ -72,10 +78,14 @@ class PasswdqcPAM(TemplatedFile):
 
     def pre_write(self):
         # Always remove?
-        apt_purge('libpam-ccreds')
-        apt_purge('libpam-cracklib')
+        for pkg in ['libpam-ccreds', 'libpam-cracklib']:
+            log("Purging package '%s'" % pkg, level=DEBUG),
+            apt_purge(pkg)
+
         apt_update(fatal=True)
-        apt_install('libpam-passwdqc')
+        for pkg in ['libpam-passwdqc']:
+            log("Installing package '%s'" % pkg, level=DEBUG),
+            apt_install(pkg)
 
     def post_write(self):
         """Updates the PAM configuration after the file has been written"""

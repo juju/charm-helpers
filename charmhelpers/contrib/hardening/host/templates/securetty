@@ -1,3 +1,7 @@
+###############################################################################
+# WARNING: This configuration file is maintained by Juju. Local changes may
+#          be overwritten.
+###############################################################################
 # A list of TTYs, from which root can log in
 # see `man securetty` for reference
 {% if ttys -%}

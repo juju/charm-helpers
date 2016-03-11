@@ -1,3 +1,7 @@
+###############################################################################
+# WARNING: This configuration file is maintained by Juju. Local changes may
+#          be overwritten.
+###############################################################################
 #
 # /etc/login.defs - Configuration control definitions for the login package.
 #

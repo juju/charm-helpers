@@ -14,18 +14,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+from charmhelpers.core.hookenv import (
+    log,
+    DEBUG,
+    WARNING,
+    config,
+)
 from charmhelpers.contrib.hardening.ssh.harden import harden_ssh
 from charmhelpers.contrib.hardening.host.harden import harden_os
 from charmhelpers.contrib.hardening.mysql.harden import harden_mysql
 from charmhelpers.contrib.hardening.apache.harden import harden_apache
-
-from charmhelpers.core.hookenv import (
-    log,
-    DEBUG,
-    INFO,
-    WARNING,
-    config,
-)
 
 
 def harden(overrides=None):
@@ -59,10 +57,11 @@ def harden(overrides=None):
                             level=WARNING)
 
                 for hardener in stacks:
-                    log("Executing hardener '%s'" % (hardener.__name__))
+                    log("Executing hardener '%s'" % (hardener.__name__),
+                        level=DEBUG)
                     hardener()
             else:
-                log("No hardening applied to '%s'" % (f.__name__), level=INFO)
+                log("No hardening applied to '%s'" % (f.__name__), level=DEBUG)
 
             return f(*args, **kwargs)
         return _harden_inner2

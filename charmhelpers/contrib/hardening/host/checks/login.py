@@ -13,11 +13,12 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
+from six import string_types
+
 from charmhelpers.contrib.hardening.audits.file import TemplatedFile
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 from charmhelpers.contrib.hardening import utils
-
-from six import string_types
 
 
 def get_audits():

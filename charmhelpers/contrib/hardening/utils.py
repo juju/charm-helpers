@@ -100,7 +100,7 @@ def ensure_permissions(path, user, group, permissions, maxdepth=-1):
 
     If path is a directory, recursively apply to directory contents and return.
 
-    NOTE: a negative maxdepth e.g. -1 gives infinite recursion.
+    NOTE: a negative maxdepth e.g. -1 allows infinite recursion.
     """
     if not os.path.exists(path):
         log("File '%s' does not exist - cannot set permissions" % (path),
@@ -112,7 +112,8 @@ def ensure_permissions(path, user, group, permissions, maxdepth=-1):
     os.chmod(path, permissions)
 
     if maxdepth == 0:
-        log("Max recursion depth reached - skipping further recursion")
+        log("Max recursion depth reached - skipping further recursion",
+            level=DEBUG)
         return
     elif maxdepth > 0:
         maxdepth -= 1

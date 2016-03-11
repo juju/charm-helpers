@@ -18,8 +18,9 @@ import os
 
 from charmhelpers.core.hookenv import (
     log,
+    DEBUG,
+    INFO,
     WARNING,
-    INFO
 )
 
 try:
@@ -60,7 +61,7 @@ def render_and_write(template_dir, path, context):
     env = Environment(loader=FileSystemLoader(template_dir))
     template_file = os.path.basename(path)
     template = env.get_template(template_file)
-    log('Rendering from template: %s' % template.name, level=INFO)
+    log('Rendering from template: %s' % template.name, level=DEBUG)
     rendered_content = template.render(context)
     if not rendered_content:
         log("Render returned None - skipping '%s'" % path,
@@ -68,4 +69,4 @@ def render_and_write(template_dir, path, context):
         return
 
     write(path, rendered_content.encode('utf-8').strip())
-    log('Wrote template %s.' % path, level=INFO)
+    log('Wrote template %s' % path, level=INFO)
