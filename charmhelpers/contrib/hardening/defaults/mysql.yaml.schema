@@ -1,3 +1,5 @@
+# NOTE: this schema must contain all valid keys from it's associated defaults
+#       file. It is used to validate user-provided overrides.
 security:
     chroot:
     safe-user-create:
