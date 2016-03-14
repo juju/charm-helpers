@@ -1,3 +1,4 @@
+import six
 import tempfile
 
 from mock import (
@@ -14,6 +15,7 @@ class UtilsTestCase(TestCase):
 
     def setUp(self):
         super(UtilsTestCase, self).setUp()
+        utils.__SETTINGS__ = {}
 
     @patch.object(utils.grp, 'getgrnam')
     @patch.object(utils.pwd, 'getpwnam')
@@ -34,3 +36,12 @@ class UtilsTestCase(TestCase):
         mock_getgrnam.assert_has_calls([call('testgroup')])
         mock_os.chown.assert_has_calls([call(tmp.name, '12', '23')])
         mock_os.chmod.assert_has_calls([call(tmp.name, 0o0440)])
+
+    @patch.object(utils, '_get_user_provided_overrides')
+    def test_settings_cache(self, mock_get_user_provided_overrides):
+        mock_get_user_provided_overrides.return_value = {}
+        self.assertEqual(utils.__SETTINGS__, {})
+        self.assertTrue('sysctl' in utils.get_settings('os'))
+        self.assertEqual(list(six.iterkeys(utils.__SETTINGS__)), ['os'])
+        self.assertTrue('server' in utils.get_settings('ssh'))
+        self.assertEqual(list(six.iterkeys(utils.__SETTINGS__)), ['os', 'ssh'])

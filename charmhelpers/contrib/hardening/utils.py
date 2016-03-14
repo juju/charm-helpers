@@ -29,8 +29,10 @@ from charmhelpers.core.hookenv import (
 )
 
 
-# Global settings cache
-__SETTINGS__ = None
+# Global settings cache. Since each hook fire entails a fresh module import it
+# is safe to hold this in memory and not risk missing config changes (since
+# they will result in a new hook fire and thus re-import).
+__SETTINGS__ = {}
 
 
 def _get_defaults(section):
@@ -108,14 +110,14 @@ def _apply_overrides(settings, overrides, schema):
 
 def get_settings(section):
     global __SETTINGS__
-    if type(__SETTINGS__) is dict and section in __SETTINGS__:
-        return __SETTINGS__
+    if section in __SETTINGS__:
+        return __SETTINGS__[section]
 
     schema = _get_schema(section)
-    __SETTINGS__ = _get_defaults(section)
+    settings = _get_defaults(section)
     overrides = _get_user_provided_overrides(section)
-    __SETTINGS__ = _apply_overrides(__SETTINGS__, overrides, schema)
-    return __SETTINGS__
+    __SETTINGS__[section] = _apply_overrides(settings, overrides, schema)
+    return __SETTINGS__[section]
 
 
 def ensure_permissions(path, user, group, permissions, maxdepth=-1):
