@@ -38,7 +38,10 @@ from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 
 
 def get_audits():
-    """Returns the set of audits for PAM authentication."""
+    """Get OS hardening PAM authentication audits.
+
+    :returns:  dictionary of audits
+    """
     audits = []
 
     settings = utils.get_settings('os')

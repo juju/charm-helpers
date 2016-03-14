@@ -19,7 +19,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits and checks necessary to secure the TTY."""
+    """Get OS hardening profile audits.
+
+    :returns:  dictionary of audits
+    """
     audits = []
 
     settings = utils.get_settings('os')

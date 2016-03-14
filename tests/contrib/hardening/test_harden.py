@@ -25,16 +25,16 @@ class HardenTestCase(TestCase):
     def setUp(self):
         super(HardenTestCase, self).setUp()
 
-    @patch.object(harden, 'harden_os')
-    @patch.object(harden, 'harden_mysql')
-    @patch.object(harden, 'harden_apache')
-    @patch.object(harden, 'harden_ssh')
+    @patch.object(harden, 'run_apache_checks')
+    @patch.object(harden, 'run_mysql_checks')
+    @patch.object(harden, 'run_ssh_checks')
+    @patch.object(harden, 'run_os_checks')
     @patch.object(harden, 'log', lambda *args, **kwargs: None)
-    def test_harden(self, mock_ssh, mock_apache, mock_mysql, mock_host):
+    def test_harden(self, mock_host, mock_ssh, mock_mysql, mock_apache):
+        mock_host.__name__ = 'host'
         mock_ssh.__name__ = 'ssh'
         mock_mysql.__name__ = 'mysql'
         mock_apache.__name__ = 'apache'
-        mock_host.__name__ = 'host'
 
         @harden.harden(overrides=['ssh', 'mysql'])
         def foo(arg1, kwarg1=None):

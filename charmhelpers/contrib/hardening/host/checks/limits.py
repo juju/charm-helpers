@@ -23,7 +23,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits necessary for checking and setting limits."""
+    """Get OS hardening security limits audits.
+
+    :returns:  dictionary of audits
+    """
     audits = []
     settings = utils.get_settings('os')
 

@@ -37,28 +37,41 @@ from charmhelpers.core.hookenv import (
     WARNING,
     ERROR,
 )
-
 from charmhelpers.core import unitdata
 from charmhelpers.core.host import file_hash
-
 from charmhelpers.contrib.hardening.audits import BaseAudit
-from charmhelpers.contrib.hardening.templating import get_template_path
-from charmhelpers.contrib.hardening.templating import render_and_write
+from charmhelpers.contrib.hardening.templating import (
+    get_template_path,
+    render_and_write,
+)
 from charmhelpers.contrib.hardening import utils
 
 
 class BaseFileAudit(BaseAudit):
-    """Implements base file audits."""
+    """Base class for file audits.
 
-    def __init__(self, paths, force_compliance=False, *args, **kwargs):
+    Provides api stubs for compliance check flow that must be used by any class
+    that implemented this one.
+    """
+
+    def __init__(self, paths, always_comply=False, *args, **kwargs):
+        """
+        :param paths: string path of list of paths of files we want to apply
+                      compliance checks are criteria to.
+        :param always_comply: if true compliance criteria is always applied
+                              else compliance is skipped for non-existent
+                              paths.
+        """
         super(BaseFileAudit, self).__init__(*args, **kwargs)
-        self.force_compliance = force_compliance
+        self.always_comply = always_comply
         if isinstance(paths, string_types) or not hasattr(paths, '__iter__'):
             self.paths = [paths]
         else:
             self.paths = paths
 
     def ensure_compliance(self):
+        """Ensure that the all registered files comply to registered criteria.
+        """
         for p in self.paths:
             if os.path.exists(p):
                 if self.is_compliant(p):
@@ -66,7 +79,7 @@ class BaseFileAudit(BaseAudit):
 
                 log('File %s is not in compliance.' % p, level=INFO)
             else:
-                if not self.force_compliance:
+                if not self.always_comply:
                     log("Non-existent path '%s' - skipping compliance check"
                         % (p), level=INFO)
                     continue
@@ -165,7 +178,7 @@ class FilePermissionAudit(BaseFileAudit):
 
         # POSIX refers to the st_mode bits as corresponding to both the
         # file type and file permission bits, where the least significant 12
-        # bits (o7777) are the suid (11), guid (10), sticky bits (9), and the
+        # bits (o7777) are the suid (11), sgid (10), sticky bits (9), and the
         # file permission bits (8-0)
         perms = stat.st_mode & 0o7777
         if perms != self.mode:
@@ -197,7 +210,7 @@ class DirectoryPermissionAudit(FilePermissionAudit):
         directories are in compliance with the check itself.
 
         :param path: the directory path to check
-        :returns: True if the directory tree is compliant, False otherewise.
+        :returns: True if the directory tree is compliant, otherwise False.
         """
         if not os.path.isdir(path):
             log('Path specified %s is not a directory.' % path, level=ERROR)
@@ -238,8 +251,8 @@ class ReadOnly(BaseFileAudit):
             # compliant if there is no output.
             if output:
                 return False
-            else:
-                return True
+
+            return True
         except CalledProcessError as e:
             log('Error occurred checking finding writable files for %s. '
                 'Error information is: command %s failed with returncode '
@@ -258,7 +271,7 @@ class ReadOnly(BaseFileAudit):
 
 
 class NoSUIDSGIDAudit(BaseFileAudit):
-    """Audits that specified files do not have SUID/GUID bits set."""
+    """Audits that specified files do not have SUID/SGID bits set."""
     def __init__(self, paths, *args, **kwargs):
         super(NoSUIDSGIDAudit, self).__init__(paths=paths, *args, **kwargs)
 
@@ -266,12 +279,12 @@ class NoSUIDSGIDAudit(BaseFileAudit):
         stat = self._get_stat(path)
         if (stat.st_mode & (S_ISGID | S_ISUID)) != 0:
             return False
-        else:
-            return True
+
+        return True
 
     def comply(self, path):
         try:
-            log('Removing suid/guid from %s.' % path)
+            log('Removing suid/sgid from %s.' % path, level=DEBUG)
             check_output(['chmod', '-s', path])
         except CalledProcessError as e:
             log('Error occurred removing suid/sgid from %s.'
@@ -295,7 +308,7 @@ class TemplatedFile(BaseFileAudit):
         self.mode = mode
         self.template_dir = template_dir
         self.service_actions = service_actions
-        super(TemplatedFile, self).__init__(paths=path, force_compliance=True,
+        super(TemplatedFile, self).__init__(paths=path, always_comply=True,
                                             **kwargs)
 
     def is_compliant(self, path):
@@ -313,8 +326,8 @@ class TemplatedFile(BaseFileAudit):
 
         if same_content and same_permissions and same_templates:
             return True
-        else:
-            return False
+
+        return False
 
     def run_service_actions(self):
         """Run any actions on services requested."""
@@ -367,7 +380,7 @@ class TemplatedFile(BaseFileAudit):
         Otherwise, return whether or not the hashsums are the same.
 
         :param path: the path to check
-        :return: boolean
+        :returns: boolean
         """
         template_path = get_template_path(self.template_dir, path)
         key = 'hardening:template:%s' % template_path
@@ -388,10 +401,10 @@ class TemplatedFile(BaseFileAudit):
             log('Updated template checksum for %s.' % template_path,
                 level=DEBUG)
             return False
-        else:
-            # Here the template hasn't changed based upon the calculated
-            # checksum of the template and what was previously stored.
-            return True
+
+        # Here the template hasn't changed based upon the calculated
+        # checksum of the template and what was previously stored.
+        return True
 
     def contents_match(self, path):
         """Determines if the file content is the same.
@@ -416,8 +429,8 @@ class TemplatedFile(BaseFileAudit):
         elif stored_checksum != checksum:
             log('Checksum mismatch for %s.' % path, level=DEBUG)
             return False
-        else:
-            return True
+
+        return True
 
     def permissions_match(self, path):
         """Determines if the file owner and permissions match.
@@ -460,6 +473,15 @@ class FileContentAudit(BaseFileAudit):
         super(FileContentAudit, self).__init__(paths, **kwargs)
 
     def is_compliant(self, path):
+        """
+        Given a set of content matching cases, check that all cases match
+        as expected with the contents of the file. Cases can be expected to
+        pass of fail.
+
+        :param path: Path of file to check.
+        :returns: Boolean value representing whether or not all cases are
+                  found to be compliant.
+        """
         log("Auditing contents of file '%s'" % (path), level=DEBUG)
         with open(path, 'r') as fd:
             contents = fd.read()
@@ -488,5 +510,7 @@ class FileContentAudit(BaseFileAudit):
         return matches == total
 
     def comply(self, *args, **kwargs):
-        """NOOP since we just issue warnings."""
+        """NOOP since we just issue warnings. This is to avoid the
+        NotImplememtedError.
+        """
         log("Not applying any compliance criteria, only checks.", level=INFO)

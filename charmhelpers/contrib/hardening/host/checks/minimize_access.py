@@ -22,7 +22,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits that should be performed for folders in $PATH."""
+    """Get OS hardening access audits.
+
+    :returns:  dictionary of audits
+    """
     audits = []
     settings = utils.get_settings('os')
 

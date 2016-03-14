@@ -20,7 +20,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits and checks necessary to secure the TTY."""
+    """Get OS hardening Secure TTY audits.
+
+    :returns:  dictionary of audits
+    """
     audits = []
     audits.append(TemplatedFile('/etc/securetty', SecureTTYContext(),
                                 template_dir=TEMPLATES_DIR,

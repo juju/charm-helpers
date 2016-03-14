@@ -34,7 +34,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits used to verify the ssh"""
+    """Get SSH hardening config audits.
+
+    :returns:  dictionary of audits
+    """
     audits = [SSHConfig(), SSHDConfig(), SSHConfigFileContentAudit(),
               SSHDConfigFileContentAudit()]
     return audits
@@ -256,13 +259,13 @@ class SSHConfigFileContentAudit(FileContentAudit):
                 self.pass_cases.append(r'^MACs.+,hmac-sha1$')
 
             if settings['server']['weak_kex']:
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')  # noqa
             else:
-                self.pass_cases.append(r'^KexAlgorithms.+,diffie-hellman-group-exchange-sha256$')
-                self.fail_cases.append(r'^KexAlgorithms.*diffie-hellman-group14-sha1[,\s]?')
+                self.pass_cases.append(r'^KexAlgorithms.+,diffie-hellman-group-exchange-sha256$')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms.*diffie-hellman-group14-sha1[,\s]?')  # noqa
 
             if settings['server']['cbc_required']:
                 self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
@@ -271,7 +274,7 @@ class SSHConfigFileContentAudit(FileContentAudit):
                 self.fail_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
             else:
                 self.fail_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
-                self.pass_cases.append(r'^Ciphers\schacha20-poly1305@openssh.com,.+')
+                self.pass_cases.append(r'^Ciphers\schacha20-poly1305@openssh.com,.+')  # noqa
                 self.pass_cases.append(r'^Ciphers\s.*aes128-ctr$')
                 self.pass_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
                 self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
@@ -282,15 +285,15 @@ class SSHConfigFileContentAudit(FileContentAudit):
                 self.pass_cases.append(r'^MACs.+,hmac-sha1$')
 
             if settings['client']['weak_kex']:
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')  # noqa
             else:
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256$')
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256$')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')  # noqa
 
             if settings['client']['cbc_required']:
                 self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
@@ -329,13 +332,13 @@ class SSHDConfigFileContentAudit(FileContentAudit):
                 self.pass_cases.append(r'^MACs.+,hmac-sha1$')
 
             if settings['server']['weak_kex']:
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')  # noqa
             else:
-                self.pass_cases.append(r'^KexAlgorithms.+,diffie-hellman-group-exchange-sha256$')
-                self.fail_cases.append(r'^KexAlgorithms.*diffie-hellman-group14-sha1[,\s]?')
+                self.pass_cases.append(r'^KexAlgorithms.+,diffie-hellman-group-exchange-sha256$')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms.*diffie-hellman-group14-sha1[,\s]?')  # noqa
 
             if settings['server']['cbc_required']:
                 self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
@@ -344,7 +347,7 @@ class SSHDConfigFileContentAudit(FileContentAudit):
                 self.fail_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
             else:
                 self.fail_cases.append(r'^Ciphers\s.*-cbc[,\s]?')
-                self.pass_cases.append(r'^Ciphers\schacha20-poly1305@openssh.com,.+')
+                self.pass_cases.append(r'^Ciphers\schacha20-poly1305@openssh.com,.+')  # noqa
                 self.pass_cases.append(r'^Ciphers\s.*aes128-ctr$')
                 self.pass_cases.append(r'^Ciphers\s.*aes192-ctr[,\s]?')
                 self.pass_cases.append(r'^Ciphers\s.*aes256-ctr[,\s]?')
@@ -355,15 +358,15 @@ class SSHDConfigFileContentAudit(FileContentAudit):
                 self.pass_cases.append(r'^MACs.+,hmac-sha1$')
 
             if settings['server']['weak_kex']:
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')  # noqa
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')  # noqa
             else:
-                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256$')
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')
-                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')
+                self.pass_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha256$')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group14-sha1[,\s]?')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group-exchange-sha1[,\s]?')  # noqa
+                self.fail_cases.append(r'^KexAlgorithms\sdiffie-hellman-group1-sha1[,\s]?')  # noqa
 
             if settings['server']['cbc_required']:
                 self.pass_cases.append(r'^Ciphers\s.*-cbc[,\s]?')

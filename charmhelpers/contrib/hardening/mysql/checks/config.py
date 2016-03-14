@@ -30,7 +30,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits which are used for mysql."""
+    """Get MySQL hardening config audits.
+
+    :returns:  dictionary of audits
+    """
     if subprocess.call(['which', 'mysql'], stdout=subprocess.PIPE) != 0:
         log("MySQL does not appear to be installed on this node - "
             "skipping mysql hardening", level=WARNING)
