@@ -35,36 +35,36 @@ from charmhelpers.core.hookenv import (
 __SETTINGS__ = {}
 
 
-def _get_defaults(section):
-    """Load the default config for the provided section.
+def _get_defaults(modules):
+    """Load the default config for the provided modules.
 
-    :param section: stack section config defaults to lookup.
-    :returns: section default config dictionary.
+    :param modules: stack modules config defaults to lookup.
+    :returns: modules default config dictionary.
     """
     default = os.path.join(os.path.dirname(__file__),
-                           'defaults/%s.yaml' % (section))
+                           'defaults/%s.yaml' % (modules))
     return yaml.safe_load(open(default))
 
 
-def _get_schema(section):
-    """Load the config schema for the provided section.
+def _get_schema(modules):
+    """Load the config schema for the provided modules.
 
     NOTE: this schema is intended to have 1-1 relationship with they keys in
     the default config and is used a means to verify valid overrides provided
     by the user.
 
-    :param section: stack section config schema to lookup.
-    :returns: section default schema dictionary.
+    :param modules: stack modules config schema to lookup.
+    :returns: modules default schema dictionary.
     """
     schema = os.path.join(os.path.dirname(__file__),
-                          'defaults/%s.yaml.schema' % (section))
+                          'defaults/%s.yaml.schema' % (modules))
     return yaml.safe_load(open(schema))
 
 
-def _get_user_provided_overrides(section):
+def _get_user_provided_overrides(modules):
     """Load user-provided config overrides.
 
-    :param section: stack section to lookup in user overrides yaml file.
+    :param modules: stack modules to lookup in user overrides yaml file.
     :returns: overrides dictionary.
     """
     overrides = os.path.join(os.environ['JUJU_CHARM_DIR'],
@@ -73,11 +73,11 @@ def _get_user_provided_overrides(section):
         log("Found user-provided config overrides file '%s'" %
             (overrides), level=DEBUG)
         settings = yaml.safe_load(open(overrides))
-        if settings and settings.get(section):
-            log("Applying '%s' overrides" % (section), level=DEBUG)
-            return settings.get(section)
+        if settings and settings.get(modules):
+            log("Applying '%s' overrides" % (modules), level=DEBUG)
+            return settings.get(modules)
 
-        log("No overrides found for '%s'" % (section), level=DEBUG)
+        log("No overrides found for '%s'" % (modules), level=DEBUG)
     else:
         log("No hardening config overrides file '%s' found in charm "
             "root dir" % (overrides), level=DEBUG)
@@ -86,10 +86,10 @@ def _get_user_provided_overrides(section):
 
 
 def _apply_overrides(settings, overrides, schema):
-    """Get overrides config overlayed onto section defaults.
+    """Get overrides config overlayed onto modules defaults.
 
-    :param section: require stack section config.
-    :returns: dictionary of section config with user overrides applied.
+    :param modules: require stack modules config.
+    :returns: dictionary of modules config with user overrides applied.
     """
     if overrides:
         for k, v in overrides.iteritems():
@@ -108,16 +108,16 @@ def _apply_overrides(settings, overrides, schema):
     return settings
 
 
-def get_settings(section):
+def get_settings(modules):
     global __SETTINGS__
-    if section in __SETTINGS__:
-        return __SETTINGS__[section]
+    if modules in __SETTINGS__:
+        return __SETTINGS__[modules]
 
-    schema = _get_schema(section)
-    settings = _get_defaults(section)
-    overrides = _get_user_provided_overrides(section)
-    __SETTINGS__[section] = _apply_overrides(settings, overrides, schema)
-    return __SETTINGS__[section]
+    schema = _get_schema(modules)
+    settings = _get_defaults(modules)
+    overrides = _get_user_provided_overrides(modules)
+    __SETTINGS__[modules] = _apply_overrides(settings, overrides, schema)
+    return __SETTINGS__[modules]
 
 
 def ensure_permissions(path, user, group, permissions, maxdepth=-1):

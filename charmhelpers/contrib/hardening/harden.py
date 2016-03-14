@@ -31,19 +31,19 @@ from charmhelpers.contrib.hardening.apache.checks import run_apache_checks
 def harden(overrides=None):
     """Hardening decorator.
 
-    This is the main entry point for running the hardening stack. In order run
-    sections of the stack you must add this decorator to your charm hooks and
-    ensure that your charm config.yaml contains the 'harden' option set to one
-    or more of 'os', 'ssh', 'mysql' or 'apache'. Setting these will cause the
+    This is the main entry point for running the hardening stack. In order to
+    run modules of the stack you must add this decorator to charm hook(s) and
+    ensure that your charm config.yaml contains the 'harden' option set to
+    one or more of the supported modules. Setting these will cause the
     corresponding hardening code to be run when the hook fires.
 
     This decorator can and should be applied to more than one hook or function
-    such that hardening sections are called multiple times. This is because
+    such that hardening modules are called multiple times. This is because
     subsequent calls will perform auditing checks that will report any changes
     to resources hardened by the first run (and possibly perform compliance
     actions as a result of any detected infractions).
 
-    :param overrides: Optional list of stack sections used to override those
+    :param overrides: Optional list of stack modules used to override those
                       provided with 'harden' config.
     :returns: Returns value returned by decorated function once executed.
     """
@@ -58,19 +58,19 @@ def harden(overrides=None):
 
             enabled = overrides or (config("harden") or "").split()
             if enabled:
-                sections_to_run = []
-                # Sections will always be performed in the following order
-                for section, func in RUN_CATALOG.iteritems():
-                    if section in enabled:
-                        enabled.remove(section)
-                        sections_to_run.append(func)
+                modules_to_run = []
+                # modules will always be performed in the following order
+                for module, func in RUN_CATALOG.iteritems():
+                    if module in enabled:
+                        enabled.remove(module)
+                        modules_to_run.append(func)
 
                 if enabled:
-                    log("Unknown hardening sections '%s' - ignoring" %
+                    log("Unknown hardening modules '%s' - ignoring" %
                         (', '.join(enabled)), level=WARNING)
 
-                for hardener in sections_to_run:
-                    log("Executing hardening section '%s'" %
+                for hardener in modules_to_run:
+                    log("Executing hardening module '%s'" %
                         (hardener.__name__), level=DEBUG)
                     hardener()
             else:
