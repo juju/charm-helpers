@@ -43,7 +43,7 @@ def get_audits():
 
     settings = utils.get_settings('apache')
     audits = [
-        FilePermissionAudit(paths=['apache2.conf'], user='root',
+        FilePermissionAudit(paths='/etc/apache2/apache2.conf', user='root',
                             group='root', mode=0o0640),
 
         TemplatedFile(os.path.join(settings['common']['apache_dir'],
