@@ -51,7 +51,7 @@ def get_audits():
                       ApacheConfContext(),
                       TEMPLATES_DIR,
                       mode=0o0755,
-                      user='apache',
+                      user='root',
                       service_actions=[{'service': 'apache2',
                                         'action': ['restart']}]),
 
@@ -60,7 +60,7 @@ def get_audits():
                       ApacheConfContext(),
                       TEMPLATES_DIR,
                       mode=0o0640,
-                      user='apache',
+                      user='root',
                       service_actions=[{'service': 'apache2',
                                         'action': ['restart']}]),
 
