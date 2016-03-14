@@ -167,7 +167,8 @@ class TemplatingTestCase(TestCase):
         self.checkcontents(contentcheckers)
         self.assertTrue(mock_write.called)
         args_list = mock_write.call_args_list
-        self.assertEqual('/etc/sysctl.conf', args_list[0][0][0])
+        self.assertEqual('/etc/sysctl.d/99-juju-hardening.conf',
+                         args_list[0][0][0])
         self.assertEqual(mock_write.call_count, 1)
 
     @patch.object(utils, 'ensure_permissions')

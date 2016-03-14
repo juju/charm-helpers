@@ -25,7 +25,10 @@ from charmhelpers.core.hookenv import (
     WARNING,
 )
 from charmhelpers.contrib.hardening import utils
-from charmhelpers.contrib.hardening.audits.file import TemplatedFile
+from charmhelpers.contrib.hardening.audits.file import (
+    FilePermissionAudit,
+    TemplatedFile,
+)
 from charmhelpers.contrib.hardening.host import TEMPLATES_DIR
 
 
@@ -80,23 +83,13 @@ def get_audits():
     audits = []
     settings = utils.get_settings('os')
 
-    # Apply the sysctl settings which are configured to be applied
+    # Apply the sysctl settings which are configured to be applied.
     audits.append(SysctlConf())
     # Make sure that only root has access to the sysctl.conf file, and
     # that it is read-only.
-    # TODO(wolsen) currently handled via /etc/sysctl.conf but I'm not
-    # sure that's the right place? I think /etc/sysctl.d/99-hardening.conf
-    # is likely a better place for our configuration options.
-    # audits.append(FilePermissionAudit('/etc/sysctl.conf', user='root',
-    #                                   group='root', mode=0o0440))
-    # Make sure the sysctl directory is read only to users which are not
-    # the root user.
-    # TODO(wolsen) determine if this check is valid or if we just want
-    # to restrict this to the /etc/sysctl.conf file. hardening-io doesnt
-    # have it, but it makes sense? to also lock down the /etc/sysctl.d path
-    # audits.append(DirectoryPermissionAudit('/etc/sysctl.d', user='root',
-    #                                        group='root', mode=0o0550))
-
+    audits.append(FilePermissionAudit('/etc/sysctl.conf',
+                                      user='root',
+                                      group='root', mode=0o0440))
     # If module loading is not enabled, then ensure that the modules
     # file has the appropriate permissions and rebuild the initramfs
     if not settings['security']['kernel_enable_module_loading']:
@@ -197,11 +190,12 @@ class SysCtlHardeningContext(object):
 class SysctlConf(TemplatedFile):
     """An audit check for sysctl settings."""
     def __init__(self):
-        self.conffile = '/etc/sysctl.conf'
+        self.conffile = '/etc/sysctl.d/99-juju-hardening.conf'
         super(SysctlConf, self).__init__(self.conffile,
                                          SysCtlHardeningContext(),
                                          template_dir=TEMPLATES_DIR,
-                                         user='root', group='root', mode=0o0440)
+                                         user='root', group='root',
+                                         mode=0o0440)
 
     def post_write(self):
         try:
