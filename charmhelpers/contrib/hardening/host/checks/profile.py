@@ -1,3 +1,4 @@
+# Copyright 2016 Canonical Limited.
 #
 # This file is part of charm-helpers.
 #
