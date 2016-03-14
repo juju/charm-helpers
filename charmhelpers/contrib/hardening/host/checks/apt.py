@@ -22,7 +22,10 @@ from charmhelpers.contrib.hardening.audits.apt import (
 
 
 def get_audits():
-    """Returns the set of audits to run around apt packages."""
+    """Get OS hardening apt audits.
+
+    :returns:  dictionary of audits
+    """
     audits = [AptConfig([{'key': 'APT::Get::AllowUnauthenticated',
                           'expected': 'false'}])]
 

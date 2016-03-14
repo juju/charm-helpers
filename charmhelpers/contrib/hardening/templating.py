@@ -19,7 +19,6 @@ import os
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
-    INFO,
     WARNING,
 )
 
@@ -34,7 +33,7 @@ except ImportError:
 
 
 # NOTE: function separated from main rendering code to facilitate easier
-#       unit tests writing
+#       mocking in unit tests.
 def write(path, data):
     with open(path, 'wb') as out:
         out.write(data)
@@ -69,4 +68,4 @@ def render_and_write(template_dir, path, context):
         return
 
     write(path, rendered_content.encode('utf-8').strip())
-    log('Wrote template %s' % path, level=INFO)
+    log('Wrote template %s' % path, level=DEBUG)

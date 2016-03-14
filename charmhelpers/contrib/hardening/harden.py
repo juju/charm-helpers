@@ -15,50 +15,59 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 from charmhelpers.core.hookenv import (
+    config,
     log,
     DEBUG,
     WARNING,
-    config,
 )
-from charmhelpers.contrib.hardening.ssh.harden import harden_ssh
-from charmhelpers.contrib.hardening.host.harden import harden_os
-from charmhelpers.contrib.hardening.mysql.harden import harden_mysql
-from charmhelpers.contrib.hardening.apache.harden import harden_apache
+from charmhelpers.contrib.hardening.host.checks import run_os_checks
+from charmhelpers.contrib.hardening.ssh.checks import run_ssh_checks
+from charmhelpers.contrib.hardening.mysql.checks import run_mysql_checks
+from charmhelpers.contrib.hardening.apache.checks import run_apache_checks
 
 
 def harden(overrides=None):
     """Hardening decorator.
 
-    Calls hardening stacks requested via charm config prior to decorated
-    function being called. Note that stacks will be called in the order
-    provided in the config.
+    This is the main entry point for running the hardening stack. In order run
+    sections of the stack you must add this decorator to your charm hooks and
+    ensure that your charm config.yaml contains the 'harden' option set to one
+    or more of 'os', 'ssh', 'mysql' or 'apache'. Setting these will cause the
+    corresponding hardening code to be run when the hook fires.
 
-    @param overrides: optional list of stacks used to override those provided
-                      with 'harden' config.
+    This decorator can and should be applied to more than one hook or function
+    such that hardening sections are called multiple times. This is because
+    subsequent calls will perform auditing checks that will report any changes
+    to resources hardened by the first run (and possibly perform compliance
+    actions as a result of any detected infractions).
+
+    :param overrides: Optional list of stack sections used to override those
+                      provided with 'harden' config.
+    :returns: Returns value returned by decorated function once executed.
     """
     def _harden_inner1(f):
         log("Hardening function '%s'" % (f.__name__), level=DEBUG)
 
         def _harden_inner2(*args, **kwargs):
-            harden = overrides or (config("harden") or "").split()
-            if harden:
-                stacks = []
-                for stack in harden:
-                    if stack == 'os':
-                        stacks.append(harden_os)
-                    elif stack == 'ssh':
-                        stacks.append(harden_ssh)
-                    elif stack == 'mysql':
-                        stacks.append(harden_mysql)
-                    elif stack == 'apache':
-                        stacks.append(harden_apache)
-                    else:
-                        log("Unknown hardener '%s' - ignoring" % (stack),
-                            level=WARNING)
+            enabled = overrides or (config("harden") or "").split()
+            if enabled:
+                sections_to_run = []
+                # Sections will always be performed in the following order
+                for section, func in {'os': run_os_checks,
+                                      'ssh': run_ssh_checks,
+                                      'mysql': run_mysql_checks,
+                                      'apache': run_apache_checks}.iteritems():
+                    if section in enabled:
+                        enabled.remove(section)
+                        sections_to_run.append(func)
 
-                for hardener in stacks:
-                    log("Executing hardener '%s'" % (hardener.__name__),
-                        level=DEBUG)
+                if enabled:
+                    log("Unknown hardening sections '%s' - ignoring" %
+                        (', '.join(enabled)), level=WARNING)
+
+                for hardener in sections_to_run:
+                    log("Executing hardening section '%s'" %
+                        (hardener.__name__), level=DEBUG)
                     hardener()
             else:
                 log("No hardening applied to '%s'" % (f.__name__), level=DEBUG)

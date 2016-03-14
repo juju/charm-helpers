@@ -73,7 +73,10 @@ kernel.randomize_va_space=2
 
 
 def get_audits():
-    """Returns audits necessary for sysctl"""
+    """Get OS hardening sysctl audits.
+
+    :returns:  dictionary of audits
+    """
     audits = []
     settings = utils.get_settings('os')
 

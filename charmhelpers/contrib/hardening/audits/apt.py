@@ -14,19 +14,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import
+from __future__ import absolute_import  # required for external apt import
 from apt import apt_pkg
-
 from six import string_types
 
-from charmhelpers.fetch import apt_cache
-from charmhelpers.fetch import apt_purge
-
+from charmhelpers.fetch import (
+    apt_cache,
+    apt_purge
+)
+from charmhelpers.core.hookenv import (
+    log,
+    DEBUG,
+    WARNING,
+)
 from charmhelpers.contrib.hardening.audits import BaseAudit
-
-from charmhelpers.core.hookenv import DEBUG
-from charmhelpers.core.hookenv import WARNING
-from charmhelpers.core.hookenv import log
 
 
 class AptConfig(BaseAudit):

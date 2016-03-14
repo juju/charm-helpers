@@ -75,11 +75,14 @@ WHITELIST = ['/bin/mount', '/bin/ping', '/bin/su', '/bin/umount',
 
 
 def get_audits():
-    """Returns audits used to check the SUID/GUID bits are properly removed."""
+    """Get OS hardening suid/sgid audits.
+
+    :returns:  dictionary of audits
+    """
     checks = []
     settings = utils.get_settings('os')
     if not settings['security']['suid_sgid_enforce']:
-        log("Skipping suid/guid hardening", level=INFO)
+        log("Skipping suid/sgid hardening", level=INFO)
         return checks
 
     # Build the blacklist and whitelist of files for suid/sgid checks.

@@ -22,7 +22,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits used to verify the login.defs file"""
+    """Get OS hardening login.defs audits.
+
+    :returns:  dictionary of audits
+    """
     audits = [TemplatedFile('/etc/login.defs', LoginContext(),
                             template_dir=TEMPLATES_DIR,
                             user='root', group='root', mode=0o0444)]

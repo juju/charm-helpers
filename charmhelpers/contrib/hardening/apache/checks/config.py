@@ -32,7 +32,10 @@ from charmhelpers.contrib.hardening import utils
 
 
 def get_audits():
-    """Returns the audits which are used for apache.."""
+    """Get Apache hardening config audits.
+
+    :returns:  dictionary of audits
+    """
     if subprocess.call(['which', 'apache2'], stdout=subprocess.PIPE) != 0:
         log("Apache server does not appear to be installed on this node - "
             "skipping apache hardening", level=WARNING)
