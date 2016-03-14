@@ -13,12 +13,12 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 import shutil
 import tempfile
 
-from mock import call
-from mock import patch
+from mock import call, patch
 
 from unittest import TestCase
 
