@@ -68,13 +68,14 @@ def _get_user_provided_overrides(section):
     overrides = os.path.join(os.environ['JUJU_CHARM_DIR'],
                              'hardening.yaml')
     if os.path.exists(overrides):
-        log("Found hardening config overrides file '%s' in charm root dir" %
+        log("Found user-provided config overrides file '%s'" %
             (overrides), level=DEBUG)
         settings = yaml.safe_load(open(overrides))
         if settings and settings.get(section):
-            log("Applying '%s' overrides found in '%s'" % (section, overrides),
-                level=DEBUG)
+            log("Applying '%s' overrides" % (section), level=DEBUG)
             return settings.get(section)
+
+        log("No overrides found for '%s'" % (section), level=DEBUG)
     else:
         log("No hardening config overrides file '%s' found in charm "
             "root dir" % (overrides), level=DEBUG)
