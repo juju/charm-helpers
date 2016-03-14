@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
+
 from charmhelpers.core.hookenv import (
     config,
     log,
@@ -49,14 +51,16 @@ def harden(overrides=None):
         log("Hardening function '%s'" % (f.__name__), level=DEBUG)
 
         def _harden_inner2(*args, **kwargs):
+            RUN_CATALOG = OrderedDict([('os', run_os_checks),
+                                       ('ssh', run_ssh_checks),
+                                       ('mysql', run_mysql_checks),
+                                       ('apache', run_apache_checks)])
+
             enabled = overrides or (config("harden") or "").split()
             if enabled:
                 sections_to_run = []
                 # Sections will always be performed in the following order
-                for section, func in {'os': run_os_checks,
-                                      'ssh': run_ssh_checks,
-                                      'mysql': run_mysql_checks,
-                                      'apache': run_apache_checks}.iteritems():
+                for section, func in RUN_CATALOG.iteritems():
                     if section in enabled:
                         enabled.remove(section)
                         sections_to_run.append(func)
