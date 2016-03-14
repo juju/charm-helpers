@@ -53,7 +53,7 @@ def get_audits():
                       mode=0o0755,
                       user='root',
                       service_actions=[{'service': 'apache2',
-                                        'action': ['restart']}]),
+                                        'actions': ['restart']}]),
 
         TemplatedFile(os.path.join(settings['common']['apache_dir'],
                                    'conf-enabled/hardening.conf'),
@@ -62,7 +62,7 @@ def get_audits():
                       mode=0o0640,
                       user='root',
                       service_actions=[{'service': 'apache2',
-                                        'action': ['restart']}]),
+                                        'actions': ['restart']}]),
 
         DirectoryPermissionAudit(settings['common']['apache_dir'],
                                  user='root',
