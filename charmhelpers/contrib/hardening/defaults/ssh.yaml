@@ -1,8 +1,15 @@
+# NOTE: this file contains the default configuration for the 'ssh' hardening
+#       code. If you want to override any settings you must add them to a file
+#       called hardening.yaml in the root directory of your charm using the
+#       name 'ssh' as the root key followed by any of the following with new
+#       values.
+
 common:
     service_name: 'ssh'
     network_ipv6_enable: False  # (type:boolean)
     ports: [22]
     remote_hosts: []
+
 client:
     package: 'openssh-client'
     cbc_required: False  # (type:boolean)
@@ -10,8 +17,10 @@ client:
     weak_kex: False  # (type:boolean)
     roaming: False
     password_authentication: 'no'
+
 server:
-    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key']
+    host_key_files: ['/etc/ssh/ssh_host_rsa_key', '/etc/ssh/ssh_host_dsa_key',
+                     '/etc/ssh/ssh_host_ecdsa_key']
     cbc_required: False  # (type:boolean)
     weak_hmac: False  # (type:boolean)
     weak_kex: False  # (type:boolean)

@@ -1,4 +1,9 @@
-# These parameters are provided for hardening the mysql installation.
+# NOTE: this file contains the default configuration for the 'mysql' hardening
+#       code. If you want to override any settings you must add them to a file
+#       called hardening.yaml in the root directory of your charm using the
+#       name 'mysql' as the root key followed by any of the following with new
+#       values.
+
 security:
     # @see http://www.symantec.com/connect/articles/securing-mysql-step-step
     # @see http://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_chroot
