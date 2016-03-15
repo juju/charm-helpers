@@ -54,6 +54,8 @@ PermitRootLogin without-password
 {% else -%}
 PermitRootLogin no
 {% endif %}
+PermitTunnel no
+PermitUserEnvironment no
 StrictModes yes
 
 RSAAuthentication yes
@@ -91,6 +93,8 @@ GSSAPICleanupCredentials yes
 
 X11Forwarding {{ allow_x11_forwarding }}
 X11DisplayOffset 10
+X11UseLocalhost no
+GatewayPorts no
 PrintMotd {{ print_motd }}
 PrintLastLog {{ print_last_log }}
 TCPKeepAlive no
@@ -144,11 +148,6 @@ Subsystem sftp internal-sftp -l VERBOSE
 Match Group {{ sftp_group }}
 ForceCommand internal-sftp -l VERBOSE
 ChrootDirectory {{ sftp_chroot }}
-AllowTcpForwarding no
-AllowAgentForwarding no
-PasswordAuthentication no
-PermitRootLogin no
-X11Forwarding no
 {% else -%}
 # Configuration, in case SFTP is used
 ## override default of no subsystems
@@ -157,9 +156,4 @@ X11Forwarding no
 Match Group sftponly
 ForceCommand internal-sftp -l VERBOSE
 ChrootDirectory /sftpchroot/home/%u
-AllowTcpForwarding no
-AllowAgentForwarding no
-PasswordAuthentication no
-PermitRootLogin no
-X11Forwarding no
 {% endif %}
