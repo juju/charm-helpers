@@ -31,7 +31,7 @@ from keystoneclient.auth.identity import v3 as keystone_id_v3
 from keystoneclient import session as keystone_session
 from keystoneclient.v3 import client as keystone_client_v3
 
-import novaclient.v1_1.client as nova_client
+import novaclient.client as nova_client
 import pika
 import swiftclient
 
@@ -41,6 +41,8 @@ from charmhelpers.contrib.amulet.utils import (
 
 DEBUG = logging.DEBUG
 ERROR = logging.ERROR
+
+NOVA_CLIENT_VERSION = "2"
 
 
 class OpenStackAmuletUtils(AmuletUtils):
@@ -249,7 +251,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Authenticating nova user ({})...'.format(user))
         ep = keystone.service_catalog.url_for(service_type='identity',
                                               endpoint_type='publicURL')
-        return nova_client.Client(username=user, api_key=password,
+        return nova_client.Client(NOVA_CLIENT_VERSION,
+                                  username=user, api_key=password,
                                   project_id=tenant, auth_url=ep)
 
     def authenticate_swift_user(self, keystone, user, password, tenant):
