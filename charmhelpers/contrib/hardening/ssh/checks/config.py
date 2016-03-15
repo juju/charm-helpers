@@ -125,7 +125,13 @@ class SSHConfigContext(object):
 
     def __call__(self):
         settings = utils.get_settings('ssh')
+        if settings['common']['network_ipv6_enable']:
+            addr_family = 'any'
+        else:
+            addr_family = 'inet'
+
         ctxt = {
+            'addr_family': addr_family,
             'remote_hosts': settings['common']['remote_hosts'],
             'password_auth_allowed':
             settings['client']['password_authentication'],
@@ -382,7 +388,6 @@ class SSHDConfigFileContentAudit(FileContentAudit):
         if settings['server']['sftp_enable']:
             self.pass_cases.append(r'^Subsystem\ssftp')
         else:
-            self.pass_cases.append(r'^#Subsystem\ssftp')
             self.fail_cases.append(r'^Subsystem\ssftp')
 
         return super(SSHDConfigFileContentAudit, self).is_compliant(*args,

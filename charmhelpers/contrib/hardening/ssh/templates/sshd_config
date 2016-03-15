@@ -16,8 +16,8 @@ AddressFamily {{ addr_family }}
 ListenAddress {{ ip }}
 {% endfor %}
 {%- else -%}
-#ListenAddress ::
-#ListenAddress 0.0.0.0
+ListenAddress ::
+ListenAddress 0.0.0.0
 {% endif -%}
 Protocol 2
 {% if ciphers -%}
@@ -34,7 +34,7 @@ KexAlgorithms {{ kexs }}
 HostKey {{ keyfile }}
 {% endfor -%}
 
-#Privilege Separation is turned on for security
+# Privilege Separation is turned on for security
 {% if use_priv_sep -%} 
 UsePrivilegeSeparation {{ use_priv_sep }}
 {% endif -%}
@@ -58,7 +58,7 @@ StrictModes yes
 
 RSAAuthentication yes
 PubkeyAuthentication yes
-#AuthorizedKeysFile %h/.ssh/authorized_keys
+AuthorizedKeysFile %h/.ssh/authorized_keys
 
 # Don't read the user's ~/.rhosts and ~/.shosts files
 IgnoreRhosts yes
@@ -67,7 +67,7 @@ RhostsRSAAuthentication no
 # similar for protocol version 2
 HostbasedAuthentication no
 # Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
-#IgnoreUserKnownHosts yes
+IgnoreUserKnownHosts yes
 
 # To enable empty passwords, change to yes (NOT RECOMMENDED)
 PermitEmptyPasswords no
@@ -80,21 +80,21 @@ ChallengeResponseAuthentication no
 PasswordAuthentication {{ password_authentication }}
 
 # Kerberos options
-#KerberosAuthentication no
-#KerberosGetAFSToken no
+KerberosAuthentication no
+KerberosGetAFSToken no
 KerberosOrLocalPasswd no
-#KerberosTicketCleanup yes
+KerberosTicketCleanup yes
 
 # GSSAPI options
-#GSSAPIAuthentication no
-#GSSAPICleanupCredentials yes
+GSSAPIAuthentication no
+GSSAPICleanupCredentials yes
 
 X11Forwarding {{ allow_x11_forwarding }}
 X11DisplayOffset 10
 PrintMotd {{ print_motd }}
 PrintLastLog {{ print_last_log }}
 TCPKeepAlive no
-#UseLogin no
+UseLogin no
 
 ClientAliveInterval {{ client_alive_interval }}
 ClientAliveCountMax {{ client_alive_count }}
@@ -121,22 +121,22 @@ UsePAM {{ use_pam }}
 {% if deny_users -%}
 DenyUsers {{ deny_users }}
 {% else -%}
-#DenyUsers *
+DenyUsers *
 {% endif -%}
 {% if allow_users -%}
 AllowUsers {{ allow_users }}
 {% else -%}
-#AllowUsers user1
+AllowUsers user1
 {% endif -%}
 {% if deny_groups -%}
 DenyGroups {{ deny_groups }}
 {% else -%}
-#DenyGroups *
+DenyGroups *
 {% endif -%}
 {% if allow_groups -%}
 AllowGroups allow_groups
 {% else -%}
-#AllowGroups group1
+AllowGroups group1
 {% endif -%}
 UseDNS {{ use_dns }}
 MaxAuthTries {{ max_auth_tries }}
@@ -161,15 +161,13 @@ X11Forwarding no
 # Configuration, in case SFTP is used
 ## override default of no subsystems
 ## Subsystem sftp /opt/app/openssh5/libexec/sftp-server
-#Subsystem sftp internal-sftp -l VERBOSE
-#
 ## These lines must appear at the *end* of sshd_config
-#Match Group sftponly
-#ForceCommand internal-sftp -l VERBOSE
-#ChrootDirectory /sftpchroot/home/%u
-#AllowTcpForwarding no
-#AllowAgentForwarding no
-#PasswordAuthentication no
-#PermitRootLogin no
-#X11Forwarding no
+Match Group sftponly
+ForceCommand internal-sftp -l VERBOSE
+ChrootDirectory /sftpchroot/home/%u
+AllowTcpForwarding no
+AllowAgentForwarding no
+PasswordAuthentication no
+PermitRootLogin no
+X11Forwarding no
 {% endif %}
