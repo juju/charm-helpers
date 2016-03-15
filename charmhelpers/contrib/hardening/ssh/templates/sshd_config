@@ -48,7 +48,7 @@ SyslogFacility AUTH
 LogLevel VERBOSE
 
 # Authentication:
-LoginGraceTime 30
+LoginGraceTime 30s
 {% if allow_root_with_key -%}
 PermitRootLogin without-password
 {% else -%}
@@ -93,7 +93,7 @@ GSSAPICleanupCredentials yes
 
 X11Forwarding {{ allow_x11_forwarding }}
 X11DisplayOffset 10
-X11UseLocalhost no
+X11UseLocalhost yes
 GatewayPorts no
 PrintMotd {{ print_motd }}
 PrintLastLog {{ print_last_log }}
