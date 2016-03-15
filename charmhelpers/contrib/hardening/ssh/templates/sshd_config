@@ -120,23 +120,15 @@ UsePAM {{ use_pam }}
 
 {% if deny_users -%}
 DenyUsers {{ deny_users }}
-{% else -%}
-DenyUsers *
 {% endif -%}
 {% if allow_users -%}
 AllowUsers {{ allow_users }}
-{% else -%}
-AllowUsers user1
 {% endif -%}
 {% if deny_groups -%}
 DenyGroups {{ deny_groups }}
-{% else -%}
-DenyGroups *
 {% endif -%}
 {% if allow_groups -%}
 AllowGroups allow_groups
-{% else -%}
-AllowGroups group1
 {% endif -%}
 UseDNS {{ use_dns }}
 MaxAuthTries {{ max_auth_tries }}
