@@ -1,6 +1,6 @@
 ###############################################################################
 # WARNING: This configuration file is maintained by Juju. Local changes may
-#          be overwritten.
+#       be overwritten.
 ###############################################################################
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -23,31 +23,31 @@
 {% if remote_hosts -%}
 Host {{ ' '.join(remote_hosts) }}
 {% endif %}
-#   ForwardAgent no
-#   ForwardX11 no
-#   ForwardX11Trusted yes
-#   RhostsRSAAuthentication no
-#   RSAAuthentication yes
+ForwardAgent no
+ForwardX11 no
+ForwardX11Trusted yes
+RhostsRSAAuthentication no
+RSAAuthentication yes
 PasswordAuthentication {{ password_auth_allowed }}
-#   HostbasedAuthentication no
-#   GSSAPIAuthentication no
-#   GSSAPIDelegateCredentials no
-#   GSSAPIKeyExchange no
-#   GSSAPITrustDNS no
-#   BatchMode no
-#   CheckHostIP yes
-#   AddressFamily any
-#   ConnectTimeout 0
-#   StrictHostKeyChecking ask
-#   IdentityFile ~/.ssh/identity
-#   IdentityFile ~/.ssh/id_rsa
-#   IdentityFile ~/.ssh/id_dsa
+HostbasedAuthentication no
+GSSAPIAuthentication no
+GSSAPIDelegateCredentials no
+GSSAPIKeyExchange no
+GSSAPITrustDNS no
+BatchMode no
+CheckHostIP yes
+AddressFamily {{ addr_family }}
+ConnectTimeout 0
+StrictHostKeyChecking ask
+IdentityFile ~/.ssh/identity
+IdentityFile ~/.ssh/id_rsa
+IdentityFile ~/.ssh/id_dsa
 # The port at the destination should be defined
 {% for port in ports -%}
 Port {{ port }}
 {% endfor %}
 Protocol 2
-#   Cipher 3des
+Cipher 3des
 {% if ciphers -%}
 Ciphers {{ ciphers }}
 {%- endif %}
@@ -57,17 +57,17 @@ MACs {{ macs }}
 {% if kexs -%}
 KexAlgorithms {{ kexs }}
 {%- endif %}
-#   EscapeChar ~
-#   Tunnel no
-#   TunnelDevice any:any
-#   PermitLocalCommand no
-#   VisualHostKey no
-#   ProxyCommand ssh -q -W %h:%p gateway.example.com
-#   RekeyLimit 1G 1h
-    SendEnv LANG LC_*
-    HashKnownHosts yes
-    GSSAPIAuthentication yes
-    GSSAPIDelegateCredentials no
+EscapeChar ~
+Tunnel no
+TunnelDevice any:any
+PermitLocalCommand no
+VisualHostKey no
+ProxyCommand ssh -q -W %h:%p gateway.example.com
+RekeyLimit 1G 1h
+SendEnv LANG LC_*
+HashKnownHosts yes
+GSSAPIAuthentication yes
+GSSAPIDelegateCredentials no
 {% if roaming -%}
 UseRoaming {{ roaming }}
 {% endif %}
