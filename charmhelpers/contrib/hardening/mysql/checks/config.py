@@ -50,8 +50,9 @@ def get_audits():
         TemplatedFile(hardening_settings['hardening-conf'],
                       MySQLConfContext(),
                       TEMPLATES_DIR,
-                      mode=0o0755,
+                      mode=0o0750,
                       user='mysql',
+                      group='root',
                       service_actions=[{'service': 'mysql',
                                         'actions': ['restart']}]),
 
@@ -60,7 +61,14 @@ def get_audits():
         DirectoryPermissionAudit('/var/lib/mysql',
                                  user='mysql',
                                  group='mysql',
-                                 mode=0o755)
+                                 recursive=False,
+                                 mode=0o755),
+
+        DirectoryPermissionAudit('/etc/mysql',
+                                 user='root',
+                                 group='root',
+                                 recursive=False,
+                                 mode=0o700),
     ]
 
     return audits
