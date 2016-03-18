@@ -65,7 +65,7 @@ class DisabledModuleAudit(BaseAudit):
                 'Output is: %s' % e.output, level=ERROR)
 
     @staticmethod
-    def _get_loaded_modules(self):
+    def _get_loaded_modules():
         """Returns the modules which are enabled in Apache."""
         output = subprocess.check_output(['apache2ctl', '-M'])
         modules = []
@@ -74,13 +74,13 @@ class DisabledModuleAudit(BaseAudit):
             #  module_name (static|shared)
             # Plus a header line at the top of the output which is stripped
             # out by the regex.
-            matcher = re.search(r'^ (\S*)')
+            matcher = re.search(r'^ (\S*)', line)
             if matcher:
                 modules.append(matcher.group(1))
         return modules
 
     @staticmethod
-    def _disable_module(self, module):
+    def _disable_module(module):
         """Disables the specified module in Apache."""
         try:
             subprocess.check_call(['a2dismod', module])
@@ -92,6 +92,6 @@ class DisabledModuleAudit(BaseAudit):
                 'Output is: %s' % (module, e.output), level=ERROR)
 
     @staticmethod
-    def _restart_apache(self):
+    def _restart_apache():
         """Restarts the apache process"""
         subprocess.check_output(['service', 'apache2', 'restart'])
