@@ -67,7 +67,7 @@ class ApacheConfigTestCase(TestCase):
     def test_ApacheConfContext(self, mock_subprocess):
         mock_subprocess.call.return_value = 0
 
-        with tempfile.NamedTemporaryFile() as ftmp:
+        with tempfile.NamedTemporaryFile() as ftmp:  # noqa
             def fake_check_output(cmd, *args, **kwargs):
                 if cmd[0] == 'apache2':
                     return APACHE_VERSION_STR
