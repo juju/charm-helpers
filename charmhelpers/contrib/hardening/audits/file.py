@@ -271,6 +271,40 @@ class ReadOnly(BaseFileAudit):
                                            format_exc(e)), level=ERROR)
 
 
+class NoReadWriteForOther(BaseFileAudit):
+    """Ensures that the files found under the base path are readable or
+    writable by anyone other than the owner or the group.
+    """
+    def __init__(self, paths):
+        super(NoReadWriteForOther, self).__init__(paths)
+
+    def is_compliant(self, path):
+        try:
+            cmd = ['find', path, '-perm', '-o+r', '-type', 'f', '-o',
+                   '-perm', '-o+w', '-type', 'f']
+            output = check_output(cmd).strip()
+
+            # The find above here will find any files which have read or
+            # write permissions for other, meaning there is too broad of access
+            # to read/write the file. As such, the path is compliant if there's
+            # no output.
+            if output:
+                return False
+
+            return True
+        except CalledProcessError as e:
+            log('Error occurred while finding files which are readable or '
+                'writable to the world in %s. '
+                'Command output is: %s.' % (path, e.output), level=ERROR)
+
+    def comply(self, path):
+        try:
+            check_output(['chmod', '-R', 'o-rw', path])
+        except CalledProcessError as e:
+            log('Error occurred attempting to change modes of files under '
+                'path %s. Output of command is: %s' % (path, e.output))
+
+
 class NoSUIDSGIDAudit(BaseFileAudit):
     """Audits that specified files do not have SUID/SGID bits set."""
     def __init__(self, paths, *args, **kwargs):

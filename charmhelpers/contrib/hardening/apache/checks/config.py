@@ -18,15 +18,16 @@ import os
 import re
 import subprocess
 
-from charmhelpers.core.hookenv import (
-    log,
-    WARNING,
-)
-from charmhelpers.contrib.hardening.audits.file import (
-    FilePermissionAudit,
-    DirectoryPermissionAudit,
-    TemplatedFile,
-)
+
+from charmhelpers.core.hookenv import log
+from charmhelpers.core.hookenv import INFO
+
+from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
+from charmhelpers.contrib.hardening.audits.file import DirectoryPermissionAudit
+from charmhelpers.contrib.hardening.audits.file import NoReadWriteForOther
+from charmhelpers.contrib.hardening.audits.file import TemplatedFile
+from charmhelpers.contrib.hardening.audits.apache import DisabledModuleAudit
+
 from charmhelpers.contrib.hardening.apache import TEMPLATES_DIR
 from charmhelpers.contrib.hardening import utils
 
@@ -38,9 +39,10 @@ def get_audits():
     """
     if subprocess.call(['which', 'apache2'], stdout=subprocess.PIPE) != 0:
         log("Apache server does not appear to be installed on this node - "
-            "skipping apache hardening", level=WARNING)
+            "skipping apache hardening", level=INFO)
         return []
 
+    context = ApacheConfContext()
     settings = utils.get_settings('apache')
     audits = [
         FilePermissionAudit(paths='/etc/apache2/apache2.conf', user='root',
@@ -48,7 +50,7 @@ def get_audits():
 
         TemplatedFile(os.path.join(settings['common']['apache_dir'],
                                    'mods-available/alias.conf'),
-                      ApacheConfContext(),
+                      context,
                       TEMPLATES_DIR,
                       mode=0o0755,
                       user='root',
@@ -57,7 +59,7 @@ def get_audits():
 
         TemplatedFile(os.path.join(settings['common']['apache_dir'],
                                    'conf-enabled/hardening.conf'),
-                      ApacheConfContext(),
+                      context,
                       TEMPLATES_DIR,
                       mode=0o0640,
                       user='root',
@@ -67,7 +69,11 @@ def get_audits():
         DirectoryPermissionAudit(settings['common']['apache_dir'],
                                  user='root',
                                  group='root',
-                                 mode=0o640)
+                                 mode=0o640),
+
+        DisabledModuleAudit(settings['hardening']['modules_to_disable']),
+
+        NoReadWriteForOther(settings['common']['apache_dir']),
     ]
 
     return audits
@@ -83,20 +89,6 @@ class ApacheConfContext(object):
     def __call__(self):
         settings = utils.get_settings('apache')
         ctxt = settings['hardening']
-
-        # change all the other files not defined as resources
-        # remove world readable files
-        cmd = ['find', settings['common']['apache_dir'], '-perm', '-o+r',
-               '-type', 'f', '-o', '-perm', '-o+w', '-type', 'f']
-        out = subprocess.check_output(cmd)
-        if out:
-            out = [o for o in out.split('\n') if o]
-            if len(out) > 0:
-                cmd = ['chmod', '-R', 'o-rw', settings['common']['apache_dir']]
-                subprocess.check_output(cmd)
-
-        for mod in settings['hardening']['modules_to_disable']:
-            subprocess.check_call(['a2dismod', mod])
 
         out = subprocess.check_output(['apache2', '-v'])
         ctxt['apache_version'] = re.search(r'.+version: Apache/(.+?)\s.+',
