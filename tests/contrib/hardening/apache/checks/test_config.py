@@ -53,7 +53,7 @@ class ApacheConfigTestCase(TestCase):
     @patch.object(config.subprocess, 'call', lambda *args, **kwargs: 0)
     def test_get_audits_apache_is_installed(self):
         audits = config.get_audits()
-        self.assertEqual(4, len(audits))
+        self.assertEqual(6, len(audits))
 
     @patch.object(config.utils, 'get_settings', lambda x: {
         'common': {'apache_dir': TEST_TMPDIR},
@@ -69,9 +69,7 @@ class ApacheConfigTestCase(TestCase):
 
         with tempfile.NamedTemporaryFile() as ftmp:
             def fake_check_output(cmd, *args, **kwargs):
-                if cmd[0] == 'find':
-                    return ftmp.name
-                elif cmd[0] == 'apache2':
+                if cmd[0] == 'apache2':
                     return APACHE_VERSION_STR
 
             mock_subprocess.check_output.side_effect = fake_check_output
