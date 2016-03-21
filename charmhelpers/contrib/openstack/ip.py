@@ -134,11 +134,6 @@ def resolve_address(endpoint_type=PUBLIC):
     binding = ADDRESS_MAP[endpoint_type]['binding']
     clustered = is_clustered()
 
-    if config('prefer-ipv6'):
-        fallback_addr = get_ipv6_addr(exc_list=vips)[0]
-    else:
-        fallback_addr = unit_get(net_fallback)
-
     if clustered and vips:
         if net_addr:
             for vip in vips:
@@ -161,6 +156,11 @@ def resolve_address(endpoint_type=PUBLIC):
                 # bindings/network spaces so we expect a single vip
                 resolved_address = vips[0]
     else:
+        if config('prefer-ipv6'):
+            fallback_addr = get_ipv6_addr(exc_list=vips)[0]
+        else:
+            fallback_addr = unit_get(net_fallback)
+
         if net_addr:
             resolved_address = get_address_in_network(net_addr, fallback_addr)
         else:
