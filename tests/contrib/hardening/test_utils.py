@@ -58,6 +58,8 @@ class UtilsTestCase(TestCase):
         mock_get_user_provided_overrides.return_value = {}
         self.assertEqual(utils.__SETTINGS__, {})
         self.assertTrue('sysctl' in utils.get_settings('os'))
-        self.assertEqual(list(six.iterkeys(utils.__SETTINGS__)), ['os'])
+        self.assertEqual(sorted(list(six.iterkeys(utils.__SETTINGS__))),
+                         ['os'])
         self.assertTrue('server' in utils.get_settings('ssh'))
-        self.assertEqual(list(six.iterkeys(utils.__SETTINGS__)), ['os', 'ssh'])
+        self.assertEqual(sorted(list(six.iterkeys(utils.__SETTINGS__))),
+                         ['os', 'ssh'])

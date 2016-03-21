@@ -3,7 +3,7 @@
 #          be overwritten.
 ###############################################################################
 [mysqld]
-{% for setting, value in mysql_settings.iteritems() -%}
+{% for setting, value in mysql_settings -%}
 {% if value == 'True' -%}
 {{ setting }}
 {% elif value != 'None' and value != None -%}
