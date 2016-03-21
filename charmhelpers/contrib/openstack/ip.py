@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+
 from charmhelpers.core.hookenv import (
     config,
     unit_get,
@@ -25,6 +26,7 @@ from charmhelpers.contrib.network.ip import (
     is_address_in_network,
     is_ipv6,
     get_ipv6_addr,
+    resolve_network_cidr,
 )
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
 
@@ -137,16 +139,27 @@ def resolve_address(endpoint_type=PUBLIC):
     else:
         fallback_addr = unit_get(net_fallback)
 
-    if clustered:
-        # TODO: needs to deal with extra-bindings as well
-        if not net_addr:
-            # If no net-splits defined, we expect a single vip
-            resolved_address = vips[0]
-        else:
+    if clustered and vips:
+        if net_addr:
             for vip in vips:
                 if is_address_in_network(net_addr, vip):
                     resolved_address = vip
                     break
+        else:
+            # NOTE: endeavour to check vips against network space
+            #       bindings
+            try:
+                bound_cidr = resolve_network_cidr(
+                    network_get_primary_address(binding)
+                )
+                for vip in vips:
+                    if is_address_in_network(bound_cidr, vip):
+                        resolved_address = vip
+                        break
+            except NotImplementedError:
+                # If no net-splits configured and no support for extra
+                # bindings/network spaces so we expect a single vip
+                resolved_address = vips[0]
     else:
         if net_addr:
             resolved_address = get_address_in_network(net_addr, fallback_addr)
