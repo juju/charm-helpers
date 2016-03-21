@@ -1007,3 +1007,16 @@ def network_get_primary_address(binding):
     '''
     cmd = ['network-get', '--primary-address', binding]
     return subprocess.check_output(cmd).strip()
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def network_get(binding):
+    '''
+    Retrieve all network information for a named binding
+
+    :param binding: string. The name of a relation of extra-binding
+    :return: dict. Key value pairs of network information
+    :raise: NotImplementedError if run on Juju < 2.0
+    '''
+    cmd = ['network-get', binding]
+    return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
