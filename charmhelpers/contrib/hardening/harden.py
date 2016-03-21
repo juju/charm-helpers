@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import six
+
 from collections import OrderedDict
 
 from charmhelpers.core.hookenv import (
@@ -60,7 +62,7 @@ def harden(overrides=None):
             if enabled:
                 modules_to_run = []
                 # modules will always be performed in the following order
-                for module, func in RUN_CATALOG.iteritems():
+                for module, func in six.iteritems(RUN_CATALOG):
                     if module in enabled:
                         enabled.remove(module)
                         modules_to_run.append(func)

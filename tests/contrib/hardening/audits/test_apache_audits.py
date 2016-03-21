@@ -49,15 +49,16 @@ class DisabledModuleAuditsTest(TestCase):
         self.assertFalse(mock_loaded_modules.called)
 
     @patch.object(apache.DisabledModuleAudit, '_get_loaded_modules')
+    @patch.object(apache, 'log', lambda *args, **kwargs: None)
     def test_ensure_compliance_loaded_modules_raises_ex(self,
                                                         mock_loaded_modules):
         mock_loaded_modules.side_effect = CalledProcessError(1, 'test', 'err')
         audit = apache.DisabledModuleAudit('foo')
         audit.ensure_compliance()
-        self.assertTrue(self.log.called)
 
     @patch.object(apache.DisabledModuleAudit, '_get_loaded_modules')
     @patch.object(apache.DisabledModuleAudit, '_disable_module')
+    @patch.object(apache, 'log', lambda *args, **kwargs: None)
     def test_disabled_modules_not_loaded(self, mock_disable_module,
                                          mock_loaded_modules):
         mock_loaded_modules.return_value = ['foo']
@@ -68,6 +69,7 @@ class DisabledModuleAuditsTest(TestCase):
     @patch.object(apache.DisabledModuleAudit, '_get_loaded_modules')
     @patch.object(apache.DisabledModuleAudit, '_disable_module')
     @patch.object(apache.DisabledModuleAudit, '_restart_apache')
+    @patch.object(apache, 'log', lambda *args, **kwargs: None)
     def test_disabled_modules_loaded(self, mock_restart_apache,
                                      mock_disable_module, mock_loaded_modules):
         mock_loaded_modules.return_value = ['foo', 'bar']
