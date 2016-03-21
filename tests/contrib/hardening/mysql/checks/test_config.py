@@ -32,4 +32,4 @@ class MySQLConfigTestCase(TestCase):
     })
     def test_get_audits(self):
         audits = config.get_audits()
-        self.assertEqual(3, len(audits))
+        self.assertEqual(4, len(audits))

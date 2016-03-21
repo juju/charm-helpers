@@ -4,6 +4,10 @@
 #       name 'mysql' as the root key followed by any of the following with new
 #       values.
 
+hardening:
+    mysql-conf: /etc/mysql/my.cnf
+    hardening-conf: /etc/mysql/conf.d/hardening.cnf
+
 security:
     # @see http://www.symantec.com/connect/articles/securing-mysql-step-step
     # @see http://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_chroot
@@ -32,7 +36,3 @@ security:
 
     # @see https://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_secure-file-priv
     secure-file-priv: /tmp
-
-hardening:
-    mysql-conf: /etc/mysql/my.cnf
-    hardening-conf: /etc/mysql/conf.d/hardening.cnf

@@ -19,15 +19,17 @@ import re
 import subprocess
 
 
-from charmhelpers.core.hookenv import log
-from charmhelpers.core.hookenv import INFO
-
-from charmhelpers.contrib.hardening.audits.file import FilePermissionAudit
-from charmhelpers.contrib.hardening.audits.file import DirectoryPermissionAudit
-from charmhelpers.contrib.hardening.audits.file import NoReadWriteForOther
-from charmhelpers.contrib.hardening.audits.file import TemplatedFile
+from charmhelpers.core.hookenv import (
+    log,
+    INFO,
+)
+from charmhelpers.contrib.hardening.audits.file import (
+    FilePermissionAudit,
+    DirectoryPermissionAudit,
+    NoReadWriteForOther,
+    TemplatedFile,
+)
 from charmhelpers.contrib.hardening.audits.apache import DisabledModuleAudit
-
 from charmhelpers.contrib.hardening.apache import TEMPLATES_DIR
 from charmhelpers.contrib.hardening import utils
 
