@@ -17,6 +17,7 @@
 import os
 import platform
 import re
+import six
 import subprocess
 
 from charmhelpers.core.hookenv import (
@@ -184,7 +185,9 @@ class SysCtlHardeningContext(object):
 
             ctxt['sysctl'][key] = d[2] or None
 
-        return ctxt
+        # Translate for python3
+        return {'sysctl_settings':
+                [(k, v) for k, v in six.iteritems(ctxt['sysctl'])]}
 
 
 class SysctlConf(TemplatedFile):

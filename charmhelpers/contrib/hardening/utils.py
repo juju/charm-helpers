@@ -18,6 +18,7 @@ import glob
 import grp
 import os
 import pwd
+import six
 import yaml
 
 from charmhelpers.core.hookenv import (
@@ -92,7 +93,7 @@ def _apply_overrides(settings, overrides, schema):
     :returns: dictionary of modules config with user overrides applied.
     """
     if overrides:
-        for k, v in overrides.iteritems():
+        for k, v in six.iteritems(overrides):
             if k in schema:
                 if schema[k] is None:
                     settings[k] = v

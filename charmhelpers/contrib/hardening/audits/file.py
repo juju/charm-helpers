@@ -509,9 +509,10 @@ class FileContentAudit(BaseFileAudit):
 
     def is_compliant(self, path):
         """
-        Given a set of content matching cases, check that all cases match
-        as expected with the contents of the file. Cases can be expected to
-        pass of fail.
+        Given a set of content matching cases i.e. tuple(regex, bool) where
+        bool value denotes whether or not regex is expected to match, check that
+        all cases match as expected with the contents of the file. Cases can be
+        expected to pass of fail.
 
         :param path: Path of file to check.
         :returns: Boolean value representing whether or not all cases are

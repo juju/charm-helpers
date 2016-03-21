@@ -19,9 +19,11 @@ import subprocess
 
 from six import string_types
 
-from charmhelpers.core.hookenv import log
-from charmhelpers.core.hookenv import INFO
-from charmhelpers.core.hookenv import ERROR
+from charmhelpers.core.hookenv import (
+    log,
+    INFO,
+    ERROR,
+)
 
 from charmhelpers.contrib.hardening.audits import BaseAudit
 
@@ -50,7 +52,8 @@ class DisabledModuleAudit(BaseAudit):
             non_compliant_modules = []
             for module in self.modules:
                 if module in loaded_modules:
-                    log('Module %s is enabled and should not be.', level=INFO)
+                    log("Module '%s' is enabled but should not be." %
+                        (module), level=INFO)
                     non_compliant_modules.append(module)
 
             if len(non_compliant_modules) == 0:

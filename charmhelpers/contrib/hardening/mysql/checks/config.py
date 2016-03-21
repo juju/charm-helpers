@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import six
 import subprocess
 
 from charmhelpers.core.hookenv import (
@@ -83,4 +84,6 @@ class MySQLConfContext(object):
     """
     def __call__(self):
         settings = utils.get_settings('mysql')
-        return {'mysql_settings': settings['security']}
+        # Translate for python3
+        return {'mysql_settings':
+                [(k, v) for k, v in six.iteritems(settings['security'])]}
