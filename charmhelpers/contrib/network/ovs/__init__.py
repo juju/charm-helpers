@@ -25,10 +25,14 @@ from charmhelpers.core.host import (
 )
 
 
-def add_bridge(name):
+def add_bridge(name, datapath_type=None):
     ''' Add the named bridge to openvswitch '''
     log('Creating bridge {}'.format(name))
-    subprocess.check_call(["ovs-vsctl", "--", "--may-exist", "add-br", name])
+    cmd = ["ovs-vsctl", "--", "--may-exist", "add-br", name]
+    if datapath_type is not None:
+        cmd += ['--', 'set', 'bridge', name,
+                'datapath_type={}'.format(datapath_type)]
+    subprocess.check_call(cmd)
 
 
 def del_bridge(name):
