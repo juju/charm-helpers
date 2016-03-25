@@ -88,7 +88,7 @@ from charmhelpers.contrib.network.ip import (
     is_address_in_network,
     is_bridge_member,
 )
-from charmhelpers.contrib.openstack.utils import get_host_ip
+from charmhelpers.contrib.openstack.utils import get_host_ip, os_release
 from charmhelpers.core.unitdata import kv
 
 try:
@@ -1500,6 +1500,8 @@ class AppArmorContext(OSContextGenerator):
         """
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
             self.ctxt = {'aa-profile-mode': config('aa-profile-mode')}
+            if os_release('neutron-common') >= 'mitaka':
+                self.ctxt.update({'python3': True})
         return self.ctxt
 
     def install_aa_utils(self):
