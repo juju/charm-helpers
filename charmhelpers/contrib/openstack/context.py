@@ -1549,7 +1549,7 @@ class AppArmorContext(OSContextGenerator):
             if ctxt['aa-profile-mode'] == 'disable':
                 log("Manually disabling the apparmor profile for {}."
                     "".format(ctxt['aa-profile']))
-                self.manually_disable_aa_profile(ctxt['aa-profile'])
+                self.manually_disable_aa_profile()
                 return
             status_set('blocked', "Apparmor profile {} failed to be set to {}."
                                   "".format(ctxt['aa-profile'],
