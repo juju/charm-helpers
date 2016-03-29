@@ -1486,22 +1486,32 @@ class AppArmorContext(OSContextGenerator):
     """Base class for apparmor contexts."""
 
     def __init__(self):
-        self.ctxt = {}
+        self._ctxt = None
         self.aa_profile = None
         self.aa_utils_packages = ['apparmor-utils']
 
-    def __call__(self):
+    @property
+    def ctxt(self):
+        if self._ctxt is not None:
+            return self._ctxt
+        self._ctxt = self._determine_ctxt()
+        return self._ctxt
+
+    def _determine_ctxt(self):
         """
         Validate aa-profile-mode settings is disable, enforce, or complain.
-        Otherwise return an empty dictionary.
 
-        :return ctxt: Dictionary of the apparmor profile mode or empty
-                      dictionary.
+        :return ctxt: Dictionary of the apparmor profile or None
         """
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
-            self.ctxt = {'aa-profile-mode': config('aa-profile-mode')}
+            ctxt = {'aa-profile-mode': config('aa-profile-mode')}
             if os_release('neutron-common') >= 'mitaka':
-                self.ctxt.update({'python3': True})
+                ctxt.update({'python3': True})
+        else:
+            ctxt = None
+        return ctxt
+
+    def __call__(self):
         return self.ctxt
 
     def install_aa_utils(self):
@@ -1536,24 +1546,24 @@ class AppArmorContext(OSContextGenerator):
         Makes calls out to aa-disable, aa-complain, or aa-enforce to setup
         the apparmor profile.
         """
-        ctxt = self.__call__()
-        if not ctxt:
+        self.__call__()
+        if not self.ctxt:
             log("Not enabling apparmor Profile")
             return
         self.install_aa_utils()
-        cmd = ['aa-{}'.format(ctxt['aa-profile-mode'])]
-        cmd.append(ctxt['aa-profile'])
+        cmd = ['aa-{}'.format(self.ctxt['aa-profile-mode'])]
+        cmd.append(self.ctxt['aa-profile'])
         log("Setting up the apparmor profile for {} in {} mode."
-            "".format(ctxt['aa-profile'], ctxt['aa-profile-mode']))
+            "".format(self.ctxt['aa-profile'], self.ctxt['aa-profile-mode']))
         try:
             check_call(cmd)
         except CalledProcessError as e:
-            if ctxt['aa-profile-mode'] == 'disable':
+            if self.ctxt['aa-profile-mode'] == 'disable':
                 log("Manually disabling the apparmor profile for {}."
-                    "".format(ctxt['aa-profile']))
+                    "".format(self.ctxt['aa-profile']))
                 self.manually_disable_aa_profile()
                 return
             status_set('blocked', "Apparmor profile {} failed to be set to {}."
-                                  "".format(ctxt['aa-profile'],
-                                            ctxt['aa-profile-mode']))
+                                  "".format(self.ctxt['aa-profile'],
+                                            self.ctxt['aa-profile-mode']))
             raise e

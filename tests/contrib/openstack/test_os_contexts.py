@@ -92,10 +92,10 @@ class FakeAppArmorContext(context.AppArmorContext):
         self.aa_profile = 'fake-aa-profile'
 
     def __call__(self):
-        self.ctxt = super(FakeAppArmorContext, self).__call__()
+        super(FakeAppArmorContext, self).__call__()
         if not self.ctxt:
             return self.ctxt
-        self.ctxt.update({'aa-profile': self.aa_profile})
+        self._ctxt.update({'aa-profile': self.aa_profile})
         return self.ctxt
 
 
@@ -2899,34 +2899,52 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
 
-    def test_apparmor_context_call(self):
+    @patch.object(context, 'os_release')
+    def test_apparmor_context_call_not_valid(self, _os_release):
         ''' Tests for the apparmor context'''
+        _os_release.retrun_value = 'liberty'
         mock_aa_object = context.AppArmorContext()
         # Test with invalid config
         self.config.return_value = 'NOTVALID'
-        self.assertEquals(mock_aa_object.__call__(), {})
+        self.assertEquals(mock_aa_object.__call__(), None)
 
+    @patch.object(context, 'os_release')
+    def test_apparmor_context_call_complain(self, _os_release):
+        ''' Tests for the apparmor context'''
+        _os_release.retrun_value = 'liberty'
+        mock_aa_object = context.AppArmorContext()
         # Test complain mode
         self.config.return_value = 'complain'
         self.assertEquals(mock_aa_object.__call__(),
                           {'aa-profile-mode': 'complain'})
 
+    @patch.object(context, 'os_release')
+    def test_apparmor_context_call_enforce(self, _os_release):
+        ''' Tests for the apparmor context'''
+        _os_release.retrun_value = 'liberty'
+        mock_aa_object = context.AppArmorContext()
         # Test enforce mode
         self.config.return_value = 'enforce'
         self.assertEquals(mock_aa_object.__call__(),
                           {'aa-profile-mode': 'enforce'})
 
+    @patch.object(context, 'os_release')
+    def test_apparmor_context_call_disable(self, _os_release):
+        ''' Tests for the apparmor context'''
+        _os_release.retrun_value = 'liberty'
+        mock_aa_object = context.AppArmorContext()
         # Test complain mode
         self.config.return_value = 'disable'
         self.assertEquals(mock_aa_object.__call__(),
                           {'aa-profile-mode': 'disable'})
 
-    def test_apparmor_setup(self):
+    @patch.object(context, 'os_release')
+    def test_apparmor_setup_complain(self, _os_release):
         ''' Tests for the apparmor setup'''
+        _os_release.retrun_value = 'liberty'
         AA = FakeAppArmorContext()
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
-
         # Test complain mode
         self.config.return_value = 'complain'
         AA.setup_aa_profile()
@@ -2934,22 +2952,34 @@ class ContextTests(unittest.TestCase):
         self.check_call.assert_called_with(['aa-complain', 'fake-aa-profile'])
         self.assertFalse(AA.manually_disable_aa_profile.called)
 
+    @patch.object(context, 'os_release')
+    def test_apparmor_setup_enforce(self, _os_release):
+        ''' Tests for the apparmor setup'''
+        _os_release.retrun_value = 'liberty'
+        AA = FakeAppArmorContext()
+        AA.install_aa_utils = MagicMock()
+        AA.manually_disable_aa_profile = MagicMock()
         # Test enforce mode
         self.config.return_value = 'enforce'
         AA.setup_aa_profile()
         self.check_call.assert_called_with(['aa-enforce', 'fake-aa-profile'])
         self.assertFalse(AA.manually_disable_aa_profile.called)
 
+    @patch.object(context, 'os_release')
+    def test_apparmor_setup_disable(self, _os_release):
+        ''' Tests for the apparmor setup'''
+        _os_release.retrun_value = 'liberty'
+        AA = FakeAppArmorContext()
+        AA.install_aa_utils = MagicMock()
+        AA.manually_disable_aa_profile = MagicMock()
         # Test disable mode
         self.config.return_value = 'disable'
         AA.setup_aa_profile()
         self.check_call.assert_called_with(['aa-disable', 'fake-aa-profile'])
         self.assertFalse(AA.manually_disable_aa_profile.called)
-
         # Test failed to disable
-        self.config.return_value = 'disable'
         from subprocess import CalledProcessError
         self.check_call.side_effect = CalledProcessError(0, 0, 0)
         AA.setup_aa_profile()
         self.check_call.assert_called_with(['aa-disable', 'fake-aa-profile'])
-        AA.manually_disable_aa_profile.assert_called_with('fake-aa-profile')
+        AA.manually_disable_aa_profile.assert_called_with()
