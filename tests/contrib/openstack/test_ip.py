@@ -10,6 +10,7 @@ TO_PATCH = [
     'is_clustered',
     'service_name',
     'network_get_primary_address',
+    'resolve_network_cidr',
 ]
 
 
@@ -134,3 +135,27 @@ class IPTestCase(TestCase):
     def test_canonical_url_ipv6(self, resolve_address):
         resolve_address.return_value = 'unit1'
         self.assertTrue(ip.canonical_url(None), 'http://[unit1]')
+
+    def test_resolve_address_network_get(self):
+        self.is_clustered.return_value = False
+        self.unit_get.return_value = 'unit1'
+        self.network_get_primary_address.side_effect = None
+        self.network_get_primary_address.return_value = '10.5.60.1'
+        self.assertEqual(ip.resolve_address(), '10.5.60.1')
+        self.unit_get.assert_called_with('public-address')
+        calls = [call('os-public-network'),
+                 call('prefer-ipv6')]
+        self.config.assert_has_calls(calls)
+        self.network_get_primary_address.assert_called_with('public')
+
+    def test_resolve_address_network_get_clustered(self):
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '10.5.60.20 192.168.1.20')
+        self.network_get_primary_address.side_effect = None
+        self.network_get_primary_address.return_value = '10.5.60.1'
+        self.resolve_network_cidr.return_value = '10.5.60.1/24'
+        self.assertEqual(ip.resolve_address(), '10.5.60.20')
+        calls = [call('os-public-hostname'), call('vip'),
+                 call('os-public-network')]
+        self.config.assert_has_calls(calls)
+        self.network_get_primary_address.assert_called_with('public')
