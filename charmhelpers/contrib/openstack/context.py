@@ -1546,7 +1546,7 @@ class AppArmorContext(OSContextGenerator):
         Makes calls out to aa-disable, aa-complain, or aa-enforce to setup
         the apparmor profile.
         """
-        self.__call__()
+        self()
         if not self.ctxt:
             log("Not enabling apparmor Profile")
             return
