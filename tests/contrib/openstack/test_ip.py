@@ -9,6 +9,7 @@ TO_PATCH = [
     'get_address_in_network',
     'is_clustered',
     'service_name',
+    'network_get_primary_address',
 ]
 
 
@@ -32,6 +33,7 @@ class IPTestCase(TestCase):
             setattr(self, m, self._patch(m))
         self.test_config = TestConfig()
         self.config.side_effect = self.test_config.get
+        self.network_get_primary_address.side_effect = NotImplementedError
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.ip.' + method)
@@ -48,7 +50,6 @@ class IPTestCase(TestCase):
         calls = [call('os-public-network'),
                  call('prefer-ipv6')]
         self.config.assert_has_calls(calls)
-        self.get_address_in_network.assert_called_with(None, 'unit1')
 
     def test_resolve_address_default_internal(self):
         self.is_clustered.return_value = False
@@ -59,7 +60,6 @@ class IPTestCase(TestCase):
         calls = [call('os-internal-network'),
                  call('prefer-ipv6')]
         self.config.assert_has_calls(calls)
-        self.get_address_in_network.assert_called_with(None, 'unit1')
 
     def test_resolve_address_public_not_clustered(self):
         self.is_clustered.return_value = False
@@ -111,8 +111,7 @@ class IPTestCase(TestCase):
     def test_resolve_address_ipv6_fallback(self):
         self.test_config.set('prefer-ipv6', True)
         self.is_clustered.return_value = False
-        ip.resolve_address()
-        self.get_address_in_network.assert_called_with(None, '::1')
+        self.assertEqual(ip.resolve_address(), '::1')
 
     @patch.object(ip, 'resolve_address')
     def test_canonical_url_http(self, resolve_address):
