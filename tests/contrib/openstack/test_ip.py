@@ -155,7 +155,8 @@ class IPTestCase(TestCase):
         self.network_get_primary_address.return_value = '10.5.60.1'
         self.resolve_network_cidr.return_value = '10.5.60.1/24'
         self.assertEqual(ip.resolve_address(), '10.5.60.20')
-        calls = [call('os-public-hostname'), call('vip'),
+        calls = [call('os-public-hostname'),
+                 call('vip'),
                  call('os-public-network')]
         self.config.assert_has_calls(calls)
         self.network_get_primary_address.assert_called_with('public')
