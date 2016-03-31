@@ -88,7 +88,7 @@ from charmhelpers.contrib.network.ip import (
     is_address_in_network,
     is_bridge_member,
 )
-from charmhelpers.contrib.openstack.utils import get_host_ip, os_release
+from charmhelpers.contrib.openstack.utils import get_host_ip
 from charmhelpers.core.unitdata import kv
 
 try:
@@ -1505,8 +1505,6 @@ class AppArmorContext(OSContextGenerator):
         """
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
             ctxt = {'aa-profile-mode': config('aa-profile-mode')}
-            if os_release('neutron-common') >= 'mitaka':
-                ctxt.update({'python3': True})
         else:
             ctxt = None
         return ctxt
@@ -1519,8 +1517,7 @@ class AppArmorContext(OSContextGenerator):
         Install packages required for apparmor configuration.
         """
         log("Installing apparmor utils.")
-        apt_install(packages=self.aa_utils_packages,
-                    fatal=True)
+        ensure_packages(self.aa_utils_packages)
 
     def manually_disable_aa_profile(self):
         """
@@ -1558,6 +1555,11 @@ class AppArmorContext(OSContextGenerator):
         try:
             check_call(cmd)
         except CalledProcessError as e:
+            # If aa-profile-mode is set to disabled (default) manual
+            # disabling is required as the template has been written but
+            # apparmor is yet unaware of the profile and aa-disable aa-profile
+            # fails. If aa-disable learns to read profile files first this can
+            # be removed.
             if self.ctxt['aa-profile-mode'] == 'disable':
                 log("Manually disabling the apparmor profile for {}."
                     "".format(self.ctxt['aa-profile']))
