@@ -2883,3 +2883,12 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
+
+    def test_internal_endpoint_context(self):
+        config = {'use-internal-endpoints': False}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.InternalEndpointContext()
+        self.assertFalse(ctxt()['use_internal_endpoints'])
+        config = {'use-internal-endpoints': True}
+        self.config.side_effect = fake_config(config)
+        self.assertTrue(ctxt()['use_internal_endpoints'])
