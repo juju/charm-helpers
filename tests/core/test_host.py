@@ -60,6 +60,13 @@ IP_LINE_BONDS = b"""
 link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
 """
 
+SERVICE_STATUS_ALL = b"""
+ [ + ]  rabbitmq-server
+ [ ? ]  rc.local
+ [ + ]  resolvconf
+ [ - ]  rsync
+"""
+
 
 class HelpersTest(TestCase):
 
@@ -488,6 +495,34 @@ class HelpersTest(TestCase):
         exc = subprocess.CalledProcessError(1, ['status'])
         check_output.side_effect = exc
         self.assertFalse(host.service_running('foo'))
+
+    @patch.object(host, 'systemv_services_running')
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.check_output')
+    def test_service_systemv_running(self, check_output, systemd,
+                                     systemv_services_running):
+        systemd.return_value = False
+        check_output.return_value = b' * Unhelpfull guff, thanks a lot rabbit'
+        systemv_services_running.return_value = [u'udev', u'rabbitmq-server']
+        self.assertTrue(host.service_running('rabbitmq-server'))
+
+    @patch.object(host, 'systemv_services_running')
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.check_output')
+    def test_service_systemv_not_running(self, check_output, systemd,
+                                         systemv_services_running):
+        systemd.return_value = False
+        check_output.return_value = b' * Unhelpfull guff, thanks a lot rabbit'
+        systemv_services_running.return_value = [u'udev', u'rabbitmq-server']
+        self.assertFalse(host.service_running('keystone'))
+
+    @patch('subprocess.check_output')
+    def test_systemv_services_running(self, check_output):
+        check_output.return_value = SERVICE_STATUS_ALL
+        self.assertEqual(
+            host.systemv_services_running(),
+            [u'rabbitmq-server', u'resolvconf']
+        )
 
     @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
