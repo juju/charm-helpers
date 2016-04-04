@@ -1482,6 +1482,18 @@ class NetworkServiceContext(OSContextGenerator):
         return {}
 
 
+class InternalEndpointContext(OSContextGenerator):
+    """Internal endpoint context.
+
+    This context provides the endpoint type used for communication between
+    services e.g. between Nova and Cinder internally. Openstack uses Public
+    endpoints by default so this allows admins to optionally use internal
+    endpoints.
+    """
+    def __call__(self):
+        return {'use_internal_endpoints': config('use-internal-endpoints')}
+
+
 class AppArmorContext(OSContextGenerator):
     """Base class for apparmor contexts."""
 
