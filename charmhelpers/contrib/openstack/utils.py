@@ -156,6 +156,7 @@ PACKAGE_CODENAMES = {
     ]),
     'keystone': OrderedDict([
         ('8.0', 'liberty'),
+        ('8.1', 'liberty'),
         ('9.0', 'mitaka'),
     ]),
     'horizon-common': OrderedDict([
