@@ -376,7 +376,7 @@ class ValidateServicesByProcessIDTestCase(unittest.TestCase):
         expected = {self.sentry_unit: {"foo": 3}}
         actual = {self.sentry_unit: {"foo": [12345, 67890]}}
         result = self.utils.validate_unit_process_ids(expected, actual)
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
 
     def test_accepts_bool(self):
         """
@@ -394,4 +394,4 @@ class ValidateServicesByProcessIDTestCase(unittest.TestCase):
         expected = {self.sentry_unit: {"foo": True}}
         actual = {self.sentry_unit: {"foo": []}}
         result = self.utils.validate_unit_process_ids(expected, actual)
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
