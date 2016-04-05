@@ -342,6 +342,15 @@ class ValidateServicesByProcessIDTestCase(unittest.TestCase):
         self.utils = AmuletUtils()
         self.sentry_unit = FakeSentry()
 
+    def test_accepts_list_wrong(self):
+        """
+        Validates that it can accept a list
+        """
+        expected = {self.sentry_unit: {"foo": [3, 4]}}
+        actual = {self.sentry_unit: {"foo": [12345, 67890]}}
+        result = self.utils.validate_unit_process_ids(expected, actual)
+        self.assertIsNotNone(result)
+
     def test_accepts_list(self):
         """
         Validates that it can accept a list
@@ -360,11 +369,29 @@ class ValidateServicesByProcessIDTestCase(unittest.TestCase):
         result = self.utils.validate_unit_process_ids(expected, actual)
         self.assertIsNone(result)
 
+    def test_accepts_string_wrong(self):
+        """
+        Validates that it can accept a string
+        """
+        expected = {self.sentry_unit: {"foo": 3}}
+        actual = {self.sentry_unit: {"foo": [12345, 67890]}}
+        result = self.utils.validate_unit_process_ids(expected, actual)
+        self.assertIsNone(result)
+
     def test_accepts_bool(self):
         """
         Validates that it can accept a boolean
         """
         expected = {self.sentry_unit: {"foo": True}}
         actual = {self.sentry_unit: {"foo": [12345, 67890]}}
+        result = self.utils.validate_unit_process_ids(expected, actual)
+        self.assertIsNone(result)
+
+    def test_accepts_bool_wrong(self):
+        """
+        Validates that it can accept a boolean
+        """
+        expected = {self.sentry_unit: {"foo": True}}
+        actual = {self.sentry_unit: {"foo": []}}
         result = self.utils.validate_unit_process_ids(expected, actual)
         self.assertIsNone(result)
