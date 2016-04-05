@@ -119,6 +119,15 @@ class OVSHelpersTest(TestCase):
 
     @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
+    def test_add_bridge_datapath_type(self, check_call, log):
+        ovs.add_bridge('test', datapath_type='netdev')
+        check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
+                                       "add-br", 'test', "--", "set",
+                                       "bridge", "test", "datapath_type=netdev"])
+        self.assertTrue(log.call_count == 1)
+
+    @patch.object(ovs, 'log')
+    @patch('subprocess.check_call')
     def test_del_bridge(self, check_call, log):
         ovs.del_bridge('test')
         check_call.assert_called_with(["ovs-vsctl", "--", "--if-exists",
