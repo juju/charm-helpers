@@ -1535,7 +1535,8 @@ def make_assess_status_func(*args, **kwargs):
     return _assess_status_func
 
 
-def pausable_restart_on_change(restart_map, stopstart=False):
+def pausable_restart_on_change(restart_map, stopstart=False,
+                               restart_functions=None):
     """A restart_on_change decorator that checks to see if the unit is
     paused. If it is paused then the decorated function doesn't fire.
 
@@ -1568,6 +1569,7 @@ def pausable_restart_on_change(restart_map, stopstart=False):
                 return f(*args, **kwargs)
             # otherwise, normal restart_on_change functionality
             return restart_on_change_helper(
-                (lambda: f(*args, **kwargs)), restart_map, stopstart)
+                (lambda: f(*args, **kwargs)), restart_map, stopstart,
+                restart_functions)
         return wrapped_f
     return wrap
