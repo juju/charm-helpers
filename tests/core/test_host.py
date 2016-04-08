@@ -1281,6 +1281,37 @@ class HelpersTest(TestCase):
 
         self.assertEquals([call('restart', 'service')], service.call_args_list)
 
+    @patch.object(host, 'service_reload')
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_restart_on_change_restart_functs(self, iglob, exists, service,
+                                              service_reload):
+        file_name_one = '/etc/cinder/cinder.conf'
+        file_name_two = '/etc/haproxy/haproxy.conf'
+        restart_map = OrderedDict([
+            (file_name_one, ['some-api']),
+            (file_name_two, ['haproxy'])
+        ])
+        iglob.side_effect = [[], [file_name_two],
+                             [file_name_one], [file_name_two]]
+        exists.return_value = True
+
+        restart_funcs = {
+            'some-api': service_reload,
+        }
+
+        @host.restart_on_change(restart_map, restart_functions=restart_funcs)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
+            make_some_changes()
+
+        self.assertEquals([call('restart', 'haproxy')], service.call_args_list)
+        self.assertEquals([call('some-api')], service_reload.call_args_list)
+
     def test_lsb_release(self):
         result = {
             "DISTRIB_ID": "Ubuntu",
