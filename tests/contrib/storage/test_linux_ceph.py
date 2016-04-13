@@ -234,6 +234,7 @@ class CephUtilsTests(TestCase):
 
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
