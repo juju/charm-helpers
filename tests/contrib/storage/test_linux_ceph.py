@@ -214,13 +214,16 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_cache_mode')
-    def test_pool_remove_writeback_cache_tier(self, cache_mode):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_pool_remove_writeback_cache_tier(self, ceph_version, cache_mode):
         cache_mode.return_value = 'writeback'
+        ceph_version.return_value = '10.1.1'
 
         p = ceph_utils.Pool(name='test', service='admin')
         p.remove_cache_tier(cache_pool='cacher')
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'tier', 'cache-mode', 'cacher', 'forward']),
+            call(['ceph', '--id', 'admin', 'osd', 'tier', 'cache-mode', 'cacher', 'forward',
+                  '--yes-i-really-mean-it']),
             call(['rados', '--id', 'admin', '-p', 'cacher', 'cache-flush-evict-all']),
             call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove-overlay', 'test']),
             call(['ceph', '--id', 'admin', 'osd', 'tier', 'remove', 'test', 'cacher']),
