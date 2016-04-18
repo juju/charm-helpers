@@ -51,7 +51,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted(self, check_output):
         """It detects mounted devices as mounted."""
         check_output.return_value = (
-            b"/dev/sda1 on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="sda" MAJ:MIN="8:16" RM="0" SIZE="238.5G" RO="0" TYPE="disk" MOUNTPOINT="/tmp"\n')
         result = storage_utils.is_device_mounted('/dev/sda')
         self.assertTrue(result)
 
@@ -59,7 +59,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted_partition(self, check_output):
         """It detects mounted partitions as mounted."""
         check_output.return_value = (
-            b"/dev/sda1 on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="sda1" MAJ:MIN="8:16" RM="0" SIZE="238.5G" RO="0" TYPE="disk" MOUNTPOINT="/tmp"\n')
         result = storage_utils.is_device_mounted('/dev/sda1')
         self.assertTrue(result)
 
@@ -68,7 +68,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
         """It detects mounted devices as mounted if "mount" shows only a
         partition as mounted."""
         check_output.return_value = (
-            b"/dev/sda1 on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="sda1" MAJ:MIN="8:16" RM="0" SIZE="238.5G" RO="0" TYPE="disk" MOUNTPOINT="/tmp"\n')
         result = storage_utils.is_device_mounted('/dev/sda')
         self.assertTrue(result)
 
@@ -76,7 +76,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted_not_mounted(self, check_output):
         """It detects unmounted devices as not mounted."""
         check_output.return_value = (
-            b"/dev/foo on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="sda" MAJ:MIN="8:16" RM="0" SIZE="238.5G" RO="0" TYPE="disk" MOUNTPOINT=""\n')
         result = storage_utils.is_device_mounted('/dev/sda')
         self.assertFalse(result)
 
@@ -84,7 +84,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted_not_mounted_partition(self, check_output):
         """It detects unmounted partitions as not mounted."""
         check_output.return_value = (
-            b"/dev/foo on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="sda" MAJ:MIN="8:16" RM="0" SIZE="238.5G" RO="0" TYPE="disk" MOUNTPOINT=""\n')
         result = storage_utils.is_device_mounted('/dev/sda1')
         self.assertFalse(result)
 
@@ -92,7 +92,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted_full_disks(self, check_output):
         """It detects mounted full disks as mounted."""
         check_output.return_value = (
-            b"/dev/sda on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="sda" MAJ:MIN="8:16" RM="0" SIZE="238.5G" RO="0" TYPE="disk" MOUNTPOINT="/tmp"\n')
         result = storage_utils.is_device_mounted('/dev/sda')
         self.assertTrue(result)
 
@@ -100,7 +100,7 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted_cciss(self, check_output):
         """It detects mounted cciss partitions as mounted."""
         check_output.return_value = (
-            b"/dev/cciss/c0d0 on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="cciss!c0d0" MAJ:MIN="104:0" RM="0" SIZE="273.3G" RO="0" TYPE="disk" MOUNTPOINT="/root"\n')
         result = storage_utils.is_device_mounted('/dev/cciss/c0d0')
         self.assertTrue(result)
 
@@ -108,6 +108,6 @@ class MiscStorageUtilsTests(unittest.TestCase):
     def test_is_device_mounted_cciss_not_mounted(self, check_output):
         """It detects unmounted cciss partitions as not mounted."""
         check_output.return_value = (
-            b"/dev/cciss/c0d1 on / type ext4 (rw,errors=remount-ro)\n")
+            b'NAME="cciss!c0d0" MAJ:MIN="104:0" RM="0" SIZE="273.3G" RO="0" TYPE="disk" MOUNTPOINT=""\n')
         result = storage_utils.is_device_mounted('/dev/cciss/c0d0')
         self.assertFalse(result)
