@@ -64,5 +64,8 @@ def is_device_mounted(device):
     :returns: boolean: True if the path represents a mounted device, False if
         it doesn't.
     '''
-    out = check_output(['lsblk', '-P', device]).decode('UTF-8')
+    try:
+        out = check_output(['lsblk', '-P', device]).decode('UTF-8')
+    except:
+        return False
     return bool(re.search(r'MOUNTPOINT=".+"', out))
