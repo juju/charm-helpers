@@ -16,6 +16,7 @@ import os
 import time
 
 LS_POOLS = b"""
+.rgw.foo
 images
 volumes
 rbd
@@ -627,11 +628,13 @@ class CephUtilsTests(TestCase):
         """It detects an rbd pool exists"""
         self.check_output.return_value = LS_POOLS
         self.assertTrue(ceph_utils.pool_exists('cinder', 'volumes'))
+        self.assertTrue(ceph_utils.pool_exists('rgw', '.rgw.foo'))
 
     def test_pool_does_not_exist(self):
         """It detects an rbd pool exists"""
         self.check_output.return_value = LS_POOLS
         self.assertFalse(ceph_utils.pool_exists('cinder', 'foo'))
+        self.assertFalse(ceph_utils.pool_exists('rgw', '.rgw'))
 
     def test_pool_exists_error(self):
         """ Ensure subprocess errors and sandboxed with False """
