@@ -336,7 +336,7 @@ def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
             cmd = ['ip', 'addr', 'show', iface]
             out = subprocess.check_output(cmd).decode('UTF-8')
             if dynamic_only:
-                key = re.compile("inet6 (.+)/[0-9]+ scope global dynamic.*")
+                key = re.compile("inet6 (.+)/[0-9]+ scope global.* dynamic.*")
             else:
                 key = re.compile("inet6 (.+)/[0-9]+ scope global.*")
 
