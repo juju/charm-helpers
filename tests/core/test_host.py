@@ -467,12 +467,15 @@ class HelpersTest(TestCase):
             call('restart', service_name)
         ])
 
+    @patch.object(host, 'systemv_services_running')
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
-    def test_service_running_on_stopped_service(self, check_output, systemd):
+    def test_service_running_on_stopped_service(self, check_output, systemd,
+                                                systemv_services_running):
         systemd.return_value = False
         check_output.return_value = b'foo stop/waiting'
         self.assertFalse(host.service_running('foo'))
+        self.assertFalse(systemv_services_running.called)
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
@@ -505,6 +508,7 @@ class HelpersTest(TestCase):
         check_output.return_value = b' * Unhelpfull guff, thanks a lot rabbit'
         systemv_services_running.return_value = [u'udev', u'rabbitmq-server']
         self.assertTrue(host.service_running('rabbitmq-server'))
+        self.assertTrue(systemv_services_running.called)
 
     @patch.object(host, 'systemv_services_running')
     @patch.object(host, 'init_is_systemd')
@@ -515,6 +519,7 @@ class HelpersTest(TestCase):
         check_output.return_value = b' * Unhelpfull guff, thanks a lot rabbit'
         systemv_services_running.return_value = [u'udev', u'rabbitmq-server']
         self.assertFalse(host.service_running('keystone'))
+        self.assertTrue(systemv_services_running.called)
 
     @patch('subprocess.check_output')
     def test_systemv_services_running(self, check_output):
