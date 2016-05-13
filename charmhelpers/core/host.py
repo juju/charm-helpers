@@ -152,7 +152,7 @@ def service_running(service_name):
             if ("start/running" in output or "is running" in output or
                     "up and running" in output):
                 return True
-            # Actively check for stopped message(s) as the fall through
+            # Actively check for upstart stopped message(s) as the fall through
             # SystemV check can return false positives
             if ("stop/waiting" in output):
                 return False
