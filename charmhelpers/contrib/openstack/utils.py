@@ -100,6 +100,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('vivid', 'kilo'),
     ('wily', 'liberty'),
     ('xenial', 'mitaka'),
+    ('yakkety', 'newton'),
 ])
 
 
@@ -114,6 +115,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2015.1', 'kilo'),
     ('2015.2', 'liberty'),
     ('2016.1', 'mitaka'),
+    ('2016.2', 'newton'),
 ])
 
 # The ugly duckling - must list releases oldest to newest
@@ -466,6 +468,9 @@ def configure_installation_source(rel):
             'mitaka': 'trusty-updates/mitaka',
             'mitaka/updates': 'trusty-updates/mitaka',
             'mitaka/proposed': 'trusty-proposed/mitaka',
+            'newton': 'xenial-updates/newton',
+            'newton/updates': 'xenial-updates/newton',
+            'newton/proposed': 'xenial-proposed/newton',
         }
 
         try:
