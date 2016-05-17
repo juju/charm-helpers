@@ -151,8 +151,7 @@ def service_running(service_name):
                     return True
         elif os.path.exists(_INIT_D_CONF.format(service_name)):
             # Check System V scripts init script return codes
-            if service('status', service_name):
-                return True
+            return service('status', service_name)
         return False
 
 
