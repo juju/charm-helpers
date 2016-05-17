@@ -60,13 +60,6 @@ IP_LINE_BONDS = b"""
 link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
 """
 
-SERVICE_STATUS_ALL = b"""
- [ + ]  rabbitmq-server
- [ ? ]  rc.local
- [ + ]  resolvconf
- [ - ]  rsync
-"""
-
 
 class HelpersTest(TestCase):
 
@@ -176,15 +169,16 @@ class HelpersTest(TestCase):
             call('enable', service_name),
             call('start', service_name)])
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_pauses_a_running_upstart_service(self, service, check_output, systemd):
+    def test_pauses_a_running_upstart_service(self, service, systemd,
+                                              service_running):
         """Pause on a running service will call service stop."""
-        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = True
         tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
         conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
         # Just needs to exist
@@ -200,15 +194,16 @@ class HelpersTest(TestCase):
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_pauses_a_stopped_upstart_service(self, service, check_output, systemd):
+    def test_pauses_a_stopped_upstart_service(self, service, systemd,
+                                              service_running):
         """Pause on a stopped service will not call service stop."""
-        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = False
         tempdir = mkdtemp(prefix="test_pauses_an_upstart_service")
         conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
         # Just needs to exist
@@ -226,17 +221,17 @@ class HelpersTest(TestCase):
             override_contents = fh.read()
         self.assertEqual("manual\n", override_contents)
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
     def test_pauses_a_running_sysv_service(self, service, check_call,
-                                           check_output, systemd):
+                                           systemd, service_running):
         """Pause calls service stop on a running sysv service."""
-        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = True
         tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
         sysv_path = os.path.join(tempdir, service_name)
         # Just needs to exist
@@ -249,17 +244,17 @@ class HelpersTest(TestCase):
         service.assert_called_with('stop', service_name)
         check_call.assert_called_with(["update-rc.d", service_name, "disable"])
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
     def test_pauses_a_stopped_sysv_service(self, service, check_call,
-                                           check_output, systemd):
+                                           systemd, service_running):
         """Pause does not call service stop on a stopped sysv service."""
-        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = False
         tempdir = mkdtemp(prefix="test_pauses_a_sysv_service")
         sysv_path = os.path.join(tempdir, service_name)
         # Just needs to exist
@@ -289,15 +284,17 @@ class HelpersTest(TestCase):
             "Unable to detect {0}".format(service_name), str(exception))
         self.assertIn(tempdir, str(exception))
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_a_running_upstart_service(self, service, check_output, systemd):
+    def test_resumes_a_running_upstart_service(self, service, check_output, systemd,
+                                               service_running):
         """When the service is already running, service start isn't called."""
-        check_output.return_value = b'foo-service start/running, process 111'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = True
         tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
         conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
         with open(conf_path, "w") as fh:
@@ -306,21 +303,23 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_resume(service_name, init_dir=tempdir))
 
         # Start isn't called because service is already running
-        self.assertRaises(
-            AssertionError, service.assert_called_with, 'start', service_name)
+        self.assertFalse(service.called)
         override_path = os.path.join(
             tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_a_stopped_upstart_service(self, service, check_output, systemd):
+    def test_resumes_a_stopped_upstart_service(self, service, check_output, systemd,
+                                               service_running):
         """When the service is stopped, service start is called."""
         check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = False
         tempdir = mkdtemp(prefix="test_resumes_an_upstart_service")
         conf_path = os.path.join(tempdir, "{}.conf".format(service_name))
         with open(conf_path, "w") as fh:
@@ -333,16 +332,17 @@ class HelpersTest(TestCase):
             tempdir, "{}.override".format(service_name))
         self.assertFalse(os.path.exists(override_path))
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
-    def test_resumes_a_sysv_service(self, service, check_call, check_output, systemd):
+    def test_resumes_a_sysv_service(self, service, check_call, systemd,
+                                    service_running):
         """When process is in a stop/waiting state, service start is called."""
-        check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = False
         tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
         sysv_path = os.path.join(tempdir, service_name)
         # Just needs to exist
@@ -355,17 +355,16 @@ class HelpersTest(TestCase):
         service.assert_called_with('start', service_name)
         check_call.assert_called_with(["update-rc.d", service_name, "enable"])
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
     @patch.object(host, 'service')
     def test_resume_a_running_sysv_service(self, service, check_call,
-                                           check_output, systemd):
+                                           systemd, service_running):
         """When process is already running, service start isn't called."""
-        check_output.return_value = b'foo-service start/running, process 123'
         service_name = 'foo-service'
-        service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = True
         tempdir = mkdtemp(prefix="test_resumes_a_sysv_service")
         sysv_path = os.path.join(tempdir, service_name)
         # Just needs to exist
@@ -376,16 +375,18 @@ class HelpersTest(TestCase):
             service_name, init_dir=tempdir, initd_dir=tempdir))
 
         # Start isn't called because service is already running
-        self.assertRaises(
-            AssertionError, service.assert_called_with, 'start', service_name)
+        self.assertFalse(service.called)
         check_call.assert_called_with(["update-rc.d", service_name, "enable"])
 
+    @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
     @patch.object(host, 'service')
-    def test_resume_with_unknown_service(self, service, systemd):
+    def test_resume_with_unknown_service(self, service, systemd,
+                                         service_running):
         service_name = 'foo-service'
         service.side_effect = [True]
         systemd.return_value = False
+        service_running.return_value = False
         tempdir = mkdtemp(prefix="test_resumes_with_unknown_service")
         self.addCleanup(rmtree, tempdir)
         exception = self.assertRaises(
@@ -467,67 +468,57 @@ class HelpersTest(TestCase):
             call('restart', service_name)
         ])
 
-    @patch.object(host, 'systemv_services_running')
+    @patch.object(host, 'os')
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
     def test_service_running_on_stopped_service(self, check_output, systemd,
-                                                systemv_services_running):
+                                                os):
         systemd.return_value = False
+        os.path.exists.return_value = True
         check_output.return_value = b'foo stop/waiting'
         self.assertFalse(host.service_running('foo'))
-        self.assertFalse(systemv_services_running.called)
 
+    @patch.object(host, 'os')
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
-    def test_service_running_on_running_service(self, check_output, systemd):
+    def test_service_running_on_running_service(self, check_output, systemd,
+                                                os):
         systemd.return_value = False
+        os.path.exists.return_value = True
         check_output.return_value = b'foo start/running, process 23871'
         self.assertTrue(host.service_running('foo'))
 
+    @patch.object(host, 'os')
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
-    def test_service_running_on_running_service_pxc(self, check_output, systemd):
+    def test_service_running_on_unknown_service(self, check_output, systemd,
+                                                os):
         systemd.return_value = False
-        check_output.return_value = b' * Percona XtraDB Cluster up and running'
-        self.assertTrue(host.service_running('foo'))
-
-    @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
-    def test_service_running_on_unknown_service(self, check_output, systemd):
-        systemd.return_value = False
+        os.path.exists.return_value = True
         exc = subprocess.CalledProcessError(1, ['status'])
         check_output.side_effect = exc
         self.assertFalse(host.service_running('foo'))
 
-    @patch.object(host, 'systemv_services_running')
+    @patch.object(host, 'os')
+    @patch.object(host, 'service')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
-    def test_service_systemv_running(self, check_output, systemd,
-                                     systemv_services_running):
+    def test_service_systemv_running(self, systemd, service, os):
         systemd.return_value = False
-        check_output.return_value = b' * Unhelpfull guff, thanks a lot rabbit'
-        systemv_services_running.return_value = [u'udev', u'rabbitmq-server']
+        service.return_value = True
+        os.path.exists.side_effect = [False, True]
         self.assertTrue(host.service_running('rabbitmq-server'))
-        self.assertTrue(systemv_services_running.called)
+        service.assert_called_with('status', 'rabbitmq-server')
 
-    @patch.object(host, 'systemv_services_running')
+    @patch.object(host, 'os')
+    @patch.object(host, 'service')
     @patch.object(host, 'init_is_systemd')
-    @patch('subprocess.check_output')
-    def test_service_systemv_not_running(self, check_output, systemd,
-                                         systemv_services_running):
+    def test_service_systemv_not_running(self, systemd, service,
+                                         os):
         systemd.return_value = False
-        check_output.return_value = b' * Unhelpfull guff, thanks a lot rabbit'
-        systemv_services_running.return_value = [u'udev', u'rabbitmq-server']
+        service.return_value = False
+        os.path.exists.side_effect = [False, True]
         self.assertFalse(host.service_running('keystone'))
-        self.assertTrue(systemv_services_running.called)
-
-    @patch('subprocess.check_output')
-    def test_systemv_services_running(self, check_output):
-        check_output.return_value = SERVICE_STATUS_ALL
-        self.assertEqual(
-            host.systemv_services_running(),
-            [u'rabbitmq-server', u'resolvconf']
-        )
+        service.assert_called_with('status', 'keystone')
 
     @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
