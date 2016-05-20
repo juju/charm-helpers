@@ -886,7 +886,7 @@ def git_generate_systemd_init_files(templates_dir):
             with open(init_source, 'a') as outfile:
                 template = '/usr/share/openstack-pkg-tools/init-script-template'
                 with open(template) as infile:
-                    outfile.write(infile.read())
+                    outfile.write('\n\n{}'.format(infile.read()))
 
             cmd = ['pkgos-gen-systemd-unit', init_in_source]
             subprocess.check_call(cmd)
