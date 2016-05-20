@@ -873,7 +873,7 @@ def git_generate_systemd_init_files(templates_dir):
         if f.endswith(".init.in"):
             init_in_file = f
             init_file = f[:-8]
-            service_file = init_file + '.service'
+            service_file = "{}.service".format(init_file)
 
             init_in_source = os.path.join(templates_dir, init_in_file)
             init_source = os.path.join(templates_dir, init_file)
