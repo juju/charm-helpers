@@ -25,6 +25,7 @@ import sys
 import re
 import itertools
 import functools
+import shutil
 
 import six
 import tempfile
@@ -856,6 +857,47 @@ def git_yaml_value(projects_yaml, key):
         return projects[key]
 
     return None
+
+
+def git_generate_systemd_init_files(templates_dir):
+    """
+    Generate systemd init files.
+
+    Generates and installs systemd init units and script files based on the
+    *.init.in files contained in the templates_dir directory.
+
+    This code is based on the openstack-pkg-tools package and its init
+    script generation, which is used by the OpenStack packages.
+    """
+    for f in os.listdir(templates_dir):
+        if f.endswith(".init.in"):
+            init_in_file = f
+            init_file = f[:-8]
+            service_file = "{}.service".format(init_file)
+
+            init_in_source = os.path.join(templates_dir, init_in_file)
+            init_source = os.path.join(templates_dir, init_file)
+            service_source = os.path.join(templates_dir, service_file)
+
+            init_dest = os.path.join('/etc/init.d', init_file)
+            service_dest = os.path.join('/lib/systemd/system', service_file)
+
+            shutil.copyfile(init_in_source, init_source)
+            with open(init_source, 'a') as outfile:
+                template = '/usr/share/openstack-pkg-tools/init-script-template'
+                with open(template) as infile:
+                    outfile.write('\n\n{}'.format(infile.read()))
+
+            cmd = ['pkgos-gen-systemd-unit', init_in_source]
+            subprocess.check_call(cmd)
+
+            if os.path.exists(init_dest):
+                os.remove(init_dest)
+            if os.path.exists(service_dest):
+                os.remove(service_dest)
+            shutil.move(init_source, init_dest)
+            shutil.move(service_source, service_dest)
+            os.chmod(init_dest, 0o755)
 
 
 def os_workload_status(configs, required_interfaces, charm_func=None):
