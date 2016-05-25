@@ -102,6 +102,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('wily', 'liberty'),
     ('xenial', 'mitaka'),
     ('yakkety', 'newton'),
+    ('zebra', 'ocata'),  # TODO: upload with real Z name
 ])
 
 
@@ -117,6 +118,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2015.2', 'liberty'),
     ('2016.1', 'mitaka'),
     ('2016.2', 'newton'),
+    ('2017.1', 'ocata'),
 ])
 
 # The ugly duckling - must list releases oldest to newest
@@ -151,46 +153,55 @@ PACKAGE_CODENAMES = {
         ('12', 'liberty'),
         ('13', 'mitaka'),
         ('14', 'newton'),
+        ('15', 'ocata'),
     ]),
     'neutron-common': OrderedDict([
         ('7', 'liberty'),
         ('8', 'mitaka'),
         ('9', 'newton'),
+        ('10', 'ocata'),
     ]),
     'cinder-common': OrderedDict([
         ('7', 'liberty'),
         ('8', 'mitaka'),
         ('9', 'newton'),
+        ('10', 'ocata'),
     ]),
     'keystone': OrderedDict([
         ('8', 'liberty'),
         ('9', 'mitaka'),
         ('10', 'newton'),
+        ('11', 'ocata'),
     ]),
     'horizon-common': OrderedDict([
         ('8', 'liberty'),
         ('9', 'mitaka'),
         ('10', 'newton'),
+        ('11', 'ocata'),
     ]),
     'ceilometer-common': OrderedDict([
         ('5', 'liberty'),
         ('6', 'mitaka'),
         ('7', 'newton'),
+        ('8', 'ocata'),
     ]),
     'heat-common': OrderedDict([
         ('5', 'liberty'),
         ('6', 'mitaka'),
         ('7', 'newton'),
+        ('8', 'ocata'),
     ]),
     'glance-common': OrderedDict([
         ('11', 'liberty'),
         ('12', 'mitaka'),
         ('13', 'newton'),
+        ('14', 'ocata'),
     ]),
     'openstack-dashboard': OrderedDict([
         ('8', 'liberty'),
         ('9', 'mitaka'),
         ('10', 'newton'),
+        ('11', 'ocata'),
     ]),
 }
 
