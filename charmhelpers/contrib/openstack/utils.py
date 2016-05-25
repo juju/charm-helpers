@@ -148,51 +148,49 @@ SWIFT_CODENAMES = OrderedDict([
 # >= Liberty version->codename mapping
 PACKAGE_CODENAMES = {
     'nova-common': OrderedDict([
-        ('12.0', 'liberty'),
-        ('13.0', 'mitaka'),
-        ('14.0', 'newton'),
+        ('12', 'liberty'),
+        ('13', 'mitaka'),
+        ('14', 'newton'),
     ]),
     'neutron-common': OrderedDict([
-        ('7.0', 'liberty'),
-        ('8.0', 'mitaka'),
-        ('8.1', 'mitaka'),
-        ('9.0', 'newton'),
+        ('7', 'liberty'),
+        ('8', 'mitaka'),
+        ('9', 'newton'),
     ]),
     'cinder-common': OrderedDict([
-        ('7.0', 'liberty'),
-        ('8.0', 'mitaka'),
-        ('9.0', 'newton'),
+        ('7', 'liberty'),
+        ('8', 'mitaka'),
+        ('9', 'newton'),
     ]),
     'keystone': OrderedDict([
-        ('8.0', 'liberty'),
-        ('8.1', 'liberty'),
-        ('9.0', 'mitaka'),
-        ('10.0', 'newton'),
+        ('8', 'liberty'),
+        ('9', 'mitaka'),
+        ('10', 'newton'),
     ]),
     'horizon-common': OrderedDict([
-        ('8.0', 'liberty'),
-        ('9.0', 'mitaka'),
-        ('10.0', 'newton'),
+        ('8', 'liberty'),
+        ('9', 'mitaka'),
+        ('10', 'newton'),
     ]),
     'ceilometer-common': OrderedDict([
-        ('5.0', 'liberty'),
-        ('6.0', 'mitaka'),
-        ('7.0', 'newton'),
+        ('5', 'liberty'),
+        ('6', 'mitaka'),
+        ('7', 'newton'),
     ]),
     'heat-common': OrderedDict([
-        ('5.0', 'liberty'),
-        ('6.0', 'mitaka'),
-        ('7.0', 'newton'),
+        ('5', 'liberty'),
+        ('6', 'mitaka'),
+        ('7', 'newton'),
     ]),
     'glance-common': OrderedDict([
-        ('11.0', 'liberty'),
-        ('12.0', 'mitaka'),
-        ('13.0', 'newton'),
+        ('11', 'liberty'),
+        ('12', 'mitaka'),
+        ('13', 'newton'),
     ]),
     'openstack-dashboard': OrderedDict([
-        ('8.0', 'liberty'),
-        ('9.0', 'mitaka'),
-        ('10.0', 'newton'),
+        ('8', 'liberty'),
+        ('9', 'mitaka'),
+        ('10', 'newton'),
     ]),
 }
 
@@ -317,10 +315,13 @@ def get_os_codename_package(package, fatal=True):
     if match:
         vers = match.group(0)
 
+    # Generate a major version number for newer semantic
+    # versions of openstack projects
+    major_vers = vers.split('.')[0]
     # >= Liberty independent project versions
     if (package in PACKAGE_CODENAMES and
-            vers in PACKAGE_CODENAMES[package]):
-        return PACKAGE_CODENAMES[package][vers]
+            major_vers in PACKAGE_CODENAMES[package]):
+        return PACKAGE_CODENAMES[package][major_vers]
     else:
         # < Liberty co-ordinated project versions
         try:
