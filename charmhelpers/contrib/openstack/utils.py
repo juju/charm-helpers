@@ -47,6 +47,7 @@ from charmhelpers.core.hookenv import (
     charm_dir,
     DEBUG,
     INFO,
+    ERROR,
     related_units,
     relation_ids,
     relation_set,
@@ -83,6 +84,7 @@ from charmhelpers.core.host import (
 from charmhelpers.fetch import apt_install, apt_cache, install_remote
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
+from charmhelpers.contrib.openstack.exceptions import OSContextError
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
@@ -1644,3 +1646,82 @@ def pausable_restart_on_change(restart_map, stopstart=False,
                 restart_functions)
         return wrapped_f
     return wrap
+
+
+def config_flags_parser(config_flags):
+    """Parses config flags string into dict.
+
+    This parsing method supports a few different formats for the config
+    flag values to be parsed:
+
+      1. A string in the simple format of key=value pairs, with the possibility
+         of specifying multiple key value pairs within the same string. For
+         example, a string in the format of 'key1=value1, key2=value2' will
+         return a dict of:
+
+             {'key1': 'value1',
+              'key2': 'value2'}.
+
+      2. A string in the above format, but supporting a comma-delimited list
+         of values for the same key. For example, a string in the format of
+         'key1=value1, key2=value3,value4,value5' will return a dict of:
+
+             {'key1', 'value1',
+              'key2', 'value2,value3,value4'}
+
+      3. A string containing a colon character (:) prior to an equal
+         character (=) will be treated as yaml and parsed as such. This can be
+         used to specify more complex key value pairs. For example,
+         a string in the format of 'key1: subkey1=value1, subkey2=value2' will
+         return a dict of:
+
+             {'key1', 'subkey1=value1, subkey2=value2'}
+
+    The provided config_flags string may be a list of comma-separated values
+    which themselves may be comma-separated list of values.
+    """
+    # If we find a colon before an equals sign then treat it as yaml.
+    # Note: limit it to finding the colon first since this indicates assignment
+    # for inline yaml.
+    colon = config_flags.find(':')
+    equals = config_flags.find('=')
+    if colon > 0:
+        if colon < equals or equals < 0:
+            return yaml.safe_load(config_flags)
+
+    if config_flags.find('==') >= 0:
+        juju_log("config_flags is not in expected format (key=value)",
+                 level=ERROR)
+        raise OSContextError
+
+    # strip the following from each value.
+    post_strippers = ' ,'
+    # we strip any leading/trailing '=' or ' ' from the string then
+    # split on '='.
+    split = config_flags.strip(' =').split('=')
+    limit = len(split)
+    flags = {}
+    for i in range(0, limit - 1):
+        current = split[i]
+        next = split[i + 1]
+        vindex = next.rfind(',')
+        if (i == limit - 2) or (vindex < 0):
+            value = next
+        else:
+            value = next[:vindex]
+
+        if i == 0:
+            key = current
+        else:
+            # if this not the first entry, expect an embedded key.
+            index = current.rfind(',')
+            if index < 0:
+                juju_log("Invalid config value(s) at index %s" % (i),
+                         level=ERROR)
+                raise OSContextError
+            key = current[index + 1:]
+
+        # Add to collection.
+        flags[key.strip(post_strippers)] = value.rstrip(post_strippers)
+
+    return flags
