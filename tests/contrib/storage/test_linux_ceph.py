@@ -1298,3 +1298,13 @@ class CephUtilsTests(TestCase):
         self.assertEqual(actual['ops'][0]['replicas'], 4)
         self.assertEqual(actual['ops'][0]['op'], 'create-pool')
         self.assertEqual(actual['ops'][0]['name'], 'glance')
+
+    @patch.object(ceph_utils, 'config')
+    def test_ceph_conf_context(self, mock_config):
+        mock_config.return_value = "{'osd': {'foo': 1}}"
+        ctxt = ceph_utils.CephConfContext()()
+        self.assertEqual({'osd': {'foo': 1}}, ctxt)
+        ctxt = ceph_utils.CephConfContext(['osd', 'mon'])()
+        mock_config.return_value = ("{'osd': {'foo': 1},"
+                                    "'unknown': {'blah': 1}}")
+        self.assertEqual({'osd': {'foo': 1}}, ctxt)
