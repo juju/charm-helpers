@@ -279,6 +279,7 @@ def get_os_version_codename_swift(codename):
 def get_swift_codename(version):
     '''Determine OpenStack codename that corresponds to swift version.'''
     codenames = [k for k, v in six.iteritems(SWIFT_CODENAMES) if version in v]
+
     if len(codenames) > 1:
         # If more than one release codename contains this version we determine
         # the actual codename based on the highest available install source.
@@ -290,6 +291,16 @@ def get_swift_codename(version):
                 return codename
     elif len(codenames) == 1:
         return codenames[0]
+
+    # NOTE: fallback - attempt to match with just major.minor version
+    match = re.match('^(\d+)\.(\d+)', version)
+    if match:
+        major_minor_version = match.group(0)
+        for codename, versions in six.iteritems(SWIFT_CODENAMES):
+            for release_version in versions:
+                if release_version.startswith(major_minor_version):
+                    return codename
+
     return None
 
 
