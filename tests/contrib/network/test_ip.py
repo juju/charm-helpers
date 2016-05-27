@@ -590,6 +590,7 @@ class IPTest(unittest.TestCase):
 
     def test_is_ip(self):
         self.assertTrue(net_ip.is_ip('10.0.0.1'))
+        self.assertTrue(net_ip.is_ip('2001:db8:1:0:2918:3444:852:5b8a'))
         self.assertFalse(net_ip.is_ip('www.ubuntu.com'))
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
