@@ -71,6 +71,11 @@ FAKE_REPO = {
         'os_release': 'havana',
         'os_version': '1.10.0'
     },
+    'swift-mitaka-dev': {
+        'pkg_vers': '2.7.1.dev8.201605111703.trusty-0ubuntu1',
+        'os_release': 'mitaka',
+        'os_version': '2.7.0'
+    },
     # a package thats available in the cache but is not installed
     'cinder-common': {
         'os_release': 'havana',
