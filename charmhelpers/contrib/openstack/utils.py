@@ -223,10 +223,10 @@ GIT_DEFAULT_REPOS = {
 
 GIT_DEFAULT_BRANCHES = {
     'icehouse': 'icehouse-eol',
-    'kilo':     'stable/kilo',
-    'liberty':  'stable/liberty',
-    'mitaka':   'stable/mitaka',
-    'master':   'master',
+    'kilo': 'stable/kilo',
+    'liberty': 'stable/liberty',
+    'mitaka': 'stable/mitaka',
+    'master': 'master',
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
