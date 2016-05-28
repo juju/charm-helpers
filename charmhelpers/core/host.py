@@ -175,13 +175,14 @@ def init_is_systemd():
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
-def adduser(username, password=None, shell='/bin/bash', system_user=False,
-            primary_group=None, secondary_groups=None):
+def adduser(username, uid=None, password=None, shell='/bin/bash', 
+            system_user=False, primary_group=None, secondary_groups=None):
     """Add a user to the system.
 
     Will log but otherwise succeed if the user already exists.
 
     :param str username: Username to create
+    :param int uid: UID for user being created
     :param str password: Password for user; if ``None``, create a system user
     :param str shell: The default shell for the user
     :param bool system_user: Whether to create a login or system user
@@ -193,9 +194,15 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False,
     try:
         user_info = pwd.getpwnam(username)
         log('user {0} already exists!'.format(username))
+        if uid:
+            user_info = pwd.getpwuid(uid)
+            log('user with uid {0} already exists!'.format(uid))
     except KeyError:
         log('creating user {0}'.format(username))
         cmd = ['useradd']
+        if uid:
+            uid_str = '--uid %s' % uid
+            cmd.append(uid_str)
         if system_user or password is None:
             cmd.append('--system')
         else:
@@ -230,14 +237,59 @@ def user_exists(username):
     return user_exists
 
 
-def add_group(group_name, system_group=False):
-    """Add a group to the system"""
+def uid_exists(uid):
+    """Check if a uid exists"""
+    try:
+        pwd.getpwuid(uid)
+        uid_exists = True
+    except KeyError:
+        uid_exists = False
+    return uid_exists
+
+
+def group_exists(groupname):
+    """Check if a group exists"""
+    try:
+        grp.getgrnam(groupname)
+        group_exists = True
+    except KeyError:
+        group_exists = False
+    return group_exists
+
+
+def uid_exists(gid):
+    """Check if a gid exists"""
+    try:
+        grp.getgrgid(gid)
+        gid_exists = True
+    except KeyError:
+        gid_exists = False
+    return gid_exists
+
+
+def add_group(group_name, system_group=False, gid=None):
+    """Add a group to the system
+
+    Will log but otherwise succeed if the group already exists.
+
+    :param str group_name: group to create
+    :param bool system_group: Create system group
+    :param int gid: GID for user being created
+
+    :returns: The password database entry struct, as returned by `grp.getgrnam`
+    """
     try:
         group_info = grp.getgrnam(group_name)
         log('group {0} already exists!'.format(group_name))
+        if gid:
+            group_info = grp.getgrgid(gid)
+            log('group with gid {0} already exists!'.format(gid))
     except KeyError:
         log('creating group {0}'.format(group_name))
         cmd = ['addgroup']
+        if gid:
+            gid_str = '--gid %s' % gid
+            cmd.append(gid_str)
         if system_group:
             cmd.append('--system')
         else:
