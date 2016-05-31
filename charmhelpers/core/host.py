@@ -175,19 +175,19 @@ def init_is_systemd():
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
-def adduser(username, uid=None, password=None, shell='/bin/bash', 
-            system_user=False, primary_group=None, secondary_groups=None):
+def adduser(username, password=None, shell='/bin/bash', system_user=False,
+            primary_group=None, secondary_groups=None, uid=None):
     """Add a user to the system.
 
     Will log but otherwise succeed if the user already exists.
 
     :param str username: Username to create
-    :param int uid: UID for user being created
     :param str password: Password for user; if ``None``, create a system user
     :param str shell: The default shell for the user
     :param bool system_user: Whether to create a login or system user
     :param str primary_group: Primary group for user; defaults to username
     :param list secondary_groups: Optional list of additional groups
+    :param int uid: UID for user being created
 
     :returns: The password database entry struct, as returned by `pwd.getpwnam`
     """
@@ -201,8 +201,7 @@ def adduser(username, uid=None, password=None, shell='/bin/bash',
         log('creating user {0}'.format(username))
         cmd = ['useradd']
         if uid:
-            uid_str = '--uid %s' % uid
-            cmd.append(uid_str)
+            cmd.extend(['--uid', str(uid)])
         if system_user or password is None:
             cmd.append('--system')
         else:
@@ -257,7 +256,7 @@ def group_exists(groupname):
     return group_exists
 
 
-def uid_exists(gid):
+def gid_exists(gid):
     """Check if a gid exists"""
     try:
         grp.getgrgid(gid)
@@ -288,8 +287,7 @@ def add_group(group_name, system_group=False, gid=None):
         log('creating group {0}'.format(group_name))
         cmd = ['addgroup']
         if gid:
-            gid_str = '--gid %s' % gid
-            cmd.append(gid_str)
+            cmd.extend(['--gid', str(gid)])
         if system_group:
             cmd.append('--system')
         else:
