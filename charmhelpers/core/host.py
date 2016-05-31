@@ -174,20 +174,19 @@ def init_is_systemd():
     """Return True if the host system uses systemd, False otherwise."""
     return os.path.isdir(SYSTEMD_SYSTEM)
 
-
-def adduser(username, uid=None, password=None, shell='/bin/bash',
-            system_user=False, primary_group=None, secondary_groups=None):
+def adduser(username, password=None, shell='/bin/bash', system_user=False,
+            primary_group=None, secondary_groups=None, uid=None):
     """Add a user to the system.
 
     Will log but otherwise succeed if the user already exists.
 
     :param str username: Username to create
-    :param int uid: UID for user being created
     :param str password: Password for user; if ``None``, create a system user
     :param str shell: The default shell for the user
     :param bool system_user: Whether to create a login or system user
     :param str primary_group: Primary group for user; defaults to username
     :param list secondary_groups: Optional list of additional groups
+    :param int uid: UID for user being created
 
     :returns: The password database entry struct, as returned by `pwd.getpwnam`
     """
