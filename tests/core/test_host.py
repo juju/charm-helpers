@@ -533,7 +533,7 @@ class HelpersTest(TestCase):
 
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
 
-        result = host.adduser(username, password)
+        result = host.adduser(username, password=password)
 
         self.assertEqual(result, new_user_pwnam)
         check_call.assert_called_with([
@@ -557,7 +557,7 @@ class HelpersTest(TestCase):
 
         getpwnam.return_value = existing_user_pwnam
 
-        result = host.adduser(username, password)
+        result = host.adduser(username, password=password)
 
         self.assertEqual(result, existing_user_pwnam)
         self.assertFalse(check_call.called)
@@ -578,7 +578,7 @@ class HelpersTest(TestCase):
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
         getgrnam.side_effect = KeyError('group not found')
 
-        result = host.adduser(username, password, shell=shell)
+        result = host.adduser(username, password=password, shell=shell)
 
         self.assertEqual(result, new_user_pwnam)
         check_call.assert_called_with([
@@ -603,7 +603,7 @@ class HelpersTest(TestCase):
 
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
 
-        result = host.adduser(username, password,
+        result = host.adduser(username, password=password,
                               primary_group='foo', secondary_groups=[
                                   'bar', 'qux',
                               ])

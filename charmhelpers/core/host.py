@@ -175,7 +175,7 @@ def init_is_systemd():
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
-def adduser(username, uid=None, password=None, shell='/bin/bash', 
+def adduser(username, uid=None, password=None, shell='/bin/bash',
             system_user=False, primary_group=None, secondary_groups=None):
     """Add a user to the system.
 
@@ -195,7 +195,7 @@ def adduser(username, uid=None, password=None, shell='/bin/bash',
         user_info = pwd.getpwnam(username)
         log('user {0} already exists!'.format(username))
         if uid:
-            user_info = pwd.getpwuid(uid)
+            user_info = pwd.getpwuid(int(uid))
             log('user with uid {0} already exists!'.format(uid))
     except KeyError:
         log('creating user {0}'.format(username))
