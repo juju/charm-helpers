@@ -201,7 +201,7 @@ def adduser(username, uid=None, password=None, shell='/bin/bash',
         log('creating user {0}'.format(username))
         cmd = ['useradd']
         if uid:
-            cmd.extend(['--uid', str(uid))
+            cmd.extend(['--uid', str(uid)])
         if system_user or password is None:
             cmd.append('--system')
         else:
