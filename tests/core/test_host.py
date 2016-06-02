@@ -533,7 +533,7 @@ class HelpersTest(TestCase):
 
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
 
-        result = host.adduser(username, password)
+        result = host.adduser(username, password=password)
 
         self.assertEqual(result, new_user_pwnam)
         check_call.assert_called_with([
@@ -557,7 +557,7 @@ class HelpersTest(TestCase):
 
         getpwnam.return_value = existing_user_pwnam
 
-        result = host.adduser(username, password)
+        result = host.adduser(username, password=password)
 
         self.assertEqual(result, existing_user_pwnam)
         self.assertFalse(check_call.called)
@@ -578,7 +578,7 @@ class HelpersTest(TestCase):
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
         getgrnam.side_effect = KeyError('group not found')
 
-        result = host.adduser(username, password, shell=shell)
+        result = host.adduser(username, password=password, shell=shell)
 
         self.assertEqual(result, new_user_pwnam)
         check_call.assert_called_with([
@@ -603,7 +603,7 @@ class HelpersTest(TestCase):
 
         getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
 
-        result = host.adduser(username, password,
+        result = host.adduser(username, password=password,
                               primary_group='foo', secondary_groups=[
                                   'bar', 'qux',
                               ])
@@ -640,6 +640,52 @@ class HelpersTest(TestCase):
             username
         ])
         getpwnam.assert_called_with(username)
+
+    @patch('pwd.getpwnam')
+    @patch('pwd.getpwuid')
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_user_uid(self, log, check_call, getgrnam, getpwuid, getpwnam):
+        user_name = 'james'
+        user_id = 1111
+        uid_key_error = KeyError('user not found')
+        getpwuid.side_effect = uid_key_error
+        host.adduser(user_name, uid=user_id)
+
+        check_call.assert_called_with([
+            'useradd',
+            '--uid',
+            str(user_id),
+            '--system',
+            '-g',
+            user_name,
+            user_name
+        ])
+        getpwnam.assert_called_with(user_name)
+        getpwuid.assert_called_with(user_id)
+
+    @patch('grp.getgrnam')
+    @patch('grp.getgrgid')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_group_gid(self, log, check_call, getgrgid, getgrnam):
+        group_name = 'darkhorse'
+        group_id = 1005
+        existing_group_gid = KeyError('group not found')
+        new_group_gid = 1006
+        getgrgid.side_effect = [existing_group_gid, new_group_gid]
+
+        host.add_group(group_name, gid=group_id)
+        check_call.assert_called_with([
+            'addgroup',
+            '--gid',
+            str(group_id),
+            '--group',
+            group_name
+        ])
+        getgrgid.assert_called_with(group_id)
+        getgrnam.assert_called_with(group_name)
 
     @patch('pwd.getpwnam')
     def test_user_exists_true(self, getpwnam):
