@@ -80,24 +80,23 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             # If a location has been explicitly set, use it
             if svc.get('location'):
                 continue
-            if self.stable:
+            if svc['name'] in base_charms:
+                # NOTE: not all charms have support for all series we
+                #       want/need to test against, so fix to most recent
+                #       that each base charm supports
+                target_series = self.series
+                if self.series not in base_charms[svc['name']]:
+                    target_series = base_charms[svc['name']][-1]
+                svc['location'] = 'cs:{}/{}'.format(target_series,
+                                                    svc['name'])
+            elif self.stable:
                 svc['location'] = 'cs:{}/{}'.format(self.series,
                                                     svc['name'])
             else:
-                if svc['name'] in base_charms:
-                    # NOTE: not all charms have support for all series we
-                    #       want/need to test against, so fix to most recent
-                    #       that each base charm supports
-                    target_series = self.series
-                    if self.series not in base_charms[svc['name']]:
-                        target_series = base_charms[svc['name']][-1]
-                    svc['location'] = 'cs:{}/{}'.format(target_series,
-                                                        svc['name'])
-                else:
-                    svc['location'] = 'cs:~openstack-charmers-next/{}/{}'.format(
-                        self.series,
-                        svc['name']
-                    )
+                svc['location'] = 'cs:~openstack-charmers-next/{}/{}'.format(
+                    self.series,
+                    svc['name']
+                )
 
         return other_services
 
