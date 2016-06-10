@@ -17,16 +17,13 @@ class HATests(unittest.TestCase):
         self.resources = {'res_test_haproxy': 'lsb:haproxy'}
         self.resource_params = {'res_test_haproxy': 'op monitor interval="5s"'}
         self.conf = {}
-        self.config.side_effect = self._fake_config_get
+        self.config.side_effect = lambda key: self.conf.get(key)
 
     def _patch(self, method):
         _m = patch.object(ha, method)
         mock = _m.start()
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
-
-    def _fake_config_get(self, setting):
-        return self.conf[setting]
 
     def test_update_dns_ha_resource_params_none(self):
         self.conf = {
