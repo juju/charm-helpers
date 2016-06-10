@@ -318,13 +318,19 @@ class ClusterUtilsTests(TestCase):
         port = cluster_utils.determine_apache_port(9696, singlenode_mode=True)
         self.assertEquals(9686, port)
 
-    def test_get_hacluster_config_complete(self):
+    @patch.object(cluster_utils, 'valid_hacluster_config')
+    def test_get_hacluster_config_complete(self, valid_hacluster_config):
         '''It fetches all hacluster charm config'''
         conf = {
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
             'vip': '10.0.0.1',
+            'os-admin-hostname': None,
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
         }
+
+        valid_hacluster_config.return_value = True
 
         def _fake_config_get(setting):
             return conf[setting]
@@ -332,13 +338,19 @@ class ClusterUtilsTests(TestCase):
         self.config_get.side_effect = _fake_config_get
         self.assertEquals(conf, cluster_utils.get_hacluster_config())
 
-    def test_get_hacluster_config_incomplete(self):
+    @patch.object(cluster_utils, 'valid_hacluster_config')
+    def test_get_hacluster_config_incomplete(self, valid_hacluster_config):
         '''It raises exception if some hacluster charm config missing'''
         conf = {
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
             'vip': None,
+            'os-admin-hostname': None,
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
         }
+
+        valid_hacluster_config.return_value = False
 
         def _fake_config_get(setting):
             return conf[setting]
@@ -347,18 +359,21 @@ class ClusterUtilsTests(TestCase):
         self.assertRaises(cluster_utils.HAIncompleteConfig,
                           cluster_utils.get_hacluster_config)
 
-    def test_get_hacluster_config_with_excludes(self):
+    @patch.object(cluster_utils, 'valid_hacluster_config')
+    def test_get_hacluster_config_with_excludes(self, valid_hacluster_config):
         '''It fetches all hacluster charm config'''
         conf = {
             'ha-bindiface': 'eth1',
             'ha-mcastport': '3333',
         }
+        valid_hacluster_config.return_value = True
 
         def _fake_config_get(setting):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        exclude_keys = ['vip']
+        exclude_keys = ['vip', 'os-admin-hostname', 'os-internal-hostname',
+                        'os-public-hostname']
         result = cluster_utils.get_hacluster_config(exclude_keys)
         self.assertEquals(conf, result)
 
@@ -406,3 +421,93 @@ class ClusterUtilsTests(TestCase):
         configs.complete_contexts.return_value = []
         url = cluster_utils.canonical_url(configs)
         self.assertEquals('http://10.0.0.1', url)
+
+    @patch.object(cluster_utils, 'status_set')
+    def test_valid_hacluster_config_incomplete(self, status_set):
+        '''Returns False with incomplete HA config'''
+        conf = {
+            'vip': None,
+            'os-admin-hostname': None,
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
+            'dns-ha': False,
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        self.assertFalse(cluster_utils.valid_hacluster_config())
+        self.assertTrue(status_set.called)
+
+    @patch.object(cluster_utils, 'status_set')
+    def test_valid_hacluster_config_both(self, status_set):
+        '''Returns False when both VIP and DNS HA are set'''
+        conf = {
+            'vip': '10.0.0.1',
+            'os-admin-hostname': None,
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
+            'dns-ha': True,
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        self.assertFalse(cluster_utils.valid_hacluster_config())
+        self.assertTrue(status_set.called)
+
+    @patch.object(cluster_utils, 'status_set')
+    def test_valid_hacluster_config_vip_ha(self, status_set):
+        '''Returns True with complete VIP HA config'''
+        conf = {
+            'vip': '10.0.0.1',
+            'os-admin-hostname': None,
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
+            'dns-ha': False,
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        self.assertTrue(cluster_utils.valid_hacluster_config())
+        self.assertFalse(status_set.called)
+
+    @patch.object(cluster_utils, 'status_set')
+    def test_valid_hacluster_config_dns_incomplete(self, status_set):
+        '''Returns False with incomplete DNS HA config'''
+        conf = {
+            'vip': None,
+            'os-admin-hostname': None,
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
+            'dns-ha': True,
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        self.assertFalse(cluster_utils.valid_hacluster_config())
+        self.assertTrue(status_set.called)
+
+    @patch.object(cluster_utils, 'status_set')
+    def test_valid_hacluster_config_dns_ha(self, status_set):
+        '''Returns True with complete DNS HA config'''
+        conf = {
+            'vip': None,
+            'os-admin-hostname': 'somehostname',
+            'os-public-hostname': None,
+            'os-internal-hostname': None,
+            'dns-ha': True,
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+        self.assertTrue(cluster_utils.valid_hacluster_config())
+        self.assertFalse(status_set.called)
