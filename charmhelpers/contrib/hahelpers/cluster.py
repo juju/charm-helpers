@@ -41,10 +41,12 @@ from charmhelpers.core.hookenv import (
     relation_get,
     config as config_get,
     INFO,
+    DEBUG,
     ERROR,
     WARNING,
     unit_get,
-    is_leader as juju_is_leader
+    is_leader as juju_is_leader,
+    status_set,
 )
 from charmhelpers.core.decorators import (
     retry_on_exception,
@@ -274,25 +276,66 @@ def get_hacluster_config(exclude_keys=None):
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
-        ha-bindiface, ha-mcastport, vip
+        ha-bindiface, ha-mcastport, vip, os-internal-hostname,
+        os-admin-hostname, os-public-hostname
 
     param: exclude_keys: list of setting key(s) to be excluded.
     returns: dict: A dict containing settings keyed by setting name.
-    raises: HAIncompleteConfig if settings are missing.
+    raises: HAIncompleteConfig if settings are missing or incorrect.
     '''
-    settings = ['ha-bindiface', 'ha-mcastport', 'vip']
+    settings = ['ha-bindiface', 'ha-mcastport', 'vip', 'os-internal-hostname',
+                'os-admin-hostname', 'os-public-hostname']
     conf = {}
     for setting in settings:
         if exclude_keys and setting in exclude_keys:
             continue
 
         conf[setting] = config_get(setting)
-    missing = []
-    [missing.append(s) for s, v in six.iteritems(conf) if v is None]
-    if missing:
-        log('Insufficient config data to configure hacluster.', level=ERROR)
+
+    if not valid_hacluster_config():
+        log('Insufficient or incorrect config data to configure hacluster.',
+            level=ERROR)
         raise HAIncompleteConfig
     return conf
+
+
+def valid_hacluster_config():
+    '''
+    Check that either vip or dns-ha is set. If dns-ha then one of os-*-hostname
+    must be set.
+
+    Note: ha-bindiface and ha-macastport both have defaults and will always
+    be set. We only care that either vip or dns-ha is set
+
+    :returns: boolean valid config is true invalid false
+    '''
+    vip = config_get('vip')
+    dns = config_get('dns-ha')
+    if (vip and dns) or not (vip or dns):
+        status_set('blocked', 'HA: Either vip or dns-ha must be set but not '
+                              'both in order to use high availability')
+        return False
+
+    # If dns-ha then one of os-*-hostname must be set
+    if dns:
+        dns_settings = ['os-internal-hostname', 'os-admin-hostname',
+                        'os-public-hostname']
+        # At this point it is unknown if one or all of the possible
+        # network spaces are in HA. Validate at least one is set which is
+        # the miniumum required.
+        for setting in dns_settings:
+            if config_get(setting):
+                log('DNS HA: At least one hostname is set {}: {}'
+                    ''.format(setting, config_get(setting)),
+                    level=DEBUG)
+                return True
+
+        status_set('blocked', 'DNS HA: At least one os-*-hostname must be set '
+                              'to use DNS HA')
+        return False
+
+    log('VIP HA: VIP is set {}'.format(vip), level=DEBUG)
+    return True
 
 
 def canonical_url(configs, vip_setting='vip'):

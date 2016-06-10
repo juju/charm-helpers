@@ -101,6 +101,14 @@ class IPTestCase(TestCase):
         addr = ip.resolve_address()
         self.assertEqual('public.example.com', addr)
 
+    @patch.object(ip, '_get_address_override')
+    def test_resolve_address_no_override(self, _get_address_override):
+        self.test_config.set('os-public-hostname', 'public.example.com')
+        self.unit_get.return_value = '10.0.0.1'
+        addr = ip.resolve_address(override=False)
+        self.assertFalse(_get_address_override.called)
+        self.assertEqual('10.0.0.1', addr)
+
     def test_resolve_address_override_template(self):
         self.test_config.set('os-public-hostname',
                              '{service_name}.example.com')
