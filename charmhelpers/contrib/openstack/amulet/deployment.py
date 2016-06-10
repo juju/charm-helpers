@@ -70,7 +70,11 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.log.info('OpenStackAmuletDeployment:  determine branch locations')
 
         # Charms outside the ~openstack-charmers
-        base_charms = ['mysql', 'mongodb', 'nrpe']
+        base_charms = {
+            'mysql': ['precise', 'trusty'],
+            'mongodb': ['precise', 'trusty'],
+            'nrpe': ['precise', 'trusty'],
+        }
 
         for svc in other_services:
             # If a location has been explicitly set, use it
@@ -81,7 +85,13 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                                                     svc['name'])
             else:
                 if svc['name'] in base_charms:
-                    svc['location'] = 'cs:{}/{}'.format(self.series,
+                    # NOTE: not all charms have support for all series we
+                    #       want/need to test against, so fix to most recent
+                    #       that each base charm supports
+                    target_series = self.series
+                    if self.series not in base_charms[svc['name']]:
+                        target_series = base_charms[svc['name']][-1]
+                    svc['location'] = 'cs:{}/{}'.format(target_series,
                                                         svc['name'])
                 else:
                     svc['location'] = 'cs:~openstack-charmers-next/{}/{}'.format(
