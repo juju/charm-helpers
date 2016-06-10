@@ -43,9 +43,6 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.openstack = openstack
         self.source = source
         self.stable = stable
-        # Note(coreycb): this needs to be changed when new next branches come
-        # out.
-        self.current_next = "trusty"
 
     def get_logger(self, name="deployment-logger", level=logging.DEBUG):
         """Get a logger object that will log to stdout."""
@@ -72,38 +69,25 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         self.log.info('OpenStackAmuletDeployment:  determine branch locations')
 
-        # Charms outside the lp:~openstack-charmers namespace
+        # Charms outside the ~openstack-charmers
         base_charms = ['mysql', 'mongodb', 'nrpe']
 
-        # Force these charms to current series even when using an older series.
-        # ie. Use trusty/nrpe even when series is precise, as the P charm
-        # does not possess the necessary external master config and hooks.
-        force_series_current = ['nrpe']
-
-        if self.series in ['precise', 'trusty']:
-            base_series = self.series
-        else:
-            base_series = self.current_next
-
         for svc in other_services:
-            if svc['name'] in force_series_current:
-                base_series = self.current_next
             # If a location has been explicitly set, use it
-            if svc.get('location'):
+            if svc.get('charm'):
                 continue
             if self.stable:
-                temp = 'lp:charms/{}/{}'
-                svc['location'] = temp.format(base_series,
-                                              svc['name'])
+                svc['charm'] = 'cs:{}/{}'.format(self.series,
+                                                 svc['name'])
             else:
                 if svc['name'] in base_charms:
-                    temp = 'lp:charms/{}/{}'
-                    svc['location'] = temp.format(base_series,
-                                                  svc['name'])
+                    svc['charm'] = 'cs:{}/{}'.format(self.series,
+                                                     svc['name'])
                 else:
-                    temp = 'lp:~openstack-charmers/charms/{}/{}/next'
-                    svc['location'] = temp.format(self.current_next,
-                                                  svc['name'])
+                    svc['charm'] = 'cs:~openstack-charmers-next/{}/{}'.format(
+                        self.series,
+                        svc['name']
+                    )
 
         return other_services
 
