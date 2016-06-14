@@ -356,7 +356,7 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        self.assertRaises(cluster_utils.HAIncompleteConfig,
+        self.assertRaises(cluster_utils.HAIncorrectConfig,
                           cluster_utils.get_hacluster_config)
 
     @patch.object(cluster_utils, 'valid_hacluster_config')
@@ -437,8 +437,8 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        self.assertFalse(cluster_utils.valid_hacluster_config())
-        self.assertTrue(status_set.called)
+        self.assertRaises(cluster_utils.HAIncorrectConfig,
+                          cluster_utils.valid_hacluster_config)
 
     @patch.object(cluster_utils, 'status_set')
     def test_valid_hacluster_config_both(self, status_set):
@@ -455,8 +455,8 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        self.assertFalse(cluster_utils.valid_hacluster_config())
-        self.assertTrue(status_set.called)
+        self.assertRaises(cluster_utils.HAIncorrectConfig,
+                          cluster_utils.valid_hacluster_config)
 
     @patch.object(cluster_utils, 'status_set')
     def test_valid_hacluster_config_vip_ha(self, status_set):
@@ -491,8 +491,8 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        self.assertFalse(cluster_utils.valid_hacluster_config())
-        self.assertTrue(status_set.called)
+        self.assertRaises(cluster_utils.HAIncompleteConfig,
+                          cluster_utils.valid_hacluster_config)
 
     @patch.object(cluster_utils, 'status_set')
     def test_valid_hacluster_config_dns_ha(self, status_set):
