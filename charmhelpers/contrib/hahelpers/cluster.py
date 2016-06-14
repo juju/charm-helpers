@@ -311,7 +311,7 @@ def valid_hacluster_config():
     '''
     vip = config_get('vip')
     dns = config_get('dns-ha')
-    if (vip and dns) or not (vip or dns):
+    if not(bool(vip) ^ bool(dns)):
         status_set('blocked', 'HA: Either vip or dns-ha must be set but not '
                               'both in order to use high availability')
         return False
