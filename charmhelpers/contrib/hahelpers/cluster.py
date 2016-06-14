@@ -42,7 +42,6 @@ from charmhelpers.core.hookenv import (
     config as config_get,
     INFO,
     DEBUG,
-    ERROR,
     WARNING,
     unit_get,
     is_leader as juju_is_leader,
@@ -59,6 +58,10 @@ DC_RESOURCE_NAME = 'DC'
 
 
 class HAIncompleteConfig(Exception):
+    pass
+
+
+class HAIncorrectConfig(Exception):
     pass
 
 
@@ -293,9 +296,8 @@ def get_hacluster_config(exclude_keys=None):
         conf[setting] = config_get(setting)
 
     if not valid_hacluster_config():
-        log('Insufficient or incorrect config data to configure hacluster.',
-            level=ERROR)
-        raise HAIncompleteConfig
+        raise HAIncorrectConfig('Insufficient or incorrect config data to '
+                                'configure hacluster.')
     return conf
 
 
@@ -305,16 +307,19 @@ def valid_hacluster_config():
     must be set.
 
     Note: ha-bindiface and ha-macastport both have defaults and will always
-    be set. We only care that either vip or dns-ha is set
+    be set. We only care that either vip or dns-ha is set.
 
-    :returns: boolean valid config is true invalid false
+    :returns: boolean: valid config returns true.
+    raises: HAIncompatibileConfig if settings conflict.
+    raises: HAIncompleteConfig if settings are missing.
     '''
     vip = config_get('vip')
     dns = config_get('dns-ha')
     if not(bool(vip) ^ bool(dns)):
-        status_set('blocked', 'HA: Either vip or dns-ha must be set but not '
-                              'both in order to use high availability')
-        return False
+        msg = ('HA: Either vip or dns-ha must be set but not both in order to '
+               'use high availability')
+        status_set('blocked', msg)
+        raise HAIncorrectConfig(msg)
 
     # If dns-ha then one of os-*-hostname must be set
     if dns:
@@ -322,7 +327,7 @@ def valid_hacluster_config():
                         'os-public-hostname']
         # At this point it is unknown if one or all of the possible
         # network spaces are in HA. Validate at least one is set which is
-        # the miniumum required.
+        # the minimum required.
         for setting in dns_settings:
             if config_get(setting):
                 log('DNS HA: At least one hostname is set {}: {}'
@@ -330,9 +335,10 @@ def valid_hacluster_config():
                     level=DEBUG)
                 return True
 
-        status_set('blocked', 'DNS HA: At least one os-*-hostname must be set '
-                              'to use DNS HA')
-        return False
+        msg = ('DNS HA: At least one os-*-hostname(s) must be set to use '
+               'DNS HA')
+        status_set('blocked', msg)
+        raise HAIncompleteConfig(msg)
 
     log('VIP HA: VIP is set {}'.format(vip), level=DEBUG)
     return True
