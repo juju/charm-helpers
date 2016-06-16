@@ -47,7 +47,7 @@ class BzrUrlFetchHandler(BaseFetchHandler):
             raise UnhandledSource("Cannot handle {}".format(source))
         cmd_opts = []
         if revno:
-            cmd_opts += ['-r', revno]
+            cmd_opts += ['-r', str(revno)]
         if os.path.exists(dest):
             cmd = ['bzr', 'pull']
             cmd += cmd_opts
