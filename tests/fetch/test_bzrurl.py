@@ -76,6 +76,22 @@ class BzrUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
 
+    @patch('charmhelpers.fetch.bzrurl.check_call')
+    def test_branch_revno(self, check_call):
+        dest_path = "/destination/path"
+        for url in self.valid_urls:
+            self.fh.remote_branch = MagicMock()
+            self.fh.load_plugins = MagicMock()
+            self.fh.branch(url, dest_path, revno=42)
+
+            check_call.assert_called_with(['bzr', 'branch', '-r', '42',
+                                           url, dest_path])
+
+        for url in self.invalid_urls:
+            with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+                self.assertRaises(UnhandledSource, self.fh.branch, url,
+                                  dest_path)
+
     def test_branch_functional(self):
         src = None
         dst = None
