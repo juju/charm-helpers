@@ -94,14 +94,26 @@ class BzrUrlFetchHandlerTest(TestCase):
             if dst:
                 shutil.rmtree(dst, ignore_errors=True)
 
-    @patch('charmhelpers.fetch.bzrurl.mkdir')
-    def test_installs(self, _mkdir):
+    def test_installs(self):
         self.fh.branch = MagicMock()
 
         for url in self.valid_urls:
             branch_name = urlparse(url).path.strip("/").split("/")[-1]
-            dest = os.path.join('foo', 'fetched', os.path.basename(branch_name))
+            dest = os.path.join('foo', 'fetched')
+            dest_dir = os.path.join(dest, os.path.basename(branch_name))
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 where = self.fh.install(url)
-            self.assertEqual(where, dest)
-            _mkdir.assert_called_with(where, perms=0o755)
+            self.assertEqual(where, dest_dir)
+
+    @patch('charmhelpers.fetch.bzrurl.mkdir')
+    def test_installs_dir(self, _mkdir):
+        self.fh.branch = MagicMock()
+
+        for url in self.valid_urls:
+            branch_name = urlparse(url).path.strip("/").split("/")[-1]
+            dest = os.path.join('opt', 'f')
+            dest_dir = os.path.join(dest, os.path.basename(branch_name))
+            with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+                where = self.fh.install(url, dest)
+            self.assertEqual(where, dest_dir)
+            _mkdir.assert_called_with(dest, perms=0o755)
