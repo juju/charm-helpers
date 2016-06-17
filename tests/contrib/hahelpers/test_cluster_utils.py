@@ -328,6 +328,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': None,
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
         }
 
         valid_hacluster_config.return_value = True
@@ -348,6 +349,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': None,
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
         }
 
         valid_hacluster_config.return_value = False
@@ -373,7 +375,7 @@ class ClusterUtilsTests(TestCase):
 
         self.config_get.side_effect = _fake_config_get
         exclude_keys = ['vip', 'os-admin-hostname', 'os-internal-hostname',
-                        'os-public-hostname']
+                        'os-public-hostname', 'os-access-hostname']
         result = cluster_utils.get_hacluster_config(exclude_keys)
         self.assertEquals(conf, result)
 
@@ -430,6 +432,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': None,
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
             'dns-ha': False,
         }
 
@@ -448,6 +451,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': None,
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
             'dns-ha': True,
         }
 
@@ -466,6 +470,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': None,
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
             'dns-ha': False,
         }
 
@@ -484,6 +489,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': None,
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
             'dns-ha': True,
         }
 
@@ -502,6 +508,7 @@ class ClusterUtilsTests(TestCase):
             'os-admin-hostname': 'somehostname',
             'os-public-hostname': None,
             'os-internal-hostname': None,
+            'os-access-hostname': None,
             'dns-ha': True,
         }
 
