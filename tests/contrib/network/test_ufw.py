@@ -42,7 +42,8 @@ DEFAULT_POLICY_OUTPUT_OUTGOING = """Default outgoing policy changed to 'allow'
 class TestUFW(unittest.TestCase):
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.check_output')
-    def test_enable_ok(self, check_output, log):
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    def test_enable_ok(self, modprobe, check_output, log):
         msg = 'Firewall is active and enabled on system startup\n'
         check_output.return_value = msg
         self.assertTrue(ufw.enable())
@@ -56,7 +57,8 @@ class TestUFW(unittest.TestCase):
 
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.check_output')
-    def test_enable_fail(self, check_output, log):
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    def test_enable_fail(self, modprobe, check_output, log):
         msg = 'neneene\n'
         check_output.return_value = msg
         self.assertFalse(ufw.enable())
@@ -307,7 +309,9 @@ class TestUFW(unittest.TestCase):
     @mock.patch('os.path.isdir')
     @mock.patch('subprocess.call')
     @mock.patch('subprocess.check_output')
-    def test_no_ip6_tables(self, check_output, call, isdir, log, is_enabled):
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    def test_no_ip6_tables(self, modprobe, check_output, call, isdir, log,
+                           is_enabled):
         def c(*args, **kwargs):
             if args[0] == ['lsmod']:
                 return LSMOD_NO_IP6
@@ -395,7 +399,8 @@ class TestUFW(unittest.TestCase):
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('os.path.isdir')
     @mock.patch('subprocess.check_output')
-    def test_with_ipv6(self, check_output, isdir, is_enabled, log):
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    def test_with_ipv6(self, modprobe, check_output, isdir, is_enabled, log):
         def c(*args, **kwargs):
             if args[0] == ['lsmod']:
                 return LSMOD_IP6
