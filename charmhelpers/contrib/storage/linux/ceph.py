@@ -1029,16 +1029,19 @@ class CephBrokerRq(object):
             self.request_id = str(uuid.uuid1())
         self.ops = []
 
-    def add_op_create_pool(self, name, replica_count=3, pg_num=None):
+    def add_op_create_pool(self, name, replica_count=3, pg_num=None,
+                           percent_data=None):
         """Adds an operation to create a pool.
 
         @param pg_num setting:  optional setting. If not provided, this value
         will be calculated by the broker based on how many OSDs are in the
         cluster at the time of creation. Note that, if provided, this value
         will be capped at the current available maximum.
+        @param percent_data: the percentage of data the pool makes up
         """
         self.ops.append({'op': 'create-pool', 'name': name,
-                         'replicas': replica_count, 'pg_num': pg_num})
+                         'replicas': replica_count, 'pg_num': pg_num,
+                         'percent_data': percent_data})
 
     def set_ops(self, ops):
         """Set request ops to provided value.
@@ -1056,7 +1059,7 @@ class CephBrokerRq(object):
     def _ops_equal(self, other):
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in ['replicas', 'name', 'op', 'pg_num']:
+                for key in ['replicas', 'name', 'op', 'pg_num', 'percent_data']:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:
