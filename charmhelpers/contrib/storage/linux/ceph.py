@@ -233,6 +233,11 @@ class Pool(object):
         # by the Ceph PG Calculator located at http://ceph.com/pgcalc/.
         validator(value=pool_size, valid_type=int)
 
+        # Ensure that percent data is set to something - even with a default
+        # it can be set to None, which would wreak havoc below.
+        if percent_data is None:
+            percent_data = 10.0
+
         # If the expected-osd-count is specified, then use the max between
         # the expected-osd-count and the actual osd_count
         osd_list = get_osds(self.service)
@@ -281,10 +286,7 @@ class ReplicatedPool(Pool):
                  percent_data=10.0):
         super(ReplicatedPool, self).__init__(service=service, name=name)
         self.replicas = replicas
-        if pg_num is None:
-            self.pg_num = self.get_pgs(self.replicas, percent_data)
-        else:
-            self.pg_num = pg_num
+        self.pg_num = pg_num or self.get_pgs(self.replicas, percent_data)
 
     def create(self):
         if not pool_exists(self.service, self.name):
@@ -1030,18 +1032,21 @@ class CephBrokerRq(object):
         self.ops = []
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
-                           percent_data=None):
+                           weight=None):
         """Adds an operation to create a pool.
 
         @param pg_num setting:  optional setting. If not provided, this value
         will be calculated by the broker based on how many OSDs are in the
         cluster at the time of creation. Note that, if provided, this value
         will be capped at the current available maximum.
-        @param percent_data: the percentage of data the pool makes up
+        @param weight: the percentage of data the pool makes up
         """
+        if pg_num and weight:
+            raise ValueError('pg_num and weight are mutually exclusive')
+
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count, 'pg_num': pg_num,
-                         'percent_data': percent_data})
+                         'weight': weight})
 
     def set_ops(self, ops):
         """Set request ops to provided value.
@@ -1059,7 +1064,7 @@ class CephBrokerRq(object):
     def _ops_equal(self, other):
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in ['replicas', 'name', 'op', 'pg_num', 'percent_data']:
+                for key in ['replicas', 'name', 'op', 'pg_num', 'weight']:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:
