@@ -988,6 +988,7 @@ def git_generate_systemd_init_files(templates_dir):
     script generation, which is used by the OpenStack packages.
     """
     for f in os.listdir(templates_dir):
+        # Create the init script and systemd unit file from the template
         if f.endswith(".init.in"):
             init_in_file = f
             init_file = f[:-8]
@@ -1013,9 +1014,46 @@ def git_generate_systemd_init_files(templates_dir):
                 os.remove(init_dest)
             if os.path.exists(service_dest):
                 os.remove(service_dest)
-            shutil.move(init_source, init_dest)
-            shutil.move(service_source, service_dest)
+            shutil.copyfile(init_source, init_dest)
+            shutil.copyfile(service_source, service_dest)
             os.chmod(init_dest, 0o755)
+
+    for f in os.listdir(templates_dir):
+        # If there's a service.in file, use it instead of the generated one
+        if f.endswith(".service.in"):
+            service_in_file = f
+            service_file = f[:-3]
+
+            service_in_source = os.path.join(templates_dir, service_in_file)
+            service_source = os.path.join(templates_dir, service_file)
+            service_dest = os.path.join('/lib/systemd/system', service_file)
+
+            shutil.copyfile(service_in_source, service_source)
+
+            if os.path.exists(service_dest):
+                os.remove(service_dest)
+            shutil.copyfile(service_source, service_dest)
+
+    for f in os.listdir(templates_dir):
+        # Generate the systemd unit if there's no existing .service.in
+        if f.endswith(".init.in"):
+            init_in_file = f
+            init_file = f[:-8]
+            service_in_file = "{}.service.in".format(init_file)
+            service_file = "{}.service".format(init_file)
+
+            init_in_source = os.path.join(templates_dir, init_in_file)
+            service_in_source = os.path.join(templates_dir, service_in_file)
+            service_source = os.path.join(templates_dir, service_file)
+            service_dest = os.path.join('/lib/systemd/system', service_file)
+
+            if not os.path.exists(service_in_source):
+                cmd = ['pkgos-gen-systemd-unit', init_in_source]
+                subprocess.check_call(cmd)
+
+                if os.path.exists(service_dest):
+                    os.remove(service_dest)
+                shutil.copyfile(service_source, service_dest)
 
 
 def os_workload_status(configs, required_interfaces, charm_func=None):
