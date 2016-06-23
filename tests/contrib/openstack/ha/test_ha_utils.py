@@ -25,7 +25,9 @@ class HATests(unittest.TestCase):
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
 
-    def test_update_dns_ha_resource_params_none(self):
+    @patch.object(ha, 'assert_charm_supports_dns_ha')
+    def test_update_dns_ha_resource_params_none(self,
+                                                assert_charm_supports_dns_ha):
         self.conf = {
             'os-admin-hostname': None,
             'os-internal-hostname': None,
@@ -38,7 +40,9 @@ class HATests(unittest.TestCase):
                 resources=self.resources,
                 resource_params=self.resource_params)
 
-    def test_update_dns_ha_resource_params_one(self):
+    @patch.object(ha, 'assert_charm_supports_dns_ha')
+    def test_update_dns_ha_resource_params_one(self,
+                                               assert_charm_supports_dns_ha):
         EXPECTED_RESOURCES = {'res_test_public_hostname': 'ocf:maas:dns',
                               'res_test_haproxy': 'lsb:haproxy'}
         EXPECTED_RESOURCE_PARAMS = {
@@ -63,7 +67,9 @@ class HATests(unittest.TestCase):
             groups={'grp_test_hostnames': 'res_test_public_hostname'},
             relation_id='ha:1')
 
-    def test_update_dns_ha_resource_params_all(self):
+    @patch.object(ha, 'assert_charm_supports_dns_ha')
+    def test_update_dns_ha_resource_params_all(self,
+                                               assert_charm_supports_dns_ha):
         EXPECTED_RESOURCES = {'res_test_admin_hostname': 'ocf:maas:dns',
                               'res_test_internal_hostname': 'ocf:maas:dns',
                               'res_test_public_hostname': 'ocf:maas:dns',
@@ -96,3 +102,14 @@ class HATests(unittest.TestCase):
                      'res_test_internal_hostname '
                      'res_test_public_hostname')},
             relation_id='ha:1')
+
+    @patch.object(ha, 'lsb_release')
+    def test_assert_charm_supports_dns_ha(self, lsb_release):
+        lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
+        self.assertTrue(ha.assert_charm_supports_dns_ha())
+
+    @patch.object(ha, 'lsb_release')
+    def test_assert_charm_supports_dns_ha_exception(self, lsb_release):
+        lsb_release.return_value = {'DISTRIB_RELEASE': '12.04'}
+        self.assertRaises(ha.DNSHAException,
+                          lambda: ha.assert_charm_supports_dns_ha())
