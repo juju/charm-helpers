@@ -809,13 +809,13 @@ class OpenStackHelpersTestCase(TestCase):
         charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
         # the following sets the global requirements_dir
         _git_install_single.return_value = '/mnt/openstack-git/requirements'
-        join.return_value = '/mnt/openstack-git/venv'
+        join.return_value = 'joined-path'
 
         openstack.git_clone_and_install(openstack_origin_git, proj)
         self.assertTrue(pip_venv.called)
         pip_install.assert_called_with('setuptools', upgrade=True,
                                        proxy=None,
-                                       venv='/mnt/openstack-git/venv')
+                                       venv='joined-path')
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
@@ -823,7 +823,7 @@ class OpenStackHelpersTestCase(TestCase):
                  update_requirements=False),
             call('git://git.openstack.org/openstack/keystone',
                  'stable/juno', '1', '/mnt/openstack-git', None,
-                 update_requirements=True)
+                 update_requirements=True, constraints='joined-path')
         ]
         self.assertEquals(expected, _git_install_single.call_args_list)
         assert not error_out.called
@@ -855,7 +855,8 @@ class OpenStackHelpersTestCase(TestCase):
                                           branch=branch)
         assert not _git_update_reqs.called
         pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
-                                       proxy='http://squid-proxy-url')
+                                       proxy='http://squid-proxy-url',
+                                       constraints=None)
 
     @patch('os.path.join')
     @patch('os.mkdir')
@@ -887,7 +888,8 @@ class OpenStackHelpersTestCase(TestCase):
                                           branch=branch)
         _git_update_reqs.assert_called_with(venv_dir, dest_dir, reqs_dir)
         pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
-                                       proxy='http://squid-proxy-url')
+                                       proxy='http://squid-proxy-url',
+                                       constraints=None)
 
     @patch('os.path.join')
     @patch('os.getcwd')
