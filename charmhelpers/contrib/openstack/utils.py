@@ -837,6 +837,7 @@ def git_clone_and_install(projects_yaml, core_project):
         pip_install(p, upgrade=True, proxy=http_proxy,
                     venv=os.path.join(parent_dir, 'venv'))
 
+    constraints = None
     for p in projects['repositories']:
         repo = p['repository']
         branch = p['branch']
@@ -848,10 +849,12 @@ def git_clone_and_install(projects_yaml, core_project):
                                                      parent_dir, http_proxy,
                                                      update_requirements=False)
             requirements_dir = repo_dir
+            constraints = os.path.join(repo_dir, "upper-constraints.txt")
         else:
             repo_dir = _git_clone_and_install_single(repo, branch, depth,
                                                      parent_dir, http_proxy,
-                                                     update_requirements=True)
+                                                     update_requirements=True,
+                                                     constraints=constraints)
 
     os.environ = old_environ
 
@@ -883,7 +886,7 @@ def _git_ensure_key_exists(key, keys):
 
 
 def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
-                                  update_requirements):
+                                  update_requirements, constraints=None):
     """
     Clone and install a single git repository.
     """
@@ -906,9 +909,10 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy, venv=venv)
+        pip_install(repo_dir, proxy=http_proxy, venv=venv,
+                    constraints=constraints)
     else:
-        pip_install(repo_dir, venv=venv)
+        pip_install(repo_dir, venv=venv, constraints=constraints)
 
     return repo_dir
 
