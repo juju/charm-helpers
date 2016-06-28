@@ -76,6 +76,22 @@ class BzrUrlFetchHandlerTest(TestCase):
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
 
+    @patch('charmhelpers.fetch.bzrurl.check_call')
+    def test_branch_revno(self, check_call):
+        dest_path = "/destination/path"
+        for url in self.valid_urls:
+            self.fh.remote_branch = MagicMock()
+            self.fh.load_plugins = MagicMock()
+            self.fh.branch(url, dest_path, revno=42)
+
+            check_call.assert_called_with(['bzr', 'branch', '-r', '42',
+                                           url, dest_path])
+
+        for url in self.invalid_urls:
+            with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+                self.assertRaises(UnhandledSource, self.fh.branch, url,
+                                  dest_path)
+
     def test_branch_functional(self):
         src = None
         dst = None
@@ -94,14 +110,26 @@ class BzrUrlFetchHandlerTest(TestCase):
             if dst:
                 shutil.rmtree(dst, ignore_errors=True)
 
-    @patch('charmhelpers.fetch.bzrurl.mkdir')
-    def test_installs(self, _mkdir):
+    def test_installs(self):
         self.fh.branch = MagicMock()
 
         for url in self.valid_urls:
             branch_name = urlparse(url).path.strip("/").split("/")[-1]
-            dest = os.path.join('foo', 'fetched', os.path.basename(branch_name))
+            dest = os.path.join('foo', 'fetched')
+            dest_dir = os.path.join(dest, os.path.basename(branch_name))
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 where = self.fh.install(url)
-            self.assertEqual(where, dest)
-            _mkdir.assert_called_with(where, perms=0o755)
+            self.assertEqual(where, dest_dir)
+
+    @patch('charmhelpers.fetch.bzrurl.mkdir')
+    def test_installs_dir(self, _mkdir):
+        self.fh.branch = MagicMock()
+
+        for url in self.valid_urls:
+            branch_name = urlparse(url).path.strip("/").split("/")[-1]
+            dest = os.path.join('opt', 'f')
+            dest_dir = os.path.join(dest, os.path.basename(branch_name))
+            with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
+                where = self.fh.install(url, dest)
+            self.assertEqual(where, dest_dir)
+            _mkdir.assert_called_with(dest, perms=0o755)
