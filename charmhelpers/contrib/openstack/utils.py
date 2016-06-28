@@ -748,7 +748,7 @@ def git_default_repos(projects_yaml):
                            'neutron-openvswitch']:
                 core_project = 'neutron'
                 for project in ['neutron-fwaas', 'neutron-lbaas',
-                                'neutron-vpnaas']:
+                                'neutron-vpnaas', 'nova']:
                     repo = {
                         'name': project,
                         'repository': GIT_DEFAULT_REPOS[project],
