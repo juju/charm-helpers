@@ -255,7 +255,7 @@ class Pool(object):
                     "Using the actual count instead", INFO)
         elif expected:
             # Use the expected-osd-count in older ceph versions to allow for
-            # a more acurate pg calculations
+            # a more accurate pg calculations
             osd_count = expected
         else:
             # NOTE(james-page): Default to 200 for older ceph versions
@@ -286,7 +286,13 @@ class ReplicatedPool(Pool):
                  percent_data=10.0):
         super(ReplicatedPool, self).__init__(service=service, name=name)
         self.replicas = replicas
-        self.pg_num = pg_num or self.get_pgs(self.replicas, percent_data)
+        if pg_num:
+            # Since the number of placement groups were specified, ensure
+            # that there aren't too many created.
+            max_pgs = self.get_pgs(self.replicas, 100.0)
+            self.pg_num = min(pg_num, max_pgs)
+        else:
+            self.pg_num = self.get_pgs(self.replicas, percent_data)
 
     def create(self):
         if not pool_exists(self.service, self.name):
