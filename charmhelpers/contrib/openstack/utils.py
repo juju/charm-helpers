@@ -222,7 +222,6 @@ GIT_DEFAULT_REPOS = {
 }
 
 GIT_DEFAULT_BRANCHES = {
-    'icehouse': 'icehouse-eol',
     'kilo': 'stable/kilo',
     'liberty': 'stable/liberty',
     'mitaka': 'stable/mitaka',
