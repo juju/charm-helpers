@@ -95,7 +95,7 @@ class FakeAppArmorContext(context.AppArmorContext):
         super(FakeAppArmorContext, self).__call__()
         if not self.ctxt:
             return self.ctxt
-        self._ctxt.update({'aa-profile': self.aa_profile})
+        self._ctxt.update({'aa_profile': self.aa_profile})
         return self.ctxt
 
 
@@ -2921,7 +2921,7 @@ class ContextTests(unittest.TestCase):
         # Test complain mode
         self.config.return_value = 'complain'
         self.assertEquals(mock_aa_object.__call__(),
-                          {'aa-profile-mode': 'complain'})
+                          {'aa_profile_mode': 'complain'})
 
     def test_apparmor_context_call_enforce(self):
         ''' Tests for the apparmor context'''
@@ -2929,7 +2929,7 @@ class ContextTests(unittest.TestCase):
         # Test enforce mode
         self.config.return_value = 'enforce'
         self.assertEquals(mock_aa_object.__call__(),
-                          {'aa-profile-mode': 'enforce'})
+                          {'aa_profile_mode': 'enforce'})
 
     def test_apparmor_context_call_disable(self):
         ''' Tests for the apparmor context'''
@@ -2937,7 +2937,7 @@ class ContextTests(unittest.TestCase):
         # Test complain mode
         self.config.return_value = 'disable'
         self.assertEquals(mock_aa_object.__call__(),
-                          {'aa-profile-mode': 'disable'})
+                          {'aa_profile_mode': 'disable'})
 
     def test_apparmor_setup_complain(self):
         ''' Tests for the apparmor setup'''
