@@ -1438,7 +1438,7 @@ class AppArmorContext(OSContextGenerator):
         :return ctxt: Dictionary of the apparmor profile or None
         """
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
-            ctxt = {'aa-profile-mode': config('aa-profile-mode')}
+            ctxt = {'aa_profile_mode': config('aa-profile-mode')}
         else:
             ctxt = None
         return ctxt
@@ -1482,10 +1482,10 @@ class AppArmorContext(OSContextGenerator):
             log("Not enabling apparmor Profile")
             return
         self.install_aa_utils()
-        cmd = ['aa-{}'.format(self.ctxt['aa-profile-mode'])]
-        cmd.append(self.ctxt['aa-profile'])
+        cmd = ['aa-{}'.format(self.ctxt['aa_profile_mode'])]
+        cmd.append(self.ctxt['aa_profile'])
         log("Setting up the apparmor profile for {} in {} mode."
-            "".format(self.ctxt['aa-profile'], self.ctxt['aa-profile-mode']))
+            "".format(self.ctxt['aa_profile'], self.ctxt['aa_profile_mode']))
         try:
             check_call(cmd)
         except CalledProcessError as e:
@@ -1494,12 +1494,12 @@ class AppArmorContext(OSContextGenerator):
             # apparmor is yet unaware of the profile and aa-disable aa-profile
             # fails. If aa-disable learns to read profile files first this can
             # be removed.
-            if self.ctxt['aa-profile-mode'] == 'disable':
+            if self.ctxt['aa_profile_mode'] == 'disable':
                 log("Manually disabling the apparmor profile for {}."
-                    "".format(self.ctxt['aa-profile']))
+                    "".format(self.ctxt['aa_profile']))
                 self.manually_disable_aa_profile()
                 return
             status_set('blocked', "Apparmor profile {} failed to be set to {}."
-                                  "".format(self.ctxt['aa-profile'],
-                                            self.ctxt['aa-profile-mode']))
+                                  "".format(self.ctxt['aa_profile'],
+                                            self.ctxt['aa_profile_mode']))
             raise e
