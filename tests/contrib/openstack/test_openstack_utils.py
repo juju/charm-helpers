@@ -730,13 +730,16 @@ class OpenStackHelpersTestCase(TestCase):
         error_out.assert_called_with(
             'openstack-origin-git key \'%s\' is missing' % key)
 
+    @patch('os.path.isfile')
     @patch('os.path.join')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, '_git_clone_and_install_single')
     @patch.object(openstack, 'pip_install')
     @patch.object(openstack, 'pip_create_virtualenv')
     def test_git_clone_and_install_errors(self, pip_venv, pip_install,
-                                          git_install_single, error_out, join):
+                                          git_install_single, error_out, join,
+                                          isfile):
+        isfile.return_value = True
         git_missing_repos = """
           repostories:
              - {name: requirements,
@@ -823,7 +826,7 @@ class OpenStackHelpersTestCase(TestCase):
                  update_requirements=False),
             call('git://git.openstack.org/openstack/keystone',
                  'stable/juno', '1', '/mnt/openstack-git', None,
-                 update_requirements=True, constraints='joined-path')
+                 update_requirements=True, constraints=None)
         ]
         self.assertEquals(expected, _git_install_single.call_args_list)
         assert not error_out.called
