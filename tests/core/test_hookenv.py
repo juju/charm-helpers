@@ -1621,9 +1621,10 @@ class HooksTest(TestCase):
     @patch('subprocess.check_output')
     def test_network_get_primary(self, check_output):
         '''Ensure that network-get is called correctly and output is returned'''
-        check_output.return_value = '192.168.22.1'
+        check_output.return_value = b'192.168.22.1'
         ip = hookenv.network_get_primary_address('mybinding')
-        check_output.assert_called_with(['network-get', '--primary-address', 'mybinding'])
+        check_output.assert_called_with(
+            ['network-get', '--primary-address', 'mybinding'])
         self.assertEqual(ip, '192.168.22.1')
 
     @patch('subprocess.check_output')
