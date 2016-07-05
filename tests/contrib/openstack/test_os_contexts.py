@@ -515,6 +515,7 @@ TO_PATCH = [
     'sysctl_create',
     'kv',
     'pwgen',
+    'lsb_release',
 ]
 
 
@@ -567,6 +568,7 @@ class ContextTests(unittest.TestCase):
         self.get_host_ip.side_effect = lambda hostname: hostname
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
+        self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -2921,7 +2923,8 @@ class ContextTests(unittest.TestCase):
         # Test complain mode
         self.config.return_value = 'complain'
         self.assertEquals(mock_aa_object.__call__(),
-                          {'aa_profile_mode': 'complain'})
+                          {'aa_profile_mode': 'complain',
+                           'ubuntu_release': '16.04'})
 
     def test_apparmor_context_call_enforce(self):
         ''' Tests for the apparmor context'''
@@ -2929,7 +2932,8 @@ class ContextTests(unittest.TestCase):
         # Test enforce mode
         self.config.return_value = 'enforce'
         self.assertEquals(mock_aa_object.__call__(),
-                          {'aa_profile_mode': 'enforce'})
+                          {'aa_profile_mode': 'enforce',
+                           'ubuntu_release': '16.04'})
 
     def test_apparmor_context_call_disable(self):
         ''' Tests for the apparmor context'''
@@ -2937,7 +2941,8 @@ class ContextTests(unittest.TestCase):
         # Test complain mode
         self.config.return_value = 'disable'
         self.assertEquals(mock_aa_object.__call__(),
-                          {'aa_profile_mode': 'disable'})
+                          {'aa_profile_mode': 'disable',
+                           'ubuntu_release': '16.04'})
 
     def test_apparmor_setup_complain(self):
         ''' Tests for the apparmor setup'''

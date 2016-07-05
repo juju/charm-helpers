@@ -59,6 +59,7 @@ from charmhelpers.core.host import (
     mkdir,
     write_file,
     pwgen,
+    lsb_release,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
@@ -1438,7 +1439,8 @@ class AppArmorContext(OSContextGenerator):
         :return ctxt: Dictionary of the apparmor profile or None
         """
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
-            ctxt = {'aa_profile_mode': config('aa-profile-mode')}
+            ctxt = {'aa_profile_mode': config('aa-profile-mode'),
+                    'ubuntu_release': lsb_release()['DISTRIB_RELEASE']}
         else:
             ctxt = None
         return ctxt
