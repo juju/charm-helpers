@@ -39,6 +39,7 @@ SETUP = {
         "charmhelpers.contrib.network",
         "charmhelpers.contrib.network.ovs",
         "charmhelpers.contrib.openstack",
+        "charmhelpers.contrib.openstack.ha",
         "charmhelpers.contrib.openstack.amulet",
         "charmhelpers.contrib.openstack.files",
         "charmhelpers.contrib.openstack.templates",
