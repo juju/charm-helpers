@@ -642,6 +642,29 @@ class HelpersTest(TestCase):
         getpwnam.assert_called_with(username)
 
     @patch('pwd.getpwnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_adds_a_systemuser_with_home_dir(self, log, check_call, getpwnam):
+        username = 'johndoe'
+        existing_user_pwnam = KeyError('user not found')
+        new_user_pwnam = 'some user pwnam'
+
+        getpwnam.side_effect = [existing_user_pwnam, new_user_pwnam]
+
+        result = host.adduser(username, system_user=True,
+                              home_dir='/var/lib/johndoe')
+
+        self.assertEqual(result, new_user_pwnam)
+        check_call.assert_called_with([
+            'useradd',
+            '--home',
+            '/var/lib/johndoe',
+            '--system',
+            username
+        ])
+        getpwnam.assert_called_with(username)
+
+    @patch('pwd.getpwnam')
     @patch('pwd.getpwuid')
     @patch('grp.getgrnam')
     @patch('subprocess.check_call')
