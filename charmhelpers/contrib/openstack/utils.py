@@ -220,7 +220,6 @@ GIT_DEFAULT_REPOS = {
 }
 
 GIT_DEFAULT_BRANCHES = {
-    'kilo': 'stable/kilo',
     'liberty': 'stable/liberty',
     'mitaka': 'stable/mitaka',
     'master': 'master',
@@ -739,12 +738,6 @@ def git_default_repos(projects_yaml):
                 'branch': branch,
             }
             repos = [repo]
-
-            # NOTE(coreycb): This is a temp work-around until the requirements
-            # repo moves from stable/kilo branch to kilo-eol tag. The core
-            # repos have already done this.
-            if default == 'kilo':
-                branch = 'kilo-eol'
 
             # neutron-* and nova-* charms require some additional repos
             if service in ['neutron-api', 'neutron-gateway',
