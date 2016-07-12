@@ -412,7 +412,8 @@ def os_release(package, base='essex'):
     global os_rel
     if os_rel:
         return os_rel
-    os_rel = (get_os_codename_package(package, fatal=False) or
+    os_rel = (git_os_codename_install_source(config('openstack-origin-git')) or
+              get_os_codename_package(package, fatal=False) or
               get_os_codename_install_source(config('openstack-origin')) or
               base)
     return os_rel
@@ -718,7 +719,24 @@ def git_install_requested():
     return config('openstack-origin-git') is not None
 
 
-requirements_dir = None
+def git_os_codename_install_source(projects_yaml):
+    """
+    Returns OpenStack codename of release being installed from source.
+    """
+    if git_install_requested():
+        projects = _git_yaml_load(projects_yaml)
+
+        if projects in GIT_DEFAULT_BRANCHES.keys():
+            if projects == 'master':
+                return 'yakkety'
+            return projects
+
+        if 'release' in projects:
+            if projects['release'] == 'master':
+                return 'yakkety'
+            return projects['release']
+
+    return None
 
 
 def git_default_repos(projects_yaml):
@@ -771,7 +789,7 @@ def git_default_repos(projects_yaml):
             }
             repos.append(repo)
 
-            return yaml.dump(dict(repositories=repos))
+            return yaml.dump(dict(repositories=repos, release=default))
 
     return projects_yaml
 
@@ -784,6 +802,9 @@ def _git_yaml_load(projects_yaml):
         return None
 
     return yaml.load(projects_yaml)
+
+
+requirements_dir = None
 
 
 def git_clone_and_install(projects_yaml, core_project):
@@ -878,6 +899,8 @@ def _git_validate_projects_yaml(projects, core_project):
 
     if projects['repositories'][-1]['name'] != core_project:
         error_out('{} git repo must be specified last'.format(core_project))
+
+    _git_ensure_key_exists('release', projects)
 
 
 def _git_ensure_key_exists(key, keys):
