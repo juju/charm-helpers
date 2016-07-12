@@ -2451,6 +2451,33 @@ class ContextTests(unittest.TestCase):
         worker = context.WorkerConfigContext()
         self.assertTrue(worker.num_cpus, 2)
 
+    def test_workerconfig_context_float(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 0.3
+        })
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 4):
+            worker = context.WorkerConfigContext()
+            self.assertTrue(worker.num_cpus, 1)
+
+    def test_workerconfig_context_not_quite_0(self):
+        # Make sure that the multiplier evaluating to somewhere between
+        # 0 and 1 in the floating point range still has at least one
+        # worker.
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 0.001
+        })
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 100):
+            worker = context.WorkerConfigContext()
+            self.assertTrue(worker.num_cpus, 1)
+
+    def test_workerconfig_context_0(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 0
+        })
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
+            worker = context.WorkerConfigContext()
+            self.assertTrue(worker.num_cpus, 0)
+
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
         with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
