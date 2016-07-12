@@ -856,6 +856,10 @@ def git_clone_and_install(projects_yaml, core_project):
             # upper-constraints didn't exist until after icehouse
             if not os.path.isfile(constraints):
                 constraints = None
+            # use constraints unless project yaml sets use_constraints to false
+            if 'use_constraints' in projects.keys():
+                if not projects['use_constraints']:
+                    constraints = None
         else:
             repo_dir = _git_clone_and_install_single(repo, branch, depth,
                                                      parent_dir, http_proxy,
