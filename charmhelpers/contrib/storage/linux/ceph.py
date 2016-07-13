@@ -87,6 +87,8 @@ clog to syslog = {use_syslog}
 # calculations are done on deployment, target the case of non-expanding
 # clusters as the default.
 DEFAULT_PGS_PER_OSD_TARGET = 100
+DEFAULT_POOL_WEIGHT = 10.0
+LEGACY_PG_COUNT = 200
 
 
 def validator(value, valid_type, valid_range=None):
@@ -193,7 +195,7 @@ class Pool(object):
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove-overlay', self.name])
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove', self.name, cache_pool])
 
-    def get_pgs(self, pool_size, percent_data=10.0):
+    def get_pgs(self, pool_size, percent_data=DEFAULT_POOL_WEIGHT):
         """Return the number of placement groups to use when creating the pool.
 
         Returns the number of placement groups which should be specified when
@@ -207,7 +209,7 @@ class Pool(object):
             ----------------------------------------
                          (Pool size)
 
-        Per the usptream guidelines, the OSD # should really be considered
+        Per the upstream guidelines, the OSD # should really be considered
         based on the number of OSDs which are eligible to be selected by the
         pool. Since the pool creation doesn't specify any of CRUSH set rules,
         the default rule will be dependent upon the type of pool being
@@ -236,7 +238,7 @@ class Pool(object):
         # Ensure that percent data is set to something - even with a default
         # it can be set to None, which would wreak havoc below.
         if percent_data is None:
-            percent_data = 10.0
+            percent_data = DEFAULT_POOL_WEIGHT
 
         # If the expected-osd-count is specified, then use the max between
         # the expected-osd-count and the actual osd_count
@@ -246,7 +248,7 @@ class Pool(object):
         if osd_list:
             osd_count = max(expected, len(osd_list))
 
-            # Log a message to provide som insight if the calculations claim
+            # Log a message to provide some insight if the calculations claim
             # to be off because someone is setting the expected count and
             # there are more OSDs in reality. Try to make a proper guess
             # based upon the cluster itself.
@@ -260,7 +262,7 @@ class Pool(object):
         else:
             # NOTE(james-page): Default to 200 for older ceph versions
             # which don't support OSD query from cli
-            return 200
+            return LEGACY_PG_COUNT
 
         percent_data /= 100.0
         target_pgs_per_osd = config('pgs-per-osd') or DEFAULT_PGS_PER_OSD_TARGET
