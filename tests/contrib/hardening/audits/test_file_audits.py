@@ -50,8 +50,8 @@ class BaseFileAuditTestCase(TestCase):
         self.is_compliant.return_value = True
         check = file.BaseFileAudit(paths=['/tmp/foo'])
         check.ensure_compliance()
-        mock_exists.assert_has_calls(call('/tmp/foo'))
-        self.is_compliant.assert_has_calls(call('/tmp/foo'))
+        mock_exists.assert_has_calls([call('/tmp/foo')])
+        self.is_compliant.assert_has_calls([call('/tmp/foo')])
         self.assertFalse(self.log.called)
         self.assertFalse(self.comply.called)
 
@@ -60,10 +60,10 @@ class BaseFileAuditTestCase(TestCase):
         self.is_compliant.return_value = False
         check = file.BaseFileAudit(paths=['/tmp/foo'])
         check.ensure_compliance()
-        mock_exists.assert_has_calls(call('/tmp/foo'))
-        self.is_compliant.assert_has_calls(call('/tmp/foo'))
+        mock_exists.assert_has_calls([call('/tmp/foo')])
+        self.is_compliant.assert_has_calls([call('/tmp/foo')])
         self.assertTrue(self.log.called)
-        self.comply.assert_has_calls(call('/tmp/foo'))
+        self.comply.assert_has_calls([call('/tmp/foo')])
 
 
 class EasyMock(dict):
@@ -133,7 +133,7 @@ class FilePermissionAuditTestCase(TestCase):
                                          group='testgroup', mode=0o644)
         check.comply('/foo/bar')
         c = call('/foo/bar', 'testuser', 'testgroup', 0o644)
-        _ensure_permissions.assert_has_calls(c)
+        _ensure_permissions.assert_has_calls([c])
 
 
 class DirectoryPermissionAuditTestCase(TestCase):
@@ -194,7 +194,7 @@ class NoSUIDGUIDAuditTestCase(TestCase):
     def test_comply(self, mock_check_output, mock_log):
         audit = file.NoSUIDSGIDAudit('/foo/bar')
         audit.comply('/foo/bar')
-        mock_check_output.assert_has_calls(call(['chmod', '-s', '/foo/bar']))
+        mock_check_output.assert_has_calls([call(['chmod', '-s', '/foo/bar'])])
         self.assertTrue(mock_log.called)
 
 

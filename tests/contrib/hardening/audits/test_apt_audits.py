@@ -47,7 +47,7 @@ class RestrictedPackagesTestCase(TestCase):
 
         audit = apt.RestrictedPackages(pkgs=['bar'])
         audit.ensure_compliance()
-        mock_purge.assert_has_calls(call(pkg.name))
+        mock_purge.assert_has_calls([call(pkg.name)])
 
     @patch.object(apt, 'apt_purge')
     @patch.object(apt, 'apt_cache')

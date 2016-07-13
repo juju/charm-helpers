@@ -105,7 +105,7 @@ class TestRelations(unittest.TestCase):
 
         self.assertFalse(hookenv.relation_get.called)
         self.assertEqual(r[sentinel.key], 'value')
-        hookenv.relation_get.assert_has_call(unit='svc_rel/9', rid='rel:10')
+        hookenv.relation_get.assert_called_with(unit='svc_rel/9', rid='rel:10')
 
         # Updates fail
         with self.assertRaises(TypeError):
@@ -139,7 +139,7 @@ class TestRelations(unittest.TestCase):
 
         # Deletes work
         del r[sentinel.key]
-        hookenv.relation_set.assert_has_call('rel:10', {sentinel.key: None})
+        hookenv.relation_set.assert_called_with('rel:10', {sentinel.key: None})
 
         # Attempting to write a non-string fails
         with self.assertRaises(ValueError):
@@ -153,7 +153,7 @@ class TestLeader(unittest.TestCase):
 
         leader = context.Leader()
         self.assertEqual(leader['a_key'], 'a_value')
-        leader_get.assert_has_call()
+        leader_get.assert_called_with()
 
         with self.assertRaises(KeyError):
             leader['missing']
@@ -167,13 +167,13 @@ class TestLeader(unittest.TestCase):
 
         # Updates work
         leader[sentinel.key] = 'foo'
-        leader_set.assert_has_call({sentinel.key: 'foo'})
+        leader_set.assert_called_with({sentinel.key: 'foo'})
         del leader[sentinel.key]
-        leader_set.assert_has_call({sentinel.key: None})
+        leader_set.assert_called_with({sentinel.key: None})
 
         # Python 2 unicode string values work too
         leader[sentinel.key] = six.u('bar')
-        leader_set.assert_has_call({sentinel.key: 'bar'})
+        leader_set.assert_called_with({sentinel.key: 'bar'})
 
         # Byte strings fail under Python 3
         if six.PY3:
