@@ -149,18 +149,34 @@ CEPH_CLIENT_RELATION_LEGACY['ceph:8']['ceph/0'] = {
 }
 
 
+class TestConfig():
+
+    def __init__(self):
+        self.config = {}
+
+    def set(self, key, value):
+        self.config[key] = value
+
+    def get(self, key):
+        return self.config.get(key)
+
+
 class CephUtilsTests(TestCase):
     def setUp(self):
         super(CephUtilsTests, self).setUp()
         [self._patch(m) for m in [
             'check_call',
             'check_output',
+            'config',
             'relation_get',
             'related_units',
             'relation_ids',
             'relation_set',
             'log',
         ]]
+        # Ensure the config is setup for mocking properly.
+        self.test_config = TestConfig()
+        self.config.side_effect = self.test_config.get
 
     def _patch(self, method):
         _m = patch.object(ceph_utils, method)
@@ -231,6 +247,31 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
+    def test_get_pg_num_pg_calc_values(self, get_osds):
+        """Tests the calculated pg num in the normal case works"""
+        # Check the growth case ... e.g. 200 PGs per OSD if the cluster is
+        # expected to grown in the near future.
+        get_osds.return_value = range(1, 11)
+        self.test_config.set('pgs-per-osd', 200)
+        p = ceph_utils.Pool(name='test', service='admin')
+
+        # For Pool Size of 3, 200 PGs/OSD, and 40% of the overall data,
+        # the pg num should be 256
+        pg_num = p.get_pgs(pool_size=3, percent_data=40)
+        self.assertEqual(256, pg_num)
+
+        self.test_config.set('pgs-per-osd', 300)
+        pg_num = p.get_pgs(pool_size=3, percent_data=100)
+        self.assertEquals(1024, pg_num)
+
+        # Tests the case in which the expected OSD count is provided (and is
+        # greater than the found OSD count).
+        self.test_config.set('pgs-per-osd', 100)
+        self.test_config.set('expected-osd-count', 20)
+        pg_num = p.get_pgs(pool_size=3, percent_data=100)
+        self.assertEquals(512, pg_num)
+
+    @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_old_ceph(self, get_osds):
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
@@ -243,46 +284,65 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_small_osds(self, get_osds):
-        get_osds.return_value = range(1, 4)
-        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        get_osds.return_value = range(1, 5)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=10)
         p.create()
 
+        # Using the PG Calc, for 4 OSDs with a size of 3 and 10% of the data
+        # at 100 PGs/OSD, the number of expected placement groups will be 16
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(128)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '16']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_medium_osds(self, get_osds):
-        get_osds.return_value = range(1, 8)
-        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        get_osds.return_value = range(1, 9)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=50)
         p.create()
 
+        # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+        # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(512)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '128']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_large_osds(self, get_osds):
-        get_osds.return_value = range(1, 40)
-        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        get_osds.return_value = range(1, 41)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=100)
         p.create()
 
+        # Using the PG Calc, for 40 OSDs with a size of 3 and 100% of the
+        # data at 100 PGs/OSD then the number of expected placement groups
+        # will be 1024.
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(4096)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '1024']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_xlarge_osds(self, get_osds):
-        get_osds.return_value = range(1, 1000)
-        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        get_osds.return_value = range(1, 1001)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=100)
         p.create()
 
+        # Using the PG Calc, for 1,000 OSDs with a size of 3 and 100% of the
+        # data at 100 PGs/OSD then the number of expected placement groups
+        # will be 32768
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(65536)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '32768']),
         ])
 
     def test_replicated_pool_create_failed(self):
-        self.check_call.side_effect = CalledProcessError(returncode=1, cmd='mock',
+        self.check_call.side_effect = CalledProcessError(returncode=1,
+                                                         cmd='mock',
                                                          output=None)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         self.assertRaises(CalledProcessError, p.create)
@@ -295,9 +355,10 @@ class CephUtilsTests(TestCase):
         self.check_call.assert_has_calls([])
 
     def test_erasure_pool_create_failed(self):
-        self.check_output.side_effect = CalledProcessError(returncode=1, cmd='ceph',
+        self.check_output.side_effect = CalledProcessError(returncode=1,
+                                                           cmd='ceph',
                                                            output=None)
-        p = ceph_utils.ErasurePool(name='test', service='admin', erasure_code_profile='foo')
+        p = ceph_utils.ErasurePool('test', 'admin', 'foo')
         self.assertRaises(ceph_utils.PoolCreationError, p.create)
 
     @patch.object(ceph_utils, 'get_erasure_profile')
@@ -310,12 +371,13 @@ class CephUtilsTests(TestCase):
             'technique': 'reed_sol_van',
             'm': '1',
             'plugin': 'jerasure'}
-        p = ceph_utils.ErasurePool(name='test', service='admin')
+        p = ceph_utils.ErasurePool(name='test', service='admin',
+                                   percent_data=100)
         p.create()
-        self.check_call.assert_has_calls(
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(8192),
-                  str(8192), 'erasure', 'default'])
-        )
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '2048', '2048', 'erasure', 'default'])
+        ])
 
     def test_get_erasure_profile_none(self):
         self.check_output.side_effect = CalledProcessError(1, 'ceph')
@@ -325,9 +387,9 @@ class CephUtilsTests(TestCase):
     def test_pool_set(self):
         self.check_call.return_value = 0
         ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
-        self.check_call.assert_has_calls(
+        self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 2])
-        )
+        ])
 
     def test_pool_set_fails(self):
         self.check_call.side_effect = CalledProcessError(returncode=1, cmd='mock',
@@ -338,9 +400,9 @@ class CephUtilsTests(TestCase):
     def test_snapshot_pool(self):
         self.check_call.return_value = 0
         ceph_utils.snapshot_pool(service='admin', pool_name='data', snapshot_name='test-snap-1')
-        self.check_call.assert_has_calls(
+        self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'mksnap', 'data', 'test-snap-1'])
-        )
+        ])
 
     def test_snapshot_pool_fails(self):
         self.check_call.side_effect = CalledProcessError(returncode=1, cmd='mock',
@@ -351,23 +413,23 @@ class CephUtilsTests(TestCase):
     def test_remove_pool_snapshot(self):
         self.check_call.return_value = 0
         ceph_utils.remove_pool_snapshot(service='admin', pool_name='data', snapshot_name='test-snap-1')
-        self.check_call.assert_has_calls(
+        self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'rmsnap', 'data', 'test-snap-1'])
-        )
+        ])
 
     def test_set_pool_quota(self):
         self.check_call.return_value = 0
         ceph_utils.set_pool_quota(service='admin', pool_name='data', max_bytes=1024)
-        self.check_call.assert_has_calls(
+        self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '1024'])
-        )
+        ])
 
     def test_remove_pool_quota(self):
         self.check_call.return_value = 0
         ceph_utils.remove_pool_quota(service='admin', pool_name='data')
-        self.check_call.assert_has_calls(
+        self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '0'])
-        )
+        ])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile(self, existing_profile):
@@ -378,7 +440,7 @@ class CephUtilsTests(TestCase):
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
                'ruleset_failure_domain=' + 'rack', '--force']
-        self.check_call.assert_has_calls(call(cmd))
+        self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile_local(self, existing_profile):
@@ -389,7 +451,7 @@ class CephUtilsTests(TestCase):
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
                'ruleset_failure_domain=' + 'rack', 'l=' + str(1)]
-        self.check_call.assert_has_calls(call(cmd))
+        self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile_shec(self, existing_profile):
@@ -401,7 +463,7 @@ class CephUtilsTests(TestCase):
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'shec', 'k=' + str(10), 'm=' + str(3),
                'ruleset_failure_domain=' + 'rack', 'c=' + str(1)]
-        self.check_call.assert_has_calls(call(cmd))
+        self.check_call.assert_has_calls([call(cmd)])
 
     def test_rename_pool(self):
         ceph_utils.rename_pool(service='admin', old_name='old-pool', new_name='new-pool')
