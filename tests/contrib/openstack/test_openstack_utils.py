@@ -110,14 +110,16 @@ UCA_SOURCES = [
     ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
 ]
 
-openstack_origin_git = \
-    """repositories:
-         - {name: requirements,
-            repository: 'git://git.openstack.org/openstack/requirements',
-            branch: stable/juno}
-         - {name: keystone,
-            repository: 'git://git.openstack.org/openstack/keystone',
-            branch: stable/juno}"""
+openstack_origin_git = """
+  release: master
+  repositories:
+    - {name: requirements,
+       repository: 'git://git.openstack.org/openstack/requirements',
+       branch: master}
+    - {name: keystone,
+       repository: 'git://git.openstack.org/openstack/keystone',
+       branch: master}
+"""
 
 # Mock python-dnspython resolver used by get_host_ip()
 
@@ -405,9 +407,16 @@ class OpenStackHelpersTestCase(TestCase):
             )
 
     @patch.object(openstack, 'get_os_codename_package')
-    def test_os_release_uncached(self, get_cn):
+    @patch.object(openstack, 'git_os_codename_install_source')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_os_release_uncached(self, config, git_cn, get_cn):
         openstack.os_rel = None
         get_cn.return_value = 'folsom'
+        git_cn.return_value = None
+
+        # openstack-origin-git=None
+        config.side_effect = [None]
+
         self.assertEquals('folsom', openstack.os_release('nova-common'))
 
     def test_os_release_cached(self):
@@ -744,29 +753,32 @@ class OpenStackHelpersTestCase(TestCase):
           repostories:
              - {name: requirements,
                 repository: 'git://git.openstack.org/openstack/requirements',
-                branch: stable/juno}
+                branch: master}
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
-                branch: stable/juno}"""
+                branch: master}
+          release: master"""
         self._test_key_error(git_missing_repos, 'repositories', error_out)
 
         git_missing_name = """
           repositories:
              - {name: requirements,
                 repository: 'git://git.openstack.org/openstack/requirements',
-                branch: stable/juno}
+                branch: master}
              - {repository: 'git://git.openstack.org/openstack/keystone',
-                branch: stable/juno}"""
+                branch: master}
+          release: master"""
         self._test_key_error(git_missing_name, 'name', error_out)
 
         git_missing_repo = """
           repositories:
              - {name: requirements,
                 repoistroy: 'git://git.openstack.org/openstack/requirements',
-                branch: stable/juno}
+                branch: master}
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
-                branch: stable/juno}"""
+                branch: master}
+          release: master"""
         self._test_key_error(git_missing_repo, 'repository', error_out)
 
         git_missing_branch = """
@@ -775,17 +787,19 @@ class OpenStackHelpersTestCase(TestCase):
                 repository: 'git://git.openstack.org/openstack/requirements'}
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
-                branch: stable/juno}"""
+                branch: master}
+          release: master"""
         self._test_key_error(git_missing_branch, 'branch', error_out)
 
         git_wrong_order_1 = """
           repositories:
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
-                branch: stable/juno}
+                branch: master}
              - {name: requirements,
                 repository: 'git://git.openstack.org/openstack/requirements',
-                branch: stable/juno}"""
+                branch: master}
+          release: master"""
         openstack.git_clone_and_install(git_wrong_order_1, 'keystone')
         error_out.assert_called_with(
             'keystone git repo must be specified last')
@@ -794,7 +808,8 @@ class OpenStackHelpersTestCase(TestCase):
           repositories:
              - {name: keystone,
                 repository: 'git://git.openstack.org/openstack/keystone',
-                branch: stable/juno}"""
+                branch: master}
+          release: master"""
         openstack.git_clone_and_install(git_wrong_order_2, 'keystone')
         error_out.assert_called_with(
             'requirements git repo must be specified first')
@@ -822,10 +837,10 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertTrue(_git_install_single.call_count == 2)
         expected = [
             call('git://git.openstack.org/openstack/requirements',
-                 'stable/juno', '1', '/mnt/openstack-git', None,
+                 'master', '1', '/mnt/openstack-git', None,
                  update_requirements=False),
             call('git://git.openstack.org/openstack/keystone',
-                 'stable/juno', '1', '/mnt/openstack-git', None,
+                 'master', '1', '/mnt/openstack-git', None,
                  update_requirements=True, constraints=None)
         ]
         self.assertEquals(expected, _git_install_single.call_args_list)
