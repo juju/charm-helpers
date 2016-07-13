@@ -728,12 +728,12 @@ def git_os_codename_install_source(projects_yaml):
 
         if projects in GIT_DEFAULT_BRANCHES.keys():
             if projects == 'master':
-                return 'yakkety'
+                return 'newton'
             return projects
 
         if 'release' in projects:
             if projects['release'] == 'master':
-                return 'yakkety'
+                return 'newton'
             return projects['release']
 
     return None
