@@ -31,7 +31,7 @@ FAKE_APT_CACHE = {
 }
 
 
-def fake_apt_cache():
+def fake_apt_cache(in_memory=True, progress=None):
     def _get(package):
         pkg = MagicMock()
         if package not in FAKE_APT_CACHE:
