@@ -323,13 +323,14 @@ def get_nagios_unit_name(relation_name='nrpe-external-master'):
     return unit
 
 
-def add_init_service_checks(nrpe, services, unit_name):
+def add_init_service_checks(nrpe, services, unit_name, immediate_check=False):
     """
     Add checks for each service in list
 
     :param NRPE nrpe: NRPE object to add check to
     :param list services: List of services to check
     :param str unit_name: Unit name to use in check description
+    :param bool immediate_check: For sysv init, run the service check immediately
     """
     for svc in services:
         upstart_init = '/etc/init/%s.conf' % svc
@@ -339,26 +340,33 @@ def add_init_service_checks(nrpe, services, unit_name):
             if svc not in ['ext-port', 'os-charm-phy-nic-mtu']:
                 nrpe.add_check(
                     shortname=svc,
-                    description='process check {%s}' % unit_name,
+                    description='service check {%s}' % unit_name,
                     check_cmd='check_upstart_job %s' % svc
                 )
         elif os.path.exists(sysv_init):
             cronpath = '/etc/cron.d/nagios-service-check-%s' % svc
-            cron_file = ('*/5 * * * * root '
-                         '/usr/local/lib/nagios/plugins/check_exit_status.pl '
-                         '-s /etc/init.d/%s status > '
-                         '/var/lib/nagios/service-check-%s.txt\n' % (svc,
-                                                                     svc)
-                         )
+            checkpath = '/var/lib/nagios/service-check-%s.txt' % svc
+            croncmd = (
+                '/usr/local/lib/nagios/plugins/check_exit_status.pl '
+                '-s /etc/init.d/%s status' % svc
+            )
+            cron_file = '*/5 * * * * root %s > %s\n' % (croncmd, checkpath)
             f = open(cronpath, 'w')
             f.write(cron_file)
             f.close()
             nrpe.add_check(
                 shortname=svc,
-                description='process check {%s}' % unit_name,
-                check_cmd='check_status_file.py -f '
-                          '/var/lib/nagios/service-check-%s.txt' % svc,
+                description='service check {%s}' % unit_name,
+                check_cmd='check_status_file.py -f %s' % checkpath,
             )
+            if immediate_check:
+                f = open(checkpath, 'w')
+                subprocess.call(
+                    croncmd.split(),
+                    stdout=f,
+                    stderr=subprocess.STDOUT
+                )
+                f.close()
 
 
 def copy_nrpe_checks():
