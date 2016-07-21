@@ -298,13 +298,16 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
                      '/usr/lib/nagios/plugins/check_upstart_job',
                      '/etc/init.d/haproxy',
                      '/usr/lib/nagios/plugins/check_status_file.py',
+                     '/etc/cron.d/nagios-service-check-haproxy',
+                     '/var/lib/nagios/service-check-haproxy.txt',
                      ]
             return init_file in files
 
         self.patched['exists'].side_effect = _exists
         bill = nrpe.NRPE()
         services = ['apache2', 'haproxy']
-        nrpe.add_init_service_checks(bill, services, 'testunit')
+        nrpe.add_init_service_checks(bill, services, 'testunit',
+                                     immediate_check=True)
         expect_cmds = {
             'apache2': '/usr/lib/nagios/plugins/check_upstart_job apache2',
             'haproxy': '/usr/lib/nagios/plugins/check_status_file.py -f '
