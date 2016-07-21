@@ -78,10 +78,7 @@ class AmuletDeployment(object):
 
     def _deploy(self):
         """Deploy environment and wait for all hooks to finish executing."""
-        # XXX(beisner): This needs to be configurable.  As a work-around,
-        # raised the timeout from 900 to 2700 as 900 is frequently not
-        # enough time to wait.
-        timeout = 2700
+        timeout = int(os.environ.get('AMULET_SETUP_TIMEOUT') or 900)
         try:
             self.d.setup(timeout=timeout)
             self.d.sentry.wait(timeout=timeout)
