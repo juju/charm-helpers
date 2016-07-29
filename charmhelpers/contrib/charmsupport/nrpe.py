@@ -38,6 +38,7 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import service
+from charmhelpers.core import host
 
 # This module adds compatibility with the nrpe-external-master and plain nrpe
 # subordinate charms. To use it in your charm:
@@ -332,16 +333,25 @@ def add_init_service_checks(nrpe, services, unit_name):
     :param str unit_name: Unit name to use in check description
     """
     for svc in services:
+        # Don't add a check for these services from neutron-gateway
+        if svc in ['ext-port', 'os-charm-phy-nic-mtu']:
+            next
+
         upstart_init = '/etc/init/%s.conf' % svc
         sysv_init = '/etc/init.d/%s' % svc
-        if os.path.exists(upstart_init):
-            # Don't add a check for these services from neutron-gateway
-            if svc not in ['ext-port', 'os-charm-phy-nic-mtu']:
-                nrpe.add_check(
-                    shortname=svc,
-                    description='process check {%s}' % unit_name,
-                    check_cmd='check_upstart_job %s' % svc
-                )
+
+        if host.init_is_systemd():
+            nrpe.add_check(
+                shortname=svc,
+                description='process check {%s}' % unit_name,
+                check_cmd='check_systemd.py %s' % svc
+            )
+        elif os.path.exists(upstart_init):
+            nrpe.add_check(
+                shortname=svc,
+                description='process check {%s}' % unit_name,
+                check_cmd='check_upstart_job %s' % svc
+            )
         elif os.path.exists(sysv_init):
             cronpath = '/etc/cron.d/nagios-service-check-%s' % svc
             cron_file = ('*/5 * * * * root '
