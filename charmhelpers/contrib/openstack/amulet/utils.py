@@ -100,6 +100,74 @@ class OpenStackAmuletUtils(AmuletUtils):
                 return "endpoint {} does not exist".format(k)
         return ret
 
+    def validate_v3_svc_catalog_endpoint_data(self, expected, actual):
+        """Validate the keystone v3 catalog endpoint data.
+
+        Validate a list of dictinaries that make up the keystone v3 service
+        catalogue.
+
+        It is in the form of:
+
+
+        {u'identity': [{u'id': u'48346b01c6804b298cdd7349aadb732e',
+                        u'interface': u'admin',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'url': u'http://10.5.5.224:35357/v3'},
+                       {u'id': u'8414f7352a4b47a69fddd9dbd2aef5cf',
+                        u'interface': u'public',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'url': u'http://10.5.5.224:5000/v3'},
+                       {u'id': u'd5ca31440cc24ee1bf625e2996fb6a5b',
+                        u'interface': u'internal',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'url': u'http://10.5.5.224:5000/v3'}],
+         u'key-manager': [{u'id': u'68ebc17df0b045fcb8a8a433ebea9e62',
+                           u'interface': u'public',
+                           u'region': u'RegionOne',
+                           u'region_id': u'RegionOne',
+                           u'url': u'http://10.5.5.223:9311'},
+                          {u'id': u'9cdfe2a893c34afd8f504eb218cd2f9d',
+                           u'interface': u'internal',
+                           u'region': u'RegionOne',
+                           u'region_id': u'RegionOne',
+                           u'url': u'http://10.5.5.223:9311'},
+                          {u'id': u'f629388955bc407f8b11d8b7ca168086',
+                           u'interface': u'admin',
+                           u'region': u'RegionOne',
+                           u'region_id': u'RegionOne',
+                           u'url': u'http://10.5.5.223:9312'}]}
+
+        Note, that an added complication is that the order of admin, public,
+        internal against 'interface' in each region.
+
+        Thus, the function sorts the expected and actual lists using the
+        interface key as a sort key, prior to the comparison.
+        """
+        self.log.debug('Validating v3 service catalog endpoint data...')
+        self.log.debug('actual: {}'.format(repr(actual)))
+        for k, v in six.iteritems(expected):
+            if k in actual:
+                l_expected = list(sorted(v, key=lambda x: x['interface']))
+                l_actual = list(sorted(actual[k],
+                                       key=lambda x: x['interface']))
+                if len(l_actual) != len(l_expected):
+                    return ("endpoint {} has differing number of interfaces "
+                            " - expected({}), actual({})"
+                            .format(k, len(l_expected), len(l_actual)))
+                for i_expected, i_actual in zip(l_expected, l_actual):
+                    self.log.debug("checking interface {}"
+                                   .format(i['interface']))
+                    ret = self._validate_dict_data(i_expected, i_actual)
+                    if ret:
+                        return self.endpoint_error(k, ret)
+            else:
+                return "endpoint {} does not exist".format(k)
+        return ret
+
+
     def validate_tenant_data(self, expected, actual):
         """Validate tenant data.
 
