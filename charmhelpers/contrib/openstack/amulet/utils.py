@@ -83,6 +83,58 @@ class OpenStackAmuletUtils(AmuletUtils):
         if not found:
             return 'endpoint not found'
 
+    def validate_v3_endpoint_data(self, endpoints, admin_port, internal_ports,
+                                  public_port, expected):
+        """Validate keystone v3 endpoint data.
+
+        Validate the v3 endpoint data which has changed from v2.  The
+        ports are used to find the matching endpoint.
+
+        The new v3 endpoint data looks like:
+
+        [<Endpoint enabled=True,
+                   id=0432655fc2f74d1e9fa17bdaa6f6e60b,
+                   interface=admin,
+                   links={u'self': u'<RESTful URL of this endpoint>'},
+                   region=RegionOne,
+                   region_id=RegionOne,
+                   service_id=17f842a0dc084b928e476fafe67e4095,
+                   url=http://10.5.6.5:9312>,
+         <Endpoint enabled=True,
+                   id=6536cb6cb92f4f41bf22b079935c7707,
+                   interface=admin,
+                   links={u'self': u'<RESTful url of this endpoint>'},
+                   region=RegionOne,
+                   region_id=RegionOne,
+                   service_id=72fc8736fb41435e8b3584205bb2cfa3,
+                   url=http://10.5.6.6:35357/v3>,
+                   ... ]
+        """
+        self.log.debug('Validating v3 endpoint data...')
+        self.log.debug('actual: {}'.format(repr(endpoints)))
+        found = set()
+        for ep in endpoints:
+            self.log.debug('endpoint: {}'.format(repr(ep)))
+            if ep.interface in ('admin', 'internal', 'public'):
+                pass
+            if ((admin_port in ep.url and ep.interface == 'admin') or
+                    (internal_port in ep.url and ep.interface == 'internal') or
+                    (public_port in ep.url and ep.interface == 'public')):
+                found.append(ep.interface)
+                # note we ignore the links member.
+                actual = {'id': ep.id,
+                          'region': ep.region,
+                          'region_id': ep.region_id,
+                          'interface': self.not_null,
+                          'url': ep.url,
+                          'service_id': ep.service_id, }
+                ret = self._validate_dict_data(expected, actual)
+                if ret:
+                    return 'unexpected endpoint data - {}'.format(ret)
+
+        if len(found) != 3:
+            return 'Unexpected number of endpoints found'
+
     def validate_svc_catalog_endpoint_data(self, expected, actual):
         """Validate service catalog endpoint data.
 
