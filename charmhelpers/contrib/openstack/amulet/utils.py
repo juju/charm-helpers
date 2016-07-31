@@ -112,7 +112,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         """
         self.log.debug('Validating v3 endpoint data...')
         self.log.debug('actual: {}'.format(repr(endpoints)))
-        found = set()
+        found = []
         for ep in endpoints:
             self.log.debug('endpoint: {}'.format(repr(ep)))
             if ep.interface in ('admin', 'internal', 'public'):
