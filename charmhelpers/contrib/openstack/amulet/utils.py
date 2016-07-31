@@ -83,7 +83,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         if not found:
             return 'endpoint not found'
 
-    def validate_v3_endpoint_data(self, endpoints, admin_port, internal_ports,
+    def validate_v3_endpoint_data(self, endpoints, admin_port, internal_port,
                                   public_port, expected):
         """Validate keystone v3 endpoint data.
 
