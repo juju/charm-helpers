@@ -150,9 +150,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('actual: {}'.format(repr(actual)))
         for k, v in six.iteritems(expected):
             if k in actual:
-                l_expected = list(sorted(v, key=lambda x: x['interface']))
-                l_actual = list(sorted(actual[k],
-                                       key=lambda x: x['interface']))
+                l_expected = sorted(v, key=lambda x: x['interface'])
+                l_actual = sorted(actual[k], key=lambda x: x['interface'])
                 if len(l_actual) != len(l_expected):
                     return ("endpoint {} has differing number of interfaces "
                             " - expected({}), actual({})"
