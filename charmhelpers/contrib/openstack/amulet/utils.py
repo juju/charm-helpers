@@ -158,7 +158,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                             .format(k, len(l_expected), len(l_actual)))
                 for i_expected, i_actual in zip(l_expected, l_actual):
                     self.log.debug("checking interface {}"
-                                   .format(i['interface']))
+                                   .format(i_expected['interface']))
                     ret = self._validate_dict_data(i_expected, i_actual)
                     if ret:
                         return self.endpoint_error(k, ret)
