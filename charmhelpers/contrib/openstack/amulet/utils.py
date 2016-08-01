@@ -115,8 +115,6 @@ class OpenStackAmuletUtils(AmuletUtils):
         found = []
         for ep in endpoints:
             self.log.debug('endpoint: {}'.format(repr(ep)))
-            if ep.interface in ('admin', 'internal', 'public'):
-                pass
             if ((admin_port in ep.url and ep.interface == 'admin') or
                     (internal_port in ep.url and ep.interface == 'internal') or
                     (public_port in ep.url and ep.interface == 'public')):
