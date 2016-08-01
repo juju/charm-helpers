@@ -216,7 +216,6 @@ class OpenStackAmuletUtils(AmuletUtils):
                 return "endpoint {} does not exist".format(k)
         return ret
 
-
     def validate_tenant_data(self, expected, actual):
         """Validate tenant data.
 
