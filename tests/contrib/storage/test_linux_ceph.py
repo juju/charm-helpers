@@ -271,6 +271,13 @@ class CephUtilsTests(TestCase):
         pg_num = p.get_pgs(pool_size=3, percent_data=100)
         self.assertEquals(512, pg_num)
 
+        # Test small % weight with minimal OSD count (3)
+        get_osds.return_value = range(1, 3)
+        self.test_config.set('expected-osd-count', None)
+        self.test_config.set('pgs-per-osd', None)
+        pg_num = p.get_pgs(pool_size=3, percent_data=0.1)
+        self.assertEquals(2, pg_num)
+
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_old_ceph(self, get_osds):
         get_osds.return_value = None
