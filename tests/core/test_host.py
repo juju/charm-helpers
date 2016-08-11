@@ -1649,8 +1649,7 @@ class HelpersTest(TestCase):
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
 
     @patch.object(osplatform, 'get_platform')
-    @patch('yum.YumBase.doPackageLists')
-    def test_cmp_pkgrevno_revnos_centos(self, yumBase, platform):
+    def test_cmp_pkgrevno_revnos_centos(self, platform):
         platform.return_value = 'centos'
         imp.reload(host)
 
@@ -1664,7 +1663,10 @@ class HelpersTest(TestCase):
                 MockPackage('python', '2.4')
             }
         }
-        yumBase.return_value = yum_dict
+
+        import yum
+        yum.YumBase.return_value.doPackageLists.return_value = (
+            yum_dict)
 
         self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)

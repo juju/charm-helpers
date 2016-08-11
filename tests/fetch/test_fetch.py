@@ -90,7 +90,8 @@ class FetchTest(TestCase):
                 MockPackage('vim')
             }
         }
-        yumBase.return_value = yum_dict
+        import yum
+        yum.YumBase.return_value.doPackageLists.return_value = yum_dict
         result = fetch.filter_installed_packages(['vim', 'emacs'])
         self.assertEquals(result, ['emacs'])
 
@@ -106,9 +107,8 @@ class FetchTest(TestCase):
         self.assertEquals(result, [])
 
     @patch("charmhelpers.fetch.centos.log")
-    @patch('yum.YumBase.doPackageLists')
     @patch.object(osplatform, 'get_platform')
-    def test_filter_packages_none_missing_centos(self, platform, yumBase, log):
+    def test_filter_packages_none_missing_centos(self, platform, log):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
@@ -124,7 +124,8 @@ class FetchTest(TestCase):
                 MockPackage('vim')
             }
         }
-        yumBase.return_value = yum_dict
+        import yum
+        yum.yumBase.return_value.doPackageLists.return_value = yum_dict
         result = fetch.filter_installed_packages(['vim'])
         self.assertEquals(result, [])
 
@@ -156,17 +157,13 @@ class FetchTest(TestCase):
         yum_dict = {
             'installed': {
                 MockPackage('vim')
-            },
-            'available': {
-                MockPackage('vim')
             }
         }
-        yumBase.return_value = yum_dict
+        import yum
+        yum.YumBase.return_value.doPackageLists.return_value = yum_dict
 
         result = fetch.filter_installed_packages(['vim', 'joe'])
         self.assertEquals(result, ['joe'])
-        log.assert_called_with('Package joe has no installation candidate.',
-                               level='WARNING')
 
     @patch.object(osplatform, 'get_platform')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -558,11 +555,12 @@ class FetchTest(TestCase):
         ]
         self.assertRaises(fetch.SourceConfigError, fetch.configure_sources)
 
-    @patch.object(fetch, 'update')
+    @patch.object(osplatform, 'get_platform')
+    @patch('charmhelpers.fetch.ubuntu.update')
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
-    def test_configure_sources_apt_update_called(self, add_source, config,
-                                                 update):
+    def test_configure_sources_update_called_ubuntu(self, add_source, config,
+                                                    update, platform):
         config.side_effect = ['source', 'key']
         fetch.configure_sources(update=True)
         add_source.assert_called_with('source', 'key')
@@ -665,7 +663,8 @@ class PluginTest(TestCase):
     @patch('charmhelpers.fetch.importlib.import_module')
     def test_skips_and_logs_missing_plugins(self, import_, log_):
         fetch_handlers = ['a.foo', 'b.foo', 'c.foo']
-        import_.side_effect = (NotImplementedError, NotImplementedError, MagicMock())
+        import_.side_effect = (NotImplementedError, NotImplementedError,
+                               MagicMock())
         plugins = fetch.plugins(fetch_handlers)
 
         self.assertEqual(1, len(plugins))

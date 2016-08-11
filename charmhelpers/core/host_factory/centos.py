@@ -1,15 +1,18 @@
 import subprocess
 import yum
-
-from charmhelpers.core.host import service
-
-
-def service_available_host(service_name):
-    """Determine whether a system service is available."""
-    return service('is-enabled', service_name)
+import os
 
 
-def add_group_host(group_name, system_group=False, gid=None):
+def service_available(service_name):
+    # """Determine whether a system service is available."""
+    if os.path.isdir('/run/systemd/system'):
+        cmd = ['systemctl', 'is-enabled', service_name]
+    else:
+        cmd = ['service', service_name, 'is-enabled']
+    return subprocess.call(cmd) == 0
+
+
+def add_new_group(group_name, system_group=False, gid=None):
     cmd = ['groupadd']
     if gid:
         cmd.extend(['--gid', str(gid)])
@@ -19,19 +22,19 @@ def add_group_host(group_name, system_group=False, gid=None):
     subprocess.check_call(cmd)
 
 
-def lsb_release_host():
+def lsb_release():
     """Return /etc/os-release in a dict."""
     d = {}
     with open('/etc/os-release', 'r') as lsb:
         for l in lsb:
-            if len(l.split('=')) != 2:
+            s = l.split('=')
+            if len(s) != 2:
                 continue
-            k, v = l.split('=')
-            d[k.strip()] = v.strip()
+            d[s[0].strip()] = s[1].strip()
     return d
 
 
-def cmp_pkgrevno_host(package, revno, pkgcache=None):
+def cmp_pkgrevno(package, revno, pkgcache=None):
     """Compare supplied revno with the revno of the installed package.
 
     *  1 => Installed revno is greater than supplied arg
@@ -44,10 +47,7 @@ def cmp_pkgrevno_host(package, revno, pkgcache=None):
     if not pkgcache:
         y = yum.YumBase()
         packages = y.doPackageLists()
-        pck = {}
-        for i in packages["installed"]:
-            pck[i.Name] = i.version
-            pkgcache = pck
+        pkgcache = {i.Name: i.version for i in packages['installed']}
     pkg = pkgcache[package]
     if pkg > revno:
         return 1

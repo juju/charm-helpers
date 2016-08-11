@@ -29,24 +29,10 @@ YUM_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
 def filter_installed_packages(packages):
     """Return a list of packages that require installation."""
     yb = yum.YumBase()
-    temp_cache = []
     package_list = yb.doPackageLists()
-    for package in package_list['installed']:
-        temp_cache.append(package.base_package_name)
+    temp_cache = {p.base_package_name: 1 for p in package_list['installed']}
 
-    # If each package has a candidate then return the list of packages
-    # that require installation
-    for package in packages:
-        for each in package_list['available']:
-            if package not in each.base_package_name:
-                log('Package {} has no installation '
-                    'candidate.'.format(package), level='WARNING')
-                break
-
-    _pkgs = []
-    for package in packages:
-        if package not in temp_cache:
-            _pkgs.append(package)
+    _pkgs = [p for p in packages if not temp_cache.get(p, False)]
     return _pkgs
 
 
@@ -104,10 +90,7 @@ def yum_search(packages):
     log("Searching for {}".format(packages))
     result = subprocess.check_output(cmd)
     for package in list(packages):
-        if package not in result:
-            output[package] = False
-        else:
-            output[package] = True
+        output[package] = package in result
     return output
 
 
@@ -128,17 +111,13 @@ def add_source(source, key=None):
         return
 
     if source.startswith('http'):
-        log("Add source: {!r}".format(source))
-
-        found = False
-        # search if already exists
         directory = '/etc/yum.repos.d/'
         for filename in os.listdir(directory):
             with open(directory + filename, 'r') as rpm_file:
-                if source in rpm_file:
-                    found = True
-
-        if not found:
+                if source in rpm_file.read():
+                    break
+        else:
+            log("Add source: {!r}".format(source))
             # write in the charms.repo
             with open(directory + 'Charms.repo', 'a') as rpm_file:
                 rpm_file.write('[%s]\n' % source[7:].replace('/', '_'))

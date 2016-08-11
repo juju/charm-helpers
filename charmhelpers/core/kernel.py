@@ -15,8 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
-
 import re
 import subprocess
 
@@ -29,14 +27,16 @@ from charmhelpers.core.hookenv import (
 __platform__ = get_platform()
 if __platform__ == "ubuntu":
     from charmhelpers.core.kernel_factory.ubuntu import (
-        modprobe_kernel,
-        update_initramfs_kernel,
-    )
+        persistent_modprobe,
+        update_initramfs,
+    )  # flake8: noqa -- ignore F401 for this import
 elif __platform__ == "centos":
     from charmhelpers.core.kernel_factory.centos import (
-        modprobe_kernel,
-        update_initramfs_kernel,
-    )
+        persistent_modprobe,
+        update_initramfs,
+    )  # flake8: noqa -- ignore F401 for this import
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 
 def modprobe(module, persist=True):
@@ -46,7 +46,8 @@ def modprobe(module, persist=True):
     log('Loading kernel module %s' % module, level=INFO)
 
     subprocess.check_call(cmd)
-    modprobe_kernel(module, persist)
+    if persist:
+        persistent_modprobe(module)
 
 
 def rmmod(module, force=False):
@@ -69,6 +70,3 @@ def is_module_loaded(module):
     """Checks if a kernel module is already loaded"""
     matches = re.findall('^%s[ ]+' % module, lsmod(), re.M)
     return len(matches) > 0
-
-
-update_initramfs = update_initramfs_kernel
