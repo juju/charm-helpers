@@ -1,7 +1,7 @@
 import subprocess
 
 
-def service_available_host(service_name):
+def service_available(service_name):
     """Determine whether a system service is available"""
     try:
         subprocess.check_output(
@@ -13,7 +13,7 @@ def service_available_host(service_name):
         return True
 
 
-def add_group_host(group_name, system_group=False, gid=None):
+def add_new_group(group_name, system_group=False, gid=None):
     cmd = ['addgroup']
     if gid:
         cmd.extend(['--gid', str(gid)])
@@ -27,7 +27,7 @@ def add_group_host(group_name, system_group=False, gid=None):
     subprocess.check_call(cmd)
 
 
-def lsb_release_host():
+def lsb_release():
     """Return /etc/lsb-release in a dict"""
     d = {}
     with open('/etc/lsb-release', 'r') as lsb:
@@ -37,7 +37,7 @@ def lsb_release_host():
     return d
 
 
-def cmp_pkgrevno_host(package, revno, pkgcache=None):
+def cmp_pkgrevno(package, revno, pkgcache=None):
     """Compare supplied revno with the revno of the installed package.
 
     *  1 => Installed revno is greater than supplied arg

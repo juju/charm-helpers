@@ -102,7 +102,7 @@ def configure_sources(update=False,
     """Configure multiple sources from charm configuration.
 
     The lists are encoded as yaml fragments in the configuration.
-    The frament needs to be included as a string. Sources and their
+    The fragment needs to be included as a string. Sources and their
     corresponding keys are of the types supported by add_source().
 
     Example config:
@@ -134,10 +134,7 @@ def configure_sources(update=False,
         for source, key in zip(sources, keys):
             add_source(source, key)
     if update:
-        def call_update():
-            global update
-            update(fatal=True)
-        call_update()
+        fetch.update(fatal=True)
 
 
 def install_remote(source, *args, **kwargs):

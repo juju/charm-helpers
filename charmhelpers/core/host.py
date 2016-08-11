@@ -30,11 +30,10 @@ import subprocess
 import hashlib
 import functools
 import itertools
-from contextlib import contextmanager
-from collections import OrderedDict
-
 import six
 
+from contextlib import contextmanager
+from collections import OrderedDict
 from .hookenv import log
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
@@ -42,22 +41,18 @@ from charmhelpers.osplatform import get_platform
 __platform__ = get_platform()
 if __platform__ == "ubuntu":
     from charmhelpers.core.host_factory.ubuntu import (
-        service_available_host,
-        add_group_host,
-        lsb_release_host,
-        cmp_pkgrevno_host,
-    )
+        service_available,
+        add_new_group,
+        lsb_release,
+        cmp_pkgrevno,
+    )  # flake8: noqa -- ignore F401 for this import
 elif __platform__ == "centos":
     from charmhelpers.core.host_factory.centos import (
-        service_available_host,
-        add_group_host,
-        lsb_release_host,
-        cmp_pkgrevno_host,
-    )
-
-service_available = service_available_host
-lsb_release = lsb_release_host
-cmp_pkgrevno = cmp_pkgrevno_host
+        service_available,
+        add_new_group,
+        lsb_release,
+        cmp_pkgrevno,
+    )  # flake8: noqa -- ignore F401 for this import
 
 
 def service_start(service_name):
@@ -299,7 +294,7 @@ def add_group(group_name, system_group=False, gid=None):
             log('group with gid {0} already exists!'.format(gid))
     except KeyError:
         log('creating group {0}'.format(group_name))
-        add_group_host(group_name, system_group, gid)
+        add_new_group(group_name, system_group, gid)
         group_info = grp.getgrnam(group_name)
     return group_info
 
