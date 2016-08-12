@@ -1062,47 +1062,41 @@ class AptTests(TestCase):
 
 class YumTests(TestCase):
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
-    def test_yum_upgrade_non_fatal(self, log, mock_call, platform, env):
+    def test_yum_upgrade_non_fatal(self, log, mock_call, platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         options = ['--foo', '--bar']
         fetch.upgrade(options)
 
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       '--foo', '--bar', 'upgrade'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
-    def test_yum_upgrade_fatal(self, log, mock_call, platform, env):
+    def test_yum_upgrade_fatal(self, log, mock_call, platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         options = ['--foo', '--bar']
         fetch.upgrade(options, fatal=True)
 
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       '--foo', '--bar', 'upgrade'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
-    def test_installs_yum_packages(self, log, mock_call, platform, env):
+    def test_installs_yum_packages(self, log, mock_call, platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         packages = ['foo', 'bar']
         options = ['--foo', '--bar']
 
@@ -1111,52 +1105,46 @@ class YumTests(TestCase):
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       '--foo', '--bar', 'install',
                                       'foo', 'bar'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
     def test_installs_yum_packages_without_options(self, log, mock_call,
-                                                   platform, env):
+                                                   platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         packages = ['foo', 'bar']
         fetch.install(packages)
 
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       'install', 'foo', 'bar'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
     def test_installs_yum_packages_as_string(self, log, mock_call,
-                                             platform, env):
+                                             platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         packages = 'foo bar'
         fetch.install(packages)
 
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       'install', 'foo bar'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
     def test_installs_yum_packages_with_possible_errors(self, log, mock_call,
-                                                        platform, env):
+                                                        platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         packages = ['foo', 'bar']
         options = ['--foo', '--bar']
 
@@ -1165,13 +1153,13 @@ class YumTests(TestCase):
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       '--foo', '--bar',
                                       'install', 'foo', 'bar'],
-                                     env='testing')
+                                     env=getenv())
 
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.centos.log')
-    def test_purges_yum_packages_as_string_fatal(self, log,
-                                                 mock_call, platform):
+    def test_purges_yum_packages_as_string_fatal(self, log, mock_call,
+                                                 platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
@@ -1194,54 +1182,48 @@ class YumTests(TestCase):
         self.assertRaises(OSError, fetch.purge, packages, fatal=True)
         self.assertTrue(log.called)
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
     def test_purges_yum_packages_as_string_nofatal(self, log, mock_call,
-                                                   platform, env):
+                                                   platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         packages = 'foo bar'
         fetch.purge(packages)
 
         self.assertTrue(log.called)
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       'remove', 'foo bar'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.centos.log')
     def test_purges_yum_packages_nofatal(self, log, mock_call,
-                                         platform, env):
+                                         platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         packages = ['foo', 'bar']
         fetch.purge(packages)
 
         self.assertTrue(log.called)
         mock_call.assert_called_with(['yum', '--assumeyes',
                                       'remove', 'foo', 'bar'],
-                                     env='testing')
+                                     env=getenv())
 
-    @patch('os.environ.copy')
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.centos.log')
-    def test_yum_update_fatal(self, log, check_call, platform, env):
+    def test_yum_update_fatal(self, log, check_call, platform):
         platform.return_value = 'centos'
         imp.reload(fetch)
 
-        env.return_value = 'testing'
         fetch.update(fatal=True)
         check_call.assert_called_with(['yum', '--assumeyes', 'update'],
-                                      env='testing')
+                                      env=getenv())
         self.assertTrue(log.called)
 
     @patch.object(osplatform, 'get_platform')
