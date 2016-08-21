@@ -1,4 +1,6 @@
+import io
 import subprocess
+import tempfile
 
 from tests.helpers import patch_open
 from testtools import TestCase
@@ -7,6 +9,7 @@ from mock import (
     MagicMock,
     call,
     sentinel,
+    ANY,
 )
 from charmhelpers import fetch
 import os
@@ -29,6 +32,21 @@ FAKE_APT_CACHE = {
     'emacs': {
     }
 }
+
+PGP_KEY_ASCII_ARMOR = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: SKS 1.1.5
+Comment: Hostname: keyserver.ubuntu.com
+
+mI0EUCEyTAEEAMuUxyfiegCCwn4J/c0nw5PUTSJdn5FqiUTq6iMfij65xf1vl0g/Mxqw0gfg
+AJIsCDvO9N9dloLAwF6FUBMg5My7WyhRPTAKF505TKJboyX3Pp4J1fU1LV8QFVOp87vUh1Rz
+B6GU7cSglhnbL85gmbJTllkzkb3h4Yw7W+edjcQ/ABEBAAG0K0xhdW5jaHBhZCBQUEEgZm9y
+IFVidW50dSBDbG91ZCBBcmNoaXZlIFRlYW2IuAQTAQIAIgUCUCEyTAIbAwYLCQgHAwIGFQgC
+CQoLBBYCAwECHgECF4AACgkQimhEop9oEE7kJAP/eTBgq3Mhbvo0d8elMOuqZx3nmU7gSyPh
+ep0zYIRZ5TJWl/7PRtvp0CJA6N6ZywYTQ/4ANHhpibcHZkh8K0AzUvsGXnJRSFoJeqyDbD91
+EhoO+4ZfHs2HvRBQEDZILMa2OyuB497E5Mmyua3HDEOrG2cVLllsUZzpTFCx8NgeMHk=
+=jLBm
+-----END PGP PUBLIC KEY BLOCK-----
+"""
 
 
 def fake_apt_cache(in_memory=True, progress=None):
@@ -79,6 +97,42 @@ class FetchTest(TestCase):
         log.assert_called_with('Package joe has no installation candidate.',
                                level='WARNING')
 
+    @patch.object(fetch, 'log', lambda *args, **kwargs: None)
+    def test_import_apt_key_radix(self):
+        '''Ensure shell out apt-key during key import'''
+        with patch('subprocess.check_call') as _subp:
+            fetch.import_key('foo')
+            cmd = ['apt-key', 'adv', '--keyserver',
+                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
+            _subp.assert_called_with(cmd)
+
+    @patch.object(fetch, 'log', lambda *args, **kwargs: None)
+    def test_import_apt_key_ascii_armor(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            with patch.object(fetch, 'NamedTemporaryFile') as mock_tmpfile:
+                tmpfile = mock_tmpfile.return_value
+                tmpfile.__enter__.return_value = tmpfile
+                tmpfile.name = tmp.name
+                with patch('subprocess.check_call') as _subp:
+                    fetch.import_key(PGP_KEY_ASCII_ARMOR)
+                    cmd = ['apt-key', 'add', tmp.name]
+                    _subp.assert_called_with(cmd)
+                with open(tmp.name, 'r') as f:
+                    self.assertEqual(PGP_KEY_ASCII_ARMOR, f.read())
+
+    @patch.object(fetch, 'log', lambda *args, **kwargs: None)
+    def test_import_bad_apt_key(self):
+        """Ensure error when importing apt key fails"""
+        with patch('subprocess.check_call') as _subp:
+            cmd = ['apt-key', 'adv', '--keyserver',
+                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
+            _subp.side_effect = subprocess.CalledProcessError(1, cmd, '')
+            try:
+                fetch.import_key('foo')
+                assert False
+            except RuntimeError as re:
+                self.assertEqual(str(re), "Error importing PGP key 'foo'")
+
     @patch.object(fetch, 'log')
     def test_add_source_none(self, log):
         fetch.add_source(source=None)
@@ -112,12 +166,14 @@ class FetchTest(TestCase):
     def test_add_source_deb(self, check_call):
         """add-apt-repository behaves differently when using the deb prefix.
 
-        $ add-apt-repository --yes "http://special.example.com/ubuntu precise-special main"
+        $ add-apt-repository --yes \
+            "http://special.example.com/ubuntu precise-special main"
         $ grep special /etc/apt/sources.list
         deb http://special.example.com/ubuntu precise precise-special main
         deb-src http://special.example.com/ubuntu precise precise-special main
 
-        $ add-apt-repository --yes "deb http://special.example.com/ubuntu precise-special main"
+        $ add-apt-repository --yes \
+            "deb http://special.example.com/ubuntu precise-special main"
         $ grep special /etc/apt/sources.list
         deb http://special.example.com/ubuntu precise precise-special main
         deb-src http://special.example.com/ubuntu precise precise-special main
@@ -130,56 +186,30 @@ class FetchTest(TestCase):
                                        '--yes',
                                        source])
 
-    @patch.object(fetch, 'filter_installed_packages')
-    @patch.object(fetch, 'apt_install')
-    def test_add_source_cloud_invalid_pocket(self, apt_install, filter_pkg):
-        source = "cloud:havana-updates"
-        self.assertRaises(fetch.SourceConfigError, fetch.add_source, source)
-        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
-
-    @patch.object(fetch, 'filter_installed_packages')
-    @patch.object(fetch, 'apt_install')
-    def test_add_source_cloud_pocket_style(self, apt_install, filter_pkg):
-        source = "cloud:precise-updates/havana"
-        result = '''# Ubuntu Cloud Archive
-deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/havana main
-'''
+    @patch.object(fetch, 'lsb_release')
+    @patch('platform.machine')
+    def test_add_source_proposed_x86_64(self, _machine, lsb_release):
+        source = "proposed"
+        result = (
+            "# Proposed\n"
+            "deb http://archive.ubuntu.com/ubuntu precise-proposed main "
+            "universe multiverse restricted\n")
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        _machine.return_value = 'x86_64'
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
-        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
-
-    @patch.object(fetch, 'filter_installed_packages')
-    @patch.object(fetch, 'apt_install')
-    def test_add_source_cloud_os_style(self, apt_install, filter_pkg):
-        source = "cloud:precise-havana"
-        result = '''# Ubuntu Cloud Archive
-deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/havana main
-'''
-        with patch_open() as (mock_open, mock_file):
-            fetch.add_source(source=source)
-            mock_file.write.assert_called_with(result)
-        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
-
-    @patch.object(fetch, 'filter_installed_packages')
-    @patch.object(fetch, 'apt_install')
-    def test_add_source_cloud_distroless_style(self, apt_install, filter_pkg):
-        source = "cloud:havana"
-        result = '''# Ubuntu Cloud Archive
-deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/havana main
-'''
-        with patch_open() as (mock_open, mock_file):
-            fetch.add_source(source=source)
-            mock_file.write.assert_called_with(result)
-        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch.object(fetch, 'lsb_release')
-    def test_add_source_proposed(self, lsb_release):
+    @patch('platform.machine')
+    def test_add_source_proposed_ppc64le(self, _machine, lsb_release):
         source = "proposed"
-        result = """# Proposed
-deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse restricted
-"""
+        result = (
+            "# Proposed\n"
+            "deb http://ports.ubuntu.com/ubuntu-ports precise-proposed main "
+            "universe multiverse restricted\n")
         lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        _machine.return_value = 'ppc64le'
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
@@ -192,7 +222,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
             call(['apt-key', 'adv', '--keyserver',
-                  'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
+                  'hkp://keyserver.ubuntu.com:80', '--recv-keys', key_id])
         ])
 
     @patch('subprocess.check_call')
@@ -203,7 +233,7 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
             call(['apt-key', 'adv', '--keyserver',
-                  'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
+                  'hkp://keyserver.ubuntu.com:80', '--recv-keys', key_id])
         ])
 
     @patch('subprocess.check_call')
@@ -214,22 +244,10 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
             [...]
             -----END PGP PUBLIC KEY BLOCK-----
             '''
-
-        received_args = []
-        received_key = StringIO()
-
-        def _check_call(arg, stdin=None):
-            '''side_effect to store the stdin passed to check_call process.'''
-            if stdin is not None:
-                received_args.extend(arg)
-                received_key.write(stdin.read())
-
-        with patch('subprocess.check_call',
-                   side_effect=_check_call) as check_call:
+        with patch('subprocess.check_call') as check_call:
             fetch.add_source(source=source, key=key)
             check_call.assert_any_call(['add-apt-repository', '--yes', source])
-            self.assertEqual(['apt-key', 'add', '-'], received_args)
-            self.assertEqual(key, received_key.getvalue())
+            check_call.assert_any_call(['apt-key', 'add', ANY])
 
     @patch('charmhelpers.fetch.log')
     def test_add_unparsable_source(self, log_):

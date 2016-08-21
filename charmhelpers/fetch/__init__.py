@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import OrderedDict
 import importlib
+import os
+import platform
+import re
+import subprocess
+import sys
 from tempfile import NamedTemporaryFile
 import time
 from yaml import safe_load
-from charmhelpers.core.host import (
-    lsb_release
-)
-import subprocess
-from charmhelpers.core.hookenv import (
-    config,
-    log,
-)
-import os
 
 import six
 if six.PY3:
@@ -32,88 +29,29 @@ if six.PY3:
 else:
     from urlparse import urlparse, urlunparse
 
+from charmhelpers.core.host import (
+    lsb_release
+)
+from charmhelpers.core.hookenv import (
+    config,
+    log,
+    DEBUG,
+)
+from charmhelpers.utils import deprecate
 
-CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
-deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
-"""
-PROPOSED_POCKET = """# Proposed
-deb http://archive.ubuntu.com/ubuntu {}-proposed main universe multiverse restricted
-"""
-CLOUD_ARCHIVE_POCKETS = {
-    # Folsom
-    'folsom': 'precise-updates/folsom',
-    'precise-folsom': 'precise-updates/folsom',
-    'precise-folsom/updates': 'precise-updates/folsom',
-    'precise-updates/folsom': 'precise-updates/folsom',
-    'folsom/proposed': 'precise-proposed/folsom',
-    'precise-folsom/proposed': 'precise-proposed/folsom',
-    'precise-proposed/folsom': 'precise-proposed/folsom',
-    # Grizzly
-    'grizzly': 'precise-updates/grizzly',
-    'precise-grizzly': 'precise-updates/grizzly',
-    'precise-grizzly/updates': 'precise-updates/grizzly',
-    'precise-updates/grizzly': 'precise-updates/grizzly',
-    'grizzly/proposed': 'precise-proposed/grizzly',
-    'precise-grizzly/proposed': 'precise-proposed/grizzly',
-    'precise-proposed/grizzly': 'precise-proposed/grizzly',
-    # Havana
-    'havana': 'precise-updates/havana',
-    'precise-havana': 'precise-updates/havana',
-    'precise-havana/updates': 'precise-updates/havana',
-    'precise-updates/havana': 'precise-updates/havana',
-    'havana/proposed': 'precise-proposed/havana',
-    'precise-havana/proposed': 'precise-proposed/havana',
-    'precise-proposed/havana': 'precise-proposed/havana',
-    # Icehouse
-    'icehouse': 'precise-updates/icehouse',
-    'precise-icehouse': 'precise-updates/icehouse',
-    'precise-icehouse/updates': 'precise-updates/icehouse',
-    'precise-updates/icehouse': 'precise-updates/icehouse',
-    'icehouse/proposed': 'precise-proposed/icehouse',
-    'precise-icehouse/proposed': 'precise-proposed/icehouse',
-    'precise-proposed/icehouse': 'precise-proposed/icehouse',
-    # Juno
-    'juno': 'trusty-updates/juno',
-    'trusty-juno': 'trusty-updates/juno',
-    'trusty-juno/updates': 'trusty-updates/juno',
-    'trusty-updates/juno': 'trusty-updates/juno',
-    'juno/proposed': 'trusty-proposed/juno',
-    'trusty-juno/proposed': 'trusty-proposed/juno',
-    'trusty-proposed/juno': 'trusty-proposed/juno',
-    # Kilo
-    'kilo': 'trusty-updates/kilo',
-    'trusty-kilo': 'trusty-updates/kilo',
-    'trusty-kilo/updates': 'trusty-updates/kilo',
-    'trusty-updates/kilo': 'trusty-updates/kilo',
-    'kilo/proposed': 'trusty-proposed/kilo',
-    'trusty-kilo/proposed': 'trusty-proposed/kilo',
-    'trusty-proposed/kilo': 'trusty-proposed/kilo',
-    # Liberty
-    'liberty': 'trusty-updates/liberty',
-    'trusty-liberty': 'trusty-updates/liberty',
-    'trusty-liberty/updates': 'trusty-updates/liberty',
-    'trusty-updates/liberty': 'trusty-updates/liberty',
-    'liberty/proposed': 'trusty-proposed/liberty',
-    'trusty-liberty/proposed': 'trusty-proposed/liberty',
-    'trusty-proposed/liberty': 'trusty-proposed/liberty',
-    # Mitaka
-    'mitaka': 'trusty-updates/mitaka',
-    'trusty-mitaka': 'trusty-updates/mitaka',
-    'trusty-mitaka/updates': 'trusty-updates/mitaka',
-    'trusty-updates/mitaka': 'trusty-updates/mitaka',
-    'mitaka/proposed': 'trusty-proposed/mitaka',
-    'trusty-mitaka/proposed': 'trusty-proposed/mitaka',
-    'trusty-proposed/mitaka': 'trusty-proposed/mitaka',
-    # Newton
-    'newton': 'xenial-updates/newton',
-    'xenial-newton': 'xenial-updates/newton',
-    'xenial-newton/updates': 'xenial-updates/newton',
-    'xenial-updates/newton': 'xenial-updates/newton',
-    'newton/proposed': 'xenial-proposed/newton',
-    'xenial-newton/proposed': 'xenial-proposed/newton',
-    'xenial-proposed/newton': 'xenial-proposed/newton',
+PROPOSED_POCKET = (
+    "# Proposed\n"
+    "deb http://archive.ubuntu.com/ubuntu {}-proposed main universe "
+    "multiverse restricted\n")
+PROPOSED_PORTS_POCKET = (
+    "# Proposed\n"
+    "deb http://ports.ubuntu.com/ubuntu-ports {}-proposed main universe "
+    "multiverse restricted\n")
+# Only supports 64bit and ppc64 at the moment.
+ARCH_TO_PROPOSED_POCKET = {
+    'x86_64': PROPOSED_POCKET,
+    'ppc64le': PROPOSED_PORTS_POCKET,
 }
-
 # The order of this list is very important. Handlers should be listed in from
 # least- to most-specific URL matching.
 FETCH_HANDLERS = (
@@ -260,7 +198,45 @@ def apt_unhold(packages, fatal=False):
     return apt_mark(packages, 'unhold', fatal=fatal)
 
 
-def add_source(source, key=None):
+def import_key(keyid):
+    """Import a key in either ASCII Armor or Radix64 format.
+
+    `keyid` is either the keyid to fetch from a PGP server, or
+    the key in ASCII armor foramt.
+
+    :param keyid: String of key (or key id).
+    :raises: RuntimeError if the key could not be imported
+    """
+    key = keyid.strip()
+    if (key.startswith('-----BEGIN PGP PUBLIC KEY BLOCK-----') and
+            key.endswith('-----END PGP PUBLIC KEY BLOCK-----')):
+        log("PGP key found (looks like ASCII Armor format)", level=DEBUG)
+        log("Importing ASCII Armor PGP key", level=DEBUG)
+        with NamedTemporaryFile() as keyfile:
+            with open(keyfile.name, 'w') as fd:
+                fd.write(key)
+                fd.write("\n")
+            cmd = ['apt-key', 'add', keyfile.name]
+            try:
+                subprocess.check_call(cmd)
+            except subprocess.CalledProcessError:
+                error = "Error importing PGP key '{}'".format(key)
+                log(error)
+                raise RuntimeError(error)
+    else:
+        log("PGP key found (looks like Radix64 format)", level=DEBUG)
+        log("Importing PGP key from keyserver", level=DEBUG)
+        cmd = ['apt-key', 'adv', '--keyserver',
+               'hkp://keyserver.ubuntu.com:80', '--recv-keys', key]
+        try:
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError:
+            error = "Error importing PGP key '{}'".format(key)
+            log(error)
+            raise RuntimeError(error)
+
+
+def add_source(source, key=None, fail_invalid=False):
     """Add a package source to this system.
 
     @param source: a URL or sources.list entry, as supported by
@@ -276,6 +252,25 @@ def add_source(source, key=None):
         such as 'cloud:icehouse'
         'distro' may be used as a noop
 
+    Full list of source specifications supported by the function are:
+
+    'distro': A NOP; i.e. it has no effect.
+    'proposed': the proposed deb spec [2] is wrtten to
+      /etc/apt/sources.list/proposed
+    'ppa:<ppa-name>': add-apt-repository --yes <ppa_name>
+    'deb <deb-spec>': add-apt-repository --yes deb <deb-spec>
+    'http://....': add-apt-repository --yes http://...
+    'cloud-archive:<spec>': add-apt-repository -yes cloud-archive:<spec>
+
+    Otherwise the source is not recognised and this is logged to the juju log.
+    However, no error is raised, unless sys_error_on_exit is True.
+
+    [1] deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
+        where {} is replaced with the derived pocket name.
+    [2] deb http://archive.ubuntu.com/ubuntu {}-proposed \
+        main universe multiverse restricted
+        where {} is replaced with the lsb_release codename (e.g. xenial)
+
     @param key: A key to be added to the system's APT keyring and used
     to verify the signatures on packages. Ideally, this should be an
     ASCII format GPG public key including the block headers. A GPG key
@@ -283,50 +278,66 @@ def add_source(source, key=None):
     available to retrieve the actual public key from a public keyserver
     placing your Juju environment at risk. ppa and cloud archive keys
     are securely added automtically, so sould not be provided.
+
+    @param fail_invalid: (boolean) if True, then the function raises a
+    SourceConfigError is there is no matching installation source.
+
+    @raises SourceConfigError() if for cloud:<pocket>, the <pocket> is not a
+    valid pocket in CLOUD_ARCHIVE_POCKETS, unless sys_exit_on_error is True, in
+    which case the error is logged and the sys.exit(1) is called.
     """
+    _mapping = OrderedDict([
+        (r"^distro$", lambda: None),  # This is a NOP
+        (r"^(?:proposed|distro-proposed)$", _add_proposed),
+        (r"^cloud-archive:(.*)$", _add_apt_repository),
+        (r"^((?:deb |http:|https:|ppa:).*)$", _add_apt_repository),
+    ])
     if source is None:
-        log('Source is not present. Skipping')
-        return
-
-    if (source.startswith('ppa:') or
-        source.startswith('http') or
-        source.startswith('deb ') or
-            source.startswith('cloud-archive:')):
-        subprocess.check_call(['add-apt-repository', '--yes', source])
-    elif source.startswith('cloud:'):
-        apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
-                    fatal=True)
-        pocket = source.split(':')[-1]
-        if pocket not in CLOUD_ARCHIVE_POCKETS:
-            raise SourceConfigError(
-                'Unsupported cloud: source option %s' %
-                pocket)
-        actual_pocket = CLOUD_ARCHIVE_POCKETS[pocket]
-        with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
-            apt.write(CLOUD_ARCHIVE.format(actual_pocket))
-    elif source == 'proposed':
-        release = lsb_release()['DISTRIB_CODENAME']
-        with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
-            apt.write(PROPOSED_POCKET.format(release))
-    elif source == 'distro':
-        pass
+        source = ''
+    for r, fn in six.iteritems(_mapping):
+        m = re.match(r, source)
+        if m:
+            # call the assoicated function with the captured groups
+            # raises SourceConfigError on error.
+            fn(*m.groups())
+            if key:
+                try:
+                    import_key(key)
+                except RuntimeError as e:
+                    raise SourceConfigError(str(e))
+            break
     else:
-        log("Unknown source: {!r}".format(source))
+        # nothing matched.  log an error and maybe sys.exit
+        err = "Unknown source: {!r}".format(source)
+        log(err)
+        if fail_invalid:
+            raise SourceConfigError(err)
 
-    if key:
-        if '-----BEGIN PGP PUBLIC KEY BLOCK-----' in key:
-            with NamedTemporaryFile('w+') as key_file:
-                key_file.write(key)
-                key_file.flush()
-                key_file.seek(0)
-                subprocess.check_call(['apt-key', 'add', '-'], stdin=key_file)
-        else:
-            # Note that hkp: is in no way a secure protocol. Using a
-            # GPG key id is pointless from a security POV unless you
-            # absolutely trust your network and DNS.
-            subprocess.check_call(['apt-key', 'adv', '--keyserver',
-                                   'hkp://keyserver.ubuntu.com:80', '--recv',
-                                   key])
+
+def _add_proposed():
+    """Add the PROPOSED_POCKET as /etc/apt/source.list.d/proposed.list
+
+    Uses lsb_release()['DISTRIB_CODENAME'] to determine the correct staza for
+    the deb line.
+
+    For intel architecutres PROPOSED_POCKET is used for the release, but for
+    other architectures PROPOSED_PORTS_POCKET is used for the release.
+    """
+    release = lsb_release()['DISTRIB_CODENAME']
+    arch = platform.machine()
+    if arch not in six.iterkeys(ARCH_TO_PROPOSED_POCKET):
+        raise SourceConfigError("Arch {} not supported for (distro-)proposed"
+                                .format(arch))
+    with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
+        apt.write(ARCH_TO_PROPOSED_POCKET[arch].format(release))
+
+
+def _add_apt_repository(spec):
+    """Add the spec using add_apt_repository
+
+    :param spec: the parameter to pass to add_apt_repository
+    """
+    subprocess.check_call(['add-apt-repository', '--yes', spec])
 
 
 def configure_sources(update=False,
