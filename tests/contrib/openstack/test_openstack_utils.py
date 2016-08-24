@@ -1,7 +1,5 @@
 import io
 import os
-import subprocess
-import tempfile
 import contextlib
 import unittest
 from copy import copy
@@ -418,6 +416,18 @@ class OpenStackHelpersTestCase(TestCase):
         juju_log.assert_called_with(_log, level='ERROR')
         mocked_exit.assert_called_with(1)
 
+    def test_get_source_and_pgp_key(self):
+        tests = {
+            "source|key": ('source', 'key'),
+            "source|": ('source', None),
+            "|key": ('', 'key'),
+            "source": ('source', None),
+        }
+        for k, v in six.iteritems(tests):
+            self.assertEqual(openstack.get_source_and_pgp_key(k), v)
+
+    # These should still work, even though the bulk of the functionality has
+    # moved to charmhelpers.fetch.add_source()
     def test_configure_install_source_distro(self):
         """Test configuring installation from distro"""
         self.assertIsNone(openstack.configure_installation_source('distro'))
@@ -467,8 +477,8 @@ class OpenStackHelpersTestCase(TestCase):
              'deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
              'restricted main multiverse universe'])
 
-    @patch.object(openstack, 'filter_installed_packages')
-    @patch.object(openstack, 'apt_install')
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
     @patch.object(openstack, 'error_out')
     @patch.object(openstack, 'juju_log')
     def test_add_source_cloud_invalid_pocket(self, _log, _out,
@@ -478,9 +488,9 @@ class OpenStackHelpersTestCase(TestCase):
             'Invalid Cloud Archive release specified: '
             'havana-updates on this Ubuntuversion (xenial)')
 
-    @patch.object(openstack, 'filter_installed_packages')
-    @patch.object(openstack, 'apt_install')
-    @patch.object(openstack, 'lsb_release')
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch('charmhelpers.fetch.lsb_release')
     def test_add_source_cloud_pocket_style(self, lsb_release,
                                            apt_install, filter_pkg):
         source = "cloud:precise-updates/havana"
@@ -494,9 +504,9 @@ class OpenStackHelpersTestCase(TestCase):
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
-    @patch.object(openstack, 'filter_installed_packages')
-    @patch.object(openstack, 'apt_install')
-    @patch.object(openstack, 'lsb_release')
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch('charmhelpers.fetch.lsb_release')
     def test_add_source_cloud_os_style(self, lsb_release,
                                        apt_install, filter_pkg):
         source = "cloud:precise-havana"
@@ -510,8 +520,8 @@ class OpenStackHelpersTestCase(TestCase):
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
-    @patch.object(openstack, 'filter_installed_packages')
-    @patch.object(openstack, 'apt_install')
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
     def test_add_source_cloud_distroless_style(self, apt_install, filter_pkg):
         source = "cloud:havana"
         result = (
@@ -528,7 +538,7 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.configure_installation_source('foo')
         _error.assert_called_with("Unknown source: 'foo'")
 
-    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
+    @patch('charmhelpers.fetch.lsb_release')
     def test_configure_install_source_uca_staging(self, _lsb):
         """Test configuring installation source from UCA staging sources"""
         _lsb.return_value = FAKE_RELEASE
@@ -541,9 +551,9 @@ class OpenStackHelpersTestCase(TestCase):
             _subp.assert_called_with(cmd)
 
     @patch(builtin_open)
-    @patch('charmhelpers.contrib.openstack.utils.apt_install')
-    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
-    @patch.object(openstack, 'filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch('charmhelpers.fetch.lsb_release')
+    @patch('charmhelpers.fetch.filter_installed_packages')
     def test_configure_install_source_uca_repos(
             self, _fip, _lsb, _install, _open):
         """Test configuring installation source from UCA sources"""
@@ -586,7 +596,7 @@ class OpenStackHelpersTestCase(TestCase):
                                                 fetch_import_key):
 
         def raiser(_):
-            raise RuntimeError("an error occurred")
+            raise openstack.GPGKeyError("an error occurred")
         fetch_import_key.side_effect = raiser
         openstack.import_key('random failure')
         mock_sys.exit.assert_called_once_with(1)
