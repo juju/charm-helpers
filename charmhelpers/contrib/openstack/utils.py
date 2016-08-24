@@ -81,13 +81,12 @@ from charmhelpers.core.host import (
     restart_on_change_helper,
 )
 from charmhelpers.fetch import (
-    apt_install,
     apt_cache,
     install_remote,
     import_key as fetch_import_key,
     add_source as fetch_add_source,
     SourceConfigError,
-    filter_installed_packages,
+    GPGKeyError,
 )
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
@@ -235,84 +234,6 @@ GIT_DEFAULT_BRANCHES = {
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
-
-CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
-deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
-"""
-CLOUD_ARCHIVE_POCKETS = {
-    # Folsom
-    'folsom': 'precise-updates/folsom',
-    'precise-folsom': 'precise-updates/folsom',
-    'precise-folsom/updates': 'precise-updates/folsom',
-    'precise-updates/folsom': 'precise-updates/folsom',
-    'folsom/proposed': 'precise-proposed/folsom',
-    'precise-folsom/proposed': 'precise-proposed/folsom',
-    'precise-proposed/folsom': 'precise-proposed/folsom',
-    # Grizzly
-    'grizzly': 'precise-updates/grizzly',
-    'precise-grizzly': 'precise-updates/grizzly',
-    'precise-grizzly/updates': 'precise-updates/grizzly',
-    'precise-updates/grizzly': 'precise-updates/grizzly',
-    'grizzly/proposed': 'precise-proposed/grizzly',
-    'precise-grizzly/proposed': 'precise-proposed/grizzly',
-    'precise-proposed/grizzly': 'precise-proposed/grizzly',
-    # Havana
-    'havana': 'precise-updates/havana',
-    'precise-havana': 'precise-updates/havana',
-    'precise-havana/updates': 'precise-updates/havana',
-    'precise-updates/havana': 'precise-updates/havana',
-    'havana/proposed': 'precise-proposed/havana',
-    'precise-havana/proposed': 'precise-proposed/havana',
-    'precise-proposed/havana': 'precise-proposed/havana',
-    # Icehouse
-    'icehouse': 'precise-updates/icehouse',
-    'precise-icehouse': 'precise-updates/icehouse',
-    'precise-icehouse/updates': 'precise-updates/icehouse',
-    'precise-updates/icehouse': 'precise-updates/icehouse',
-    'icehouse/proposed': 'precise-proposed/icehouse',
-    'precise-icehouse/proposed': 'precise-proposed/icehouse',
-    'precise-proposed/icehouse': 'precise-proposed/icehouse',
-    # Juno
-    'juno': 'trusty-updates/juno',
-    'trusty-juno': 'trusty-updates/juno',
-    'trusty-juno/updates': 'trusty-updates/juno',
-    'trusty-updates/juno': 'trusty-updates/juno',
-    'juno/proposed': 'trusty-proposed/juno',
-    'trusty-juno/proposed': 'trusty-proposed/juno',
-    'trusty-proposed/juno': 'trusty-proposed/juno',
-    # Kilo
-    'kilo': 'trusty-updates/kilo',
-    'trusty-kilo': 'trusty-updates/kilo',
-    'trusty-kilo/updates': 'trusty-updates/kilo',
-    'trusty-updates/kilo': 'trusty-updates/kilo',
-    'kilo/proposed': 'trusty-proposed/kilo',
-    'trusty-kilo/proposed': 'trusty-proposed/kilo',
-    'trusty-proposed/kilo': 'trusty-proposed/kilo',
-    # Liberty
-    'liberty': 'trusty-updates/liberty',
-    'trusty-liberty': 'trusty-updates/liberty',
-    'trusty-liberty/updates': 'trusty-updates/liberty',
-    'trusty-updates/liberty': 'trusty-updates/liberty',
-    'liberty/proposed': 'trusty-proposed/liberty',
-    'trusty-liberty/proposed': 'trusty-proposed/liberty',
-    'trusty-proposed/liberty': 'trusty-proposed/liberty',
-    # Mitaka
-    'mitaka': 'trusty-updates/mitaka',
-    'trusty-mitaka': 'trusty-updates/mitaka',
-    'trusty-mitaka/updates': 'trusty-updates/mitaka',
-    'trusty-updates/mitaka': 'trusty-updates/mitaka',
-    'mitaka/proposed': 'trusty-proposed/mitaka',
-    'trusty-mitaka/proposed': 'trusty-proposed/mitaka',
-    'trusty-proposed/mitaka': 'trusty-proposed/mitaka',
-    # Newton
-    'newton': 'xenial-updates/newton',
-    'xenial-newton': 'xenial-updates/newton',
-    'xenial-newton/updates': 'xenial-updates/newton',
-    'xenial-updates/newton': 'xenial-updates/newton',
-    'newton/proposed': 'xenial-proposed/newton',
-    'xenial-newton/proposed': 'xenial-proposed/newton',
-    'xenial-proposed/newton': 'xenial-proposed/newton',
-}
 
 
 def error_out(msg):
@@ -508,173 +429,64 @@ def os_release(package, base='essex'):
     return _os_rel
 
 
-@deprecate("moved to charmhelpers/fetch/import.key", "2017-07", log=juju_log)
+@deprecate("moved to charmhelpers.fetch.import_key()", "2017-07", log=juju_log)
 def import_key(keyid):
+    """Import a key, either ASCII armored, or a GPG key id.
+
+    @param keyid: the key in ASCII armor format, or a GPG key id.
+    @raises SystemExit() via sys.exit() on failure.
+    """
     try:
         return fetch_import_key(keyid)
-    except RuntimeError:
-        sys.exit(1)
+    except GPGKeyError as e:
+        error_out("Could not import key: {}".format(str(e)))
 
 
-def get_source_and_pgp_key(input):
-    """Look for a pgp key ID or ascii-armor key in the given input."""
-    index = input.strip()
-    index = input.rfind('|')
-    if index < 0:
-        return input, None
+def get_source_and_pgp_key(source_and_key):
+    """Look for a pgp key ID or ascii-armor key in the given input.
 
-    key = input[index + 1:].strip('|')
-    source = input[:index]
-    return source, key
+    :param source_and_key: Sting, "source_spec|keyid" where '|keyid' is
+        optional.
+    :returns (source_spec, key_id OR None) as a tuple.  Returns None for key_id
+        if there was no '|' in the source_and_key string.
+    """
+    try:
+        source, key = source_and_key.split('|', 2)
+        return source, key or None
+    except ValueError:
+        return source_and_key, None
 
 
-@deprecate("use charmhelpers/fetch/add_source() instead.",
+@deprecate("use charmhelpers.fetch.add_source() instead.",
            "2017-07", log=juju_log)
-def configure_installation_source(rel):
+def configure_installation_source(source_plus_key):
     """Configure an installation source.
 
-    Openstack specific configuration of sources that adds 'cloud:' to the
-    source specification to pick from a cloud installation pocket.
+    The functionality is provided by charmhelpers.fetch.add_source()
+    The difference between the two functions is that add_source() signature
+    requires the key to be passed directly, whereas this function passes an
+    optional key by appending '|<key>' to the end of the source specificiation
+    'source'.
 
-    Handled indirectly by fetch/add_source():
+    Another difference from add_source() is that the function calls sys.exit(1)
+    if the configuration fails, whereas add_source() raises
+    SourceConfigurationError().  Another difference, is that add_source()
+    silently fails (with a juju_log command) if there is no matching source to
+    configure, whereas this function fails with a sys.exit(1)
 
-    'distro': a NOP; i.e. it does nothing; no source to add.
-    'distro-proposed': adds <version>-proposed to the debs [1]
-    'ppa:<name>[|<key-or-ID>]' : adds the ppa using add-apt-repository
-      the key can be optionally specifed using a '|' char and can be either the
-      ascii armoured key, or a Radix64 key ID.
-    'deb <...deb spec...>[|<key-or-ID>]': adds the deb specification directly
-      with an optional key or key ID.
-
-    Handled by this function:
-
-    'cloud:<release>[-staging]': specify a Cloud Archive pocket <release> with
-      optional staging version.  If staging is used then the staging PPA [2]
-      with be used.  If staging is NOT used then the cloud archive [3] will be
-      added, and the 'ubuntu-cloud-keyring' package will be added for the
-      current distro.
-
-    If none of the above are specified then the function will log an error to
-    the juju log and sys.exit(1)
-
-    [1] deb http://archive.ubuntu.com/ubuntu/ %s-proposed \
-        restricted main multiverse universe
-    [2] add-apt-repository -y ppa:ubuntu-cloud-archive/<version>-staging
-    [3] deb http://ubuntu-cloud.archive.canonical.com/ubuntu <pocket>
-        to /etc/apt/sources.list.d/cloud-archive-list
-
-    :param rel: String -- see above for details.
+    :param source: String_plus_key -- see above for details.
 
     Note that the behaviour on error is to log the error to the juju log and
     then call sys.exit(1).
     """
     # extract the key if there is one, denoted by a '|' in the rel
-    source, key = get_source_and_pgp_key(rel)
-    if not source.startswith('cloud:'):
-        # handle the ordinary sources via add_source
-        try:
-            fetch_add_source(source, key, fail_invalid=True)
-        except SourceConfigError as se:
-            error_out(str(se))
-        return
+    source, key = get_source_and_pgp_key(source_plus_key)
 
-    # Otherwise match up the cloud to various functions.
-    _mapping = OrderedDict([
-        (r"^cloud:(.*)-(.*)\/staging$", _add_cloud_staging),
-        (r"^cloud:(.*)-(.*)$", _add_cloud_distro_check),
-        (r"^cloud:(.*)$", _add_cloud_pocket),
-    ])
-    for r, fn in six.iteritems(_mapping):
-        m = re.match(r, source)
-        if m:
-            # call the assoicated function with the captured groups
-            try:
-                fn(*m.groups())
-            except SourceConfigError as se:
-                error_out(str(se))
-            if key:
-                try:
-                    fetch_import_key(key)
-                except RuntimeError as e:
-                    error_out(str(e))
-            break
-    else:
-        # nothing matched.  log an error and maybe sys.exit
-        error_out("Unknown source: {!r}".format(source))
-
-
-def _add_cloud_pocket(pocket):
-    """Add a cloud pocket as /etc/apt/sources.d/cloud-archive.list
-
-    Note that this overwrites the existing file if there is one.
-
-    This function also converts the simple pocket in to the actual pocket using
-    the CLOUD_ARCHIVE_POCKETS mapping.
-
-    :param pocket: string representing the pocket to add a deb spec for.
-    :raises: SourceConfigError if the cloud pocket doesn't exist or the
-        requested release doesn't match the current distro version.
-    """
-    apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
-                fatal=True)
-    # pocket = source.split(':')[-1]
-    if pocket not in CLOUD_ARCHIVE_POCKETS:
-        raise SourceConfigError(
-            'Unsupported cloud: source option %s' %
-            pocket)
-    actual_pocket = CLOUD_ARCHIVE_POCKETS[pocket]
-    with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
-        apt.write(CLOUD_ARCHIVE.format(actual_pocket))
-
-
-def _add_cloud_staging(cloud_archive_release, openstack_release):
-    """Add the cloud staging repository which is in
-    ppa:ubuntu-cloud-archive/<openstack_release>-staging
-
-    This function checks that the cloud_archive_release matches the current
-    codename for the distro that charm is being installed on.
-
-    :param cloud_archive_release: string, codename for the release.
-    :param openstack_release: String, codename for the openstack release.
-    :raises: SourceConfigError if the cloud_archive_release doesn't match the
-        current version of the os.
-    """
-    _verify_is_ubuntu_rel(cloud_archive_release, openstack_release)
-    ppa = 'ppa:ubuntu-cloud-archive/{}-staging'.format(openstack_release)
-    cmd = 'add-apt-repository -y {}'.format(ppa)
-    subprocess.check_call(cmd.split(' '))
-
-
-def _add_cloud_distro_check(cloud_archive_release, openstack_release):
-    """Add the cloud pocket, but also check the cloud_archive_release against
-    the current distro, and use the openstack_release as the full lookup.
-
-    This just calls _add_cloud_pocket() with the openstack_release as pocket
-    to get the correct cloud-archive.list for dpkg to work with.
-
-    :param cloud_archive_release:String, codename for the distro release.
-    :param openstack_release: String, spec for the release to look up in the
-        CLOUD_ARCHIVE_POCKETS
-    :raises: SourceConfigError if this is the wrong distro, or the pocket spec
-        doesn't exist.
-    """
-    _verify_is_ubuntu_rel(cloud_archive_release, openstack_release)
-    _add_cloud_pocket("{}-{}".format(cloud_archive_release, openstack_release))
-
-
-def _verify_is_ubuntu_rel(release, os_release):
-    """Verify that the release is in the same as the current ubuntu release.
-
-    :param release: String, lowercase for the release.
-    :param os_release: String, the os_release being asked for
-    :raises: SourceConfigError if the release is not the same as the ubuntu
-        release.
-    """
-    ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
-    if release != ubuntu_rel:
-        raise SourceConfigError(
-            'Invalid Cloud Archive release specified: {}-{} on this Ubuntu'
-            'version ({})'.format(release, os_release, ubuntu_rel))
+    # handle the ordinary sources via add_source
+    try:
+        fetch_add_source(source, key, fail_invalid=True)
+    except SourceConfigError as se:
+        error_out(str(se))
 
 
 def config_value_changed(option):
@@ -719,7 +531,6 @@ def openstack_upgrade_available(package):
 
     :returns: bool:    : Returns True if configured installation source offers
                          a newer version of package.
-
     """
 
     import apt_pkg as apt

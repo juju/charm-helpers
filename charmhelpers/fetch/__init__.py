@@ -18,7 +18,6 @@ import os
 import platform
 import re
 import subprocess
-import sys
 from tempfile import NamedTemporaryFile
 import time
 from yaml import safe_load
@@ -37,7 +36,6 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
 )
-from charmhelpers.utils import deprecate
 
 PROPOSED_POCKET = (
     "# Proposed\n"
@@ -52,6 +50,86 @@ ARCH_TO_PROPOSED_POCKET = {
     'x86_64': PROPOSED_POCKET,
     'ppc64le': PROPOSED_PORTS_POCKET,
 }
+CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
+CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
+CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
+deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
+"""
+CLOUD_ARCHIVE_POCKETS = {
+    # Folsom
+    'folsom': 'precise-updates/folsom',
+    'precise-folsom': 'precise-updates/folsom',
+    'precise-folsom/updates': 'precise-updates/folsom',
+    'precise-updates/folsom': 'precise-updates/folsom',
+    'folsom/proposed': 'precise-proposed/folsom',
+    'precise-folsom/proposed': 'precise-proposed/folsom',
+    'precise-proposed/folsom': 'precise-proposed/folsom',
+    # Grizzly
+    'grizzly': 'precise-updates/grizzly',
+    'precise-grizzly': 'precise-updates/grizzly',
+    'precise-grizzly/updates': 'precise-updates/grizzly',
+    'precise-updates/grizzly': 'precise-updates/grizzly',
+    'grizzly/proposed': 'precise-proposed/grizzly',
+    'precise-grizzly/proposed': 'precise-proposed/grizzly',
+    'precise-proposed/grizzly': 'precise-proposed/grizzly',
+    # Havana
+    'havana': 'precise-updates/havana',
+    'precise-havana': 'precise-updates/havana',
+    'precise-havana/updates': 'precise-updates/havana',
+    'precise-updates/havana': 'precise-updates/havana',
+    'havana/proposed': 'precise-proposed/havana',
+    'precise-havana/proposed': 'precise-proposed/havana',
+    'precise-proposed/havana': 'precise-proposed/havana',
+    # Icehouse
+    'icehouse': 'precise-updates/icehouse',
+    'precise-icehouse': 'precise-updates/icehouse',
+    'precise-icehouse/updates': 'precise-updates/icehouse',
+    'precise-updates/icehouse': 'precise-updates/icehouse',
+    'icehouse/proposed': 'precise-proposed/icehouse',
+    'precise-icehouse/proposed': 'precise-proposed/icehouse',
+    'precise-proposed/icehouse': 'precise-proposed/icehouse',
+    # Juno
+    'juno': 'trusty-updates/juno',
+    'trusty-juno': 'trusty-updates/juno',
+    'trusty-juno/updates': 'trusty-updates/juno',
+    'trusty-updates/juno': 'trusty-updates/juno',
+    'juno/proposed': 'trusty-proposed/juno',
+    'trusty-juno/proposed': 'trusty-proposed/juno',
+    'trusty-proposed/juno': 'trusty-proposed/juno',
+    # Kilo
+    'kilo': 'trusty-updates/kilo',
+    'trusty-kilo': 'trusty-updates/kilo',
+    'trusty-kilo/updates': 'trusty-updates/kilo',
+    'trusty-updates/kilo': 'trusty-updates/kilo',
+    'kilo/proposed': 'trusty-proposed/kilo',
+    'trusty-kilo/proposed': 'trusty-proposed/kilo',
+    'trusty-proposed/kilo': 'trusty-proposed/kilo',
+    # Liberty
+    'liberty': 'trusty-updates/liberty',
+    'trusty-liberty': 'trusty-updates/liberty',
+    'trusty-liberty/updates': 'trusty-updates/liberty',
+    'trusty-updates/liberty': 'trusty-updates/liberty',
+    'liberty/proposed': 'trusty-proposed/liberty',
+    'trusty-liberty/proposed': 'trusty-proposed/liberty',
+    'trusty-proposed/liberty': 'trusty-proposed/liberty',
+    # Mitaka
+    'mitaka': 'trusty-updates/mitaka',
+    'trusty-mitaka': 'trusty-updates/mitaka',
+    'trusty-mitaka/updates': 'trusty-updates/mitaka',
+    'trusty-updates/mitaka': 'trusty-updates/mitaka',
+    'mitaka/proposed': 'trusty-proposed/mitaka',
+    'trusty-mitaka/proposed': 'trusty-proposed/mitaka',
+    'trusty-proposed/mitaka': 'trusty-proposed/mitaka',
+    # Newton
+    'newton': 'xenial-updates/newton',
+    'xenial-newton': 'xenial-updates/newton',
+    'xenial-newton/updates': 'xenial-updates/newton',
+    'xenial-updates/newton': 'xenial-updates/newton',
+    'newton/proposed': 'xenial-proposed/newton',
+    'xenial-newton/proposed': 'xenial-proposed/newton',
+    'xenial-proposed/newton': 'xenial-proposed/newton',
+}
+
 # The order of this list is very important. Handlers should be listed in from
 # least- to most-specific URL matching.
 FETCH_HANDLERS = (
@@ -74,6 +152,13 @@ class UnhandledSource(Exception):
 
 
 class AptLockError(Exception):
+    pass
+
+
+class GPGKeyError(Exception):
+    """Exception occurs when a GPG key cannot be fetched or used.  The message
+    indicates what the problem is.
+    """
     pass
 
 
@@ -205,7 +290,7 @@ def import_key(keyid):
     the key in ASCII armor foramt.
 
     :param keyid: String of key (or key id).
-    :raises: RuntimeError if the key could not be imported
+    :raises: GPGKeyError if the key could not be imported
     """
     key = keyid.strip()
     if (key.startswith('-----BEGIN PGP PUBLIC KEY BLOCK-----') and
@@ -222,7 +307,7 @@ def import_key(keyid):
             except subprocess.CalledProcessError:
                 error = "Error importing PGP key '{}'".format(key)
                 log(error)
-                raise RuntimeError(error)
+                raise GPGKeyError(error)
     else:
         log("PGP key found (looks like Radix64 format)", level=DEBUG)
         log("Importing PGP key from keyserver", level=DEBUG)
@@ -233,7 +318,7 @@ def import_key(keyid):
         except subprocess.CalledProcessError:
             error = "Error importing PGP key '{}'".format(key)
             log(error)
-            raise RuntimeError(error)
+            raise GPGKeyError(error)
 
 
 def add_source(source, key=None, fail_invalid=False):
@@ -257,10 +342,16 @@ def add_source(source, key=None, fail_invalid=False):
     'distro': A NOP; i.e. it has no effect.
     'proposed': the proposed deb spec [2] is wrtten to
       /etc/apt/sources.list/proposed
+    'distro-proposed': adds <version>-proposed to the debs [2]
     'ppa:<ppa-name>': add-apt-repository --yes <ppa_name>
     'deb <deb-spec>': add-apt-repository --yes deb <deb-spec>
     'http://....': add-apt-repository --yes http://...
     'cloud-archive:<spec>': add-apt-repository -yes cloud-archive:<spec>
+    'cloud:<release>[-staging]': specify a Cloud Archive pocket <release> with
+      optional staging version.  If staging is used then the staging PPA [2]
+      with be used.  If staging is NOT used then the cloud archive [3] will be
+      added, and the 'ubuntu-cloud-keyring' package will be added for the
+      current distro.
 
     Otherwise the source is not recognised and this is logged to the juju log.
     However, no error is raised, unless sys_error_on_exit is True.
@@ -270,6 +361,8 @@ def add_source(source, key=None, fail_invalid=False):
     [2] deb http://archive.ubuntu.com/ubuntu {}-proposed \
         main universe multiverse restricted
         where {} is replaced with the lsb_release codename (e.g. xenial)
+    [3] deb http://ubuntu-cloud.archive.canonical.com/ubuntu <pocket>
+        to /etc/apt/sources.list.d/cloud-archive-list
 
     @param key: A key to be added to the system's APT keyring and used
     to verify the signatures on packages. Ideally, this should be an
@@ -283,14 +376,16 @@ def add_source(source, key=None, fail_invalid=False):
     SourceConfigError is there is no matching installation source.
 
     @raises SourceConfigError() if for cloud:<pocket>, the <pocket> is not a
-    valid pocket in CLOUD_ARCHIVE_POCKETS, unless sys_exit_on_error is True, in
-    which case the error is logged and the sys.exit(1) is called.
+    valid pocket in CLOUD_ARCHIVE_POCKETS
     """
     _mapping = OrderedDict([
         (r"^distro$", lambda: None),  # This is a NOP
         (r"^(?:proposed|distro-proposed)$", _add_proposed),
         (r"^cloud-archive:(.*)$", _add_apt_repository),
         (r"^((?:deb |http:|https:|ppa:).*)$", _add_apt_repository),
+        (r"^cloud:(.*)-(.*)\/staging$", _add_cloud_staging),
+        (r"^cloud:(.*)-(.*)$", _add_cloud_distro_check),
+        (r"^cloud:(.*)$", _add_cloud_pocket),
     ])
     if source is None:
         source = ''
@@ -303,7 +398,7 @@ def add_source(source, key=None, fail_invalid=False):
             if key:
                 try:
                     import_key(key)
-                except RuntimeError as e:
+                except GPGKeyError as e:
                     raise SourceConfigError(str(e))
             break
     else:
@@ -338,6 +433,79 @@ def _add_apt_repository(spec):
     :param spec: the parameter to pass to add_apt_repository
     """
     subprocess.check_call(['add-apt-repository', '--yes', spec])
+
+
+def _add_cloud_pocket(pocket):
+    """Add a cloud pocket as /etc/apt/sources.d/cloud-archive.list
+
+    Note that this overwrites the existing file if there is one.
+
+    This function also converts the simple pocket in to the actual pocket using
+    the CLOUD_ARCHIVE_POCKETS mapping.
+
+    :param pocket: string representing the pocket to add a deb spec for.
+    :raises: SourceConfigError if the cloud pocket doesn't exist or the
+        requested release doesn't match the current distro version.
+    """
+    apt_install(filter_installed_packages(['ubuntu-cloud-keyring']),
+                fatal=True)
+    if pocket not in CLOUD_ARCHIVE_POCKETS:
+        raise SourceConfigError(
+            'Unsupported cloud: source option %s' %
+            pocket)
+    actual_pocket = CLOUD_ARCHIVE_POCKETS[pocket]
+    with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
+        apt.write(CLOUD_ARCHIVE.format(actual_pocket))
+
+
+def _add_cloud_staging(cloud_archive_release, openstack_release):
+    """Add the cloud staging repository which is in
+    ppa:ubuntu-cloud-archive/<openstack_release>-staging
+
+    This function checks that the cloud_archive_release matches the current
+    codename for the distro that charm is being installed on.
+
+    :param cloud_archive_release: string, codename for the release.
+    :param openstack_release: String, codename for the openstack release.
+    :raises: SourceConfigError if the cloud_archive_release doesn't match the
+        current version of the os.
+    """
+    _verify_is_ubuntu_rel(cloud_archive_release, openstack_release)
+    ppa = 'ppa:ubuntu-cloud-archive/{}-staging'.format(openstack_release)
+    cmd = 'add-apt-repository -y {}'.format(ppa)
+    subprocess.check_call(cmd.split(' '))
+
+
+def _add_cloud_distro_check(cloud_archive_release, openstack_release):
+    """Add the cloud pocket, but also check the cloud_archive_release against
+    the current distro, and use the openstack_release as the full lookup.
+
+    This just calls _add_cloud_pocket() with the openstack_release as pocket
+    to get the correct cloud-archive.list for dpkg to work with.
+
+    :param cloud_archive_release:String, codename for the distro release.
+    :param openstack_release: String, spec for the release to look up in the
+        CLOUD_ARCHIVE_POCKETS
+    :raises: SourceConfigError if this is the wrong distro, or the pocket spec
+        doesn't exist.
+    """
+    _verify_is_ubuntu_rel(cloud_archive_release, openstack_release)
+    _add_cloud_pocket("{}-{}".format(cloud_archive_release, openstack_release))
+
+
+def _verify_is_ubuntu_rel(release, os_release):
+    """Verify that the release is in the same as the current ubuntu release.
+
+    :param release: String, lowercase for the release.
+    :param os_release: String, the os_release being asked for
+    :raises: SourceConfigError if the release is not the same as the ubuntu
+        release.
+    """
+    ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
+    if release != ubuntu_rel:
+        raise SourceConfigError(
+            'Invalid Cloud Archive release specified: {}-{} on this Ubuntu'
+            'version ({})'.format(release, os_release, ubuntu_rel))
 
 
 def configure_sources(update=False,

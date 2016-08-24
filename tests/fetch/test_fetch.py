@@ -16,12 +16,38 @@ import os
 import yaml
 
 import six
-from six.moves import StringIO
 if six.PY3:
     from urllib.parse import urlparse
+    builtin_open = 'builtins.open'
 else:
     from urlparse import urlparse
+    builtin_open = '__builtin__.open'
 
+
+# mocked return of openstack.lsb_release()
+FAKE_RELEASE = {
+    'DISTRIB_CODENAME': 'precise',
+    'DISTRIB_RELEASE': '12.04',
+    'DISTRIB_ID': 'Ubuntu',
+    'DISTRIB_DESCRIPTION': '"Ubuntu 12.04"'
+}
+
+url = 'deb ' + fetch.CLOUD_ARCHIVE_URL
+UCA_SOURCES = [
+    ('cloud:precise-folsom/proposed', url + ' precise-proposed/folsom main'),
+    ('cloud:precise-folsom', url + ' precise-updates/folsom main'),
+    ('cloud:precise-folsom/updates', url + ' precise-updates/folsom main'),
+    ('cloud:precise-grizzly/proposed', url + ' precise-proposed/grizzly main'),
+    ('cloud:precise-grizzly', url + ' precise-updates/grizzly main'),
+    ('cloud:precise-grizzly/updates', url + ' precise-updates/grizzly main'),
+    ('cloud:precise-havana/proposed', url + ' precise-proposed/havana main'),
+    ('cloud:precise-havana', url + ' precise-updates/havana main'),
+    ('cloud:precise-havana/updates', url + ' precise-updates/havana main'),
+    ('cloud:precise-icehouse/proposed',
+     url + ' precise-proposed/icehouse main'),
+    ('cloud:precise-icehouse', url + ' precise-updates/icehouse main'),
+    ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
+]
 
 FAKE_APT_CACHE = {
     # an installed package
@@ -130,8 +156,8 @@ class FetchTest(TestCase):
             try:
                 fetch.import_key('foo')
                 assert False
-            except RuntimeError as re:
-                self.assertEqual(str(re), "Error importing PGP key 'foo'")
+            except fetch.GPGKeyError as e:
+                self.assertEqual(str(e), "Error importing PGP key 'foo'")
 
     @patch.object(fetch, 'log')
     def test_add_source_none(self, log):
@@ -248,6 +274,116 @@ class FetchTest(TestCase):
             fetch.add_source(source=source, key=key)
             check_call.assert_any_call(['add-apt-repository', '--yes', source])
             check_call.assert_any_call(['apt-key', 'add', ANY])
+
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch.object(fetch, 'log')
+    def test_add_source_cloud_invalid_pocket(self, _log,
+                                             apt_install, filter_pkg):
+        try:
+            fetch.add_source("cloud:havana-updates")
+            self.fail("cloud:havana-updates should have failed!")
+        except fetch.SourceConfigError as e:
+            self.assertEqual(
+                str(e),
+                'Invalid Cloud Archive release specified: '
+                'havana-updates on this Ubuntuversion (xenial)')
+
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch('charmhelpers.fetch.lsb_release')
+    def test_add_source_cloud_pocket_style(self, lsb_release,
+                                           apt_install, filter_pkg):
+        source = "cloud:precise-updates/havana"
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        result = (
+            "# Ubuntu Cloud Archive\n"
+            "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
+            "precise-updates/havana main\n")
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch('charmhelpers.fetch.lsb_release')
+    def test_add_source_cloud_os_style(self, lsb_release,
+                                       apt_install, filter_pkg):
+        source = "cloud:precise-havana"
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        result = (
+            "# Ubuntu Cloud Archive\n"
+            "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
+            "precise-updates/havana main\n")
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    def test_add_source_cloud_distroless_style(self, apt_install, filter_pkg):
+        source = "cloud:havana"
+        result = (
+            "# Ubuntu Cloud Archive\n"
+            "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
+            "precise-updates/havana main\n")
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    def test_configure_bad_install_source(self):
+        try:
+            fetch.add_source('foo', fail_invalid=True)
+            self.fail("Calling add_source('foo') should fail")
+        except fetch.SourceConfigError as e:
+            self.assertEqual(str(e), "Unknown source: 'foo'")
+
+    @patch('charmhelpers.fetch.lsb_release')
+    def test_configure_install_source_uca_staging(self, _lsb):
+        """Test configuring installation source from UCA staging sources"""
+        _lsb.return_value = FAKE_RELEASE
+        # staging pockets are configured as PPAs
+        with patch('subprocess.check_call') as _subp:
+            src = 'cloud:precise-folsom/staging'
+            fetch.add_source(src)
+            cmd = ['add-apt-repository', '-y',
+                   'ppa:ubuntu-cloud-archive/folsom-staging']
+            _subp.assert_called_with(cmd)
+
+    @patch(builtin_open)
+    @patch('charmhelpers.fetch.apt_install')
+    @patch('charmhelpers.fetch.lsb_release')
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    def test_configure_install_source_uca_repos(
+            self, _fip, _lsb, _install, _open):
+        """Test configuring installation source from UCA sources"""
+        _lsb.return_value = FAKE_RELEASE
+        _file = MagicMock(spec=io.FileIO)
+        _open.return_value = _file
+        _fip.side_effect = lambda x: x
+        for src, url in UCA_SOURCES:
+            actual_url = "# Ubuntu Cloud Archive\n{}\n".format(url)
+            fetch.add_source(src)
+            _install.assert_called_with(['ubuntu-cloud-keyring'],
+                                        fatal=True)
+            _open.assert_called_with(
+                '/etc/apt/sources.list.d/cloud-archive.list',
+                'w'
+            )
+            _file.__enter__().write.assert_called_with(actual_url)
+
+    def test_configure_install_source_bad_uca(self):
+        """Test configuring installation source from bad UCA source"""
+        try:
+            fetch.add_source('cloud:foo-bar', fail_invalid=True)
+            self.fail("add_source('cloud:foo-bar') should fail")
+        except fetch.SourceConfigError as e:
+            _e = ('Invalid Cloud Archive release specified: foo-bar'
+                  ' on this Ubuntuversion (xenial)')
+            self.assertEqual(str(e), _e)
 
     @patch('charmhelpers.fetch.log')
     def test_add_unparsable_source(self, log_):
