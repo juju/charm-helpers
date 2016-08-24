@@ -30,7 +30,7 @@ import traceback
 import uuid
 import yaml
 
-from charmhelpers.utils import deprecate
+from charmhelpers import deprecate
 
 from charmhelpers.contrib.network import ip
 
