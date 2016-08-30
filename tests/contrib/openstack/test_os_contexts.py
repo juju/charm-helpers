@@ -385,6 +385,15 @@ nova-compute:
                 - [nova-key4, value4]
 """
 
+NOVA_SUB_CONFIG3 = """
+nova-compute:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key5, value5]
+                - [nova-key6, value6]
+"""
+
 CINDER_SUB_CONFIG1 = """
 cinder:
     /etc/cinder/cinder.conf:
@@ -447,6 +456,12 @@ SUB_CONFIG_RELATION2 = {
         'neutron-ovs-plugin/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG2)),
+        },
+    },
+    'neutron-plugin:4': {
+        'neutron-other-plugin/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG3)),
         },
     }
 }
@@ -2340,7 +2355,9 @@ class ContextTests(unittest.TestCase):
                     ['nova-key1', 'value1'],
                     ['nova-key2', 'value2'],
                     ['nova-key3', 'value3'],
-                    ['nova-key4', 'value4']]
+                    ['nova-key4', 'value4'],
+                    ['nova-key5', 'value5'],
+                    ['nova-key6', 'value6']]
             }}
         )
 
