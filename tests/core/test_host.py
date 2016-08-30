@@ -6,7 +6,9 @@ from shutil import rmtree
 from textwrap import dedent
 
 import apt_pkg
+import imp
 
+from charmhelpers import osplatform
 from mock import patch, call
 from testtools import TestCase
 from tests.helpers import patch_open
@@ -29,6 +31,22 @@ LSB_RELEASE = '''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
+'''
+
+OS_RELEASE = '''NAME="CentOS Linux"
+ANSI_COLOR="0;31"
+ID_LIKE="rhel fedora"
+VERSION_ID="7"
+BUG_REPORT_URL="https://bugs.centos.org/"
+CENTOS_MANTISBT_PROJECT="CentOS-7"
+PRETTY_NAME="CentOS Linux 7 (Core)"
+VERSION="7 (Core)"
+REDHAT_SUPPORT_PRODUCT_VERSION="7"
+CENTOS_MANTISBT_PROJECT_VERSION="7"
+REDHAT_SUPPORT_PRODUCT="centos"
+HOME_URL="https://www.centos.org/"
+CPE_NAME="cpe:/o:centos:centos:7"
+ID="centos"
 '''
 
 IP_LINE_ETH0 = b"""
@@ -288,8 +306,8 @@ class HelpersTest(TestCase):
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_a_running_upstart_service(self, service, check_output, systemd,
-                                               service_running):
+    def test_resumes_a_running_upstart_service(self, service, check_output,
+                                               systemd, service_running):
         """When the service is already running, service start isn't called."""
         service_name = 'foo-service'
         service.side_effect = [True]
@@ -312,8 +330,8 @@ class HelpersTest(TestCase):
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.check_output')
     @patch.object(host, 'service')
-    def test_resumes_a_stopped_upstart_service(self, service, check_output, systemd,
-                                               service_running):
+    def test_resumes_a_stopped_upstart_service(self, service, check_output,
+                                               systemd, service_running):
         """When the service is stopped, service start is called."""
         check_output.return_value = b'foo-service stop/waiting'
         service_name = 'foo-service'
@@ -524,7 +542,8 @@ class HelpersTest(TestCase):
     @patch('pwd.getpwnam')
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
-    def test_adds_a_user_if_it_doesnt_exist(self, log, check_call, getpwnam, getgrnam):
+    def test_adds_a_user_if_it_doesnt_exist(self, log, check_call,
+                                            getpwnam, getgrnam):
         username = 'johndoe'
         password = 'eodnhoj'
         shell = '/bin/bash'
@@ -734,54 +753,131 @@ class HelpersTest(TestCase):
             group
         ])
 
+    @patch.object(osplatform, 'get_platform')
     @patch('grp.getgrnam')
     @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_add_a_group_if_it_doesnt_exist(self, log, check_call, getgrnam):
+    def test_add_a_group_if_it_doesnt_exist_ubuntu(self, check_call,
+                                                   getgrnam, platform):
+        platform.return_value = 'ubuntu'
+        imp.reload(host)
+
         group_name = 'testgroup'
         existing_group_grnam = KeyError('group not found')
         new_group_grnam = 'some group grnam'
 
         getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
-
-        result = host.add_group(group_name)
+        with patch("charmhelpers.core.host.log"):
+            result = host.add_group(group_name)
 
         self.assertEqual(result, new_group_grnam)
         check_call.assert_called_with(['addgroup', '--group', group_name])
         getgrnam.assert_called_with(group_name)
 
+    @patch.object(osplatform, 'get_platform')
     @patch('grp.getgrnam')
     @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_doesnt_add_group_if_it_already_exists(self, log, check_call,
-                                                   getgrnam):
-        group_name = 'testgroup'
-        existing_group_grnam = 'some group grnam'
+    def test_add_a_group_if_it_doesnt_exist_centos(self, check_call,
+                                                   getgrnam, platform):
+        platform.return_value = 'centos'
+        imp.reload(host)
 
-        getgrnam.return_value = existing_group_grnam
-
-        result = host.add_group(group_name)
-
-        self.assertEqual(result, existing_group_grnam)
-        self.assertFalse(check_call.called)
-        getgrnam.assert_called_with(group_name)
-
-    @patch('grp.getgrnam')
-    @patch('subprocess.check_call')
-    @patch.object(host, 'log')
-    def test_add_a_system_group(self, log, check_call, getgrnam):
         group_name = 'testgroup'
         existing_group_grnam = KeyError('group not found')
         new_group_grnam = 'some group grnam'
 
         getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
 
-        result = host.add_group(group_name, system_group=True)
+        with patch("charmhelpers.core.host.log"):
+            result = host.add_group(group_name)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with(['groupadd', group_name])
+        getgrnam.assert_called_with(group_name)
+
+    @patch.object(osplatform, 'get_platform')
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    def test_doesnt_add_group_if_it_already_exists_ubuntu(self, check_call,
+                                                          getgrnam, platform):
+        platform.return_value = 'ubuntu'
+        imp.reload(host)
+
+        group_name = 'testgroup'
+        existing_group_grnam = 'some group grnam'
+
+        getgrnam.return_value = existing_group_grnam
+
+        with patch("charmhelpers.core.host.log"):
+            result = host.add_group(group_name)
+
+        self.assertEqual(result, existing_group_grnam)
+        self.assertFalse(check_call.called)
+        getgrnam.assert_called_with(group_name)
+
+    @patch.object(osplatform, 'get_platform')
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    def test_doesnt_add_group_if_it_already_exists_centos(self, check_call,
+                                                          getgrnam, platform):
+        platform.return_value = 'centos'
+        imp.reload(host)
+
+        group_name = 'testgroup'
+        existing_group_grnam = 'some group grnam'
+
+        getgrnam.return_value = existing_group_grnam
+
+        with patch("charmhelpers.core.host.log"):
+            result = host.add_group(group_name)
+
+        self.assertEqual(result, existing_group_grnam)
+        self.assertFalse(check_call.called)
+        getgrnam.assert_called_with(group_name)
+
+    @patch.object(osplatform, 'get_platform')
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    def test_add_a_system_group_ubuntu(self, check_call, getgrnam, platform):
+        platform.return_value = 'ubuntu'
+        imp.reload(host)
+
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        with patch("charmhelpers.core.host.log"):
+            result = host.add_group(group_name, system_group=True)
 
         self.assertEqual(result, new_group_grnam)
         check_call.assert_called_with([
             'addgroup',
             '--system',
+            group_name
+        ])
+        getgrnam.assert_called_with(group_name)
+
+    @patch.object(osplatform, 'get_platform')
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    def test_add_a_system_group_centos(self, check_call, getgrnam, platform):
+        platform.return_value = 'centos'
+        imp.reload(host)
+
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        with patch("charmhelpers.core.host.log"):
+            result = host.add_group(group_name, system_group=True)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with([
+            'groupadd',
+            '-r',
             group_name
         ])
         getgrnam.assert_called_with(group_name)
@@ -1133,7 +1229,8 @@ class HelpersTest(TestCase):
     @patch.object(host, 'file_hash')
     def test_check_hash(self, file_hash):
         file_hash.return_value = 'good-hash'
-        self.assertRaises(host.ChecksumError, host.check_hash, 'file', 'bad-hash')
+        self.assertRaises(host.ChecksumError, host.check_hash,
+                          'file', 'bad-hash')
         host.check_hash('file', 'good-hash', 'sha256')
         self.assertEqual(file_hash.call_args_list, [
             call('file', 'md5'),
@@ -1219,7 +1316,8 @@ class HelpersTest(TestCase):
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
-    def test_multiservice_restart_on_change_in_order(self, iglob, exists, service):
+    def test_multiservice_restart_on_change_in_order(self, iglob, exists,
+                                                     service):
         file_name_one = '/etc/cinder/cinder.conf'
         file_name_two = '/etc/haproxy/haproxy.conf'
         restart_map = OrderedDict([
@@ -1377,7 +1475,11 @@ class HelpersTest(TestCase):
         self.assertEquals([call('restart', 'haproxy')], service.call_args_list)
         self.assertEquals([call('some-api')], service_reload.call_args_list)
 
-    def test_lsb_release(self):
+    @patch.object(osplatform, 'get_platform')
+    def test_lsb_release_ubuntu(self, platform):
+        platform.return_value = 'ubuntu'
+        imp.reload(host)
+
         result = {
             "DISTRIB_ID": "Ubuntu",
             "DISTRIB_RELEASE": "13.10",
@@ -1386,6 +1488,32 @@ class HelpersTest(TestCase):
                                    "(development branch)\""
         }
         with mocked_open('/etc/lsb-release', LSB_RELEASE):
+            lsb_release = host.lsb_release()
+            for key in result:
+                self.assertEqual(result[key], lsb_release[key])
+
+    @patch.object(osplatform, 'get_platform')
+    def test_lsb_release_centos(self, platform):
+        platform.return_value = 'centos'
+        imp.reload(host)
+
+        result = {
+            'NAME': '"CentOS Linux"',
+            'ANSI_COLOR': '"0;31"',
+            'ID_LIKE': '"rhel fedora"',
+            'VERSION_ID': '"7"',
+            'BUG_REPORT_URL': '"https://bugs.centos.org/"',
+            'CENTOS_MANTISBT_PROJECT': '"CentOS-7"',
+            'PRETTY_NAME': '"CentOS Linux 7 (Core)"',
+            'VERSION': '"7 (Core)"',
+            'REDHAT_SUPPORT_PRODUCT_VERSION': '"7"',
+            'CENTOS_MANTISBT_PROJECT_VERSION': '"7"',
+            'REDHAT_SUPPORT_PRODUCT': '"centos"',
+            'HOME_URL': '"https://www.centos.org/"',
+            'CPE_NAME': '"cpe:/o:centos:centos:7"',
+            'ID': '"centos"'
+        }
+        with mocked_open('/etc/os-release', OS_RELEASE):
             lsb_release = host.lsb_release()
             for key in result:
                 self.assertEqual(result[key], lsb_release[key])
@@ -1410,8 +1538,8 @@ class HelpersTest(TestCase):
 
         def fake_realpath(soft):
             if soft.endswith('/eth0'):
-                hard = \
-                    '/sys/devices/pci0000:00/0000:00:1c.4/0000:02:00.1/net/eth0'
+                hard = ('/sys/devices/pci0000:00/0000:00:1c.4'
+                        '/0000:02:00.1/net/eth0')
             else:
                 hard = '/sys/devices/virtual/net/veth0'
 
@@ -1429,8 +1557,8 @@ class HelpersTest(TestCase):
 
         def fake_realpath(soft):
             if soft.endswith('/eth0'):
-                return \
-                    '/sys/devices/pci0000:00/0000:00:1c.4/0000:02:00.1/net/eth0'
+                return ('/sys/devices/pci0000:00/0000:00:1c.4'
+                        '/0000:02:00.1/net/eth0')
             elif soft.endswith('/br0'):
                 return '/sys/devices/virtual/net/br0'
             elif soft.endswith('/master'):
@@ -1498,8 +1626,12 @@ class HelpersTest(TestCase):
         hwaddr = host.get_nic_hwaddr(nic)
         self.assertEqual(hwaddr, 'e4:11:5b:ab:a7:3c')
 
+    @patch.object(osplatform, 'get_platform')
     @patch.object(apt_pkg, 'Cache')
-    def test_cmp_pkgrevno_revnos(self, pkg_cache):
+    def test_cmp_pkgrevno_revnos_ubuntu(self, pkg_cache, platform):
+        platform.return_value = 'ubuntu'
+        imp.reload(host)
+
         class MockPackage:
             class MockPackageRevno:
                 def __init__(self, ver_str):
@@ -1512,6 +1644,30 @@ class HelpersTest(TestCase):
             'python': MockPackage('2.4')
         }
         pkg_cache.return_value = pkg_dict
+        self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
+        self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
+        self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
+
+    @patch.object(osplatform, 'get_platform')
+    def test_cmp_pkgrevno_revnos_centos(self, platform):
+        platform.return_value = 'centos'
+        imp.reload(host)
+
+        class MockPackage:
+            def __init__(self, name, version):
+                self.Name = name
+                self.version = version
+
+        yum_dict = {
+            'installed': {
+                MockPackage('python', '2.4')
+            }
+        }
+
+        import yum
+        yum.YumBase.return_value.doPackageLists.return_value = (
+            yum_dict)
+
         self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)

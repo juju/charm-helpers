@@ -65,7 +65,8 @@ class ArchiveUrlFetchHandlerTest(TestCase):
             _urlopen.return_value = response
 
             _open = mock_open()
-            with patch('charmhelpers.fetch.archiveurl.open', _open, create=True):
+            with patch('charmhelpers.fetch.archiveurl.open',
+                       _open, create=True):
                 self.fh.download(url, "foo")
 
             response.read.assert_called_with()
