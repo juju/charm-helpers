@@ -74,7 +74,8 @@ class BzrUrlFetchHandlerTest(TestCase):
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
-                self.assertRaises(UnhandledSource, self.fh.branch, url, dest_path)
+                self.assertRaises(UnhandledSource, self.fh.branch,
+                                  url, dest_path)
 
     @patch('charmhelpers.fetch.bzrurl.check_call')
     def test_branch_revno(self, check_call):
