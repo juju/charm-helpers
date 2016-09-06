@@ -90,8 +90,8 @@ class NRPETestCase(NRPEBaseTestCase):
         self.assertEqual(None, checker.write())
 
         expected = 'Nagios user not set up, nrpe checks not updated'
-        self.patched['log'].assert_called_once_with(expected)
-        self.check_call_counts(log=1, config=1, getpwnam=1, getgrnam=1)
+        self.patched['log'].assert_called_with(expected)
+        self.check_call_counts(log=2, config=1, getpwnam=1, getgrnam=1)
 
     def test_write_no_checker(self):
         self.patched['config'].return_value = {'nagios_context': 'test',
@@ -175,7 +175,7 @@ define service {
         self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
                                exists=4, open=2, listdir=1,
-                               relation_ids=2, relation_set=2)
+                               relation_ids=4, relation_set=3)
 
 
 class NRPECheckTestCase(NRPEBaseTestCase):
