@@ -844,6 +844,18 @@ def translate_exc(from_exc, to_exc):
 
 
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def application_version_set(version):
+    """Charm authors may trigger this command from any hook to output what
+    version of the application is running. This could be a package version,
+    for instance postgres version 9.5. It could also be a build number or
+    version control revision identifier, for instance git sha 6fb7ba68. """
+
+    cmd = ['application-version-set']
+    cmd.append(version)
+    subprocess.check_call(cmd)
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def is_leader():
     """Does the current unit hold the juju leadership
 
