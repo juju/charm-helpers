@@ -843,7 +843,6 @@ def translate_exc(from_exc, to_exc):
     return inner_translate_exc1
 
 
-@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def application_version_set(version):
     """Charm authors may trigger this command from any hook to output what
     version of the application is running. This could be a package version,
@@ -852,7 +851,10 @@ def application_version_set(version):
 
     cmd = ['application-version-set']
     cmd.append(version)
-    subprocess.check_call(cmd)
+    try:
+        subprocess.check_call(cmd)
+    except OSError:
+        log("Application Version: {}".format(version))
 
 
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
