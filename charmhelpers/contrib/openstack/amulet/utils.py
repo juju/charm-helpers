@@ -1044,7 +1044,8 @@ class OpenStackAmuletUtils(AmuletUtils):
                                                    retry_delay=5,
                                                    socket_timeout=1)
             connection = pika.BlockingConnection(parameters)
-            assert connection.server_properties['product'] == 'RabbitMQ'
+            assert connection.is_open is True
+            assert connection.is_closing is False
             self.log.debug('Connect OK')
             return connection
         except Exception as e:
