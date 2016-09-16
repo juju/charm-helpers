@@ -1915,5 +1915,4 @@ def os_application_version_set(package):
     if not application_version:
         application_version_set(application_codename)
     else:
-        application_version_set("{} ({})".format(application_version,
-                                                 application_codename))
+        application_version_set(application_version)
