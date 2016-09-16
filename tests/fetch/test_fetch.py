@@ -286,9 +286,9 @@ class FetchTest(TestCase):
         imp.reload(fetch)
 
         source = "cloud:precise-updates/havana"
-        result = ('# Ubuntu Cloud Archive'
-                  ' deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
-                  ' precise-updates/havana main')
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' precise-updates/havana main\n')
 
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
@@ -305,9 +305,9 @@ class FetchTest(TestCase):
         imp.reload(fetch)
 
         source = "cloud:precise-havana"
-        result = ('# Ubuntu Cloud Archive'
-                  ' deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
-                  ' precise-updates/havana main')
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' precise-updates/havana main\n')
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
@@ -323,9 +323,9 @@ class FetchTest(TestCase):
         imp.reload(fetch)
 
         source = "cloud:havana"
-        result = ('# Ubuntu Cloud Archive'
-                  ' deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
-                  ' precise-updates/havana main')
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' precise-updates/havana main\n')
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
@@ -339,9 +339,9 @@ class FetchTest(TestCase):
         imp.reload(fetch)
 
         source = "proposed"
-        result = ('# Proposed'
-                  ' deb http://archive.ubuntu.com/ubuntu precise-proposed'
-                  ' main universe multiverse restricted')
+        result = ('# Proposed\n'
+                  'deb http://archive.ubuntu.com/ubuntu precise-proposed'
+                  ' main universe multiverse restricted\n')
         lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
