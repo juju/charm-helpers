@@ -1788,5 +1788,19 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertTrue(action_set.called)
         self.assertTrue(traceback.called)
 
+    @patch.object(openstack, 'os_release')
+    @patch.object(openstack, 'application_version_set')
+    def test_os_application_version_set(self,
+                                        mock_application_version_set,
+                                        mock_os_release):
+        with patch('apt_pkg.Cache') as cache:
+            cache.return_value = self._apt_cache()
+            mock_os_release.return_value = 'mitaka'
+            openstack.os_application_version_set('neutron-common')
+            mock_application_version_set.assert_called_with('7.0.1')
+            openstack.os_application_version_set('cinder-common')
+            mock_application_version_set.assert_called_with('mitaka')
+
+
 if __name__ == '__main__':
     unittest.main()
