@@ -132,7 +132,8 @@ class SSHConfigContext(object):
         Turns input into a sensible list of IPs SSH can listen on. Input
         must be a python list of interface names, IPs and/or CIDRs.
         
-        listen: list of IPs, CIDRs, interface names
+        :param listen: list of IPs, CIDRs, interface names
+
         :returns: list of IPs available on the host
         """
         if listen == ['0.0.0.0']:
