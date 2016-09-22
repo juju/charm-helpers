@@ -127,6 +127,14 @@ class SSHConfigContext(object):
         return cipher[weak_ciphers]
 
     def get_listening(self, listen=['0.0.0.0']):
+        """Returns a list of addresses SSH can list on
+
+        Turns input into a sensible list of IPs SSH can listen on. Input
+        must be a python list of interface names, IPs and/or CIDRs.
+        
+        listen: list of IPs, CIDRs, interface names
+        :returns: list of IPs available on the host
+        """
         if listen == ['0.0.0.0']:
             return listen
 
