@@ -3,6 +3,7 @@ from mock import patch
 import os
 import shutil
 import stat
+import subprocess
 
 from tempfile import mkdtemp
 
@@ -43,13 +44,17 @@ class ExecDTestCase(TestCase):
         pre_install_success_path = os.path.join(module_path,
                                                 'charm-pre-install-success')
         with open(charm_pre_install_path, 'w+') as f:
-            f.write("#!/bin/bash\n"
-                    "/usr/bin/touch {}".format(pre_install_success_path))
-        perms = stat.S_IXUSR
-        # If the charm-pre-install should run without errors,
+            if not error_on_preinstall:
+                f.write("#!/bin/bash\n"
+                        "/usr/bin/touch {}".format(pre_install_success_path))
+            else:
+                f.write("#!/bin/bash\n"
+                        "echo stdout_from_pre_install\n"
+                        "echo stderr_from_pre_install >&2\n"
+                        "exit 1".format(pre_install_success_path))
+
         # ensure it is executable.
-        if not error_on_preinstall:
-            perms |= stat.S_IRUSR
+        perms = stat.S_IRUSR + stat.S_IXUSR
         os.chmod(charm_pre_install_path, perms)
 
     def assert_preinstall_called_for_mod(self, module_dir,
@@ -129,12 +134,12 @@ class ExecDTestCase(TestCase):
         self.make_preinstall_executable(module_dir='basenode',
                                         error_on_preinstall=True)
 
-        with open(os.devnull, 'wb') as devnull:
-            execd.execd_run('charm-pre-install', stderr=devnull)
+        execd.execd_run('charm-pre-install', die_on_error=False)
 
-        expected_log = ('Error (126) running  {}/exec.d/basenode/'
-                        'charm-pre-install. Output: None'.format(
-                            self.test_charm_dir))
+        expected_log = ('Error (1) running  {}/exec.d/basenode/'
+                        'charm-pre-install. Output: '
+                        'stdout_from_pre_install\n'
+                        'stderr_from_pre_install\n'.format(self.test_charm_dir))
         log_.assert_called_with(expected_log)
 
     @patch('charmhelpers.core.hookenv.log')
@@ -147,5 +152,4 @@ class ExecDTestCase(TestCase):
             execd.execd_run('charm-pre-install', die_on_error=True,
                             stderr=devnull)
 
-        # 126: Command invoked cannot execute
-        exit_.assert_called_with(126)
+        exit_.assert_called_with(1)
