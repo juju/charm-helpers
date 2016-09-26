@@ -149,7 +149,6 @@ class ExecDTestCase(TestCase):
                                         error_on_preinstall=True)
 
         with open(os.devnull, 'wb') as devnull:
-            execd.execd_run('charm-pre-install', die_on_error=True,
-                            stderr=devnull)
+            execd.execd_run('charm-pre-install', stderr=devnull)
 
         exit_.assert_called_with(1)
