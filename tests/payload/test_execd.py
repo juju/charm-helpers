@@ -3,7 +3,6 @@ from mock import patch
 import os
 import shutil
 import stat
-import subprocess
 
 from tempfile import mkdtemp
 
