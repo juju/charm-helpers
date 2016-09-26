@@ -53,7 +53,7 @@ ADDRESS_MAP = {
     },
     ACCESS: {
         'binding': 'access',
-        'config': 'os-access-network',
+        'config': 'access-network',
         'fallback': 'private-address',
         'override': 'os-access-hostname',
     },
