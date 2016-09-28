@@ -85,20 +85,6 @@ class FakeRelation(object):
         return sorted(self.relation_data[relation_id].keys())
 
 
-class FakeAppArmorContext(context.AppArmorContext):
-
-    def __init__(self):
-        super(FakeAppArmorContext, self).__init__()
-        self.aa_profile = 'fake-aa-profile'
-
-    def __call__(self):
-        super(FakeAppArmorContext, self).__call__()
-        if not self.ctxt:
-            return self.ctxt
-        self._ctxt.update({'aa_profile': self.aa_profile})
-        return self.ctxt
-
-
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
     'password': 'foo'
@@ -2973,7 +2959,7 @@ class ContextTests(unittest.TestCase):
 
     def test_apparmor_setup_complain(self):
         ''' Tests for the apparmor setup'''
-        AA = FakeAppArmorContext()
+        AA = context.AppArmorContext(profile_name='fake-aa-profile')
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
         # Test complain mode
@@ -2985,7 +2971,7 @@ class ContextTests(unittest.TestCase):
 
     def test_apparmor_setup_enforce(self):
         ''' Tests for the apparmor setup'''
-        AA = FakeAppArmorContext()
+        AA = context.AppArmorContext(profile_name='fake-aa-profile')
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
         # Test enforce mode
@@ -2996,7 +2982,7 @@ class ContextTests(unittest.TestCase):
 
     def test_apparmor_setup_disable(self):
         ''' Tests for the apparmor setup'''
-        AA = FakeAppArmorContext()
+        AA = context.AppArmorContext(profile_name='fake-aa-profile')
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
         # Test disable mode
