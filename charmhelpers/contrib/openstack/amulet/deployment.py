@@ -149,18 +149,22 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         services = other_services
         services.append(this_service)
 
+        use_source = use_source or []
+        no_origin = no_origin or []
+
         # Charms which should use the source config option
-        if not use_source:
-            use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
-                          'ceph-osd', 'ceph-radosgw', 'ceph-mon', 'ceph-proxy']
+        use_source = list(set(
+            use_source + ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
+                          'ceph-osd', 'ceph-radosgw', 'ceph-mon',
+                          'ceph-proxy']))
 
         # Charms which can not use openstack-origin, ie. many subordinates
-        if not no_origin:
-            no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch',
+        no_origin = list(set(
+            no_origin + ['cinder-ceph', 'hacluster', 'neutron-openvswitch',
                          'nrpe', 'openvswitch-odl', 'neutron-api-odl',
                          'odl-controller', 'cinder-backup', 'nexentaedge-data',
                          'nexentaedge-iscsi-gw', 'nexentaedge-swift-gw',
-                         'cinder-nexentaedge', 'nexentaedge-mgmt']
+                         'cinder-nexentaedge', 'nexentaedge-mgmt']))
 
         if self.openstack:
             for svc in services:
