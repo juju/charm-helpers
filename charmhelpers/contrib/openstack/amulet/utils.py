@@ -306,7 +306,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                                   password, tenant):
         """Authenticates admin user with cinder."""
         # NOTE(beisner): cinder python client doesn't accept tokens.
-        keystone_ip = keystone_sentry.info['private-address']
+        keystone_ip = keystone_sentry.info['public-address']
         ept = "http://{}:5000/v2.0".format(keystone_ip.strip().decode('utf-8'))
         return cinder_client.Client(username, password, tenant, ept)
 
@@ -317,7 +317,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Authenticating keystone admin...')
         unit = keystone_sentry
         if not keystone_ip:
-            keystone_ip = keystone_sentry.info['private-address']
+            keystone_ip = keystone_sentry.info['public-address']
 
         base_ep = "http://{}:35357".format(keystone_ip.strip().decode('utf-8'))
         if not api_version or api_version == 2:
