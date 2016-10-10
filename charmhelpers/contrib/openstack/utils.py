@@ -410,15 +410,17 @@ def get_os_version_package(pkg, fatal=True):
 os_rel = None
 
 
-def os_release(package, base='essex'):
+def os_release(package, base='essex', allow_cached=True):
     '''
-    Returns OpenStack release codename from a cached global.
+    Returns OpenStack release codename from a cached global if allow_cached is
+    True otherwise the OpenStack release codename is determined.
+
     If the codename can not be determined from either an installed package or
     the installation source, the earliest release supported by the charm should
     be returned.
     '''
     global os_rel
-    if os_rel:
+    if allow_cached and os_rel:
         return os_rel
     os_rel = (git_os_codename_install_source(config('openstack-origin-git')) or
               get_os_codename_package(package, fatal=False) or
