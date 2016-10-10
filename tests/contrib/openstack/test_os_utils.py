@@ -110,3 +110,47 @@ class UtilsTests(unittest.TestCase):
             relation_id='neutron-plugin-api-subordinate:8',
             relation_settings={'restart-trigger': 'uuid4'}
         )
+
+    @mock.patch.object(utils, 'config')
+    @mock.patch('charmhelpers.contrib.openstack.utils.'
+                'git_os_codename_install_source')
+    @mock.patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    @mock.patch('charmhelpers.contrib.openstack.utils.'
+                'get_os_codename_install_source')
+    def test_os_release(self, mock_get_os_codename_install_source,
+                        mock_get_os_codename_package,
+                        mock_git_os_codename_install_source,
+                        mock_config):
+        # Wipe the modules cached os_rel
+        utils.os_rel = None
+        mock_get_os_codename_install_source.return_value = None
+        mock_get_os_codename_package.return_value = None
+        mock_git_os_codename_install_source.return_value = None
+        mock_config.return_value = 'cloud-pocket'
+        self.assertEqual(utils.os_release('my-pkg'), 'essex')
+        mock_get_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        mock_get_os_codename_package.assert_called_once_with(
+            'my-pkg', fatal=False)
+        mock_git_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        # Next call to os_release should pickup cached version
+        mock_get_os_codename_install_source.reset_mock()
+        mock_get_os_codename_package.reset_mock()
+        mock_git_os_codename_install_source.reset_mock()
+        self.assertEqual(utils.os_release('my-pkg'), 'essex')
+        self.assertFalse(mock_get_os_codename_install_source.called)
+        self.assertFalse(mock_get_os_codename_package.called)
+        self.assertFalse(mock_git_os_codename_install_source.called)
+        # Call os_release and bypass cache
+        mock_get_os_codename_install_source.reset_mock()
+        mock_get_os_codename_package.reset_mock()
+        mock_git_os_codename_install_source.reset_mock()
+        self.assertEqual(utils.os_release('my-pkg', reset_cache=True),
+                         'essex')
+        mock_get_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        mock_get_os_codename_package.assert_called_once_with(
+            'my-pkg', fatal=False)
+        mock_git_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
