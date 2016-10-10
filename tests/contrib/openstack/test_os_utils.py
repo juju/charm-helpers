@@ -146,7 +146,7 @@ class UtilsTests(unittest.TestCase):
         mock_get_os_codename_install_source.reset_mock()
         mock_get_os_codename_package.reset_mock()
         mock_git_os_codename_install_source.reset_mock()
-        self.assertEqual(utils.os_release('my-pkg', allow_cached=False),
+        self.assertEqual(utils.os_release('my-pkg', reset_cache=True),
                          'essex')
         mock_get_os_codename_install_source.assert_called_once_with(
             'cloud-pocket')
