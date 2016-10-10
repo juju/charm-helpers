@@ -418,7 +418,7 @@ def reset_os_release():
 
 def os_release(package, base='essex', reset_cache=False):
     '''
-    Returns OpenStack release codename from a cached global
+    Returns OpenStack release codename from a cached global.
 
     If reset_cache then unset the cached os_release version and return the
     freshly determined version.
