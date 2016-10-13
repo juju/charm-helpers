@@ -224,7 +224,7 @@ class GetProcessIdListTestCase(unittest.TestCase):
         """
         Normal execution returns a list of pids
         """
-        self.sentry_unit.commands["pidof -x foo"] = ("123 124 125", 0)
+        self.sentry_unit.commands['pidof -x "foo"'] = ("123 124 125", 0)
         result = self.utils.get_process_id_list(self.sentry_unit, "foo")
         self.assertEqual(["123", "124", "125"], result)
 
@@ -234,21 +234,21 @@ class GetProcessIdListTestCase(unittest.TestCase):
         to find a given process results in an amulet.FAIL being
         raised.
         """
-        self.sentry_unit.commands["pidof -x foo"] = ("", 1)
+        self.sentry_unit.commands['pidof -x "foo"'] = ("", 1)
         with self.assertRaises(SystemExit) as cm, captured_output() as (
                 out, err):
             self.utils.get_process_id_list(self.sentry_unit, "foo")
         the_exception = cm.exception
         self.assertEqual(1, the_exception.code)
         self.assertEqual(
-            "foo `pidof -x foo` returned 1", out.getvalue().rstrip())
+            'foo `pidof -x "foo"` returned 1', out.getvalue().rstrip())
 
     def test_looks_for_scripts(self):
         """
         pidof command uses -x to return a list of pids of scripts
         """
         self.sentry_unit.commands["pidof foo"] = ("", 1)
-        self.sentry_unit.commands["pidof -x foo"] = ("123 124 125", 0)
+        self.sentry_unit.commands['pidof -x "foo"'] = ("123 124 125", 0)
         result = self.utils.get_process_id_list(self.sentry_unit, "foo")
         self.assertEqual(["123", "124", "125"], result)
 
@@ -257,8 +257,10 @@ class GetProcessIdListTestCase(unittest.TestCase):
         By setting expectation that there are no pids running the logic
         about when to fail is reversed.
         """
-        self.sentry_unit.commands["pidof -x foo || exit 0 && exit 1"] = ("", 0)
-        self.sentry_unit.commands["pidof -x bar || exit 0 && exit 1"] = ("", 1)
+        self.sentry_unit.commands[
+            'pidof -x "foo" || exit 0 && exit 1'] = ("", 0)
+        self.sentry_unit.commands[
+            'pidof -x "bar" || exit 0 && exit 1'] = ("", 1)
         result = self.utils.get_process_id_list(
             self.sentry_unit, "foo", expect_success=False)
         self.assertEqual([], result)
@@ -269,7 +271,7 @@ class GetProcessIdListTestCase(unittest.TestCase):
         the_exception = cm.exception
         self.assertEqual(1, the_exception.code)
         self.assertEqual(
-            "foo `pidof -x bar || exit 0 && exit 1` returned 1",
+            'foo `pidof -x "bar" || exit 0 && exit 1` returned 1',
             out.getvalue().rstrip())
 
 
@@ -285,8 +287,8 @@ class GetUnitProcessIdsTestCase(unittest.TestCase):
         PIDs for each unit.
         """
         second_sentry = FakeSentry(name="bar")
-        self.sentry_unit.commands["pidof -x foo"] = ("123 124", 0)
-        second_sentry.commands["pidof -x bar"] = ("456 457", 0)
+        self.sentry_unit.commands['pidof -x "foo"'] = ("123 124", 0)
+        second_sentry.commands['pidof -x "bar"'] = ("456 457", 0)
 
         result = self.utils.get_unit_process_ids({
             self.sentry_unit: ["foo"], second_sentry: ["bar"]})
@@ -299,8 +301,9 @@ class GetUnitProcessIdsTestCase(unittest.TestCase):
         Expected failures return empty lists.
         """
         second_sentry = FakeSentry(name="bar")
-        self.sentry_unit.commands["pidof -x foo || exit 0 && exit 1"] = ("", 0)
-        second_sentry.commands["pidof -x bar || exit 0 && exit 1"] = ("", 0)
+        self.sentry_unit.commands[
+            'pidof -x "foo" || exit 0 && exit 1'] = ("", 0)
+        second_sentry.commands['pidof -x "bar" || exit 0 && exit 1'] = ("", 0)
 
         result = self.utils.get_unit_process_ids(
             {self.sentry_unit: ["foo"], second_sentry: ["bar"]},
@@ -320,8 +323,9 @@ class StatusGetTestCase(unittest.TestCase):
         """
         We can get the status of a unit.
         """
-        self.sentry_unit.commands["status-get --format=json --include-data"] = (
-            """{"status": "active", "message": "foo"}""", 0)
+        self.sentry_unit.commands[
+            "status-get --format=json --include-data"] = (
+                """{"status": "active", "message": "foo"}""", 0)
         self.assertEqual(self.utils.status_get(self.sentry_unit),
                          (u"active", u"foo"))
 
@@ -330,8 +334,9 @@ class StatusGetTestCase(unittest.TestCase):
         Older releases of Juju have no status-get command.  In those
         cases we should return the "unknown" status.
         """
-        self.sentry_unit.commands["status-get --format=json --include-data"] = (
-            "status-get: command not found", 127)
+        self.sentry_unit.commands[
+            "status-get --format=json --include-data"] = (
+                "status-get: command not found", 127)
         self.assertEqual(self.utils.status_get(self.sentry_unit),
                          (u"unknown", u""))
 
