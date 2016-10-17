@@ -13,6 +13,7 @@ Listen {{ ext_port }}
     ProxyPass / http://localhost:{{ int }}/
     ProxyPassReverse / http://localhost:{{ int }}/
     ProxyPreserveHost on
+    RequestHeader set X-Forwarded-Proto "https"
 </VirtualHost>
 {% endfor -%}
 <Proxy *>

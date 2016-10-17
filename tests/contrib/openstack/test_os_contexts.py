@@ -1792,7 +1792,7 @@ class ContextTests(unittest.TestCase):
         '''Test apache2 context also loads required apache modules'''
         apache = context.ApacheSSLContext()
         apache.enable_modules()
-        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
+        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         self.check_call.assert_called_with(ex_cmd)
 
     def test_https_configure_cert(self):
