@@ -1682,3 +1682,19 @@ class HelpersTest(TestCase):
             mock_file.readlines.return_value = raw.splitlines()
             self.assertEqual(host.get_total_ram(), 7266414592)  # 7GB
             mock_open.assert_called_once_with('/proc/meminfo', 'r')
+
+    @patch('subprocess.check_output')
+    def test_is_container_with_container(self, check_output):
+        check_output.return_value = 1
+        self.assertTrue(host.is_container())
+
+    @patch('subprocess.check_output')
+    def test_is_container_with_vm(self, check_output):
+        check_output.return_value = 0
+        self.assertFalse(host.is_container())
+    
+    @patch('subprocess.check_output')
+    def test_is_container_with_exception(self, check_output):
+        error = subprocess.CalledProcessError(1, 'oops', 'systemd-detect-virt')
+        check_output.side_effect = error
+        self.assertFalse(host.is_container())
