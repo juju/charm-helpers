@@ -732,3 +732,11 @@ def get_total_ram():
                     assert unit == 'kB', 'Unknown unit'
                     return int(value) * 1024  # Classic, not KiB.
         raise NotImplementedError()
+
+def is_container():
+    """Return True if system is running inside a container"""
+    try:
+        return subprocess.check_output(
+            ['systemd-virt-check', '-c'])
+    except subprocess.CalledProcessError:
+        return False
