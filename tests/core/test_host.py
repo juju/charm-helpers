@@ -1683,18 +1683,50 @@ class HelpersTest(TestCase):
             self.assertEqual(host.get_total_ram(), 7266414592)  # 7GB
             mock_open.assert_called_once_with('/proc/meminfo', 'r')
 
-    @patch('subprocess.check_output')
-    def test_is_container_with_container(self, check_output):
-        check_output.return_value = 1
+    @patch.object(host, 'os')
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
+    def test_is_container_with_systemd_container(self,
+                                                 call,
+                                                 init_is_systemd,
+                                                 mock_os):
+        init_is_systemd.return_value = True
+        call.return_value = 0
         self.assertTrue(host.is_container())
+        call.assert_called_with(['systemd-detect-virt', '--container'])
 
-    @patch('subprocess.check_output')
-    def test_is_container_with_vm(self, check_output):
-        check_output.return_value = 0
+    @patch.object(host, 'os')
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
+    def test_is_container_with_systemd_non_container(self,
+                                                     call,
+                                                     init_is_systemd,
+                                                     mock_os):
+        init_is_systemd.return_value = True
+        call.return_value = 1
         self.assertFalse(host.is_container())
-    
-    @patch('subprocess.check_output')
-    def test_is_container_with_exception(self, check_output):
-        error = subprocess.CalledProcessError(1, 'oops', 'systemd-detect-virt')
-        check_output.side_effect = error
+        call.assert_called_with(['systemd-detect-virt', '--container'])
+
+    @patch.object(host, 'os')
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
+    def test_is_container_with_upstart_container(self,
+                                                 call,
+                                                 init_is_systemd,
+                                                 mock_os):
+        init_is_systemd.return_value = False
+        mock_os.path.exists.return_value = True
+        self.assertTrue(host.is_container())
+        mock_os.path.exists.assert_called_with('/run/container_type')
+
+    @patch.object(host, 'os')
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
+    def test_is_container_with_upstart_not_container(self,
+                                                     call,
+                                                     init_is_systemd,
+                                                     mock_os):
+        init_is_systemd.return_value = False
+        mock_os.path.exists.return_value = False
         self.assertFalse(host.is_container())
+        mock_os.path.exists.assert_called_with('/run/container_type')
