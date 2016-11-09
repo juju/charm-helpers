@@ -746,9 +746,6 @@ def is_container():
         # Detect using systemd-detect-virt
         return subprocess.call(['systemd-detect-virt',
                                 '--container']) == 0
-    elif os.path.exists(UPSTART_CONTAINER_TYPE):
-        # Detect using upstart container file marker
-        return True
     else:
-        # Default to False because we can't tell
-        return False
+        # Detect using upstart container file marker
+        return os.path.exists(UPSTART_CONTAINER_TYPE)
