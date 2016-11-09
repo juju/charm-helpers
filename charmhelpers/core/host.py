@@ -733,10 +733,22 @@ def get_total_ram():
                     return int(value) * 1024  # Classic, not KiB.
         raise NotImplementedError()
 
+
+UPSTART_CONTAINER_TYPE = '/run/container_type'
+
+
 def is_container():
-    """Return True if system is running inside a container"""
-    try:
-        return subprocess.check_output(
-            ['systemd-virt-check', '-c'])
-    except subprocess.CalledProcessError:
+    """Determine whether unit is running in a container
+
+    @return: boolean indicating if unit is in a container
+    """
+    if init_is_systemd():
+        # Detect using systemd-detect-virt
+        return subprocess.call(['systemd-detect-virt',
+                                '--container']) == 0
+    elif os.path.exists(UPSTART_CONTAINER_TYPE):
+        # Detect using upstart container file marker
+        return True
+    else:
+        # Default to False because we can't tell
         return False
