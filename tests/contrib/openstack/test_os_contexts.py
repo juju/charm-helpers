@@ -121,6 +121,7 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_tenant_id': '123456',
     'service_password': 'foo',
@@ -134,6 +135,7 @@ IDENTITY_SERVICE_RELATION_UNSET = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
@@ -146,6 +148,7 @@ APIIDENTITY_SERVICE_RELATION_UNSET = {
             'service_host': 'keystonehost.local',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
+            'service_domain': 'admin_domain',
             'service_tenant': 'admin',
             'service_password': 'foo',
             'service_username': 'adam',
@@ -158,6 +161,7 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
@@ -185,6 +189,7 @@ IDENTITY_SERVICE_RELATION = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
@@ -754,6 +759,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -781,6 +787,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -804,6 +811,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -827,6 +835,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_user': 'adam',
@@ -848,6 +857,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -869,6 +879,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -891,6 +902,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_user': 'adam',
