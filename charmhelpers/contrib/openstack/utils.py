@@ -109,7 +109,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('wily', 'liberty'),
     ('xenial', 'mitaka'),
     ('yakkety', 'newton'),
-    ('zebra', 'ocata'),  # TODO: upload with real Z name
+    ('zesty', 'ocata'),
 ])
 
 
@@ -547,6 +547,9 @@ def configure_installation_source(rel):
             'newton': 'xenial-updates/newton',
             'newton/updates': 'xenial-updates/newton',
             'newton/proposed': 'xenial-proposed/newton',
+            'zesty': 'zesty-updates/ocata',
+            'zesty/updates': 'xenial-updates/ocata',
+            'zesty/proposed': 'xenial-proposed/ocata',
         }
 
         try:
