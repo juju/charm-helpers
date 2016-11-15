@@ -266,6 +266,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         releases = {
             ('trusty', None): self.trusty_icehouse,
+            ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo,
             ('trusty', 'cloud:trusty-liberty'): self.trusty_liberty,
             ('trusty', 'cloud:trusty-mitaka'): self.trusty_mitaka,
             ('xenial', None): self.xenial_mitaka,
