@@ -222,5 +222,6 @@ class StorageTest(unittest.TestCase):
         kv.flush(False)
         self.assertEqual(kv.get('hello'), 'world')
 
+
 if __name__ == '__main__':
     unittest.main()

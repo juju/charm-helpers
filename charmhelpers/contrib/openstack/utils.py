@@ -683,6 +683,7 @@ def clean_storage(block_device):
     else:
         zap_disk(block_device)
 
+
 is_ip = ip.is_ip
 ns_query = ip.ns_query
 get_host_ip = ip.get_host_ip
