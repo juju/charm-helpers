@@ -337,13 +337,16 @@ class IdentityServiceContext(OSContextGenerator):
                              'service_host': serv_host,
                              'auth_host': auth_host,
                              'auth_port': rdata.get('auth_port'),
-                             'admin_domain_name': rdata.get('service_domain'),
                              'admin_tenant_name': rdata.get('service_tenant'),
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
                              'api_version': api_version})
+
+                if float(api_version) > 2:
+                    ctxt.update({'admin_domain_name':
+                                 rdata.get('service_domain')})
 
                 if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
