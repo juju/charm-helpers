@@ -1526,7 +1526,10 @@ class MemcacheContext(OSContextGenerator):
         ctxt['use_memcache'] = enable_memcache(config('openstack-origin'))
         if ctxt['use_memcache']:
             ctxt['memcache_server'] = '::1'
+            ctxt['memcache_server_formatted'] = '[::1]'
             ctxt['memcache_port'] = '11211'
-            ctxt['memcache_url'] = '{}:{}'.format(ctxt['memcache_server'],
-                                                  ctxt['memcache_port'])
+            ctxt['memcache_url'] = 'inet6:{}:{}'.format(
+                ctxt['memcache_server_formatted'],
+                ctxt['memcache_port'])
+
         return ctxt
