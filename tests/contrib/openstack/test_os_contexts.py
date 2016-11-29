@@ -3002,3 +3002,26 @@ class ContextTests(unittest.TestCase):
         AA.setup_aa_profile()
         self.check_call.assert_called_with(['aa-disable', 'fake-aa-profile'])
         AA.manually_disable_aa_profile.assert_called_with()
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_context(self, _enable_memcache):
+        _enable_memcache.return_value = True
+        config = {'openstack-origin': 'distro'}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertTrue(ctxt()['use_memcache'])
+        expect = {
+            'memcache_port': '11211',
+            'memcache_server': '::1',
+            'memcache_url': '::1:11211',
+            'use_memcache': True}
+        self.assertEqual(ctxt(), expect)
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_off_context(self, _enable_memcache):
+        _enable_memcache.return_value = False
+        config = {'openstack-origin': 'distro'}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertFalse(ctxt()['use_memcache'])
+        self.assertEqual(ctxt(), {'use_memcache': False})
