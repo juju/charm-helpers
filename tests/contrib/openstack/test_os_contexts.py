@@ -3013,7 +3013,8 @@ class ContextTests(unittest.TestCase):
         expect = {
             'memcache_port': '11211',
             'memcache_server': '::1',
-            'memcache_url': '::1:11211',
+            'memcache_server_formatted': '[::1]',
+            'memcache_url': 'inet6:[::1]:11211',
             'use_memcache': True}
         self.assertEqual(ctxt(), expect)
 
