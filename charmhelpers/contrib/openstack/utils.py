@@ -1936,7 +1936,7 @@ def enable_memcache(source=None, release=None):
     """
     if not release:
         release = get_os_codename_install_source(source)
-    return release >= 'newton'
+    return release >= 'mitaka'
 
 
 def token_cache_pkgs(source=None, release=None):
@@ -1948,5 +1948,5 @@ def token_cache_pkgs(source=None, release=None):
     """
     packages = []
     if enable_memcache(source=source, release=release):
-        packages.extend(['memcached'])
+        packages.extend(['memcached', 'python-memcache'])
     return packages

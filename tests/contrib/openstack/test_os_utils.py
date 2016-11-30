@@ -168,4 +168,4 @@ class UtilsTests(unittest.TestCase):
         self.assertEqual(utils.token_cache_pkgs(source='distro'), [])
         _enable_memcache.return_value = True
         self.assertEqual(utils.token_cache_pkgs(source='distro'),
-                         ['memcached'])
+                         ['memcached', 'python-memcache'])
