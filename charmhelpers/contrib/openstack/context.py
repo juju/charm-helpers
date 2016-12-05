@@ -90,6 +90,7 @@ from charmhelpers.contrib.network.ip import (
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
     get_host_ip,
+    enable_memcache,
 )
 from charmhelpers.core.unitdata import kv
 
@@ -1512,3 +1513,23 @@ class AppArmorContext(OSContextGenerator):
                                   "".format(self.ctxt['aa_profile'],
                                             self.ctxt['aa_profile_mode']))
             raise e
+
+
+class MemcacheContext(OSContextGenerator):
+    """Memcache context
+
+    This context provides options for configuring a local memcache client and
+    server
+    """
+    def __call__(self):
+        ctxt = {}
+        ctxt['use_memcache'] = enable_memcache(config('openstack-origin'))
+        if ctxt['use_memcache']:
+            ctxt['memcache_server'] = '::1'
+            ctxt['memcache_server_formatted'] = '[::1]'
+            ctxt['memcache_port'] = '11211'
+            ctxt['memcache_url'] = 'inet6:{}:{}'.format(
+                ctxt['memcache_server_formatted'],
+                ctxt['memcache_port'])
+
+        return ctxt
