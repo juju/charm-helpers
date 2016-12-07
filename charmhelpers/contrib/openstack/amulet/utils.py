@@ -1160,9 +1160,10 @@ class OpenStackAmuletUtils(AmuletUtils):
             return
         _kvs = check_kvs or {'memcached_servers': 'inet6:[::1]:11211'}
         self.log.debug('Checking memcached is running')
-        if self.validate_services_by_name({sentry_unit: ['memcached']}):
+        ret = self.validate_services_by_name({sentry_unit: ['memcached']})
+        if ret:
             amulet.raise_status(amulet.FAIL, msg='Memcache running check'
-                                'failed')
+                                'failed {}'.format(ret))
         else:
             self.log.debug('OK')
         self.log.debug('Checking memcache url is configured in {}'.format(
@@ -1180,13 +1181,13 @@ class OpenStackAmuletUtils(AmuletUtils):
             '-p': '11211',
             '-l': '::1'}
         found = []
-        for key in expected.keys():
+        for key, value in expected.items():
             for line in contents.split('\n'):
                 if line.startswith(key):
                     self.log.debug('Checking {} is set to {}'.format(
                         key,
-                        expected[key]))
-                    assert expected[key] == line.split()[-1]
+                        value))
+                    assert value == line.split()[-1]
                     self.log.debug(line.split()[-1])
                     found.append(key)
         if sorted(found) == sorted(expected.keys()):
