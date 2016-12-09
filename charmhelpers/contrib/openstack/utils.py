@@ -1119,6 +1119,35 @@ def git_generate_systemd_init_files(templates_dir):
                 shutil.copyfile(service_source, service_dest)
 
 
+def git_determine_usr_bin():
+    """Return the /usr/bin path for Apache2 config.
+
+    The /usr/bin path will be located in the virtualenv if the charm
+    is configured to deploy from source.
+    """
+    if git_install_requested():
+        projects_yaml = config('openstack-origin-git')
+        projects_yaml = git_default_repos(projects_yaml)
+        return os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
+    else:
+        return '/usr/bin'
+
+
+def git_determine_python_path():
+    """Return the python-path for Apache2 config.
+
+    Returns 'None' unless the charm is configured to deploy from source,
+    in which case the path of the virtualenv's site-packages is returned.
+    """
+    if git_install_requested():
+        projects_yaml = config('openstack-origin-git')
+        projects_yaml = git_default_repos(projects_yaml)
+        return os.path.join(git_pip_venv_dir(projects_yaml),
+                            'lib/python2.7/site-packages')
+    else:
+        return None
+
+
 def os_workload_status(configs, required_interfaces, charm_func=None):
     """
     Decorator to set workload status based on complete contexts
