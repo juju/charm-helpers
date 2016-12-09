@@ -1525,11 +1525,15 @@ class MemcacheContext(OSContextGenerator):
         ctxt = {}
         ctxt['use_memcache'] = enable_memcache(config('openstack-origin'))
         if ctxt['use_memcache']:
-            ctxt['memcache_server'] = '::1'
+            # Trusty version of memcached does not support ::1 as a listen
+            # address so use host file entry instead
+            if lsb_release()['DISTRIB_CODENAME'].lower() > 'trusty':
+                ctxt['memcache_server'] = '::1'
+            else:
+                ctxt['memcache_server'] = 'ip6-localhost'
             ctxt['memcache_server_formatted'] = '[::1]'
             ctxt['memcache_port'] = '11211'
             ctxt['memcache_url'] = 'inet6:{}:{}'.format(
                 ctxt['memcache_server_formatted'],
                 ctxt['memcache_port'])
-
         return ctxt
