@@ -14,6 +14,7 @@
 
 import glob
 import json
+import math
 import os
 import re
 import time
@@ -90,6 +91,8 @@ from charmhelpers.contrib.network.ip import (
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
     get_host_ip,
+    git_determine_usr_bin,
+    git_determine_python_path,
     enable_memcache,
 )
 from charmhelpers.core.unitdata import kv
@@ -1205,6 +1208,43 @@ class WorkerConfigContext(OSContextGenerator):
         if multiplier > 0 and count == 0:
             count = 1
         ctxt = {"workers": count}
+        return ctxt
+
+
+class WSGIWorkerConfigContext(WorkerConfigContext):
+
+    def __init__(self, name=None, script=None, admin_script=None,
+                 public_script=None, process_weight=1.00,
+                 admin_process_weight=0.75, public_process_weight=0.25):
+        self.service_name = name
+        self.user = name
+        self.group = name
+        self.script = script
+        self.admin_script = admin_script
+        self.public_script = public_script
+        self.process_weight = process_weight
+        self.admin_process_weight = admin_process_weight
+        self.public_process_weight = public_process_weight
+
+    def __call__(self):
+        multiplier = config('worker-multiplier') or 1
+        total_processes = self.num_cpus * multiplier
+        ctxt = {
+            "service_name": self.service_name,
+            "user": self.user,
+            "group": self.group,
+            "script": self.script,
+            "admin_script": self.admin_script,
+            "public_script": self.public_script,
+            "processes": int(math.ceil(self.process_weight * total_processes)),
+            "admin_processes": int(math.ceil(self.admin_process_weight *
+                                             total_processes)),
+            "public_processes": int(math.ceil(self.public_process_weight *
+                                              total_processes)),
+            "threads": 1,
+            "usr_bin": git_determine_usr_bin(),
+            "python_path": git_determine_python_path(),
+        }
         return ctxt
 
 
