@@ -1536,10 +1536,4 @@ class MemcacheContext(OSContextGenerator):
             ctxt['memcache_url'] = 'inet6:{}:{}'.format(
                 ctxt['memcache_server_formatted'],
                 ctxt['memcache_port'])
-
-            ctxt['memcache_server_formatted'] = '[::1]'
-            ctxt['memcache_port'] = '11211'
-            ctxt['memcache_url'] = 'inet6:{}:{}'.format(
-                ctxt['memcache_server_formatted'],
-                ctxt['memcache_port'])
         return ctxt
