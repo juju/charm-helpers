@@ -3005,6 +3005,7 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, 'enable_memcache')
     def test_memcache_context(self, _enable_memcache):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
         _enable_memcache.return_value = True
         config = {'openstack-origin': 'distro'}
         self.config.side_effect = fake_config(config)
@@ -3016,6 +3017,10 @@ class ContextTests(unittest.TestCase):
             'memcache_server_formatted': '[::1]',
             'memcache_url': 'inet6:[::1]:11211',
             'use_memcache': True}
+        self.assertEqual(ctxt(), expect)
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
+        expect['memcache_server'] = 'ip6-localhost'
+        ctxt = context.MemcacheContext()
         self.assertEqual(ctxt(), expect)
 
     @patch.object(context, 'enable_memcache')
