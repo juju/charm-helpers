@@ -1177,9 +1177,14 @@ class OpenStackAmuletUtils(AmuletUtils):
                        '/etc/memcached.conf')
         contents = self.file_contents_safe(sentry_unit, '/etc/memcached.conf',
                                            fatal=True)
+        ubuntu_release, _ = self.run_cmd_unit(sentry_unit, 'lsb_release -cs')
+        if ubuntu_release <= 'trusty':
+            memcache_listen_addr = 'ip6-localhost'
+        else:
+            memcache_listen_addr = '::1'
         expected = {
             '-p': '11211',
-            '-l': '::1'}
+            '-l': memcache_listen_addr}
         found = []
         for key, value in expected.items():
             for line in contents.split('\n'):
