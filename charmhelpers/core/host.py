@@ -306,10 +306,12 @@ def add_user_to_group(username, group):
     subprocess.check_call(cmd)
 
 
-def rsync(from_path, to_path, flags='-r', options=None):
+def rsync(from_path, to_path, flags='-r', options=None, timeout=None):
     """Replicate the contents of a path"""
     options = options or ['--delete', '--executability']
     cmd = ['/usr/bin/rsync', flags]
+    if timeout:
+        cmd = ['timeout', int(timeout)] + cmd
     cmd.extend(options)
     cmd.append(from_path)
     cmd.append(to_path)
