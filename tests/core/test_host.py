@@ -895,7 +895,7 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['/usr/bin/rsync', '-r', '--delete',
                                          '--executability',
                                          '/from/this/path/foo',
-                                         '/to/this/path/bar'])
+                                         '/to/this/path/bar'], stderr=subprocess.STDOUT)
 
     @patch('subprocess.check_call')
     @patch.object(host, 'log')
