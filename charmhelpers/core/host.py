@@ -316,7 +316,7 @@ def rsync(from_path, to_path, flags='-r', options=None, timeout=None):
     cmd.append(from_path)
     cmd.append(to_path)
     log(" ".join(cmd))
-    return subprocess.check_output(cmd, subprocess.STDOUT).decode('UTF-8').strip()
+    return subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('UTF-8').strip()
 
 
 def symlink(source, destination):
