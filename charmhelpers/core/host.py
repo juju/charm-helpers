@@ -311,7 +311,7 @@ def rsync(from_path, to_path, flags='-r', options=None, timeout=None):
     options = options or ['--delete', '--executability']
     cmd = ['/usr/bin/rsync', flags]
     if timeout:
-        cmd = ['timeout', int(timeout)] + cmd
+        cmd = ['timeout', str(timeout)] + cmd
     cmd.extend(options)
     cmd.append(from_path)
     cmd.append(to_path)
