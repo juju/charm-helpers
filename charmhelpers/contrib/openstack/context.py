@@ -1521,9 +1521,18 @@ class MemcacheContext(OSContextGenerator):
     This context provides options for configuring a local memcache client and
     server
     """
+
+    def __init__(self, package=None):
+        """
+        @param package: Package to examine to extrapolate OpenStack release.
+                        Used when charms have no openstack-origin config
+                        option (ie subordinates)
+        """
+        self.package = package
+
     def __call__(self):
         ctxt = {}
-        ctxt['use_memcache'] = enable_memcache(config('openstack-origin'))
+        ctxt['use_memcache'] = enable_memcache(package=self.package)
         if ctxt['use_memcache']:
             # Trusty version of memcached does not support ::1 as a listen
             # address so use host file entry instead
