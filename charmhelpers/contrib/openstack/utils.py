@@ -1941,6 +1941,9 @@ def enable_memcache(source=None, release=None, package=None):
         _release = os_release(package, base='icehouse')
     if not _release:
         _release = get_os_codename_install_source(source)
+
+    # TODO: this should be changed to a numeric comparison using a known list
+    # of releases and comparing by index.
     return _release >= 'mitaka'
 
 
