@@ -1927,16 +1927,21 @@ def os_application_version_set(package):
         application_version_set(application_version)
 
 
-def enable_memcache(source=None, release=None):
+def enable_memcache(source=None, release=None, package=None):
     """Determine if memcache should be enabled on the local unit
 
-    @param source: source string for charm
     @param release: release of OpenStack currently deployed
+    @param package: package to derive OpenStack version deployed
     @returns boolean Whether memcache should be enabled
     """
-    if not release:
-        release = get_os_codename_install_source(source)
-    return release >= 'mitaka'
+    _release = None
+    if release:
+        _release = release
+    else:
+        _release = os_release(package, base='icehouse')
+    if not _release:
+        _release = get_os_codename_install_source(source)
+    return _release >= 'mitaka'
 
 
 def token_cache_pkgs(source=None, release=None):
