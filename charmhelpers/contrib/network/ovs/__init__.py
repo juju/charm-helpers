@@ -60,6 +60,33 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
+def add_ovsbridge_linuxbridge(name, bridge):
+    ''' Add linux bridge to the named openvswitch bridge '''
+    ovsbridge_port = "veth-" + name
+    linuxbridge_port = "veth-" + bridge
+    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name))
+    try:
+        subprocess.check_call(["ip", "link", "add", "name", linuxbridge_port,
+                               "type", "veth", "peer", "name",
+                               ovsbridge_port])
+        subprocess.check_call(["ip", "link", "set", ovsbridge_port, "up"])
+        subprocess.check_call(["ip", "link", "set", linuxbridge_port, "master",
+                               bridge])
+    except subprocess.CalledProcessError:
+        log('Interfaces {} and {} already exist'.format(ovsbridge_port,
+                                                        linuxbridge_port))
+        return
+    add_bridge_port(name, ovsbridge_port)
+
+
+def is_linuxbridge_interface(port):
+    ''' Check if the interface is a linuxbridge bridge '''
+    for sdir in glob.glob('/'.join(['/sys/class/net', port, '*'])):
+        if 'bridge' in sdir.split("/")[-1]:
+            return True
+    return False
+
+
 def set_manager(manager):
     ''' Set the controller for the local openvswitch '''
     log('Setting manager for local ovs to {}'.format(manager))
