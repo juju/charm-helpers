@@ -2371,6 +2371,35 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    @patch.object(context, 'psutil')
+    @patch.object(context, 'git_determine_python_path')
+    @patch.object(context, 'git_determine_usr_bin')
+    def test_wsgi_worker_config_context(self, usr_bin, python_path, psutil):
+        self.config.return_value = 2  # worker-multiplier=2
+        usr_bin_path = '/usr/bin'
+        usr_bin.return_value = usr_bin_path
+        python_path.return_value = None
+        psutil.cpu_count.return_value = 4
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": service_name,
+            "group": service_name,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 8,
+            "admin_processes": 6,
+            "public_processes": 2,
+            "threads": 1,
+            "usr_bin": usr_bin_path,
+            "python_path": None,
+        }
+        self.assertEqual(expect, ctxt())
+
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
         self.assertEquals(context.ZeroMQContext()(), {})
