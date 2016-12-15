@@ -69,6 +69,8 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/ml2/ml2_conf.ini')
         self.assertEquals(plugins['nvp']['config'],
                           '/etc/neutron/plugins/vmware/nsx.ini')
+        self.assertTrue('neutron-plugin-vmware' in
+                        plugins['nvp']['server_packages'])
         self.assertEquals(plugins['n1kv']['config'],
                           '/etc/neutron/plugins/cisco/cisco_plugins.ini')
         self.assertEquals(plugins['Calico']['config'],
@@ -77,6 +79,7 @@ class NeutronTests(unittest.TestCase):
                           '/etc/neutron/plugins/plumgrid/plumgrid.ini')
         self.assertEquals(plugins['midonet']['config'],
                           '/etc/neutron/plugins/midonet/midonet.ini')
+
         self.assertEquals(plugins['nvp']['services'], [])
         self.assertEquals(plugins['nsx'], plugins['nvp'])
 
@@ -84,6 +87,8 @@ class NeutronTests(unittest.TestCase):
         plugins = neutron.neutron_plugins()
         self.assertEquals(plugins['midonet']['driver'],
                           'neutron.plugins.midonet.plugin.MidonetPluginV2')
+        self.assertEquals(plugins['nsx']['config'],
+                          '/etc/neutron/plugins/vmware/nsx.ini')
 
         self.os_release.return_value = 'liberty'
         self.config.return_value = 'mem-1.9'
@@ -92,6 +97,14 @@ class NeutronTests(unittest.TestCase):
                           'midonet.neutron.plugin_v1.MidonetPluginV2')
         self.assertTrue('python-networking-midonet' in
                         plugins['midonet']['server_packages'])
+
+        self.os_release.return_value = 'mitaka'
+        self.config.return_value = 'mem-1.9'
+        plugins = neutron.neutron_plugins()
+        self.assertEquals(plugins['nsx']['config'],
+                          '/etc/neutron/nsx.ini')
+        self.assertTrue('python-vmware-nsx' in
+                        plugins['nsx']['server_packages'])
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_quantum(self, _network_manager):
