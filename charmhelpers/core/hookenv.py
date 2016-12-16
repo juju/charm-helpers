@@ -616,6 +616,20 @@ def close_port(port, protocol="TCP"):
     subprocess.check_call(_args)
 
 
+def open_ports(start, end, protocol="TCP"):
+    """Opens a range of service network ports"""
+    _args = ['open-port']
+    _args.append('{}-{}/{}'.format(start, end, protocol))
+    subprocess.check_call(_args)
+
+
+def close_ports(start, end, protocol="TCP"):
+    """Close a range of service network ports"""
+    _args = ['close-port']
+    _args.append('{}-{}/{}'.format(start, end, protocol))
+    subprocess.check_call(_args)
+
+
 @cached
 def unit_get(attribute):
     """Get the unit ID for the remote unit"""
