@@ -7,6 +7,7 @@ from tests.helpers import patch_open
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
+from charmhelpers.fetch import ubuntu as fetch
 import charmhelpers.contrib.openstack.utils as openstack
 
 import six
@@ -124,6 +125,7 @@ openstack_origin_git = """
 
 
 class FakeAnswer(object):
+
     def __init__(self, ip):
         self.ip = ip
 
@@ -132,6 +134,7 @@ class FakeAnswer(object):
 
 
 class FakeResolver(object):
+
     def __init__(self, ip):
         self.ip = ip
 
@@ -143,16 +146,19 @@ class FakeResolver(object):
 
 
 class FakeReverse(object):
+
     def from_address(self, address):
         return '156.94.189.91.in-addr.arpa'
 
 
 class FakeDNSName(object):
+
     def __init__(self, dnsname):
         pass
 
 
 class FakeDNS(object):
+
     def __init__(self, ip):
         self.resolver = FakeResolver(ip)
         self.reversename = FakeReverse()
@@ -161,6 +167,7 @@ class FakeDNS(object):
 
 
 class OpenStackHelpersTestCase(TestCase):
+
     def _apt_cache(self):
         # mocks out the apt cache
         def cache_get(package):
@@ -442,9 +449,8 @@ class OpenStackHelpersTestCase(TestCase):
             mock.assert_called_with(ex_cmd)
 
     @patch('subprocess.check_call')
-    @patch('charmhelpers.fetch.log')
-    @patch('charmhelpers.fetch.import_key')
-    def test_configure_install_source_deb_url(self, _import, _log, _spcc):
+    @patch.object(fetch, 'import_key')
+    def test_configure_install_source_deb_url(self, _import, _spcc):
         """Test configuring installation source from deb repo url"""
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main|KEYID')
@@ -455,12 +461,11 @@ class OpenStackHelpersTestCase(TestCase):
              'deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
              'precise-havana main'])
 
-    @patch('charmhelpers.fetch.lsb_release')
+    @patch.object(fetch, 'lsb_release')
     @patch(builtin_open)
     @patch('subprocess.check_call')
-    @patch('charmhelpers.fetch.log')
     def test_configure_install_source_distro_proposed(
-            self, _log, _spcc, _open, _lsb):
+            self, _spcc, _open, _lsb):
         """Test configuring installation source from deb repo url"""
         _lsb.return_value = FAKE_RELEASE
         _file = MagicMock(spec=io.FileIO)
@@ -488,9 +493,9 @@ class OpenStackHelpersTestCase(TestCase):
             'Invalid Cloud Archive release specified: '
             'havana-updates on this Ubuntuversion (xenial)')
 
-    @patch('charmhelpers.fetch.filter_installed_packages')
-    @patch('charmhelpers.fetch.apt_install')
-    @patch('charmhelpers.fetch.lsb_release')
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'lsb_release')
     def test_add_source_cloud_pocket_style(self, lsb_release,
                                            apt_install, filter_pkg):
         source = "cloud:precise-updates/havana"
@@ -504,9 +509,9 @@ class OpenStackHelpersTestCase(TestCase):
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
-    @patch('charmhelpers.fetch.filter_installed_packages')
-    @patch('charmhelpers.fetch.apt_install')
-    @patch('charmhelpers.fetch.lsb_release')
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'lsb_release')
     def test_add_source_cloud_os_style(self, lsb_release,
                                        apt_install, filter_pkg):
         source = "cloud:precise-havana"
@@ -520,8 +525,8 @@ class OpenStackHelpersTestCase(TestCase):
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
-    @patch('charmhelpers.fetch.filter_installed_packages')
-    @patch('charmhelpers.fetch.apt_install')
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
     def test_add_source_cloud_distroless_style(self, apt_install, filter_pkg):
         source = "cloud:havana"
         result = (
@@ -538,7 +543,7 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.configure_installation_source('foo')
         _error.assert_called_with("Unknown source: 'foo'")
 
-    @patch('charmhelpers.fetch.lsb_release')
+    @patch.object(fetch, 'lsb_release')
     def test_configure_install_source_uca_staging(self, _lsb):
         """Test configuring installation source from UCA staging sources"""
         _lsb.return_value = FAKE_RELEASE
@@ -551,9 +556,9 @@ class OpenStackHelpersTestCase(TestCase):
             _subp.assert_called_with(cmd)
 
     @patch(builtin_open)
-    @patch('charmhelpers.fetch.apt_install')
-    @patch('charmhelpers.fetch.lsb_release')
-    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'filter_installed_packages')
     def test_configure_install_source_uca_repos(
             self, _fip, _lsb, _install, _open):
         """Test configuring installation source from UCA sources"""
@@ -1831,6 +1836,7 @@ class OpenStackHelpersTestCase(TestCase):
         action_fail.assert_called_with(msg)
         self.assertTrue(action_set.called)
         self.assertTrue(traceback.called)
+
 
 if __name__ == '__main__':
     unittest.main()

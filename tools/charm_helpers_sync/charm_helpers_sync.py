@@ -191,6 +191,7 @@ def sync_helpers(include, src, dest, options=None):
                         inc, opts = extract_options(m, global_options)
                         sync(src, dest, '%s.%s' % (k, inc), opts)
 
+
 if __name__ == '__main__':
     parser = optparse.OptionParser()
     parser.add_option('-c', '--config', action='store', dest='config',

@@ -863,5 +863,6 @@ class TestPortsCallback(unittest.TestCase):
             mock.call(1),
             mock.call(2)])
 
+
 if __name__ == '__main__':
     unittest.main()
