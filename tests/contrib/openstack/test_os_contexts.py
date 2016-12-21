@@ -2371,6 +2371,35 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    @patch.object(context, 'psutil')
+    @patch.object(context, 'git_determine_python_path')
+    @patch.object(context, 'git_determine_usr_bin')
+    def test_wsgi_worker_config_context(self, usr_bin, python_path, psutil):
+        self.config.return_value = 2  # worker-multiplier=2
+        usr_bin_path = '/usr/bin'
+        usr_bin.return_value = usr_bin_path
+        python_path.return_value = None
+        psutil.cpu_count.return_value = 4
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": service_name,
+            "group": service_name,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 8,
+            "admin_processes": 6,
+            "public_processes": 2,
+            "threads": 1,
+            "usr_bin": usr_bin_path,
+            "python_path": None,
+        }
+        self.assertEqual(expect, ctxt())
+
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
         self.assertEquals(context.ZeroMQContext()(), {})
@@ -3002,3 +3031,32 @@ class ContextTests(unittest.TestCase):
         AA.setup_aa_profile()
         self.check_call.assert_called_with(['aa-disable', 'fake-aa-profile'])
         AA.manually_disable_aa_profile.assert_called_with()
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_context(self, _enable_memcache):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
+        _enable_memcache.return_value = True
+        config = {'openstack-origin': 'distro'}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertTrue(ctxt()['use_memcache'])
+        expect = {
+            'memcache_port': '11211',
+            'memcache_server': '::1',
+            'memcache_server_formatted': '[::1]',
+            'memcache_url': 'inet6:[::1]:11211',
+            'use_memcache': True}
+        self.assertEqual(ctxt(), expect)
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
+        expect['memcache_server'] = 'ip6-localhost'
+        ctxt = context.MemcacheContext()
+        self.assertEqual(ctxt(), expect)
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_off_context(self, _enable_memcache):
+        _enable_memcache.return_value = False
+        config = {'openstack-origin': 'distro'}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertFalse(ctxt()['use_memcache'])
+        self.assertEqual(ctxt(), {'use_memcache': False})

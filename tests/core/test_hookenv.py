@@ -1124,6 +1124,30 @@ class HelpersTest(TestCase):
         ]
         check_call_.assert_has_calls(calls)
 
+    @patch('subprocess.check_call')
+    def test_opens_ports(self, check_call_):
+        hookenv.open_ports(443, 447, "TCP")
+        hookenv.open_ports(80, 91)
+        hookenv.open_ports(100, 200, "UDP")
+        calls = [
+            call(['open-port', '443-447/TCP']),
+            call(['open-port', '80-91/TCP']),
+            call(['open-port', '100-200/UDP']),
+        ]
+        check_call_.assert_has_calls(calls)
+
+    @patch('subprocess.check_call')
+    def test_closes_ports(self, check_call_):
+        hookenv.close_ports(443, 447, "TCP")
+        hookenv.close_ports(80, 91)
+        hookenv.close_ports(100, 200, "UDP")
+        calls = [
+            call(['close-port', '443-447/TCP']),
+            call(['close-port', '80-91/TCP']),
+            call(['close-port', '100-200/UDP']),
+        ]
+        check_call_.assert_has_calls(calls)
+
     @patch('subprocess.check_output')
     def test_gets_unit_attribute(self, check_output_):
         check_output_.return_value = json.dumps('bar').encode('UTF-8')

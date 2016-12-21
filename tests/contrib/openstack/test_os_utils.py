@@ -154,3 +154,33 @@ class UtilsTests(unittest.TestCase):
             'my-pkg', fatal=False)
         mock_git_os_codename_install_source.assert_called_once_with(
             'cloud-pocket')
+
+    @mock.patch.object(utils, 'os_release')
+    @mock.patch.object(utils, 'get_os_codename_install_source')
+    def test_enable_memcache(self, _get_os_codename_install_source,
+                             _os_release):
+        # Check call with 'release'
+        self.assertFalse(utils.enable_memcache(release='icehouse'))
+        self.assertTrue(utils.enable_memcache(release='zebra'))
+        # Check call with 'source'
+        _os_release.return_value = None
+        _get_os_codename_install_source.return_value = 'icehouse'
+        self.assertFalse(utils.enable_memcache(source='distro'))
+        _os_release.return_value = None
+        _get_os_codename_install_source.return_value = 'zebra'
+        self.assertTrue(utils.enable_memcache(source='distro'))
+        # Check call with 'package'
+        _os_release.return_value = 'icehouse'
+        _get_os_codename_install_source.return_value = None
+        self.assertFalse(utils.enable_memcache(package='pkg1'))
+        _os_release.return_value = 'zebra'
+        _get_os_codename_install_source.return_value = None
+        self.assertTrue(utils.enable_memcache(package='pkg1'))
+
+    @mock.patch.object(utils, 'enable_memcache')
+    def test_enable_token_cache_pkgs(self, _enable_memcache):
+        _enable_memcache.return_value = False
+        self.assertEqual(utils.token_cache_pkgs(source='distro'), [])
+        _enable_memcache.return_value = True
+        self.assertEqual(utils.token_cache_pkgs(source='distro'),
+                         ['memcached', 'python-memcache'])
