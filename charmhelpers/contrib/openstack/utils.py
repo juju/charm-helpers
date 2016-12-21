@@ -44,6 +44,7 @@ from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
     charm_dir,
+    DEBUG,
     INFO,
     ERROR,
     related_units,
