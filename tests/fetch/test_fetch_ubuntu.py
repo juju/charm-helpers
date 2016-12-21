@@ -79,7 +79,7 @@ def fake_apt_cache(in_memory=True, progress=None):
             raise KeyError
         pkg.name = package
         if 'current_ver' in FAKE_APT_CACHE[package]:
-            pkg.current_ver = FAKE_APT_CACHE[package]['current_ver']
+            pkg.current_ver.ver_str = FAKE_APT_CACHE[package]['current_ver']
         else:
             pkg.current_ver = None
         return pkg
@@ -747,3 +747,10 @@ class AptTests(TestCase):
         from charmhelpers.fetch.ubuntu import _run_apt_command
         _run_apt_command(["some", "command"], fatal=True)
         self.assertTrue(sleep.called)
+
+    @patch('apt_pkg.Cache')
+    def test_get_upstream_version(self, cache):
+        cache.side_effect = fake_apt_cache
+        self.assertEqual(fetch.get_upstream_version('vim'), '7.3.547')
+        self.assertEqual(fetch.get_upstream_version('emacs'), None)
+        self.assertEqual(fetch.get_upstream_version('unknown'), None)
