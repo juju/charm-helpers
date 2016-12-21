@@ -982,6 +982,40 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.git_src_dir(openstack_origin_git, 'keystone')
         join.assert_called_with('/mnt/openstack-git', 'keystone')
 
+    @patch.object(openstack, 'config')
+    def test_git_determine_usr_bin(self, config):
+        config.return_value = None
+        result = openstack.git_determine_usr_bin()
+        self.assertEquals(result, '/usr/bin')
+
+    @patch('os.path.join')
+    @patch.object(openstack, 'git_default_repos')
+    @patch.object(openstack, 'config')
+    def test_git_determine_usr_bin_git(self, config, git_default, join):
+        venv_bin = '/mnt/openstack/.venv/bin'
+        join.return_value = venv_bin
+        config.return_value = openstack_origin_git
+        git_default.return_value = openstack_origin_git
+        result = openstack.git_determine_usr_bin()
+        self.assertEquals(result, venv_bin)
+
+    @patch.object(openstack, 'config')
+    def test_git_determine_python_path(self, config):
+        config.return_value = None
+        result = openstack.git_determine_python_path()
+        self.assertEquals(result, None)
+
+    @patch('os.path.join')
+    @patch.object(openstack, 'git_default_repos')
+    @patch.object(openstack, 'config')
+    def test_git_determine_python_path_git(self, config, git_default, join):
+        venv_site = '/mnt/openstack/.venv/lib/python2.7/site-packages'
+        join.return_value = venv_site
+        config.return_value = openstack_origin_git
+        git_default.return_value = openstack_origin_git
+        result = openstack.git_determine_python_path()
+        self.assertEquals(result, venv_site)
+
     def test_incomplete_relation_data(self):
         configs = MagicMock()
         configs.complete_contexts.return_value = ['pgsql-db', 'amqp']
