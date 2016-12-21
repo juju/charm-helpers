@@ -154,7 +154,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('mitaka',
         ['2.5.0', '2.6.0', '2.7.0']),
     ('newton',
-        ['2.8.0', '2.9.0']),
+        ['2.8.0', '2.9.0', '2.10.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -232,6 +232,7 @@ GIT_DEFAULT_REPOS = {
 GIT_DEFAULT_BRANCHES = {
     'liberty': 'stable/liberty',
     'mitaka': 'stable/mitaka',
+    'newton': 'stable/newton',
     'master': 'master',
 }
 
@@ -675,12 +676,12 @@ def git_os_codename_install_source(projects_yaml):
 
         if projects in GIT_DEFAULT_BRANCHES.keys():
             if projects == 'master':
-                return 'newton'
+                return 'ocata'
             return projects
 
         if 'release' in projects:
             if projects['release'] == 'master':
-                return 'newton'
+                return 'ocata'
             return projects['release']
 
     return None
