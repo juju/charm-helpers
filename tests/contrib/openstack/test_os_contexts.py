@@ -759,7 +759,6 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
-            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -787,7 +786,6 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
-            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -811,7 +809,6 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
-            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -835,7 +832,6 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
-            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_user': 'adam',
@@ -857,7 +853,6 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
-            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -902,7 +897,6 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
-            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_user': 'adam',
