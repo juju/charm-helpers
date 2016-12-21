@@ -24,7 +24,7 @@ class TestKernel(unittest.TestCase):
                 kernel.modprobe('mymod')
             _open.assert_called_with('/etc/modules', 'r+')
             _file.read.assert_called_with()
-            _file.write.assert_called_with('mymod')
+            _file.write.assert_called_with('mymod\n')
         check_call.assert_called_with(['modprobe', 'mymod'])
 
     @patch('os.chmod')
