@@ -337,6 +337,7 @@ class IdentityServiceContext(OSContextGenerator):
                              'service_host': serv_host,
                              'auth_host': auth_host,
                              'auth_port': rdata.get('auth_port'),
+                             'admin_domain_name': rdata.get('service_domain'),
                              'admin_tenant_name': rdata.get('service_tenant'),
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
@@ -644,7 +645,7 @@ class ApacheSSLContext(OSContextGenerator):
     service_namespace = None
 
     def enable_modules(self):
-        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
+        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         check_call(cmd)
 
     def configure_cert(self, cn=None):

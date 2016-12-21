@@ -351,7 +351,8 @@ class HelpersTest(TestCase):
 
         self.assertIsInstance(result, hookenv.Config)
         self.assertEqual(result['foo'], 'bar')
-        check_output.assert_called_with(['config-get', '--format=json'])
+        check_output.assert_called_with(['config-get', '--all',
+                                         '--format=json'])
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
