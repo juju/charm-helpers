@@ -414,14 +414,26 @@ def get_os_version_package(pkg, fatal=True):
 _os_rel = None
 
 
-def os_release(package, base='essex'):
+def reset_os_release():
+    '''Unset the cached os_release version'''
+    global _os_rel
+    _os_rel = None
+
+
+def os_release(package, base='essex', reset_cache=False):
     '''
     Returns OpenStack release codename from a cached global.
+
+    If reset_cache then unset the cached os_release version and return the
+    freshly determined version.
+
     If the codename can not be determined from either an installed package or
     the installation source, the earliest release supported by the charm should
     be returned.
     '''
     global _os_rel
+    if reset_cache:
+        reset_os_release()
     if _os_rel:
         return _os_rel
     _os_rel = (
