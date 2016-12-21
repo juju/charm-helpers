@@ -54,6 +54,7 @@ deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
 CLOUD_ARCHIVE_POCKETS = {
     # Folsom
     'folsom': 'precise-updates/folsom',
+    'folsom/updates': 'precise-updates/folsom',
     'precise-folsom': 'precise-updates/folsom',
     'precise-folsom/updates': 'precise-updates/folsom',
     'precise-updates/folsom': 'precise-updates/folsom',
@@ -62,6 +63,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'precise-proposed/folsom': 'precise-proposed/folsom',
     # Grizzly
     'grizzly': 'precise-updates/grizzly',
+    'grizzly/updates': 'precise-updates/grizzly',
     'precise-grizzly': 'precise-updates/grizzly',
     'precise-grizzly/updates': 'precise-updates/grizzly',
     'precise-updates/grizzly': 'precise-updates/grizzly',
@@ -70,6 +72,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'precise-proposed/grizzly': 'precise-proposed/grizzly',
     # Havana
     'havana': 'precise-updates/havana',
+    'havana/updates': 'precise-updates/havana',
     'precise-havana': 'precise-updates/havana',
     'precise-havana/updates': 'precise-updates/havana',
     'precise-updates/havana': 'precise-updates/havana',
@@ -78,6 +81,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'precise-proposed/havana': 'precise-proposed/havana',
     # Icehouse
     'icehouse': 'precise-updates/icehouse',
+    'icehouse/updates': 'precise-updates/icehouse',
     'precise-icehouse': 'precise-updates/icehouse',
     'precise-icehouse/updates': 'precise-updates/icehouse',
     'precise-updates/icehouse': 'precise-updates/icehouse',
@@ -86,6 +90,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'precise-proposed/icehouse': 'precise-proposed/icehouse',
     # Juno
     'juno': 'trusty-updates/juno',
+    'juno/updates': 'trusty-updates/juno',
     'trusty-juno': 'trusty-updates/juno',
     'trusty-juno/updates': 'trusty-updates/juno',
     'trusty-updates/juno': 'trusty-updates/juno',
@@ -94,6 +99,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'trusty-proposed/juno': 'trusty-proposed/juno',
     # Kilo
     'kilo': 'trusty-updates/kilo',
+    'kilo/updates': 'trusty-updates/kilo',
     'trusty-kilo': 'trusty-updates/kilo',
     'trusty-kilo/updates': 'trusty-updates/kilo',
     'trusty-updates/kilo': 'trusty-updates/kilo',
@@ -102,6 +108,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'trusty-proposed/kilo': 'trusty-proposed/kilo',
     # Liberty
     'liberty': 'trusty-updates/liberty',
+    'liberty/updates': 'trusty-updates/liberty',
     'trusty-liberty': 'trusty-updates/liberty',
     'trusty-liberty/updates': 'trusty-updates/liberty',
     'trusty-updates/liberty': 'trusty-updates/liberty',
@@ -110,6 +117,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'trusty-proposed/liberty': 'trusty-proposed/liberty',
     # Mitaka
     'mitaka': 'trusty-updates/mitaka',
+    'mitaka/updates': 'trusty-updates/mitaka',
     'trusty-mitaka': 'trusty-updates/mitaka',
     'trusty-mitaka/updates': 'trusty-updates/mitaka',
     'trusty-updates/mitaka': 'trusty-updates/mitaka',
@@ -118,12 +126,22 @@ CLOUD_ARCHIVE_POCKETS = {
     'trusty-proposed/mitaka': 'trusty-proposed/mitaka',
     # Newton
     'newton': 'xenial-updates/newton',
+    'newton/updates': 'xenial-updates/newton',
     'xenial-newton': 'xenial-updates/newton',
     'xenial-newton/updates': 'xenial-updates/newton',
     'xenial-updates/newton': 'xenial-updates/newton',
     'newton/proposed': 'xenial-proposed/newton',
     'xenial-newton/proposed': 'xenial-proposed/newton',
     'xenial-proposed/newton': 'xenial-proposed/newton',
+    # Ocata
+    'ocata': 'xenial-updates/ocata',
+    'ocata/updates': 'xenial-updates/ocata',
+    'xenial-ocata': 'xenial-updates/ocata',
+    'xenial-ocata/updates': 'xenial-updates/ocata',
+    'xenial-updates/ocata': 'xenial-updates/ocata',
+    'ocata/proposed': 'xenial-proposed/ocata',
+    'xenial-ocata/proposed': 'xenial-proposed/ocata',
+    'xenial-ocata/newton': 'xenial-proposed/ocata',
 }
 
 # The order of this list is very important. Handlers should be listed in from
