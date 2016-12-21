@@ -1204,6 +1204,11 @@ class HelpersTest(TestCase):
         check_call_.assert_called_with(['payload-status-set', 'monitoring',
                                         'abc123', 'Running'])
 
+    @patch('subprocess.check_call')
+    def test_application_version_set(self, check_call_):
+        hookenv.application_version_set('v1.2.3')
+        check_call_.assert_called_with(['application-version-set', 'v1.2.3'])
+
 
 class HooksTest(TestCase):
     def setUp(self):
