@@ -686,7 +686,7 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
     :param str path: The string path to start changing ownership.
     :param str owner: The owner string to use when looking up the uid.
     :param str group: The group string to use when looking up the gid.
-    :param bool follow_links: Also Chown links if True
+    :param bool follow_links: Also follow and chown links if True
     :param bool chowntopdir: Also chown path itself if True
     """
     uid = pwd.getpwnam(owner).pw_uid
@@ -700,7 +700,7 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
         broken_symlink = os.path.lexists(path) and not os.path.exists(path)
         if not broken_symlink:
             chown(path, uid, gid)
-    for root, dirs, files in os.walk(path):
+    for root, dirs, files in os.walk(path, followlinks=follow_links):
         for name in dirs + files:
             full = os.path.join(root, name)
             broken_symlink = os.path.lexists(full) and not os.path.exists(full)
