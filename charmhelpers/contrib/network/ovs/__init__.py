@@ -15,6 +15,7 @@
 ''' Helpers for interacting with OpenvSwitch '''
 import subprocess
 import os
+import glob
 from charmhelpers.core.hookenv import (
     log, WARNING
 )
