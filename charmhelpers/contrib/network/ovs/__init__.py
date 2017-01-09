@@ -71,6 +71,7 @@ def add_ovsbridge_linuxbridge(name, bridge):
                                "type", "veth", "peer", "name",
                                ovsbridge_port])
         subprocess.check_call(["ip", "link", "set", ovsbridge_port, "up"])
+        subprocess.check_call(["ip", "link", "set", linuxbridge_port, "up"])
         subprocess.check_call(["ip", "link", "set", linuxbridge_port, "master",
                                bridge])
     except subprocess.CalledProcessError:
