@@ -172,6 +172,23 @@ class OVSHelpersTest(TestCase):
 
     @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
+    def test_add_ovsbridge_linuxbridge(self, check_call, log):
+        ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+        check_call.assert_has_calls([
+            call(["ip", "link", "add", "name", "veth-br-eno1",
+                  "type", "veth", "peer", "name", "veth-br-ex"]),
+            call(["ip", "link", "set", "veth-br-ex", "up"]),
+            call(["ip", "link", "set", "veth-br-eno1", "up"]),
+            call(["ip", "link", "set", "veth-br-eno1", "master", "br-eno1"]),
+            call(["ovs-vsctl", "--", "--may-exist", "add-port",
+                  'br-ex', 'veth-br-ex']),
+            call(['ip', 'link', 'set', 'veth-br-ex', 'up']),
+            call(['ip', 'link', 'set', 'veth-br-ex', 'promisc', 'off'])
+        ])
+        self.assertTrue(log.call_count == 2)
+
+    @patch.object(ovs, 'log')
+    @patch('subprocess.check_call')
     def test_set_manager(self, check_call, log):
         ovs.set_manager('manager')
         check_call.assert_called_with(['ovs-vsctl', 'set-manager',
