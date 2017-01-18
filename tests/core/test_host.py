@@ -1730,3 +1730,18 @@ class HelpersTest(TestCase):
         mock_os.path.exists.return_value = False
         self.assertFalse(host.is_container())
         mock_os.path.exists.assert_called_with('/run/container_type')
+
+    def test_updatedb(self):
+        updatedb_text = 'PRUNEPATHS="/tmp"'
+        self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
+                         'PRUNEPATHS="/tmp /srv/node"')
+
+    def test_no_change_updatedb(self):
+        updatedb_text = 'PRUNEPATHS="/tmp /srv/node"'
+        self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
+                         updatedb_text)
+
+    def test_no_prunepaths(self):
+        updatedb_text = 'PRUNE_BIND_MOUNTS="yes"'
+        self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
+                         updatedb_text)
