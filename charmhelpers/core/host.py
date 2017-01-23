@@ -759,7 +759,7 @@ def add_to_updatedb_prunepath(path):
         updatedb_text = f_id.read()
         output = updatedb(updatedb_text, path)
         f_id.seek(0)
-        f_ids.write(output)
+        f_id.write(output)
         f_id.truncate()
 
 
