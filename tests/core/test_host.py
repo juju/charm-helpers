@@ -9,7 +9,7 @@ import apt_pkg
 import imp
 
 from charmhelpers import osplatform
-from mock import patch, call
+from mock import patch, call, mock_open
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
@@ -1745,3 +1745,12 @@ class HelpersTest(TestCase):
         updatedb_text = 'PRUNE_BIND_MOUNTS="yes"'
         self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
                          updatedb_text)
+
+    def test_write_updatedb(self):
+        _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
+        with patch('charmhelpers.core.host.open', _open, create=True):
+            host.add_to_updatedb_prunepath("/tmp/test")
+        handle = _open()
+        handle.read.assert_called_once()
+        handle.seek.assert_called_once()
+        handle.write.assert_called_once_with('PRUNEPATHS="/tmp /srv/node /tmp/test"')
