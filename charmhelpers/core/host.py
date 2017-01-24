@@ -754,8 +754,8 @@ def is_container():
         return os.path.exists(UPSTART_CONTAINER_TYPE)
 
 
-def add_to_updatedb_prunepath(path):
-    with open(UPDATEDB_PATH, 'r+') as f_id:
+def add_to_updatedb_prunepath(path, updatedb_path=UPDATEDB_PATH):
+    with open(updatedb_path, 'r+') as f_id:
         updatedb_text = f_id.read()
         output = updatedb(updatedb_text, path)
         f_id.seek(0)
