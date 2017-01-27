@@ -15,7 +15,6 @@
 ''' Helpers for interacting with OpenvSwitch '''
 import subprocess
 import os
-import glob
 from charmhelpers.core.hookenv import (
     log, WARNING
 )
@@ -83,10 +82,12 @@ def add_ovsbridge_linuxbridge(name, bridge):
 
 def is_linuxbridge_interface(port):
     ''' Check if the interface is a linuxbridge bridge '''
-    for sdir in glob.glob('/'.join(['/sys/class/net', port, '*'])):
-        if 'bridge' in sdir.split("/")[-1]:
-            return True
-    return False
+    if os.path.exists('/sys/class/net/' + port + '/bridge'):
+        log('Interface ' + port + ' is a Linux bridge')
+        return True
+    else:
+        log('Interface ' + port + ' is not a Linux bridge')
+        return False
 
 
 def set_manager(manager):
