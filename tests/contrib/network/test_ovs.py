@@ -187,6 +187,18 @@ class OVSHelpersTest(TestCase):
         ])
         self.assertTrue(log.call_count == 2)
 
+    @patch('os.path.exists')
+    def test_is_linuxbridge_interface_false(self, exists):
+        exists.return_value = False
+        result = ovs.is_linuxbridge_interface('eno1')
+        self.assertFalse(result)
+
+    @patch('os.path.exists')
+    def test_is_linuxbridge_interface_true(self, exists):
+        exists.return_value = True
+        result = ovs.is_linuxbridge_interface('eno1')
+        self.assertTrue(result)
+
     @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
     def test_set_manager(self, check_call, log):
