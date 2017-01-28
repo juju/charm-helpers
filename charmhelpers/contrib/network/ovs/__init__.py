@@ -74,8 +74,7 @@ def add_ovsbridge_linuxbridge(name, bridge):
         subprocess.check_call(["ip", "link", "set", linuxbridge_port, "master",
                                bridge])
     except subprocess.CalledProcessError:
-        log('Interfaces {} and {} already exist'.format(ovsbridge_port,
-                                                        linuxbridge_port))
+        log('Error adding veth pair {} {}'.format(ovsbridge_port, linuxbridge_port))
         return
     add_bridge_port(name, ovsbridge_port)
 
@@ -83,10 +82,10 @@ def add_ovsbridge_linuxbridge(name, bridge):
 def is_linuxbridge_interface(port):
     ''' Check if the interface is a linuxbridge bridge '''
     if os.path.exists('/sys/class/net/' + port + '/bridge'):
-        log('Interface ' + port + ' is a Linux bridge')
+        log('Interface {} is a Linux bridge'.format(port))
         return True
     else:
-        log('Interface ' + port + ' is not a Linux bridge')
+        log('Interface {} is not a Linux bridge'.format(port))
         return False
 
 
