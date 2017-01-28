@@ -15,6 +15,7 @@
 ''' Helpers for interacting with OpenvSwitch '''
 import subprocess
 import os
+import netifaces
 from charmhelpers.core.hookenv import (
     log, WARNING
 )
@@ -65,17 +66,19 @@ def add_ovsbridge_linuxbridge(name, bridge):
     ovsbridge_port = "veth-" + name
     linuxbridge_port = "veth-" + bridge
     log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name))
-    try:
-        subprocess.check_call(["ip", "link", "add", "name", linuxbridge_port,
-                               "type", "veth", "peer", "name",
-                               ovsbridge_port])
-        subprocess.check_call(["ip", "link", "set", ovsbridge_port, "up"])
-        subprocess.check_call(["ip", "link", "set", linuxbridge_port, "up"])
-        subprocess.check_call(["ip", "link", "set", linuxbridge_port, "master",
-                               bridge])
-    except subprocess.CalledProcessError:
-        log('Error adding veth pair {} {}'.format(ovsbridge_port, linuxbridge_port))
-        return
+    interfaces = netifaces.interfaces()
+    for interface in interfaces:
+        if interface == ovsbridge_port or interface == linuxbridge_port:
+            log('Interface {} already exists'.format(interface))
+            return
+
+    subprocess.check_call(["ip", "link", "add", "name", linuxbridge_port,
+                           "type", "veth", "peer", "name",
+                           ovsbridge_port])
+    subprocess.check_call(["ip", "link", "set", ovsbridge_port, "up"])
+    subprocess.check_call(["ip", "link", "set", linuxbridge_port, "up"])
+    subprocess.check_call(["ip", "link", "set", linuxbridge_port, "master",
+                           bridge])
     add_bridge_port(name, ovsbridge_port)
 
 
