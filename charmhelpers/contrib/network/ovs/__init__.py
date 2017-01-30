@@ -17,7 +17,7 @@ import subprocess
 import os
 import netifaces
 from charmhelpers.core.hookenv import (
-    log, WARNING
+    log, WARNING, INFO
 )
 from charmhelpers.core.host import (
     service
@@ -65,11 +65,11 @@ def add_ovsbridge_linuxbridge(name, bridge):
     ''' Add linux bridge to the named openvswitch bridge '''
     ovsbridge_port = "veth-" + name
     linuxbridge_port = "veth-" + bridge
-    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name))
+    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name), level=INFO)
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         if interface == ovsbridge_port or interface == linuxbridge_port:
-            log('Interface {} already exists'.format(interface))
+            log('Interface {} already exists'.format(interface), level=INFO)
             return
 
     subprocess.check_call(["ip", "link", "add", "name", linuxbridge_port,
@@ -85,10 +85,10 @@ def add_ovsbridge_linuxbridge(name, bridge):
 def is_linuxbridge_interface(port):
     ''' Check if the interface is a linuxbridge bridge '''
     if os.path.exists('/sys/class/net/' + port + '/bridge'):
-        log('Interface {} is a Linux bridge'.format(port))
+        log('Interface {} is a Linux bridge'.format(port), level=INFO)
         return True
     else:
-        log('Interface {} is not a Linux bridge'.format(port))
+        log('Interface {} is not a Linux bridge'.format(port), level=INFO)
         return False
 
 
