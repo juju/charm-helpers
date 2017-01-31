@@ -1663,3 +1663,31 @@ class HooksTest(TestCase):
         check_output.side_effect = OSError(2, 'network-get')
         self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
                           'mybinding')
+
+    @patch('subprocess.check_call')
+    def test_add_metric(self, check_call_):
+        hookenv.add_metric(flips='1.5', flops='2.1')
+        hookenv.add_metric('juju-units=6')
+        hookenv.add_metric('foo-bar=3.333', 'baz-quux=8', users='2')
+        calls = [
+            call(['add-metric', 'flips=1.5', 'flops=2.1']),
+            call(['add-metric', 'juju-units=6']),
+            call(['add-metric', 'baz-quux=8', 'foo-bar=3.333', 'users=2']),
+        ]
+        check_call_.assert_has_calls(calls)
+
+    @patch('subprocess.check_call')
+    @patch.object(hookenv, 'log')
+    def test_add_metric_enoent(self, log, _check_call):
+        _check_call.side_effect = OSError(2, 'fail')
+        hookenv.add_metric(flips='1')
+        log.assert_called_with('add-metric failed: flips=1', level='INFO')
+
+    @patch('charmhelpers.core.hookenv.os')
+    def test_meter_status(self, os_):
+        os_.environ = {
+            'JUJU_METER_STATUS': 'GREEN',
+            'JUJU_METER_INFO': 'all good',
+        }
+        self.assertEqual(hookenv.meter_status(), 'GREEN')
+        self.assertEqual(hookenv.meter_info(), 'all good')
