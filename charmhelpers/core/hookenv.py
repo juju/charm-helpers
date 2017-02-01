@@ -1050,7 +1050,7 @@ def add_metric(*args, **kwargs):
     try:
         subprocess.check_call(_args)
         return
-    except OSError as e:
+    except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
     log_message = 'add-metric failed: {}'.format(' '.join(_kvpairs))
