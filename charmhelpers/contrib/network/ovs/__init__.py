@@ -17,7 +17,7 @@ import subprocess
 import os
 import netifaces
 from charmhelpers.core.hookenv import (
-    log, WARNING, INFO
+    log, WARNING, INFO, DEBUG
 )
 from charmhelpers.core.host import (
     service
@@ -93,10 +93,10 @@ iface {linuxbridge_port} inet manual
 def is_linuxbridge_interface(port):
     ''' Check if the interface is a linuxbridge bridge '''
     if os.path.exists('/sys/class/net/' + port + '/bridge'):
-        log('Interface {} is a Linux bridge'.format(port), level=INFO)
+        log('Interface {} is a Linux bridge'.format(port), level=DEBUG)
         return True
     else:
-        log('Interface {} is not a Linux bridge'.format(port), level=INFO)
+        log('Interface {} is not a Linux bridge'.format(port), level=DEBUG)
         return False
 
 
