@@ -79,7 +79,7 @@ def add_ovsbridge_linuxbridge(name, bridge):
 auto {linuxbridge_port}
 iface {linuxbridge_port} inet manual
     pre-up ip link add name {linuxbridge_port} type veth peer name {ovsbridge_port}
-    pre-up ip link set {linuxbridge_port} master {bridge}
+    pre-up ip link set {ovsbridge_port} master {bridge}
     pre-up ip link set {ovsbridge_port} up
     up ip link set {linuxbridge_port} up
     down ip link del {linuxbridge_port}
@@ -87,7 +87,7 @@ iface {linuxbridge_port} inet manual
         config.close()
 
     subprocess.check_call(["ifup", linuxbridge_port])
-    add_bridge_port(name, ovsbridge_port)
+    add_bridge_port(name, linuxbridge_port)
 
 
 def is_linuxbridge_interface(port):
