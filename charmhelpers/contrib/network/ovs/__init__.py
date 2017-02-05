@@ -72,13 +72,21 @@ def add_ovsbridge_linuxbridge(name, bridge):
             log('Interface {} already exists'.format(interface), level=INFO)
             return
 
-    subprocess.check_call(["ip", "link", "add", "name", linuxbridge_port,
-                           "type", "veth", "peer", "name",
-                           ovsbridge_port])
-    subprocess.check_call(["ip", "link", "set", ovsbridge_port, "up"])
-    subprocess.check_call(["ip", "link", "set", linuxbridge_port, "up"])
-    subprocess.check_call(["ip", "link", "set", linuxbridge_port, "master",
-                           bridge])
+    with open('/etc/network/interfaces.d/{}.cfg'.format(linuxbridge_port), 'w') as config:
+        config.write("""\
+# This veth pair is required when neutron data-port is mapped to an existing linux bridge. lp:1635067
+
+auto {linuxbridge_port}
+iface {linuxbridge_port} inet manual
+    pre-up ip link add name {linuxbridge_port} type veth peer name {ovsbridge_port}
+    pre-up ip link set {linuxbridge_port} master {bridge}
+    pre-up ip link set {ovsbridge_port} up
+    up ip link set {linuxbridge_port} up
+    down ip link del {linuxbridge_port}
+""".format(linuxbridge_port=linuxbridge_port, ovsbridge_port=ovsbridge_port, bridge=bridge))
+        config.close()
+
+    subprocess.check_call(["ifup", linuxbridge_port])
     add_bridge_port(name, ovsbridge_port)
 
 

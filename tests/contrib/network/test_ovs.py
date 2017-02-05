@@ -173,18 +173,9 @@ class OVSHelpersTest(TestCase):
     @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
     def test_add_ovsbridge_linuxbridge(self, check_call, log):
-        ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
-        check_call.assert_has_calls([
-            call(["ip", "link", "add", "name", "veth-br-eno1",
-                  "type", "veth", "peer", "name", "veth-br-ex"]),
-            call(["ip", "link", "set", "veth-br-ex", "up"]),
-            call(["ip", "link", "set", "veth-br-eno1", "up"]),
-            call(["ip", "link", "set", "veth-br-eno1", "master", "br-eno1"]),
-            call(["ovs-vsctl", "--", "--may-exist", "add-port",
-                  'br-ex', 'veth-br-ex']),
-            call(['ip', 'link', 'set', 'veth-br-ex', 'up']),
-            call(['ip', 'link', 'set', 'veth-br-ex', 'promisc', 'off'])
-        ])
+        with patch_open() as (mock_open, mock_file):
+            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+
         self.assertTrue(log.call_count == 2)
 
     @patch('os.path.exists')
