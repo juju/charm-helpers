@@ -849,6 +849,20 @@ def lchownr(path, owner, group):
     chownr(path, owner, group, follow_links=False)
 
 
+def owner(path):
+    """Returns a tuple containing the username & groupname owning the path.
+
+    :param str path: the string path to retrieve the ownership
+    :return tuple(str, str): A (username, groupname) tuple containing the
+                             name of the user and group owning the path.
+    :raises OSError: if the specified path does not exist
+    """
+    stat = os.stat(path)
+    username = pwd.getpwuid(stat.st_uid)[0]
+    groupname = grp.getgrgid(stat.st_gid)[0]
+    return username, groupname
+
+
 def get_total_ram():
     """The total amount of system RAM in bytes.
 
