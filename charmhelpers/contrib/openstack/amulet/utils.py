@@ -38,6 +38,7 @@ import swiftclient
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
+from charmhelpers.core.decorators import retry_on_exception
 
 DEBUG = logging.DEBUG
 ERROR = logging.ERROR
@@ -303,6 +304,46 @@ class OpenStackAmuletUtils(AmuletUtils):
         """Return True if tenant exists."""
         self.log.debug('Checking if tenant exists ({})...'.format(tenant))
         return tenant in [t.name for t in keystone.tenants.list()]
+
+    @retry_on_exception(5, base_delay=10)
+    def keystone_wait_for_propagation(self, sentry_relation_pairs,
+                                      api_version):
+        """Iterate over list of sentry and relation tuples and verify that
+           api_version has the expected value.
+
+        :param sentry_relation_pairs: list of sentry, relation name tuples used
+                                      for monitoring propagation of relation
+                                      data
+        :param api_version: api_version to expect in relation data
+        :returns: None if successful.  Raise on error.
+        """
+        for (sentry, relation_name) in sentry_relation_pairs:
+            rel = sentry.relation('identity-service',
+                                  relation_name)
+            self.log.debug('keystone relation data: {}'.format(rel))
+            if rel['api_version'] != str(api_version):
+                raise Exception("api_version not propagated through relation"
+                                " data yet ('{}' != '{}')."
+                                "".format(rel['api_version'], api_version))
+
+    def keystone_configure_api_version(self, sentry_relation_pairs, deployment,
+                                       api_version):
+        """Configure preferred-api-version of keystone in deployment and
+           monitor provided list of relation objects for propagation
+           before returning to caller.
+
+        :param sentry_relation_pairs: list of sentry, relation tuples used for
+                                      monitoring propagation of relation data
+        :param deployment: deployment to configure
+        :param api_version: value preferred-api-version will be set to
+        :returns: None if successful.  Raise on error.
+        """
+        self.log.debug("Setting keystone preferred-api-version: '{}'"
+                       "".format(api_version))
+
+        config = {'preferred-api-version': api_version}
+        deployment.d.configure('keystone', config)
+        self.keystone_wait_for_propagation(sentry_relation_pairs, api_version)
 
     def authenticate_cinder_admin(self, keystone_sentry, username,
                                   password, tenant):
