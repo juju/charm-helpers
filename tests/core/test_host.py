@@ -1704,6 +1704,20 @@ class HelpersTest(TestCase):
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
 
+    @patch.object(host.os, 'stat')
+    @patch.object(host.pwd, 'getpwuid')
+    @patch.object(host.grp, 'getgrgid')
+    @patch('posix.stat_result')
+    def test_owner(self, stat_result_, getgrgid_, getpwuid_, stat_):
+        getgrgid_.return_value = ['testgrp']
+        getpwuid_.return_value = ['testuser']
+        stat_.return_value = stat_result_()
+
+        user, group = host.owner('/some/path')
+        stat_.assert_called_once_with('/some/path')
+        self.assertEqual('testuser', user)
+        self.assertEqual('testgrp', group)
+
     def test_get_total_ram(self):
         raw = dedent('''\
                      MemFree:          183868 kB
