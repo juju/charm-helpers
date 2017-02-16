@@ -116,13 +116,12 @@ class HATests(unittest.TestCase):
 
     def tests_expect_ha(self):
         self.conf = {'vip': None,
-                     'dns-ha': None }
+                     'dns-ha': None}
         self.assertFalse(ha.expect_ha())
 
         self.conf = {'vip': '10.0.0.1',
                      'dns-ha': None}
         self.assertTrue(ha.expect_ha())
-
 
         self.conf = {'vip': None,
                      'dns-ha': True}

@@ -136,6 +136,4 @@ def expect_ha():
 
     @returns boolean
     """
-    if config('vip') or config('dns-ha'):
-        return True
-    return False
+    return config('vip') or config('dns-ha')
