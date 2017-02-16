@@ -641,7 +641,10 @@ class IPTest(unittest.TestCase):
         fake_dns = FakeDNS('5.5.5.5')
         with patch(builtin_import, side_effect=[ImportError, fake_dns]):
             nsq = net_ip.ns_query('5.5.5.5')
-            apt_install.assert_called_with('python-dnspython', fatal=True)
+            if six.PY2:
+                apt_install.assert_called_with('python-dnspython', fatal=True)
+            else:
+                apt_install.assert_called_with('python3-dnspython', fatal=True)
         self.assertEquals(nsq, '5.5.5.5')
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
@@ -708,7 +711,11 @@ class IPTest(unittest.TestCase):
         with patch(builtin_import, side_effect=[ImportError, fake_dns,
                                                 fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
-            apt_install.assert_called_with('python-dnspython', fatal=True)
+            if six.PY2:
+                apt_install.assert_called_with('python-dnspython', fatal=True)
+            else:
+                apt_install.assert_called_with('python3-dnspython', fatal=True)
+
         self.assertEquals(hn, 'www.ubuntu.com')
 
     @patch('charmhelpers.contrib.network.ip.socket.gethostbyaddr')
