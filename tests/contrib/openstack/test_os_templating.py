@@ -78,7 +78,10 @@ class TemplatingTests(unittest.TestCase):
         templating.FileSystemLoader = MockFSLoader
         templating.ChoiceLoader = MockChoiceLoader
         templating.Environment = MagicMock
-        apt.assert_called_with('python-jinja2')
+        if six.PY2:
+            apt.assert_called_with('python-jinja2')
+        else:
+            apt.assert_called_with('python3-jinja2')
 
     def test_create_renderer_invalid_templates_dir(self):
         '''Ensure OSConfigRenderer checks templates_dir'''
