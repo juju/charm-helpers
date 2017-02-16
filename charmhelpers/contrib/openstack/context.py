@@ -100,7 +100,10 @@ from charmhelpers.core.unitdata import kv
 try:
     import psutil
 except ImportError:
-    apt_install('python-psutil', fatal=True)
+    if six.PY2:
+        apt_install('python-psutil', fatal=True)
+    else:
+        apt_install('python3-psutil', fatal=True)
     import psutil
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
