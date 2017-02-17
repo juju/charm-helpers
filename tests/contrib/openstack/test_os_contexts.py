@@ -275,6 +275,23 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
     }
 }
 
+CEPH_REL_WITH_PUBLIC_ADDR_PORT = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph-public-address': '192.168.1.10:1234',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph-public-address': '192.168.1.11:4321',
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
 CEPH_REL_WITH_PUBLIC_IPv6_ADDR = {
     'ceph:0': {
         'ceph/0': {
@@ -285,6 +302,23 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR = {
         },
         'ceph/1': {
             'ceph-public-address': '2001:5c0:9168::2',
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
+CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph-public-address': '[2001:5c0:9168::1]:1234',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph-public-address': '[2001:5c0:9168::2]:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
@@ -1286,6 +1320,37 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_public_addr_and_port(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_PUBLIC_ADDR_PORT)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.10:1234 192.168.1.11:4321',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_public_ipv6_addr(self, ensure_packages, mkdir,
                                                 isdir, mock_config):
         '''Test ceph context in host with multiple networks with all
@@ -1305,6 +1370,38 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         expected = {
             'mon_hosts': '[2001:5c0:9168::1] [2001:5c0:9168::2]',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_public_ipv6_addr_port(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(
+            relation_data=CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '[2001:5c0:9168::1]:1234 [2001:5c0:9168::2]:4321',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
