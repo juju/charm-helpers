@@ -329,13 +329,13 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT = {
 CEPH_REL_WITH_MULTI_PUBLIC_ADDR = {
     'ceph:0': {
         'ceph/0': {
-            'ceph-public-address': '192.168.1.10,192.168.1.20',
+            'ceph-public-address': '192.168.1.10 192.168.1.20',
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
         },
         'ceph/1': {
-            'ceph-public-address': '192.168.1.11,192.168.1.21',
+            'ceph-public-address': '192.168.1.11 192.168.1.21',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',

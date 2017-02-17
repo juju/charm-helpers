@@ -506,7 +506,7 @@ class CephContext(OSContextGenerator):
                 ceph_addrs = relation_get('ceph-public-address', rid=rid,
                                           unit=unit)
                 if ceph_addrs:
-                    for addr in ceph_addrs.split(','):
+                    for addr in ceph_addrs.split(' '):
                         mon_hosts.append(format_ipv6_addr(addr) or addr)
                 else:
                     priv_addr = relation_get('private-address', rid=rid,
