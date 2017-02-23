@@ -396,7 +396,7 @@ class AMQPContext(OSContextGenerator):
             ha_vip_only = False
             self.related = True
             transport_hosts = None
-            rabbitmq_port = ''
+            rabbitmq_port = '5672'
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
@@ -420,6 +420,7 @@ class AMQPContext(OSContextGenerator):
                 ssl_port = relation_get('ssl_port', rid=rid, unit=unit)
                 if ssl_port:
                     ctxt['rabbit_ssl_port'] = ssl_port
+                    rabbitmq_port = ssl_port
 
                 ssl_ca = relation_get('ssl_ca', rid=rid, unit=unit)
                 if ssl_ca:
