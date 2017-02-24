@@ -96,16 +96,16 @@ class KeystoneManager2(KeystoneManager):
 
         token = kwargs.get("token", None)
         if token:
-            auth = v2.Token(auth_url=endpoint, token=token)
-            sess = session.Session(auth=auth)
+            api = client.Client(endpoint=endpoint, token=token)
         else:
             auth = v2.Password(username=kwargs.get("username"),
                                password=kwargs.get("password"),
                                tenant_name=kwargs.get("tenant_name"),
                                auth_url=endpoint)
             sess = session.Session(auth=auth)
+            api = client.Client(session=sess)
 
-        self.api = client.Client(session=sess)
+        self.api = api
 
 
 class KeystoneManager3(KeystoneManager):
@@ -131,7 +131,7 @@ class KeystoneManager3(KeystoneManager):
 
         token = kwargs.get("token", None)
         if token:
-            auth = token_endpoint.Token(auth_url=endpoint,
+            auth = token_endpoint.Token(endpoint=endpoint,
                                         token=token)
             sess = session.Session(auth=auth)
         else:
