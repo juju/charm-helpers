@@ -72,3 +72,11 @@ class KeystoneTests(unittest.TestCase):
                                                 service_type="openstack"))
         self.assertTrue(manager.service_exists("ceilometer",
                                                service_type="openstack"))
+
+    def test_get_api_suffix(self):
+        self.assertEquals(keystone.get_api_suffix(2), "v2.0")
+        self.assertEquals(keystone.get_api_suffix(3), "v3")
+
+    def test_format_endpoint(self):
+        self.assertEquals(keystone.format_endpoint(
+            "http", "10.0.0.5", "5000", 2), "http://10.0.0.5:5000/v2.0/")
