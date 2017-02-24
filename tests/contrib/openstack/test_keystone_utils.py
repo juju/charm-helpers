@@ -8,7 +8,6 @@ import charmhelpers.contrib.openstack.keystone as keystone
 
 TO_PATCH = [
     'apt_install',
-    'apt_update',
 ]
 
 
