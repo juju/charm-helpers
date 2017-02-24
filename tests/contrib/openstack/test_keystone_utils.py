@@ -25,13 +25,16 @@ class KeystoneTests(unittest.TestCase):
 
     def test_get_keystone_manager(self):
         manager = keystone.get_keystone_manager(
-            'test-endpoint', 'aabbcc', 2)
+            'test-endpoint', 2, token="12345"
+        )
         self.assertTrue(isinstance(manager, keystone.KeystoneManager2))
+
         manager = keystone.get_keystone_manager(
-            'test-endpoint', 'aabbcc', 3)
+            'test-endpoint', 3, token="12345")
+
         self.assertTrue(isinstance(manager, keystone.KeystoneManager3))
         self.assertRaises(ValueError, keystone.get_keystone_manager,
-                          'test-endpoint', 'aabbcc', 4)
+                          'test-endpoint', 4, token="12345")
 
     def test_resolve_sevice_id_v2(self):
         class ServiceList(list):
@@ -44,7 +47,8 @@ class KeystoneTests(unittest.TestCase):
                     }
                 yield Service()
 
-        manager = keystone.get_keystone_manager('test-endpoint', 'aabbcc', 2)
+        manager = keystone.get_keystone_manager('test-endpoint', 2,
+                                                token="1234")
         manager.api.services.list = PropertyMock(return_value=ServiceList())
         self.assertTrue(manager.service_exists("ceilometer"))
         self.assertFalse(manager.service_exists("barbican"))
@@ -64,7 +68,8 @@ class KeystoneTests(unittest.TestCase):
                     }
                 yield Service()
 
-        manager = keystone.get_keystone_manager('test-endpoint', 'aabbcc', 3)
+        manager = keystone.get_keystone_manager('test-endpoint', 3,
+                                                token="12345")
         manager.api.services.list = PropertyMock(return_value=ServiceList())
         self.assertTrue(manager.service_exists("ceilometer"))
         self.assertFalse(manager.service_exists("barbican"))
