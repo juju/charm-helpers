@@ -83,7 +83,6 @@ class KeystoneManager2(KeystoneManager):
             from keystoneauth1.identity import v2
             from keystoneauth1 import session
         except ImportError:
-            apt_update(fatal=True)
             if six.PY2:
                 apt_install(["python-keystoneclient",
                              "python-keystoneauth1"],
@@ -121,7 +120,6 @@ class KeystoneManager3(KeystoneManager):
             from keystoneclient.auth import token_endpoint
             from keystoneclient import session
         except ImportError:
-            apt_update(fatal=True)
             if six.PY2:
                 apt_install(["python-keystoneclient",
                              "python-keystoneauth1"],
