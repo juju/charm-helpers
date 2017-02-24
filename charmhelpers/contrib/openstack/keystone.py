@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import six
-from charmhelpers.fetch import apt_install, apt_update
+from charmhelpers.fetch import apt_install
 
 
 def get_api_suffix(api_version):
@@ -80,8 +80,8 @@ class KeystoneManager2(KeystoneManager):
     def __init__(self, endpoint, **kwargs):
         try:
             from keystoneclient.v2_0 import client
-            from keystoneauth1.identity import v2
-            from keystoneauth1 import session
+            from keystoneclient.auth.identity import v2
+            from keystoneclient import session
         except ImportError:
             if six.PY2:
                 apt_install(["python-keystoneclient"], fatal=True)
@@ -96,13 +96,13 @@ class KeystoneManager2(KeystoneManager):
 
         token = kwargs.get("token", None)
         if token:
-            auth = v2.Token(auth_url=endpoint, token=token)
+            auth = v2.Token(endpoint=endpoint, token=token)
             sess = session.Session(auth=auth)
         else:
             auth = v2.Password(username=kwargs.get("username"),
                                password=kwargs.get("password"),
                                tenant_name=kwargs.get("tenant_name"),
-                               auth_url=endpoint)
+                               endpoint=endpoint)
             sess = session.Session(auth=auth)
 
         self.api = client.Client(session=sess)
@@ -115,6 +115,7 @@ class KeystoneManager3(KeystoneManager):
             from keystoneclient.v3 import client
             from keystoneclient.auth import token_endpoint
             from keystoneclient import session
+            from keystoneclient.auth.identity import v3
         except ImportError:
             if six.PY2:
                 apt_install(["python-keystoneclient"], fatal=True)
