@@ -39,7 +39,7 @@ def format_endpoint(schema, addr, port, api_version):
                                    get_api_suffix(api_version))
 
 
-def get_keystone_manager(endpoint, token, api_version):
+def get_keystone_manager(endpoint, api_version, **kwargs):
     """Return a keystonemanager for the correct API version
 
     @param endpoint: the keystone endpoint to point client at
@@ -48,9 +48,9 @@ def get_keystone_manager(endpoint, token, api_version):
     @returns keystonemanager class used for interrogating keystone
     """
     if api_version == 2:
-        return KeystoneManager2(endpoint, token)
+        return KeystoneManager2(endpoint, **kwargs)
     if api_version == 3:
-        return KeystoneManager3(endpoint, token)
+        return KeystoneManager3(endpoint, **kwargs)
     raise ValueError('No manager found for api version {}'.format(api_version))
 
 
@@ -77,41 +77,77 @@ class KeystoneManager(object):
 
 class KeystoneManager2(KeystoneManager):
 
-    def __init__(self, endpoint, token):
+    def __init__(self, endpoint, **kwargs):
         try:
             from keystoneclient.v2_0 import client
+            from keystoneauth1.identity import v2
+            from keystoneauth1 import session
         except ImportError:
             apt_update(fatal=True)
             if six.PY2:
-                apt_install('python-keystoneclient', fatal=True)
+                apt_install(["python-keystoneclient",
+                             "python-keystoneauth1"],
+                            fatal=True)
             else:
-                apt_install('python3-keystoneclient', fatal=True)
+                apt_install(["python3-keystoneclient",
+                             "python3-keystoneauth1"],
+                            fatal=True)
 
             from keystoneclient.v2_0 import client
+            from keystoneauth1.identity import v2
+            from keystoneauth1 import session
 
         self.api_version = 2
-        self.api = client.Client(endpoint=endpoint, token=token)
+
+        token = kwargs.get("token", None)
+        if token:
+            auth = v2.Token(auth_url=endpoint, token=token)
+            sess = session.Session(auth=auth)
+        else:
+            auth = v2.Password(username=kwargs.get("username"),
+                               password=kwargs.get("password"),
+                               tenant_name=kwargs.get("tenant_name"),
+                               auth_url=endpoint)
+            sess = session.Session(auth=auth)
+
+        self.api = client.Client(session=sess)
 
 
 class KeystoneManager3(KeystoneManager):
 
-    def __init__(self, endpoint, token):
+    def __init__(self, endpoint, **kwargs):
         try:
-            from keystoneclient.v3 import client as keystoneclient_v3
+            from keystoneclient.v3 import client
             from keystoneclient.auth import token_endpoint
             from keystoneclient import session
         except ImportError:
             apt_update(fatal=True)
             if six.PY2:
-                apt_install('python-keystoneclient', fatal=True)
+                apt_install(["python-keystoneclient",
+                             "python-keystoneauth1"],
+                            fatal=True)
             else:
-                apt_install('python3-keystoneclient', fatal=True)
+                apt_install(["python3-keystoneclient",
+                             "python3-keystoneauth1"],
+                            fatal=True)
 
-            from keystoneclient.v3 import client as keystoneclient_v3
+            from keystoneclient.v3 import client
             from keystoneclient.auth import token_endpoint
             from keystoneclient import session
+            from keystoneauth1.identity import v3
 
         self.api_version = 3
-        keystone_auth_v3 = token_endpoint.Token(endpoint=endpoint, token=token)
-        keystone_session_v3 = session.Session(auth=keystone_auth_v3)
-        self.api = keystoneclient_v3.Client(session=keystone_session_v3)
+
+        token = kwargs.get("token", None)
+        if token:
+            auth = token_endpoint.Token(endpoint=endpoint,
+                                        token=token)
+            sess = session.Session(auth=auth)
+        else:
+            auth = v3.Password(auth_url=endpoint,
+                               user_id=kwargs.get("username"),
+                               password=kwargs.get("password"),
+                               project_id=kwargs.get("project_id"))
+            sess = session.Session(auth=auth)
+
+        self.api = client.Client(session=sess)

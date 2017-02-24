@@ -18,3 +18,4 @@ netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.
 Jinja2==2.6        # precise
 psutil==1.2.1      # trusty
 python-keystoneclient
+python-keystoneauth1
