@@ -84,17 +84,13 @@ class KeystoneManager2(KeystoneManager):
             from keystoneauth1 import session
         except ImportError:
             if six.PY2:
-                apt_install(["python-keystoneclient",
-                             "python-keystoneauth1"],
-                            fatal=True)
+                apt_install(["python-keystoneclient"], fatal=True)
             else:
-                apt_install(["python3-keystoneclient",
-                             "python3-keystoneauth1"],
-                            fatal=True)
+                apt_install(["python3-keystoneclient"], fatal=True)
 
             from keystoneclient.v2_0 import client
-            from keystoneauth1.identity import v2
-            from keystoneauth1 import session
+            from keystoneclient.auth.identity import v2
+            from keystoneclient import session
 
         self.api_version = 2
 
@@ -121,18 +117,14 @@ class KeystoneManager3(KeystoneManager):
             from keystoneclient import session
         except ImportError:
             if six.PY2:
-                apt_install(["python-keystoneclient",
-                             "python-keystoneauth1"],
-                            fatal=True)
+                apt_install(["python-keystoneclient"], fatal=True)
             else:
-                apt_install(["python3-keystoneclient",
-                             "python3-keystoneauth1"],
-                            fatal=True)
+                apt_install(["python3-keystoneclient"], fatal=True)
 
             from keystoneclient.v3 import client
             from keystoneclient.auth import token_endpoint
             from keystoneclient import session
-            from keystoneauth1.identity import v3
+            from keystoneclient.auth.identity import v3
 
         self.api_version = 3
 
