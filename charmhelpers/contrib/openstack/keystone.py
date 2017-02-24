@@ -43,8 +43,8 @@ def get_keystone_manager(endpoint, api_version, **kwargs):
     """Return a keystonemanager for the correct API version
 
     @param endpoint: the keystone endpoint to point client at
-    @param token: the keystone token
     @param api_version: version of the keystone api the client should use
+    @param kwargs: token or username/tenant/password information
     @returns keystonemanager class used for interrogating keystone
     """
     if api_version == 2:
