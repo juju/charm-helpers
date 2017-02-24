@@ -18,6 +18,27 @@ import six
 from charmhelpers.fetch import apt_install, apt_update
 
 
+def get_api_suffix(api_version):
+    """Return the formatted api suffix for the given version
+    @param api_version: version of the keystone endpoint
+    @returns the api suffix formatted according to the given api
+    version
+    """
+    return 'v2.0' if api_version == 2 else 'v3'
+
+
+def format_endpoint(schema, addr, port, api_version):
+    """Return a formatted keystone endpoint
+    @param schema: http or https
+    @param addr: ipv4/ipv6 host of the keystone service
+    @param port: port of the keystone service
+    @param api_version: 2 or 3
+    @returns a fully formatted keystone endpoint
+    """
+    return '{}://{}:{}/{}/'.format(schema, addr, port,
+                                   get_api_suffix(api_version))
+
+
 def get_keystone_manager(endpoint, token, api_version):
     """Return a keystonemanager for the correct API version
 
