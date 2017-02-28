@@ -64,7 +64,7 @@ def get_keystone_manager_from_identity_service_context():
     instance of charmhelpers.contrib.openstack.context.IdentityServiceContext
     @returns keystonamenager instance
    """
-    context = IdentityServiceContext()
+    context = IdentityServiceContext()()
     if not context:
         msg = "Identity service context cannot be generated"
         log(msg, level=ERROR)
