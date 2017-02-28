@@ -87,28 +87,36 @@ class KeystoneTests(unittest.TestCase):
             "http", "10.0.0.5", "5000", 2), "http://10.0.0.5:5000/v2.0/")
 
     def test_get_keystone_manager_from_identity_service_context(self):
-        self.IdentityServiceContext.return_value = {
-            "service_protocol": "https",
-            "service_host": "10.5.0.5",
-            "service_port": "5000",
-            "api_version": "2.0",
-            "admin_user": "amdin",
-            "admin_password": "admin",
-            "admin_tenant_name": "admin_tenant",
-        }
+        class FakeIdentityServiceV2(object):
+            def __call__(self, *args, **kwargs):
+                return {
+                    "service_protocol": "https",
+                    "service_host": "10.5.0.5",
+                    "service_port": "5000",
+                    "api_version": "2.0",
+                    "admin_user": "amdin",
+                    "admin_password": "admin",
+                    "admin_tenant_name": "admin_tenant"
+                }
+
+        self.IdentityServiceContext.return_value = FakeIdentityServiceV2()
 
         manager = keystone.get_keystone_manager_from_identity_service_context()
         self.assertIsInstance(manager, keystone.KeystoneManager2)
 
-        self.IdentityServiceContext.return_value = {
-            "service_protocol": "https",
-            "service_host": "10.5.0.5",
-            "service_port": "5000",
-            "api_version": "3",
-            "admin_user": "amdin",
-            "admin_password": "admin",
-            "admin_tenant_name": "admin_tenant",
-        }
+        class FakeIdentityServiceV3(object):
+            def __call__(self, *args, **kwargs):
+                return {
+                    "service_protocol": "https",
+                    "service_host": "10.5.0.5",
+                    "service_port": "5000",
+                    "api_version": "3",
+                    "admin_user": "amdin",
+                    "admin_password": "admin",
+                    "admin_tenant_name": "admin_tenant"
+                }
+
+        self.IdentityServiceContext.return_value = FakeIdentityServiceV3()
 
         manager = keystone.get_keystone_manager_from_identity_service_context()
         self.assertIsInstance(manager, keystone.KeystoneManager3)
