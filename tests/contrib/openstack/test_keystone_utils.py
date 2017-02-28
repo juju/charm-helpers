@@ -8,6 +8,9 @@ import charmhelpers.contrib.openstack.keystone as keystone
 
 TO_PATCH = [
     'apt_install',
+    "log",
+    "ERROR",
+    "IdentityServiceContext",
 ]
 
 
@@ -40,7 +43,7 @@ class KeystoneTests(unittest.TestCase):
             def __iter__(self):
                 class Service(object):
                     _info = {
-                        'type': 'openstack',
+                        'type': 'metering',
                         'name': "ceilometer",
                         'id': "uuid-uuid",
                     }
@@ -49,19 +52,18 @@ class KeystoneTests(unittest.TestCase):
         manager = keystone.get_keystone_manager('test-endpoint', 2,
                                                 token="1234")
         manager.api.services.list = PropertyMock(return_value=ServiceList())
-        self.assertTrue(manager.service_exists("ceilometer"))
-        self.assertFalse(manager.service_exists("barbican"))
-        self.assertFalse(manager.service_exists("barbican",
+        self.assertTrue(manager.service_exists(service_name="ceilometer",
+                                               service_type="metering"))
+        self.assertFalse(manager.service_exists(service_name="barbican"))
+        self.assertFalse(manager.service_exists(service_name="barbican",
                                                 service_type="openstack"))
-        self.assertTrue(manager.service_exists("ceilometer",
-                                               service_type="openstack"))
 
     def test_resolve_sevice_id_v3(self):
         class ServiceList(list):
             def __iter__(self):
                 class Service(object):
                     _info = {
-                        'type': 'openstack',
+                        'type': 'metering',
                         'name': "ceilometer",
                         'id': "uuid-uuid",
                     }
@@ -70,12 +72,11 @@ class KeystoneTests(unittest.TestCase):
         manager = keystone.get_keystone_manager('test-endpoint', 3,
                                                 token="12345")
         manager.api.services.list = PropertyMock(return_value=ServiceList())
-        self.assertTrue(manager.service_exists("ceilometer"))
-        self.assertFalse(manager.service_exists("barbican"))
-        self.assertFalse(manager.service_exists("barbican",
+        self.assertTrue(manager.service_exists(service_name="ceilometer",
+                                               service_type="metering"))
+        self.assertFalse(manager.service_exists(service_name="barbican"))
+        self.assertFalse(manager.service_exists(service_name="barbican",
                                                 service_type="openstack"))
-        self.assertTrue(manager.service_exists("ceilometer",
-                                               service_type="openstack"))
 
     def test_get_api_suffix(self):
         self.assertEquals(keystone.get_api_suffix(2), "v2.0")
@@ -84,3 +85,38 @@ class KeystoneTests(unittest.TestCase):
     def test_format_endpoint(self):
         self.assertEquals(keystone.format_endpoint(
             "http", "10.0.0.5", "5000", 2), "http://10.0.0.5:5000/v2.0/")
+
+    def test_get_keystone_manager_from_identity_service_context(self):
+        class FakeIdentityServiceV2(object):
+            def __call__(self, *args, **kwargs):
+                return {
+                    "service_protocol": "https",
+                    "service_host": "10.5.0.5",
+                    "service_port": "5000",
+                    "api_version": "2.0",
+                    "admin_user": "amdin",
+                    "admin_password": "admin",
+                    "admin_tenant_name": "admin_tenant"
+                }
+
+        self.IdentityServiceContext.return_value = FakeIdentityServiceV2()
+
+        manager = keystone.get_keystone_manager_from_identity_service_context()
+        self.assertIsInstance(manager, keystone.KeystoneManager2)
+
+        class FakeIdentityServiceV3(object):
+            def __call__(self, *args, **kwargs):
+                return {
+                    "service_protocol": "https",
+                    "service_host": "10.5.0.5",
+                    "service_port": "5000",
+                    "api_version": "3",
+                    "admin_user": "amdin",
+                    "admin_password": "admin",
+                    "admin_tenant_name": "admin_tenant"
+                }
+
+        self.IdentityServiceContext.return_value = FakeIdentityServiceV3()
+
+        manager = keystone.get_keystone_manager_from_identity_service_context()
+        self.assertIsInstance(manager, keystone.KeystoneManager3)
