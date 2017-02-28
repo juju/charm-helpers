@@ -18,8 +18,8 @@ If writing reactive charms, use the snap layer:
 https://lists.ubuntu.com/archives/snapcraft/2016-September/001114.html
 """
 import subprocess
-from time import sleep
 from os import environ
+from time import sleep
 from charmhelpers.core.hookenv import log
 
 __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
