@@ -36,74 +36,72 @@ def _snap_exec(commands):
     proc.wait()
 
     if proc.returncode > 0:
-        log('`snap %s` exited with a non-zero status' % ' '.join(commands),
-            level='FATAL')
+        log(
+            '`snap %s` exited with a non-zero status' % ' '.join(commands),
+            level='FATAL'
+        )
 
     return proc.returncode
 
 
-def snap_install(package, edge=False, beta=False, candidate=False, stable=False, devmode=False, jailmode=False,
-                 classic=False, dangerous=False, channel=None, revision=None):
+def snap_install(packages, *flags):
     """
     Install a snap package.
 
-    :param package: String or List String package name
-    :param edge: Boolean install from the edge channel
-    :param beta: Boolean install from the beta channel
-    :param candidate: Boolean install from the candidate channel
-    :param stable: Boolean install from the stable channel
-    :param devmode: Boolean put snap in development mode and disable security confinement
-    :param jailmode: Boolean put snap in enforced confinement mode
-    :param classic: Boolean put snap in classic mode and disable security confinement
-    :param dangerous: Boolean install the given snap file even if there are no pre-acknowledged signatures for
-           it, meaning it was not verified and could be dangerous (--devmode implies this)
-    :param channel: String use this channel instead of stable
-    :param revision: String install the given revision of a snap, to which you must have developer access
-    :return: None
+    :param packages: String or List String package name
+    :param flags: List String flags to pass to install command
+    :return: Integer return code from snap
     """
-    if type(package) is not list:
-        package = [package]
+    if type(packages) is not list:
+        packages = [packages]
 
-    flags = []
+    flags = list(flags)
 
-    if edge:
-        flags.append('--edge')
-    if beta:
-        flags.append('--beta')
-    if candidate:
-        flags.append('--candidate')
-    if stable:
-        flags.append('--stable')
-    if devmode:
-        flags.append('--devmode')
-    if jailmode:
-        flags.append('--jailmode')
-    if classic:
-        flags.append('--classic')
-    if dangerous:
-        flags.append('--dangerous')
-    if channel:
-        flags.append('--channel=%s' % channel)
-    if revision:
-        flags.append('--revision=%s' % revision)
-
-    message = 'Installing snap "%s"' % package
+    message = 'Installing snap(s) "%s"' % ', '.join(packages)
     if flags:
-        message += ' with options "%s"' % ' '.join(flags)
+        message += ' with option(s) "%s"' % ', '.join(flags)
 
     log(message)
-    _snap_exec(['install'] + flags + package)
+    return _snap_exec(['install'] + flags + packages)
 
 
-def snap_remove(package):
+def snap_remove(packages, *flags):
     """
     Remove a snap package.
 
-    :param package: String or List String package name
-    :return: None
+    :param packages: String or List String package name
+    :param flags: List String flags to pass to remove command
+    :return: Integer return code from snap
     """
-    if type(package) is not list:
-        package = [package]
+    if type(packages) is not list:
+        packages = [packages]
 
-    log('Removing snap "%s"' % package)
-    _snap_exec(['remove'] + package)
+    flags = list(flags)
+
+    message = 'Removing snap(s) "%s"' % ', '.join(packages)
+    if flags:
+        message += ' with options "%s"' % ', '.join(flags)
+
+    log(message)
+    return _snap_exec(['remove'] + flags + packages)
+
+
+def snap_refresh(packages, *flags):
+    """
+    Refresh / Update snap package.
+
+    :param packages: String or List String package name
+    :param flags: List String flags to pass to refresh command
+    :return: Integer return code from snap
+    """
+    if type(packages) is not list:
+        packages = [packages]
+
+    flags = list(flags)
+
+    message = 'Refreshing snap(s) "%s"' % ', '.join(packages)
+    if flags:
+        message += ' with options "%s"' % ', '.join(flags)
+
+    log(message)
+    return _snap_exec(['refresh'] + flags + packages)
