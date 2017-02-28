@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import subprocess
-from mock import call
+from mock import patch
 from unittest import TestCase
-from charmhelpers.contrib.snap import snap_install, snap_remove
 
 __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
 
@@ -23,32 +21,35 @@ class SnapTest(TestCase):
     """
     Test and install and removal of a snap.
     """
-    def setUp(self):
-        """
-        Make sure the hello-world snap isn't installed.
-        :return: None
-        """
-        snap_remove('hello-world')
-
-    def testSnapInstall(self):
+    @patch('subprocess.Popen')
+    def testSnapInstall(self, popen):
         """
         Test snap install.
         :return: None
         """
-        snap_install('hello-world')
-        proc = subprocess.Popen(
-            ['/snap/bin/hello-world'],
-            stdout=subprocess.PIPE
-        )
-        proc.wait()
+        from charmhelpers.contrib.snap import snap_install
+        popen.return_value.returncode = 0
+        snap_install(['hello-world', 'htop'], '--classic', '--stable')
+        popen.assert_called_with(['snap', 'install', '--classic', '--stable', 'hello-world', 'htop'])
 
-        self.assertEqual(proc.stdout.read(), b'Hello World!\n')
-
-        proc.stdout.close()
-
-    def tearDown(self):
+    @patch('subprocess.Popen')
+    def testSnapRefresh(self, popen):
         """
-        Remove test snap.
+        Test snap refresh.
         :return: None
         """
-        snap_remove('hello-world')
+        from charmhelpers.contrib.snap import snap_refresh
+        popen.return_value.returncode = 0
+        snap_refresh(['hello-world', 'htop'], '--classic', '--stable')
+        popen.assert_called_with(['snap', 'refresh', '--classic', '--stable', 'hello-world', 'htop'])
+
+    @patch('subprocess.Popen')
+    def testSnapRemove(self, popen):
+        """
+        Test snap refresh.
+        :return: None
+        """
+        from charmhelpers.contrib.snap import snap_remove
+        popen.return_value.returncode = 0
+        snap_remove(['hello-world', 'htop'])
+        popen.assert_called_with(['snap', 'remove', 'hello-world', 'htop'])
