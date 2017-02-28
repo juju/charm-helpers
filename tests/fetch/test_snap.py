@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from os import environ
 from mock import patch
 from unittest import TestCase
 
 __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
+
+TEST_ENV = {'foo': 'bar'}
 
 
 class SnapTest(TestCase):
@@ -23,6 +24,7 @@ class SnapTest(TestCase):
     Test and install and removal of a snap.
     """
     @patch('subprocess.check_call')
+    @patch('os.environ', TEST_ENV)
     def testSnapInstall(self, check_call):
         """
         Test snap install.
@@ -33,9 +35,10 @@ class SnapTest(TestCase):
         from charmhelpers.fetch.snap import snap_install
         check_call.return_value = 0
         snap_install(['hello-world', 'htop'], '--classic', '--stable')
-        check_call.assert_called_with(['snap', 'install', '--classic', '--stable', 'hello-world', 'htop'], env=environ)
+        check_call.assert_called_with(['snap', 'install', '--classic', '--stable', 'hello-world', 'htop'], env=TEST_ENV)
 
     @patch('subprocess.check_call')
+    @patch('os.environ', TEST_ENV)
     def testSnapRefresh(self, check_call):
         """
         Test snap refresh.
@@ -46,9 +49,10 @@ class SnapTest(TestCase):
         from charmhelpers.fetch.snap import snap_refresh
         check_call.return_value = 0
         snap_refresh(['hello-world', 'htop'], '--classic', '--stable')
-        check_call.assert_called_with(['snap', 'refresh', '--classic', '--stable', 'hello-world', 'htop'], env=environ)
+        check_call.assert_called_with(['snap', 'refresh', '--classic', '--stable', 'hello-world', 'htop'], env=TEST_ENV)
 
     @patch('subprocess.check_call')
+    @patch('os.environ', TEST_ENV)
     def testSnapRemove(self, check_call):
         """
         Test snap remove.
@@ -59,4 +63,4 @@ class SnapTest(TestCase):
         from charmhelpers.fetch.snap import snap_remove
         check_call.return_value = 0
         snap_remove(['hello-world', 'htop'])
-        check_call.assert_called_with(['snap', 'remove', 'hello-world', 'htop'], env=environ)
+        check_call.assert_called_with(['snap', 'remove', 'hello-world', 'htop'], env=TEST_ENV)
