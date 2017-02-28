@@ -419,7 +419,7 @@ class PerconaClusterHelper(object):
         else:
             # NOTE(jamespage): pick the smallest of 50% of RAM or 512MB
             #                  to ensure that deployments in containers
-            #                  without constraints do try to consume
+            #                  without constraints don't try to consume
             #                  silly amounts of memory.
             innodb_buffer_pool_size = min(
                 int(total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR),
