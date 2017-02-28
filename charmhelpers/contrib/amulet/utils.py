@@ -25,6 +25,7 @@ import uuid
 
 import amulet
 import distro_info
+from distutils.version import LooseVersion
 import six
 from six.moves import configparser
 if six.PY3:
@@ -785,7 +786,7 @@ class AmuletUtils(object):
         generating test messages which need to be unique-ish."""
         return '[{}-{}]'.format(uuid.uuid4(), time.time())
 
-# amulet juju action helpers:
+    # amulet juju action helpers:
     def run_action(self, unit_sentry, action,
                    _check_output=subprocess.check_output,
                    params=None):
@@ -797,7 +798,11 @@ class AmuletUtils(object):
         @return action_id.
         """
         unit_id = unit_sentry.info["unit_name"]
-        command = ["juju", "action", "do", "--format=json", unit_id, action]
+        if self.juju_min_version("2.0"):
+            command = ["juju", "run-action", "--format=json", unit_id, action]
+        else:
+            command = ["juju", "action", "do", "--format=json",
+                       unit_id, action]
         if params is not None:
             for key, value in params.iteritems():
                 command.append("{}={}".format(key, value))
@@ -812,8 +817,12 @@ class AmuletUtils(object):
 
         _check_output parameter is used for dependency injection.
         """
-        command = ["juju", "action", "fetch", "--format=json", "--wait=0",
-                   action_id]
+        if self.juju_min_version("2.0"):
+            command = ["juju", "show-action-output", "--format=json",
+                       "--wait=0", action_id]
+        else:
+            command = ["juju", "action", "fetch", "--format=json", "--wait=0",
+                       action_id]
         output = _check_output(command, universal_newlines=True)
         data = json.loads(output)
         return data.get(u"status") == "completed"
@@ -826,3 +835,19 @@ class AmuletUtils(object):
             return ("unknown", "")
         status = json.loads(raw_status)
         return (status["status"], status["message"])
+
+    def juju_version(self):
+        """Return Juju version
+
+        @reutrns string version
+        """
+        cmd = ['juju', 'version']
+        return subprocess.check_output(cmd)
+
+    def juju_min_version(self, minimum_version='2.0'):
+        """Return True if the Juju version is at least the provided version
+
+        @returns boolean
+        """
+        return (LooseVersion(self.juju_version()) >=
+                LooseVersion(minimum_version))
