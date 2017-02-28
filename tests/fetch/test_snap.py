@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from os import environ
 from mock import patch
 from unittest import TestCase
 
@@ -21,35 +22,41 @@ class SnapTest(TestCase):
     """
     Test and install and removal of a snap.
     """
-    @patch('subprocess.Popen')
-    def testSnapInstall(self, popen):
+    @patch('subprocess.check_call')
+    def testSnapInstall(self, check_call):
         """
         Test snap install.
+
+        :param check_call: Mock object
         :return: None
         """
-        from charmhelpers.contrib.snap import snap_install
-        popen.return_value.returncode = 0
+        from charmhelpers.fetch.snap import snap_install
+        check_call.return_value = 0
         snap_install(['hello-world', 'htop'], '--classic', '--stable')
-        popen.assert_called_with(['snap', 'install', '--classic', '--stable', 'hello-world', 'htop'])
+        check_call.assert_called_with(['snap', 'install', '--classic', '--stable', 'hello-world', 'htop'], env=environ)
 
-    @patch('subprocess.Popen')
-    def testSnapRefresh(self, popen):
+    @patch('subprocess.check_call')
+    def testSnapRefresh(self, check_call):
         """
         Test snap refresh.
+
+        :param check_call: Mock object
         :return: None
         """
-        from charmhelpers.contrib.snap import snap_refresh
-        popen.return_value.returncode = 0
+        from charmhelpers.fetch.snap import snap_refresh
+        check_call.return_value = 0
         snap_refresh(['hello-world', 'htop'], '--classic', '--stable')
-        popen.assert_called_with(['snap', 'refresh', '--classic', '--stable', 'hello-world', 'htop'])
+        check_call.assert_called_with(['snap', 'refresh', '--classic', '--stable', 'hello-world', 'htop'], env=environ)
 
-    @patch('subprocess.Popen')
-    def testSnapRemove(self, popen):
+    @patch('subprocess.check_call')
+    def testSnapRemove(self, check_call):
         """
         Test snap remove.
+
+        :param check_call: Mock object
         :return: None
         """
-        from charmhelpers.contrib.snap import snap_remove
-        popen.return_value.returncode = 0
+        from charmhelpers.fetch.snap import snap_remove
+        check_call.return_value = 0
         snap_remove(['hello-world', 'htop'])
-        popen.assert_called_with(['snap', 'remove', 'hello-world', 'htop'])
+        check_call.assert_called_with(['snap', 'remove', 'hello-world', 'htop'], env=environ)

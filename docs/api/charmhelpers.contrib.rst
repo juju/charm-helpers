@@ -12,7 +12,6 @@ charmhelpers.contrib package
     charmhelpers.contrib.peerstorage
     charmhelpers.contrib.python
     charmhelpers.contrib.saltstack
-    charmhelpers.contrib.snap
     charmhelpers.contrib.ssl
     charmhelpers.contrib.storage
     charmhelpers.contrib.templating

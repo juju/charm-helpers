@@ -18,30 +18,41 @@ If writing reactive charms, use the snap layer:
 https://lists.ubuntu.com/archives/snapcraft/2016-September/001114.html
 """
 import subprocess
+from time import sleep
+from os import environ
 from charmhelpers.core.hookenv import log
 
 __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
+
+SNAP_NO_LOCK = 1  # The return code for "couldn't acquire lock" in Snap (hopefully this will be improved).
+SNAP_NO_LOCK_RETRY_DELAY = 10  # Wait X seconds between Snap lock checks.
+SNAP_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
 
 
 def _snap_exec(commands):
     """
     Execute snap commands.
+
     :param commands: List commands
     :return: Integer exit code
     """
     assert type(commands) == list
-    proc = subprocess.Popen(
-        ['snap'] + commands
-    )
-    proc.wait()
 
-    if proc.returncode > 0:
-        log(
-            '`snap %s` exited with a non-zero status' % ' '.join(commands),
-            level='FATAL'
-        )
+    retry_count = 0
+    return_code = None
 
-    return proc.returncode
+    while return_code is None or return_code == SNAP_NO_LOCK:
+        try:
+            return_code = subprocess.check_call(['snap'] + commands, env=environ)
+        except subprocess.CalledProcessError as e:
+            retry_count += + 1
+            if retry_count > SNAP_NO_LOCK_RETRY_COUNT:
+                raise
+            return_code = e.returncode
+            log('Snap failed to acquire lock, trying again in %s seconds.' % SNAP_NO_LOCK_RETRY_DELAY)
+            sleep(SNAP_NO_LOCK_RETRY_DELAY)
+
+    return return_code
 
 
 def snap_install(packages, *flags):

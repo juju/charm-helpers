@@ -1,7 +1,7 @@
-charmhelpers.contrib.snap package
-=================================
+charmhelpers.fetch.snap package
+===============================
 
-.. automodule:: charmhelpers.contrib.snap
+.. automodule:: charmhelpers.fetch.snap
     :members:
     :undoc-members:
     :show-inheritance:
