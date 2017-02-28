@@ -46,7 +46,7 @@ class SnapTest(TestCase):
     @patch('subprocess.Popen')
     def testSnapRemove(self, popen):
         """
-        Test snap refresh.
+        Test snap remove.
         :return: None
         """
         from charmhelpers.contrib.snap import snap_remove
