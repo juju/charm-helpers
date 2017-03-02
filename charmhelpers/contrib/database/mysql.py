@@ -142,6 +142,13 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
+    def flush_priviledges(self):
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("FLUSH PRIVILEGES")
+        finally:
+            cursor.close()
+
     def execute(self, sql):
         """Execute arbitary SQL against the database."""
         cursor = self.connection.cursor()
@@ -323,6 +330,7 @@ class MySQLHelper(object):
                 self.create_grant(database, username, remote_ip, password)
             else:
                 self.create_admin_grant(username, remote_ip, password)
+            self.flush_priviledges()
 
         return password
 
