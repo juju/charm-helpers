@@ -400,6 +400,14 @@ class PerconaClusterHelper(object):
 
         if 'innodb-flush-log-at-trx-commit' in config:
             mysql_config['innodb_flush_log_at_trx_commit'] = config['innodb-flush-log-at-trx-commit']
+        elif 'tuning-level' in config:
+            _flush_config_map = {
+                'fast': 2,
+                'safest': 1,
+                'unsafe': 0,
+            }
+            mysql_config['innodb_flush_log_at_trx_commit'] = \
+                _flush_config_map.get(config['tuning-level'], 1)
 
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
