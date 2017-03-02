@@ -148,7 +148,8 @@ class AmuletUtils(object):
 
             for service_name in services_list:
                 if (self.ubuntu_releases.index(release) >= systemd_switch or
-                        service_name in ['rabbitmq-server', 'apache2']):
+                        service_name in ['rabbitmq-server', 'apache2',
+                                         'memcached']):
                     # init is systemd (or regular sysv)
                     cmd = 'sudo service {} status'.format(service_name)
                     output, code = sentry_unit.run(cmd)
@@ -546,7 +547,7 @@ class AmuletUtils(object):
             raise if it is present.
         :returns: List of process IDs
         """
-        cmd = 'pidof -x {}'.format(process_name)
+        cmd = 'pidof -x "{}"'.format(process_name)
         if not expect_success:
             cmd += " || exit 0 && exit 1"
         output, code = sentry_unit.run(cmd)

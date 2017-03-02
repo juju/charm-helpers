@@ -7,6 +7,7 @@ from mock import (
     MagicMock,
     patch,
 )
+from charmhelpers.core.host import chdir
 
 import six
 if six.PY3:
@@ -14,7 +15,7 @@ if six.PY3:
 else:
     from urlparse import urlparse
 
-from charmhelpers.core.host import chdir
+
 try:
     from charmhelpers.fetch import (
         giturl,
@@ -57,7 +58,8 @@ class GitUrlFetchHandlerTest(TestCase):
             self.fh.load_plugins = MagicMock()
             self.fh.clone(url, dest_path, branch, None)
 
-            check_call.assert_called_with(['git', 'clone', url, dest_path, '--branch', branch])
+            check_call.assert_called_with(
+                ['git', 'clone', url, dest_path, '--branch', branch])
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
@@ -73,7 +75,8 @@ class GitUrlFetchHandlerTest(TestCase):
             with chdir(src):
                 subprocess.check_call(['git', 'init'])
                 subprocess.check_call(['git', 'config', 'user.name', 'Joe'])
-                subprocess.check_call(['git', 'config', 'user.email', 'joe@test.com'])
+                subprocess.check_call(
+                    ['git', 'config', 'user.email', 'joe@test.com'])
                 subprocess.check_call(['touch', 'foo'])
                 subprocess.check_call(['git', 'add', 'foo'])
                 subprocess.check_call(['git', 'commit', '-m', 'test'])

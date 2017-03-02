@@ -85,20 +85,6 @@ class FakeRelation(object):
         return sorted(self.relation_data[relation_id].keys())
 
 
-class FakeAppArmorContext(context.AppArmorContext):
-
-    def __init__(self):
-        super(FakeAppArmorContext, self).__init__()
-        self.aa_profile = 'fake-aa-profile'
-
-    def __call__(self):
-        super(FakeAppArmorContext, self).__call__()
-        if not self.ctxt:
-            return self.ctxt
-        self._ctxt.update({'aa_profile': self.aa_profile})
-        return self.ctxt
-
-
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
     'password': 'foo'
@@ -135,6 +121,7 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_tenant_id': '123456',
     'service_password': 'foo',
@@ -148,6 +135,7 @@ IDENTITY_SERVICE_RELATION_UNSET = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
@@ -160,6 +148,7 @@ APIIDENTITY_SERVICE_RELATION_UNSET = {
             'service_host': 'keystonehost.local',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
+            'service_domain': 'admin_domain',
             'service_tenant': 'admin',
             'service_password': 'foo',
             'service_username': 'adam',
@@ -172,6 +161,7 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
@@ -199,6 +189,7 @@ IDENTITY_SERVICE_RELATION = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
@@ -385,6 +376,15 @@ nova-compute:
                 - [nova-key4, value4]
 """
 
+NOVA_SUB_CONFIG3 = """
+nova-compute:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key5, value5]
+                - [nova-key6, value6]
+"""
+
 CINDER_SUB_CONFIG1 = """
 cinder:
     /etc/cinder/cinder.conf:
@@ -447,6 +447,12 @@ SUB_CONFIG_RELATION2 = {
         'neutron-ovs-plugin/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG2)),
+        },
+    },
+    'neutron-plugin:4': {
+        'neutron-other-plugin/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG3)),
         },
     }
 }
@@ -883,6 +889,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_user': 'adam',
@@ -939,7 +946,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo'
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -956,7 +964,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo'
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -977,6 +986,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbit_ssl_ca': ssl_dir + '/rabbit-client-ca.pem',
             'rabbitmq_ha_queues': True,
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
         _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'w')
         self.assertEquals(result, expected)
@@ -998,6 +1008,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbit_ssl_ca': 'cert',
             'rabbitmq_ha_queues': True,
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1016,6 +1027,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@10.0.0.1:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1035,6 +1047,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': 'rabbithost1,rabbithost2',
+            'transport_url': 'rabbit://adam:foobar@rabbithost1:5672,adam:foobar@rabbithost2:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1076,6 +1089,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
+            'transport_url': 'rabbit://adam:foobar@[2001:db8:1::1]:5672,adam:foobar@[2001:db8:1::1]:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1097,6 +1111,7 @@ class ContextTests(unittest.TestCase):
                 'rabbit_retry_backoff': '1',
                 'rabbit_retry_interval': '1'
             },
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
         self.assertEquals(result, expected)
@@ -1806,7 +1821,7 @@ class ContextTests(unittest.TestCase):
         '''Test apache2 context also loads required apache modules'''
         apache = context.ApacheSSLContext()
         apache.enable_modules()
-        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
+        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         self.check_call.assert_called_with(ex_cmd)
 
     def test_https_configure_cert(self):
@@ -2340,7 +2355,9 @@ class ContextTests(unittest.TestCase):
                     ['nova-key1', 'value1'],
                     ['nova-key2', 'value2'],
                     ['nova-key3', 'value3'],
-                    ['nova-key4', 'value4']]
+                    ['nova-key4', 'value4'],
+                    ['nova-key5', 'value5'],
+                    ['nova-key6', 'value6']]
             }}
         )
 
@@ -2378,6 +2395,35 @@ class ContextTests(unittest.TestCase):
             'verbose': False,
         }
         self.assertEquals(result, expected)
+
+    @patch.object(context, 'psutil')
+    @patch.object(context, 'git_determine_python_path')
+    @patch.object(context, 'git_determine_usr_bin')
+    def test_wsgi_worker_config_context(self, usr_bin, python_path, psutil):
+        self.config.return_value = 2  # worker-multiplier=2
+        usr_bin_path = '/usr/bin'
+        usr_bin.return_value = usr_bin_path
+        python_path.return_value = None
+        psutil.cpu_count.return_value = 4
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": service_name,
+            "group": service_name,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 8,
+            "admin_processes": 6,
+            "public_processes": 2,
+            "threads": 1,
+            "usr_bin": usr_bin_path,
+            "python_path": None,
+        }
+        self.assertEqual(expect, ctxt())
 
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
@@ -2973,7 +3019,7 @@ class ContextTests(unittest.TestCase):
 
     def test_apparmor_setup_complain(self):
         ''' Tests for the apparmor setup'''
-        AA = FakeAppArmorContext()
+        AA = context.AppArmorContext(profile_name='fake-aa-profile')
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
         # Test complain mode
@@ -2985,7 +3031,7 @@ class ContextTests(unittest.TestCase):
 
     def test_apparmor_setup_enforce(self):
         ''' Tests for the apparmor setup'''
-        AA = FakeAppArmorContext()
+        AA = context.AppArmorContext(profile_name='fake-aa-profile')
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
         # Test enforce mode
@@ -2996,7 +3042,7 @@ class ContextTests(unittest.TestCase):
 
     def test_apparmor_setup_disable(self):
         ''' Tests for the apparmor setup'''
-        AA = FakeAppArmorContext()
+        AA = context.AppArmorContext(profile_name='fake-aa-profile')
         AA.install_aa_utils = MagicMock()
         AA.manually_disable_aa_profile = MagicMock()
         # Test disable mode
@@ -3010,3 +3056,32 @@ class ContextTests(unittest.TestCase):
         AA.setup_aa_profile()
         self.check_call.assert_called_with(['aa-disable', 'fake-aa-profile'])
         AA.manually_disable_aa_profile.assert_called_with()
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_context(self, _enable_memcache):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
+        _enable_memcache.return_value = True
+        config = {'openstack-origin': 'distro'}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertTrue(ctxt()['use_memcache'])
+        expect = {
+            'memcache_port': '11211',
+            'memcache_server': '::1',
+            'memcache_server_formatted': '[::1]',
+            'memcache_url': 'inet6:[::1]:11211',
+            'use_memcache': True}
+        self.assertEqual(ctxt(), expect)
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
+        expect['memcache_server'] = 'ip6-localhost'
+        ctxt = context.MemcacheContext()
+        self.assertEqual(ctxt(), expect)
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_off_context(self, _enable_memcache):
+        _enable_memcache.return_value = False
+        config = {'openstack-origin': 'distro'}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertFalse(ctxt()['use_memcache'])
+        self.assertEqual(ctxt(), {'use_memcache': False})

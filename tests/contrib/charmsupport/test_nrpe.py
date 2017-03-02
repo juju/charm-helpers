@@ -6,6 +6,7 @@ from testtools import TestCase
 from mock import patch, call
 
 from charmhelpers.contrib.charmsupport import nrpe
+from charmhelpers.core import host
 
 
 class NRPEBaseTestCase(TestCase):
@@ -26,6 +27,7 @@ class NRPEBaseTestCase(TestCase):
         'relation_set': {'object': nrpe},
         'relations_of_type': {'object': nrpe},
         'service': {'object': nrpe},
+        'init_is_systemd': {'object': host},
     }
 
     def setUp(self):
@@ -88,8 +90,8 @@ class NRPETestCase(NRPEBaseTestCase):
         self.assertEqual(None, checker.write())
 
         expected = 'Nagios user not set up, nrpe checks not updated'
-        self.patched['log'].assert_called_once_with(expected)
-        self.check_call_counts(log=1, config=1, getpwnam=1, getgrnam=1)
+        self.patched['log'].assert_called_with(expected)
+        self.check_call_counts(log=2, config=1, getpwnam=1, getgrnam=1)
 
     def test_write_no_checker(self):
         self.patched['config'].return_value = {'nagios_context': 'test',
@@ -173,7 +175,7 @@ define service {
         self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
                                exists=4, open=2, listdir=1,
-                               relation_ids=2, relation_set=2)
+                               relation_ids=4, relation_set=3)
 
 
 class NRPECheckTestCase(NRPEBaseTestCase):
@@ -300,10 +302,14 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
                      '/usr/lib/nagios/plugins/check_status_file.py',
                      '/etc/cron.d/nagios-service-check-haproxy',
                      '/var/lib/nagios/service-check-haproxy.txt',
+                     '/usr/lib/nagios/plugins/check_systemd.py'
                      ]
             return init_file in files
 
         self.patched['exists'].side_effect = _exists
+
+        # Test without systemd
+        self.patched['init_is_systemd'].return_value = False
         bill = nrpe.NRPE()
         services = ['apache2', 'haproxy']
         nrpe.add_init_service_checks(bill, services, 'testunit')
@@ -316,3 +322,15 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.assertEqual(bill.checks[0].check_cmd, expect_cmds['apache2'])
         self.assertEqual(bill.checks[1].shortname, 'haproxy')
         self.assertEqual(bill.checks[1].check_cmd, expect_cmds['haproxy'])
+
+        # Test with systemd
+        self.patched['init_is_systemd'].return_value = True
+        nrpe.add_init_service_checks(bill, services, 'testunit')
+        expect_cmds = {
+            'apache2': '/usr/lib/nagios/plugins/check_systemd.py apache2',
+            'haproxy': '/usr/lib/nagios/plugins/check_systemd.py haproxy',
+        }
+        self.assertEqual(bill.checks[2].shortname, 'apache2')
+        self.assertEqual(bill.checks[2].check_cmd, expect_cmds['apache2'])
+        self.assertEqual(bill.checks[3].shortname, 'haproxy')
+        self.assertEqual(bill.checks[3].check_cmd, expect_cmds['haproxy'])

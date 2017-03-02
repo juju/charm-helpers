@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from distutils.core import setup
 import os
+
+from setuptools import setup, find_packages
 
 
 version_file = os.path.abspath(os.path.join(os.path.dirname(__file__),
@@ -35,37 +36,7 @@ SETUP = {
         'Jinja2',
         'six',
     ],
-    'packages': [
-        "charmhelpers",
-        "charmhelpers.cli",
-        "charmhelpers.core",
-        "charmhelpers.core.services",
-        "charmhelpers.fetch",
-        "charmhelpers.payload",
-        "charmhelpers.contrib",
-        "charmhelpers.contrib.amulet",
-        "charmhelpers.contrib.ansible",
-        "charmhelpers.contrib.benchmark",
-        "charmhelpers.contrib.charmhelpers",
-        "charmhelpers.contrib.charmsupport",
-        "charmhelpers.contrib.database",
-        "charmhelpers.contrib.hahelpers",
-        "charmhelpers.contrib.network",
-        "charmhelpers.contrib.network.ovs",
-        "charmhelpers.contrib.openstack",
-        "charmhelpers.contrib.openstack.ha",
-        "charmhelpers.contrib.openstack.amulet",
-        "charmhelpers.contrib.openstack.files",
-        "charmhelpers.contrib.openstack.templates",
-        "charmhelpers.contrib.peerstorage",
-        "charmhelpers.contrib.python",
-        "charmhelpers.contrib.saltstack",
-        "charmhelpers.contrib.ssl",
-        "charmhelpers.contrib.storage",
-        "charmhelpers.contrib.storage.linux",
-        "charmhelpers.contrib.templating",
-        "charmhelpers.contrib.unison",
-    ],
+    'packages': find_packages(),
     'scripts': [
         "bin/chlp",
         "bin/contrib/charmsupport/charmsupport",

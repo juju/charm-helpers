@@ -110,3 +110,77 @@ class UtilsTests(unittest.TestCase):
             relation_id='neutron-plugin-api-subordinate:8',
             relation_settings={'restart-trigger': 'uuid4'}
         )
+
+    @mock.patch.object(utils, 'config')
+    @mock.patch('charmhelpers.contrib.openstack.utils.'
+                'git_os_codename_install_source')
+    @mock.patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    @mock.patch('charmhelpers.contrib.openstack.utils.'
+                'get_os_codename_install_source')
+    def test_os_release(self, mock_get_os_codename_install_source,
+                        mock_get_os_codename_package,
+                        mock_git_os_codename_install_source,
+                        mock_config):
+        # Wipe the modules cached os_rel
+        utils.os_rel = None
+        mock_get_os_codename_install_source.return_value = None
+        mock_get_os_codename_package.return_value = None
+        mock_git_os_codename_install_source.return_value = None
+        mock_config.return_value = 'cloud-pocket'
+        self.assertEqual(utils.os_release('my-pkg'), 'essex')
+        mock_get_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        mock_get_os_codename_package.assert_called_once_with(
+            'my-pkg', fatal=False)
+        mock_git_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        # Next call to os_release should pickup cached version
+        mock_get_os_codename_install_source.reset_mock()
+        mock_get_os_codename_package.reset_mock()
+        mock_git_os_codename_install_source.reset_mock()
+        self.assertEqual(utils.os_release('my-pkg'), 'essex')
+        self.assertFalse(mock_get_os_codename_install_source.called)
+        self.assertFalse(mock_get_os_codename_package.called)
+        self.assertFalse(mock_git_os_codename_install_source.called)
+        # Call os_release and bypass cache
+        mock_get_os_codename_install_source.reset_mock()
+        mock_get_os_codename_package.reset_mock()
+        mock_git_os_codename_install_source.reset_mock()
+        self.assertEqual(utils.os_release('my-pkg', reset_cache=True),
+                         'essex')
+        mock_get_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        mock_get_os_codename_package.assert_called_once_with(
+            'my-pkg', fatal=False)
+        mock_git_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+
+    @mock.patch.object(utils, 'os_release')
+    @mock.patch.object(utils, 'get_os_codename_install_source')
+    def test_enable_memcache(self, _get_os_codename_install_source,
+                             _os_release):
+        # Check call with 'release'
+        self.assertFalse(utils.enable_memcache(release='icehouse'))
+        self.assertTrue(utils.enable_memcache(release='zebra'))
+        # Check call with 'source'
+        _os_release.return_value = None
+        _get_os_codename_install_source.return_value = 'icehouse'
+        self.assertFalse(utils.enable_memcache(source='distro'))
+        _os_release.return_value = None
+        _get_os_codename_install_source.return_value = 'zebra'
+        self.assertTrue(utils.enable_memcache(source='distro'))
+        # Check call with 'package'
+        _os_release.return_value = 'icehouse'
+        _get_os_codename_install_source.return_value = None
+        self.assertFalse(utils.enable_memcache(package='pkg1'))
+        _os_release.return_value = 'zebra'
+        _get_os_codename_install_source.return_value = None
+        self.assertTrue(utils.enable_memcache(package='pkg1'))
+
+    @mock.patch.object(utils, 'enable_memcache')
+    def test_enable_token_cache_pkgs(self, _enable_memcache):
+        _enable_memcache.return_value = False
+        self.assertEqual(utils.token_cache_pkgs(source='distro'), [])
+        _enable_memcache.return_value = True
+        self.assertEqual(utils.token_cache_pkgs(source='distro'),
+                         ['memcached', 'python-memcache'])

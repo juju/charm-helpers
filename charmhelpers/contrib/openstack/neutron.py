@@ -32,6 +32,7 @@ def headers_package():
     kver = check_output(['uname', '-r']).decode('UTF-8').strip()
     return 'linux-headers-%s' % kver
 
+
 QUANTUM_CONF_DIR = '/etc/quantum'
 
 
@@ -90,6 +91,7 @@ def quantum_plugins():
             'server_services': ['quantum-server']
         }
     }
+
 
 NEUTRON_CONF_DIR = '/etc/neutron'
 
@@ -245,6 +247,12 @@ def neutron_plugins():
             'networking_plumgrid.neutron.plugins.plugin.NeutronPluginPLUMgridV2')
         plugins['plumgrid']['server_packages'].remove(
             'neutron-plugin-plumgrid')
+    if release >= 'mitaka':
+        plugins['nsx']['server_packages'].remove('neutron-plugin-vmware')
+        plugins['nsx']['server_packages'].append('python-vmware-nsx')
+        plugins['nsx']['config'] = '/etc/neutron/nsx.ini'
+        plugins['vsp']['driver'] = (
+            'nuage_neutron.plugins.nuage.plugin.NuagePlugin')
     return plugins
 
 
