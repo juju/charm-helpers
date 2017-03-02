@@ -323,7 +323,7 @@ def get_nagios_unit_name(relation_name='nrpe-external-master'):
     return unit
 
 
-def add_init_service_checks(nrpe, services, unit_name, immediate_check=False):
+def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
     """
     Add checks for each service in list
 
@@ -367,6 +367,7 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=False):
                     stderr=subprocess.STDOUT
                 )
                 f.close()
+                os.chmod(checkpath, 0o644)
 
 
 def copy_nrpe_checks():
