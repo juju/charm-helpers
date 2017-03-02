@@ -110,9 +110,42 @@ class ApacheUtilsTests(TestCase):
         self.assertEquals('keystone_provided_ca',
                           result)
 
-    def test_install_ca_cert(self):
+    @patch.object(apache_utils.os.path, 'isfile')
+    def test_retrieve_ca_cert(self, _isfile):
+        _isfile.return_value = True
+        with patch_open() as (_open, _file):
+            _file.read.return_value = cert
+            self.assertEqual(
+                apache_utils.retrieve_ca_cert('mycertfile'),
+                cert)
+            _open.assert_called_once_with('mycertfile', 'r')
+
+    @patch.object(apache_utils.os.path, 'isfile')
+    def test_retrieve_ca_cert_no_file(self, _isfile):
+        _isfile.return_value = False
+        with patch_open() as (_open, _file):
+            self.assertEqual(
+                apache_utils.retrieve_ca_cert('mycertfile'),
+                None)
+            self.assertFalse(_open.called)
+
+    @patch.object(apache_utils, 'retrieve_ca_cert')
+    def test_install_ca_cert_new_cert(self, _retrieve_ca_cert):
+        _retrieve_ca_cert.return_value = None
         with patch_open() as (_open, _file):
             apache_utils.install_ca_cert(cert)
-            _open.assert_called_with('/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt', 'w')
+            _open.assert_called_once_with(
+                '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
+                'w')
             _file.write.assert_called_with(cert)
-        self.subprocess.check_call.assert_called_with(['update-ca-certificates', '--fresh'])
+        self.subprocess.check_call.assert_called_with(
+            ['update-ca-certificates', '--fresh'])
+
+    @patch.object(apache_utils, 'retrieve_ca_cert')
+    def test_install_ca_cert_old_cert(self, _retrieve_ca_cert):
+        _retrieve_ca_cert.return_value = cert
+        with patch_open() as (_open, _file):
+            apache_utils.install_ca_cert(cert)
+            self.assertFalse(_open.called)
+            self.assertFalse(_file.called)
+        self.assertFalse(self.subprocess.check_call.called)

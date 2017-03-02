@@ -31,14 +31,20 @@ try:
     import netifaces
 except ImportError:
     apt_update(fatal=True)
-    apt_install('python-netifaces', fatal=True)
+    if six.PY2:
+        apt_install('python-netifaces', fatal=True)
+    else:
+        apt_install('python3-netifaces', fatal=True)
     import netifaces
 
 try:
     import netaddr
 except ImportError:
     apt_update(fatal=True)
-    apt_install('python-netaddr', fatal=True)
+    if six.PY2:
+        apt_install('python-netaddr', fatal=True)
+    else:
+        apt_install('python3-netaddr', fatal=True)
     import netaddr
 
 
@@ -406,7 +412,7 @@ def is_ip(address):
         # Test to see if already an IPv4/IPv6 address
         address = netaddr.IPAddress(address)
         return True
-    except netaddr.AddrFormatError:
+    except (netaddr.AddrFormatError, ValueError):
         return False
 
 
@@ -414,7 +420,10 @@ def ns_query(address):
     try:
         import dns.resolver
     except ImportError:
-        apt_install('python-dnspython', fatal=True)
+        if six.PY2:
+            apt_install('python-dnspython', fatal=True)
+        else:
+            apt_install('python3-dnspython', fatal=True)
         import dns.resolver
 
     if isinstance(address, dns.name.Name):
@@ -424,7 +433,11 @@ def ns_query(address):
     else:
         return None
 
-    answers = dns.resolver.query(address, rtype)
+    try:
+        answers = dns.resolver.query(address, rtype)
+    except dns.resolver.NXDOMAIN:
+        return None
+
     if answers:
         return str(answers[0])
     return None
@@ -458,7 +471,10 @@ def get_hostname(address, fqdn=True):
         try:
             import dns.reversename
         except ImportError:
-            apt_install("python-dnspython", fatal=True)
+            if six.PY2:
+                apt_install("python-dnspython", fatal=True)
+            else:
+                apt_install("python3-dnspython", fatal=True)
             import dns.reversename
 
         rev = dns.reversename.from_address(address)

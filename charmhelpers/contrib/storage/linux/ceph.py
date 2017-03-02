@@ -40,6 +40,7 @@ from subprocess import (
 )
 from charmhelpers.core.hookenv import (
     config,
+    service_name,
     local_unit,
     relation_get,
     relation_ids,
@@ -87,6 +88,7 @@ clog to syslog = {use_syslog}
 DEFAULT_PGS_PER_OSD_TARGET = 100
 DEFAULT_POOL_WEIGHT = 10.0
 LEGACY_PG_COUNT = 200
+DEFAULT_MINIMUM_PGS = 2
 
 
 def validator(value, valid_type, valid_range=None):
@@ -265,6 +267,11 @@ class Pool(object):
         percent_data /= 100.0
         target_pgs_per_osd = config('pgs-per-osd') or DEFAULT_PGS_PER_OSD_TARGET
         num_pg = (target_pgs_per_osd * osd_count * percent_data) // pool_size
+
+        # NOTE: ensure a sane minimum number of PGS otherwise we don't get any
+        #       reasonable data distribution in minimal OSD configurations
+        if num_pg < DEFAULT_MINIMUM_PGS:
+            num_pg = DEFAULT_MINIMUM_PGS
 
         # The CRUSH algorithm has a slight optimization for placement groups
         # with powers of 2 so find the nearest power of 2. If the nearest
@@ -1037,8 +1044,18 @@ class CephBrokerRq(object):
             self.request_id = str(uuid.uuid1())
         self.ops = []
 
+    def add_op_request_access_to_group(self, name, namespace=None,
+                                       permission=None, key_name=None):
+        """
+        Adds the requested permissions to the current service's Ceph key,
+        allowing the key to access only the specified pools
+        """
+        self.ops.append({'op': 'add-permissions-to-key', 'group': name,
+                         'namespace': namespace, 'name': key_name or service_name(),
+                         'group-permission': permission})
+
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
-                           weight=None):
+                           weight=None, group=None, namespace=None):
         """Adds an operation to create a pool.
 
         @param pg_num setting:  optional setting. If not provided, this value
@@ -1052,7 +1069,8 @@ class CephBrokerRq(object):
 
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count, 'pg_num': pg_num,
-                         'weight': weight})
+                         'weight': weight, 'group': group,
+                         'group-namespace': namespace})
 
     def set_ops(self, ops):
         """Set request ops to provided value.

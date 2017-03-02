@@ -17,6 +17,7 @@ import sys
 import platform
 import os
 import glob
+import six
 
 # from string import upper
 
@@ -50,7 +51,10 @@ try:
     import MySQLdb
 except ImportError:
     apt_update(fatal=True)
-    apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
+    if six.PY2:
+        apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
+    else:
+        apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
     import MySQLdb
 
 
@@ -330,6 +334,7 @@ class PerconaClusterHelper(object):
 
     DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
     DEFAULT_INNODB_BUFFER_FACTOR = 0.50
+    DEFAULT_INNODB_BUFFER_SIZE_MAX = 512 * 1024 * 1024
 
     def human_to_bytes(self, human):
         """Convert human readable configuration options to bytes."""
@@ -412,8 +417,14 @@ class PerconaClusterHelper(object):
             innodb_buffer_pool_size = self.human_to_bytes(
                 dataset_bytes)
         else:
-            innodb_buffer_pool_size = int(
-                total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR)
+            # NOTE(jamespage): pick the smallest of 50% of RAM or 512MB
+            #                  to ensure that deployments in containers
+            #                  without constraints don't try to consume
+            #                  silly amounts of memory.
+            innodb_buffer_pool_size = min(
+                int(total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR),
+                self.DEFAULT_INNODB_BUFFER_SIZE_MAX
+            )
 
         if innodb_buffer_pool_size > total_memory:
             log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(

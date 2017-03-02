@@ -351,7 +351,8 @@ class HelpersTest(TestCase):
 
         self.assertIsInstance(result, hookenv.Config)
         self.assertEqual(result['foo'], 'bar')
-        check_output.assert_called_with(['config-get', '--format=json'])
+        check_output.assert_called_with(['config-get', '--all',
+                                         '--format=json'])
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
@@ -1123,6 +1124,30 @@ class HelpersTest(TestCase):
         ]
         check_call_.assert_has_calls(calls)
 
+    @patch('subprocess.check_call')
+    def test_opens_ports(self, check_call_):
+        hookenv.open_ports(443, 447, "TCP")
+        hookenv.open_ports(80, 91)
+        hookenv.open_ports(100, 200, "UDP")
+        calls = [
+            call(['open-port', '443-447/TCP']),
+            call(['open-port', '80-91/TCP']),
+            call(['open-port', '100-200/UDP']),
+        ]
+        check_call_.assert_has_calls(calls)
+
+    @patch('subprocess.check_call')
+    def test_closes_ports(self, check_call_):
+        hookenv.close_ports(443, 447, "TCP")
+        hookenv.close_ports(80, 91)
+        hookenv.close_ports(100, 200, "UDP")
+        calls = [
+            call(['close-port', '443-447/TCP']),
+            call(['close-port', '80-91/TCP']),
+            call(['close-port', '100-200/UDP']),
+        ]
+        check_call_.assert_has_calls(calls)
+
     @patch('subprocess.check_output')
     def test_gets_unit_attribute(self, check_output_):
         check_output_.return_value = json.dumps('bar').encode('UTF-8')
@@ -1203,6 +1228,11 @@ class HelpersTest(TestCase):
         hookenv.payload_status_set('monitoring', 'abc123', 'Running')
         check_call_.assert_called_with(['payload-status-set', 'monitoring',
                                         'abc123', 'Running'])
+
+    @patch('subprocess.check_call')
+    def test_application_version_set(self, check_call_):
+        hookenv.application_version_set('v1.2.3')
+        check_call_.assert_called_with(['application-version-set', 'v1.2.3'])
 
 
 class HooksTest(TestCase):
@@ -1633,3 +1663,31 @@ class HooksTest(TestCase):
         check_output.side_effect = OSError(2, 'network-get')
         self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
                           'mybinding')
+
+    @patch('subprocess.check_call')
+    def test_add_metric(self, check_call_):
+        hookenv.add_metric(flips='1.5', flops='2.1')
+        hookenv.add_metric('juju-units=6')
+        hookenv.add_metric('foo-bar=3.333', 'baz-quux=8', users='2')
+        calls = [
+            call(['add-metric', 'flips=1.5', 'flops=2.1']),
+            call(['add-metric', 'juju-units=6']),
+            call(['add-metric', 'baz-quux=8', 'foo-bar=3.333', 'users=2']),
+        ]
+        check_call_.assert_has_calls(calls)
+
+    @patch('subprocess.check_call')
+    @patch.object(hookenv, 'log')
+    def test_add_metric_enoent(self, log, _check_call):
+        _check_call.side_effect = OSError(2, 'fail')
+        hookenv.add_metric(flips='1')
+        log.assert_called_with('add-metric failed: flips=1', level='INFO')
+
+    @patch('charmhelpers.core.hookenv.os')
+    def test_meter_status(self, os_):
+        os_.environ = {
+            'JUJU_METER_STATUS': 'GREEN',
+            'JUJU_METER_INFO': 'all good',
+        }
+        self.assertEqual(hookenv.meter_status(), 'GREEN')
+        self.assertEqual(hookenv.meter_info(), 'all good')
