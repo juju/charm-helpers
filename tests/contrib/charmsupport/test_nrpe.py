@@ -306,8 +306,7 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.patched['exists'].side_effect = _exists
         bill = nrpe.NRPE()
         services = ['apache2', 'haproxy']
-        nrpe.add_init_service_checks(bill, services, 'testunit',
-                                     immediate_check=True)
+        nrpe.add_init_service_checks(bill, services, 'testunit')
         expect_cmds = {
             'apache2': '/usr/lib/nagios/plugins/check_upstart_job apache2',
             'haproxy': '/usr/lib/nagios/plugins/check_status_file.py -f '
