@@ -17,6 +17,7 @@ class NRPEBaseTestCase(TestCase):
         'getgrnam': {'object': nrpe.grp},
         'mkdir': {'object': os},
         'chown': {'object': os},
+        'chmod': {'object': os},
         'exists': {'object': os.path},
         'listdir': {'object': os},
         'remove': {'object': os},
@@ -300,6 +301,8 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
                      '/usr/lib/nagios/plugins/check_upstart_job',
                      '/etc/init.d/haproxy',
                      '/usr/lib/nagios/plugins/check_status_file.py',
+                     '/etc/cron.d/nagios-service-check-haproxy',
+                     '/var/lib/nagios/service-check-haproxy.txt',
                      '/usr/lib/nagios/plugins/check_systemd.py'
                      ]
             return init_file in files
