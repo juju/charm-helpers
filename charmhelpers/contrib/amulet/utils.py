@@ -798,7 +798,10 @@ class AmuletUtils(object):
         @return action_id.
         """
         unit_id = unit_sentry.info["unit_name"]
-        if self.juju_min_version("2.0"):
+        # Note: There were significant CLI changes between 2.0 and 2.1
+        # This supports the 2.1 and 1.25.x only
+        # We are supporting the latest stable 1.x and 2.x
+        if self.juju_min_version("2.1"):
             command = ["juju", "run-action", "--format=json", unit_id, action]
         else:
             command = ["juju", "action", "do", "--format=json",
@@ -817,7 +820,10 @@ class AmuletUtils(object):
 
         _check_output parameter is used for dependency injection.
         """
-        if self.juju_min_version("2.0"):
+        # Note: There were significant CLI changes between 2.0 and 2.1
+        # This supports the 2.1 and 1.25.x only
+        # We are supporting the latest stable 1.x and 2.x
+        if self.juju_min_version("2.1"):
             command = ["juju", "show-action-output", "--format=json",
                        "--wait=0", action_id]
         else:
@@ -844,9 +850,10 @@ class AmuletUtils(object):
         cmd = ['juju', 'version']
         return subprocess.check_output(cmd)
 
-    def juju_min_version(self, minimum_version='2.0'):
+    def juju_min_version(self, minimum_version='2.1'):
         """Return True if the Juju version is at least the provided version
 
+        @param minimum_version: string semantic version
         @returns boolean
         """
         return (LooseVersion(self.juju_version()) >=
