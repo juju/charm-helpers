@@ -29,6 +29,10 @@ SNAP_NO_LOCK_RETRY_DELAY = 10  # Wait X seconds between Snap lock checks.
 SNAP_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
 
 
+class CouldNotAcquireLockException(Exception):
+    pass
+
+
 def _snap_exec(commands):
     """
     Execute snap commands.
@@ -47,9 +51,9 @@ def _snap_exec(commands):
         except subprocess.CalledProcessError as e:
             retry_count += + 1
             if retry_count > SNAP_NO_LOCK_RETRY_COUNT:
-                raise
+                raise CouldNotAcquireLockException('Could not aquire lock after %s attempts' % SNAP_NO_LOCK_RETRY_COUNT)
             return_code = e.returncode
-            log('Snap failed to acquire lock, trying again in %s seconds.' % SNAP_NO_LOCK_RETRY_DELAY)
+            log('Snap failed to acquire lock, trying again in %s seconds.' % SNAP_NO_LOCK_RETRY_DELAY, level='WARN')
             sleep(SNAP_NO_LOCK_RETRY_DELAY)
 
     return return_code
@@ -72,7 +76,7 @@ def snap_install(packages, *flags):
     if flags:
         message += ' with option(s) "%s"' % ', '.join(flags)
 
-    log(message)
+    log(message, level='INFO')
     return _snap_exec(['install'] + flags + packages)
 
 
@@ -93,7 +97,7 @@ def snap_remove(packages, *flags):
     if flags:
         message += ' with options "%s"' % ', '.join(flags)
 
-    log(message)
+    log(message, level='INFO')
     return _snap_exec(['remove'] + flags + packages)
 
 
@@ -114,5 +118,5 @@ def snap_refresh(packages, *flags):
     if flags:
         message += ' with options "%s"' % ', '.join(flags)
 
-    log(message)
+    log(message, level='INFO')
     return _snap_exec(['refresh'] + flags + packages)
