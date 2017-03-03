@@ -4,7 +4,6 @@
 #  Adam Collard <adam.collard@canonical.com>
 
 from contextlib import contextmanager
-from mock import patch
 import sys
 import unittest
 
@@ -401,30 +400,3 @@ class ValidateServicesByProcessIDTestCase(unittest.TestCase):
         actual = {self.sentry_unit: {"foo": []}}
         result = self.utils.validate_unit_process_ids(expected, actual)
         self.assertIsNotNone(result)
-
-
-class JujuBinaryTestCase(unittest.TestCase):
-
-    def setUp(self):
-        self.utils = AmuletUtils()
-        self.sentry_unit = FakeSentry()
-
-    @patch("charmhelpers.contrib.amulet.utils.subprocess.check_output")
-    def test_juju_version(self, mock_check_output):
-        """
-        Test juju version
-        """
-        version = '2.1'
-        mock_check_output.return_value = version
-        self.assertEquals(self.utils.juju_version(), version)
-
-    @patch.object(AmuletUtils, "juju_version")
-    def test_juju_min_version(self, mock_juju_version):
-        """
-        Test juju version
-        """
-        version = '1.25.10'
-        mock_juju_version.return_value = version
-        self.assertTrue(self.utils.juju_min_version(version))
-
-        self.assertFalse(self.utils.juju_min_version('2.1.0'))

@@ -25,7 +25,6 @@ import uuid
 
 import amulet
 import distro_info
-from distutils.version import LooseVersion
 import six
 from six.moves import configparser
 if six.PY3:
@@ -790,47 +789,25 @@ class AmuletUtils(object):
     def run_action(self, unit_sentry, action,
                    _check_output=subprocess.check_output,
                    params=None):
-        """Run the named action on a given unit sentry.
+        """Translate to amulet's built in run_action()
+
+        Run the named action on a given unit sentry.
 
         params a dict of parameters to use
-        _check_output parameter is used for dependency injection.
+        _check_output parameter is no longer used
 
         @return action_id.
         """
-        unit_id = unit_sentry.info["unit_name"]
-        # Note: There were significant CLI changes between 2.0 and 2.1
-        # This supports the 2.1 and 1.25.x only
-        # We are supporting the latest stable 1.x and 2.x
-        if self.juju_min_version("2.1"):
-            command = ["juju", "run-action", "--format=json", unit_id, action]
-        else:
-            command = ["juju", "action", "do", "--format=json",
-                       unit_id, action]
-        if params is not None:
-            for key, value in params.iteritems():
-                command.append("{}={}".format(key, value))
-        self.log.info("Running command: %s\n" % " ".join(command))
-        output = _check_output(command, universal_newlines=True)
-        data = json.loads(output)
-        action_id = data[u'Action queued with id']
-        return action_id
+        return unit_sentry.run_action(action, action_args=params)
 
     def wait_on_action(self, action_id, _check_output=subprocess.check_output):
-        """Wait for a given action, returning if it completed or not.
+        """Translate to amulet's built in get_action_output()
 
-        _check_output parameter is used for dependency injection.
+        Wait for a given action, returning if it completed or not.
+
+        _check_output parameter is no longer used
         """
-        # Note: There were significant CLI changes between 2.0 and 2.1
-        # This supports the 2.1 and 1.25.x only
-        # We are supporting the latest stable 1.x and 2.x
-        if self.juju_min_version("2.1"):
-            command = ["juju", "show-action-output", "--format=json",
-                       "--wait=0", action_id]
-        else:
-            command = ["juju", "action", "fetch", "--format=json", "--wait=0",
-                       action_id]
-        output = _check_output(command, universal_newlines=True)
-        data = json.loads(output)
+        data = amulet.actions.get_action_output(action_id, full_output=True)
         return data.get(u"status") == "completed"
 
     def status_get(self, unit):
@@ -841,20 +818,3 @@ class AmuletUtils(object):
             return ("unknown", "")
         status = json.loads(raw_status)
         return (status["status"], status["message"])
-
-    def juju_version(self):
-        """Return Juju version
-
-        @reutrns string version
-        """
-        cmd = ['juju', 'version']
-        return subprocess.check_output(cmd)
-
-    def juju_min_version(self, minimum_version='2.1'):
-        """Return True if the Juju version is at least the provided version
-
-        @param minimum_version: string semantic version
-        @returns boolean
-        """
-        return (LooseVersion(self.juju_version()) >=
-                LooseVersion(minimum_version))
