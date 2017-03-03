@@ -116,9 +116,8 @@ CLOUD_ARCHIVE_POCKETS = {
 }
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
-APT_NO_LOCK_RETRY_DELAY = 10  # Wait 10 seconds between apt lock checks.
-APT_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
-APT_PPA_RETRY_COUNT = 3       # Retry to add-apt-repository X times.
+CMD_RETRY_DELAY = 10  # Wait 10 seconds between command retries.
+CMD_RETRY_COUNT = 30  # Retry a failing fatal command X times.
 
 
 def filter_installed_packages(packages):
@@ -251,9 +250,7 @@ def add_source(source, key=None):
         source.startswith('deb ') or
             source.startswith('cloud-archive:')):
         cmd = ['add-apt-repository', '--yes', source]
-        _retry_command(
-            cmd, fatal=True, max_retries=APT_PPA_RETRY_COUNT,
-            retry_exitcodes=(1,))
+        _retry_command(cmd, fatal=True, retry_exitcodes=(1,))
     elif source.startswith('cloud:'):
         install(filter_installed_packages(['ubuntu-cloud-keyring']),
                 fatal=True)
@@ -290,7 +287,7 @@ def add_source(source, key=None):
                                    key])
 
 
-def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
+def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=CMD_RETRY_COUNT,
                    retry_exitcodes=(), retry_message=""):
     """Run a command with optional retries.
 
@@ -311,7 +308,7 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
 
     if not retry_message:
         retry_message = "Failed executing '{}'".format(" ".join(cmd))
-    retry_message += ". Will retry in {} seconds".format(APT_NO_LOCK_RETRY_DELAY)
+    retry_message += ". Will retry in {} seconds".format(CMD_RETRY_DELAY)
 
     if fatal:
         # If the command is considered "fatal", we need to retry until success
@@ -329,7 +326,7 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
                     raise
                 result = e.returncode
                 log(retry_message)
-                time.sleep(APT_NO_LOCK_RETRY_DELAY)
+                time.sleep(CMD_RETRY_DELAY)
 
     else:
         subprocess.call(cmd, env=env)
@@ -346,7 +343,7 @@ def _run_apt_command(cmd, fatal=False):
         'DEBIAN_FRONTEND': os.environ.get('DEBIAN_FRONTEND', 'noninteractive')}
 
     _retry_command(
-        cmd, fatal=fatal, cmd_env=env, max_retries=APT_NO_LOCK_RETRY_COUNT,
+        cmd, fatal=fatal, cmd_env=env,
         retry_message="Couldn't acquire DPKG lock")
 
 

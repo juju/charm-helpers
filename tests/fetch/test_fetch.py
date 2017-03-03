@@ -198,7 +198,7 @@ class FetchTest(TestCase):
     @patch.object(osplatform, 'get_platform')
     @patch('subprocess.check_call')
     @patch('time.sleep')
-    def test_add_source_ppa_retries_3_times(self, sleep, check_call,
+    def test_add_source_ppa_retries_30_times(self, sleep, check_call,
                                             platform, log):
         platform.return_value = 'ubuntu'
         imp.reload(fetch)
@@ -208,7 +208,7 @@ class FetchTest(TestCase):
         def side_effect(*args, **kwargs):
             """Raise an 3 times, then return 0 """
             self.call_count += 1
-            if self.call_count <= 3:
+            if self.call_count <= fetch.ubuntu.CMD_RETRY_COUNT:
                 raise subprocess.CalledProcessError(
                     returncode=1, cmd="some add-apt-repository command")
             else:
@@ -219,7 +219,8 @@ class FetchTest(TestCase):
         fetch.add_source(source=source)
         check_call.assert_called_with(
             ['add-apt-repository', '--yes', source], env=getenv())
-        sleep.assert_has_calls([call(10), call(10), call(10)])
+        sleep.assert_called_with(10)
+        self.assertTrue(fetch.ubuntu.CMD_RETRY_COUNT, sleep.call_count)
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(osplatform, 'get_platform')
