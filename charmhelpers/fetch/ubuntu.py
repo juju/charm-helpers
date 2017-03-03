@@ -288,7 +288,7 @@ def add_source(source, key=None):
 
 
 def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
-                   retry_retcodes=()):
+                   retry_retcodes=(), retry_message=""):
     """Run a command with optional retries.
 
     Checks the output and retries if the fatal flag is True.
@@ -299,11 +299,16 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
     :param: max_retries: int: The number of retries to attempt on a fatal
         command.
     :param: retry_retcodes: tuple: Optional additional returncodes to retry.
+    :param: retry_message: str: Optional log prefix emitted during retries.
     """
 
     env = os.environ.copy()
     if cmd_env:
         env.update(cmd_env)
+
+    if not retry_message:
+        retry_message = "Failed executing '{}'".format(cmd)
+    retry_message += "Will retry in {} seconds".format(APT_NO_LOCK_RETRY_DELAY)
 
     if fatal:
         # If the command is considered "fatal", we need to retry until success
@@ -320,8 +325,7 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
                 if retry_count > max_retries:
                     raise
                 result = e.returncode
-                log("Couldn't acquire DPKG lock. Will retry in {} seconds."
-                    "".format(APT_NO_LOCK_RETRY_DELAY))
+                log(retry_message)
                 time.sleep(APT_NO_LOCK_RETRY_DELAY)
 
     else:
@@ -339,7 +343,8 @@ def _run_apt_command(cmd, fatal=False):
         'DEBIAN_FRONTEND': os.environ.get('DEBIAN_FRONTEND', 'noninteractive')}
 
     _retry_command(
-        cmd, fatal=fatal, max_retries=APT_NO_LOCK_RETRY_COUNT, cmd_env=env)
+        cmd, fatal=fatal, cmd_env=env, max_retries=APT_NO_LOCK_RETRY_COUNT,
+        retry_message="Couldn't acquire DPKG lock")
 
 
 def get_upstream_version(package):
