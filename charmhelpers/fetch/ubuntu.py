@@ -250,7 +250,7 @@ def add_source(source, key=None):
         source.startswith('deb ') or
             source.startswith('cloud-archive:')):
         cmd = ['add-apt-repository', '--yes', source]
-        _retry_command(cmd, fatal=True, retry_exitcodes=(1,))
+        _run_with_retries(cmd)
     elif source.startswith('cloud:'):
         install(filter_installed_packages(['ubuntu-cloud-keyring']),
                 fatal=True)
@@ -287,19 +287,17 @@ def add_source(source, key=None):
                                    key])
 
 
-def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=CMD_RETRY_COUNT,
-                   retry_exitcodes=(), retry_message=""):
-    """Run a command with optional retries.
-
-    Checks the output and retries if the fatal flag is True.
+def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
+                      retry_message="", cmd_env=None):
+    """Run a command and retry until success or max_retries is reached.
 
     :param: cmd: str: The apt command to run.
-    :param: fatal: bool: True if the exit code of comand should be checked.
-    :param: cmd_env: dict: Environment variables to add to the command run.
     :param: max_retries: int: The number of retries to attempt on a fatal
-        command.
+        command. Defaults to CMD_RETRY_COUNT.
     :param: retry_exitcodes: tuple: Optional additional exit codes to retry.
+        Defaults to retry on exit code 1.
     :param: retry_message: str: Optional log prefix emitted during retries.
+    :param: cmd_env: dict: Environment variables to add to the command run.
     """
 
     env = os.environ.copy()
@@ -310,26 +308,20 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=CMD_RETRY_COUNT,
         retry_message = "Failed executing '{}'".format(" ".join(cmd))
     retry_message += ". Will retry in {} seconds".format(CMD_RETRY_DELAY)
 
-    if fatal:
-        # If the command is considered "fatal", we need to retry until success
-        # or max_retries reached.
-        retry_count = 0
-        result = None
+    retry_count = 0
+    result = None
 
-        retry_results = (None,) + retry_exitcodes
-        while result in retry_results:
-            try:
-                result = subprocess.check_call(cmd, env=env)
-            except subprocess.CalledProcessError as e:
-                retry_count = retry_count + 1
-                if retry_count > max_retries:
-                    raise
-                result = e.returncode
-                log(retry_message)
-                time.sleep(CMD_RETRY_DELAY)
-
-    else:
-        subprocess.call(cmd, env=env)
+    retry_results = (None,) + retry_exitcodes
+    while result in retry_results:
+        try:
+            result = subprocess.check_call(cmd, env=env)
+        except subprocess.CalledProcessError as e:
+            retry_count = retry_count + 1
+            if retry_count > max_retries:
+                raise
+            result = e.returncode
+            log(retry_message)
+            time.sleep(CMD_RETRY_DELAY)
 
 
 def _run_apt_command(cmd, fatal=False):
@@ -339,12 +331,17 @@ def _run_apt_command(cmd, fatal=False):
         retried.
     """
     # Provide DEBIAN_FRONTEND=noninteractive if not present in the environment.
-    env = {
+    cmd_env = {
         'DEBIAN_FRONTEND': os.environ.get('DEBIAN_FRONTEND', 'noninteractive')}
 
-    _retry_command(
-        cmd, fatal=fatal, cmd_env=env,
-        retry_message="Couldn't acquire DPKG lock")
+    if fatal:
+        _run_with_retries(
+            cmd, cmd_env=cmd_env, retry_exitcodes=(1, APT_NO_LOCK,),
+            retry_message="Couldn't acquire DPKG lock")
+    else:
+        env = os.environ.copy()
+        env.update(cmd_env)
+        subprocess.call(cmd, env=env)
 
 
 def get_upstream_version(package):
