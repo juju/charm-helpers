@@ -15,7 +15,11 @@
 ''' Helpers for interacting with OpenvSwitch '''
 import subprocess
 import os
-import netifaces
+import six
+
+from charmhelpers.fetch import apt_install
+
+
 from charmhelpers.core.hookenv import (
     log, WARNING, INFO, DEBUG
 )
@@ -77,19 +81,32 @@ def add_ovsbridge_linuxbridge(name, bridge):
     ''' Add linux bridge to the named openvswitch bridge
     :param name: Name of ovs bridge to be added to Linux bridge
     :param bridge: Name of Linux bridge to be added to ovs bridge
-    :returns: True if veth is added between ovs bridge and linux bridge, False otherwise'''
+    :returns: True if veth is added between ovs bridge and linux bridge,
+    False otherwise'''
+    try:
+        import netifaces
+    except ImportError:
+        if six.PY2:
+            apt_install('python-netifaces', fatal=True)
+        else:
+            apt_install('python3-netifaces', fatal=True)
+        import netifaces
 
     ovsbridge_port = "veth-" + name
     linuxbridge_port = "veth-" + bridge
-    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name), level=INFO)
+    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name),
+        level=INFO)
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         if interface == ovsbridge_port or interface == linuxbridge_port:
             log('Interface {} already exists'.format(interface), level=INFO)
             return
 
-    with open('/etc/network/interfaces.d/{}.cfg'.format(linuxbridge_port), 'w') as config:
-        config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port, ovsbridge_port=ovsbridge_port, bridge=bridge))
+    with open('/etc/network/interfaces.d/{}.cfg'.format(
+            linuxbridge_port), 'w') as config:
+        config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port,
+                                            ovsbridge_port=ovsbridge_port,
+                                            bridge=bridge))
 
     subprocess.check_call(["ifup", linuxbridge_port])
     add_bridge_port(name, linuxbridge_port)
