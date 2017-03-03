@@ -199,7 +199,7 @@ class FetchTest(TestCase):
     @patch('subprocess.check_call')
     @patch('time.sleep')
     def test_add_source_ppa_retries_30_times(self, sleep, check_call,
-                                            platform, log):
+                                             platform, log):
         platform.return_value = 'ubuntu'
         imp.reload(fetch)
 
