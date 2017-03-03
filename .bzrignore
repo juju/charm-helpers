@@ -3,6 +3,7 @@ __pycache__/
 dist/
 build/
 MANIFEST
+charmhelpers.egg-info/
 charmhelpers/version.py
 .coverage
 .env/
