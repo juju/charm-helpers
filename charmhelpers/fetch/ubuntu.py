@@ -250,7 +250,11 @@ def add_source(source, key=None):
         source.startswith('http') or
         source.startswith('deb ') or
             source.startswith('cloud-archive:')):
-        subprocess.check_call(['add-apt-repository', '--yes', source])
+        cmd = ['add-apt-repository', '--yes', source]
+        _retry_command(
+            cmd, fatal=True, max_retries=APT_PPA_RETRY_COUNT,
+            retry_exitcodes=(1,))
+ 
     elif source.startswith('cloud:'):
         install(filter_installed_packages(['ubuntu-cloud-keyring']),
                 fatal=True)
@@ -288,7 +292,7 @@ def add_source(source, key=None):
 
 
 def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
-                   retry_retcodes=(), retry_message=""):
+                   retry_exitcodes=(), retry_message=""):
     """Run a command with optional retries.
 
     Checks the output and retries if the fatal flag is True.
@@ -298,7 +302,7 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
     :param: cmd_env: dict: Environment variables to add to the command run.
     :param: max_retries: int: The number of retries to attempt on a fatal
         command.
-    :param: retry_retcodes: tuple: Optional additional returncodes to retry.
+    :param: retry_exitcodes: tuple: Optional additional exit codes to retry.
     :param: retry_message: str: Optional log prefix emitted during retries.
     """
 
@@ -307,8 +311,8 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
         env.update(cmd_env)
 
     if not retry_message:
-        retry_message = "Failed executing '{}'".format(cmd)
-    retry_message += "Will retry in {} seconds".format(APT_NO_LOCK_RETRY_DELAY)
+        retry_message = "Failed executing '{}'".format(" ".join(cmd))
+    retry_message += ". Will retry in {} seconds".format(APT_NO_LOCK_RETRY_DELAY)
 
     if fatal:
         # If the command is considered "fatal", we need to retry until success
@@ -316,7 +320,7 @@ def _retry_command(cmd, fatal=False, cmd_env=None, max_retries=0,
         retry_count = 0
         result = None
 
-        retry_results = (None,) + retry_retcodes
+        retry_results = (None,) + retry_exitcodes
         while result in retry_results:
             try:
                 result = subprocess.check_call(cmd, env=env)
