@@ -192,7 +192,35 @@ class FetchTest(TestCase):
         source = "ppa:test-ppa"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env=getenv())
+
+    @patch("charmhelpers.fetch.ubuntu.log")
+    @patch.object(osplatform, 'get_platform')
+    @patch('subprocess.check_call')
+    @patch('time.sleep')
+    def test_add_source_ppa_retries_30_times(self, sleep, check_call,
+                                             platform, log):
+        platform.return_value = 'ubuntu'
+        imp.reload(fetch)
+
+        self.call_count = 0
+
+        def side_effect(*args, **kwargs):
+            """Raise an 3 times, then return 0 """
+            self.call_count += 1
+            if self.call_count <= fetch.ubuntu.CMD_RETRY_COUNT:
+                raise subprocess.CalledProcessError(
+                    returncode=1, cmd="some add-apt-repository command")
+            else:
+                return 0
+        check_call.side_effect = side_effect
+
+        source = "ppa:test-ppa"
+        fetch.add_source(source=source)
+        check_call.assert_called_with(
+            ['add-apt-repository', '--yes', source], env=getenv())
+        sleep.assert_called_with(10)
+        self.assertTrue(fetch.ubuntu.CMD_RETRY_COUNT, sleep.call_count)
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(osplatform, 'get_platform')
@@ -204,7 +232,7 @@ class FetchTest(TestCase):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env=getenv())
 
     @patch('charmhelpers.fetch.centos.log')
     @patch.object(osplatform, 'get_platform')
@@ -233,7 +261,7 @@ class FetchTest(TestCase):
         source = "https://example.com"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env=getenv())
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(osplatform, 'get_platform')
@@ -261,7 +289,7 @@ class FetchTest(TestCase):
         source = "deb http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env=getenv())
 
     @patch.object(osplatform, 'get_platform')
     @patch.object(fetch.ubuntu, 'filter_installed_packages')
@@ -357,9 +385,10 @@ class FetchTest(TestCase):
 
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key_id = "akey"
+        check_call.return_value = 0  # Successful exit code
         fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
-            call(['add-apt-repository', '--yes', source]),
+            call(['add-apt-repository', '--yes', source], env=getenv()),
             call(['apt-key', 'adv', '--keyserver',
                   'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
         ])
@@ -390,6 +419,7 @@ class FetchTest(TestCase):
     @patch('subprocess.check_call')
     def test_add_source_https_and_key_id_ubuntu(self, check_call,
                                                 platform, log):
+        check_call.return_value = 0  # Success from both calls
         platform.return_value = 'ubuntu'
         imp.reload(fetch)
 
@@ -397,7 +427,7 @@ class FetchTest(TestCase):
         key_id = "GPGPGP"
         fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
-            call(['add-apt-repository', '--yes', source]),
+            call(['add-apt-repository', '--yes', source], env=getenv()),
             call(['apt-key', 'adv', '--keyserver',
                   'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
         ])
@@ -442,16 +472,18 @@ class FetchTest(TestCase):
         received_args = []
         received_key = StringIO()
 
-        def _check_call(arg, stdin=None):
+        def _check_call(arg, stdin=None, env=None):
             '''side_effect to store the stdin passed to check_call process.'''
             if stdin is not None:
                 received_args.extend(arg)
                 received_key.write(stdin.read())
+            return 0  # Successful return code checked by add-apt-repository
 
         with patch('subprocess.check_call',
                    side_effect=_check_call) as check_call:
             fetch.add_source(source=source, key=key)
-            check_call.assert_any_call(['add-apt-repository', '--yes', source])
+            check_call.assert_any_call(
+                ['add-apt-repository', '--yes', source], env=getenv())
             self.assertEqual(['apt-key', 'add', '-'], received_args)
             self.assertEqual(key, received_key.getvalue())
 
