@@ -35,15 +35,14 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     INFO,
     WARNING,
+    leader_get,
+    leader_set,
+    is_leader,
 )
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
     filter_installed_packages,
-)
-from charmhelpers.contrib.peerstorage import (
-    peer_store,
-    peer_retrieve,
 )
 from charmhelpers.contrib.network.ip import get_host_ip
 
@@ -61,14 +60,14 @@ except ImportError:
 class MySQLHelper(object):
 
     def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
-                 migrate_passwd_to_peer_relation=True,
+                 migrate_passwd_to_leader_storage=True,
                  delete_ondisk_passwd_file=True):
         self.host = host
         # Password file path templates
         self.root_passwd_file_template = rpasswdf_template
         self.user_passwd_file_template = upasswdf_template
 
-        self.migrate_passwd_to_peer_relation = migrate_passwd_to_peer_relation
+        self.migrate_passwd_to_leader_storage = migrate_passwd_to_leader_storage
         # If we migrate we have the option to delete local copy of root passwd
         self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
 
@@ -157,13 +156,18 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
-    def migrate_passwords_to_peer_relation(self, excludes=None):
-        """Migrate any passwords storage on disk to cluster peer relation."""
+    def migrate_passwords_to_leader_storage(self, excludes=None):
+        """Migrate any passwords storage on disk to leader storage."""
+        if not is_leader():
+            log("Skipping password migration as not the lead unit",
+                level=DEBUG)
+            return
         dirname = os.path.dirname(self.root_passwd_file_template)
         path = os.path.join(dirname, '*.passwd')
         for f in glob.glob(path):
             if excludes and f in excludes:
-                log("Excluding %s from peer migration" % (f), level=DEBUG)
+                log("Excluding %s from leader storage migration" % (f),
+                    level=DEBUG)
                 continue
 
             key = os.path.basename(f)
@@ -171,7 +175,7 @@ class MySQLHelper(object):
                 _value = passwd.read().strip()
 
             try:
-                peer_store(key, _value)
+                leader_set(settings={key: _value})
 
                 if self.delete_ondisk_passwd_file:
                     os.unlink(f)
@@ -238,7 +242,7 @@ class MySQLHelper(object):
         # First check peer relation.
         try:
             for key in self.passwd_keys(username):
-                _password = peer_retrieve(key)
+                _password = leader_get(key)
                 if _password:
                     break
 
@@ -255,8 +259,8 @@ class MySQLHelper(object):
             _password = self.get_mysql_password_on_disk(username, password)
 
         # Put on wire if required
-        if self.migrate_passwd_to_peer_relation:
-            self.migrate_passwords_to_peer_relation(excludes=excludes)
+        if self.migrate_passwd_to_leader_storage:
+            self.migrate_passwords_to_leader_storage(excludes=excludes)
 
         return _password
 

@@ -3,6 +3,7 @@ import mock
 import json
 import unittest
 import sys
+import shutil
 import tempfile
 
 sys.modules['MySQLdb'] = mock.Mock()
@@ -103,50 +104,50 @@ class MysqlTests(unittest.TestCase):
         self.assertEqual(list(helper.passwd_keys('auser')),
                          ['mysql-auser.passwd', 'auser.passwd'])
 
-    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_peer_relation')
+    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_leader_storage')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password_on_disk')
-    @mock.patch.object(mysql, 'peer_retrieve')
-    def test_get_mysql_password_no_peer_passwd(self, mock_peer_retrieve,
+    @mock.patch.object(mysql, 'leader_get')
+    def test_get_mysql_password_no_peer_passwd(self, mock_leader_get,
                                                mock_get_disk_pw,
                                                mock_migrate_pw):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         store = {}
-        mock_peer_retrieve.side_effect = lambda key: store.get(key)
+        mock_leader_get.side_effect = lambda key: store.get(key)
         mock_get_disk_pw.return_value = "disk-passwd"
         self.assertEqual(helper.get_mysql_password(), "disk-passwd")
         self.assertTrue(mock_migrate_pw.called)
 
-    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_peer_relation')
+    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_leader_storage')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password_on_disk')
-    @mock.patch.object(mysql, 'peer_retrieve')
-    def test_get_mysql_password_peer_passwd(self, mock_peer_retrieve,
+    @mock.patch.object(mysql, 'leader_get')
+    def test_get_mysql_password_peer_passwd(self, mock_leader_get,
                                             mock_get_disk_pw, mock_migrate_pw):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         store = {'mysql-userA.passwd': 'passwdA'}
-        mock_peer_retrieve.side_effect = lambda key: store.get(key)
+        mock_leader_get.side_effect = lambda key: store.get(key)
         mock_get_disk_pw.return_value = "disk-passwd"
         self.assertEqual(helper.get_mysql_password(username='userA'),
                          "passwdA")
         self.assertTrue(mock_migrate_pw.called)
 
-    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_peer_relation')
+    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_leader_storage')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password_on_disk')
-    @mock.patch.object(mysql, 'peer_retrieve')
-    def test_get_mysql_password_peer_passwd_legacy(self, mock_peer_retrieve,
+    @mock.patch.object(mysql, 'leader_get')
+    def test_get_mysql_password_peer_passwd_legacy(self, mock_leader_get,
                                                    mock_get_disk_pw,
                                                    mock_migrate_pw):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         store = {'userA.passwd': 'passwdA'}
-        mock_peer_retrieve.side_effect = lambda key: store.get(key)
+        mock_leader_get.side_effect = lambda key: store.get(key)
         mock_get_disk_pw.return_value = "disk-passwd"
         self.assertEqual(helper.get_mysql_password(username='userA'),
                          "passwdA")
         self.assertTrue(mock_migrate_pw.called)
 
-    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_peer_relation')
+    @mock.patch.object(mysql.MySQLHelper, 'migrate_passwords_to_leader_storage')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password_on_disk')
-    @mock.patch.object(mysql, 'peer_retrieve')
-    def test_get_mysql_password_peer_passwd_all(self, mock_peer_retrieve,
+    @mock.patch.object(mysql, 'leader_get')
+    def test_get_mysql_password_peer_passwd_all(self, mock_leader_get,
                                                 mock_get_disk_pw,
                                                 mock_migrate_pw):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
@@ -154,21 +155,25 @@ class MysqlTests(unittest.TestCase):
         # if found.
         store = {'mysql-userA.passwd': 'passwdA',
                  'userA.passwd': 'passwdA*'}
-        mock_peer_retrieve.side_effect = lambda key: store.get(key)
+        mock_leader_get.side_effect = lambda key: store.get(key)
         mock_get_disk_pw.return_value = "disk-passwd"
         self.assertEqual(helper.get_mysql_password(username='userA'),
                          "passwdA")
         self.assertTrue(mock_migrate_pw.called)
 
-    @mock.patch.object(mysql, 'peer_store')
-    def test_migrate_passwords_to_peer_relation(self, mock_peer_store):
+    @mock.patch.object(mysql, 'is_leader')
+    @mock.patch.object(mysql, 'leader_set')
+    def test_migrate_passwords_to_leader_storage(self, mock_leader_set,
+                                                 mock_is_leader):
         files = {'mysql.passwd': '1',
                  'userA.passwd': '2',
                  'mysql-userA.passwd': '3'}
         store = {}
 
-        def _store(key, val):
-            store[key] = val
+        def _store(settings):
+            store.update(settings)
+
+        mock_is_leader.return_value = True
 
         tmpdir = tempfile.mkdtemp('charm-helpers-unit-tests')
         try:
@@ -178,22 +183,36 @@ class MysqlTests(unittest.TestCase):
                 with open(os.path.join(tmpdir, f), 'w') as fd:
                     fd.write(files[f])
 
-            mock_peer_store.side_effect = _store
-            helper.migrate_passwords_to_peer_relation()
+            mock_leader_set.side_effect = _store
+            helper.migrate_passwords_to_leader_storage()
 
-            calls = [mock.call('mysql.passwd', '1'),
-                     mock.call('userA.passwd', '2'),
-                     mock.call('mysql-userA.passwd', '3')]
+            calls = [mock.call(settings={'mysql.passwd': '1'}),
+                     mock.call(settings={'userA.passwd': '2'}),
+                     mock.call(settings={'mysql-userA.passwd': '3'})]
 
-            mock_peer_store.assert_has_calls(calls,
+            mock_leader_set.assert_has_calls(calls,
                                              any_order=True)
         finally:
-            os.rmdir(tmpdir)
+            shutil.rmtree(tmpdir)
 
         # Note that legacy key/val is NOT overwritten
         self.assertEqual(store, {'mysql.passwd': '1',
                                  'userA.passwd': '2',
                                  'mysql-userA.passwd': '3'})
+
+    @mock.patch.object(mysql, 'is_leader')
+    @mock.patch.object(mysql, 'leader_set')
+    def test_migrate_passwords_to_leader_storage_not_leader(self, mock_leader_set,
+                                                            mock_is_leader):
+        mock_is_leader.return_value = False
+        tmpdir = tempfile.mkdtemp('charm-helpers-unit-tests')
+        try:
+            root_tmplt = "%s/mysql.passwd" % (tmpdir)
+            helper = mysql.MySQLHelper(root_tmplt, None, host='hostA')
+            helper.migrate_passwords_to_leader_storage()
+        finally:
+            shutil.rmtree(tmpdir)
+        mock_leader_set.assert_not_called()
 
 
 class PerconaTests(unittest.TestCase):
