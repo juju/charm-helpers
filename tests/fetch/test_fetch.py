@@ -204,6 +204,7 @@ class FetchTest(TestCase):
         imp.reload(fetch)
 
         self.call_count = 0
+
         def side_effect(*args, **kwargs):
             """Raise an 3 times, then return 0 """
             self.call_count += 1
@@ -218,10 +219,7 @@ class FetchTest(TestCase):
         fetch.add_source(source=source)
         check_call.assert_called_with(
             ['add-apt-repository', '--yes', source], env=getenv())
-        sleep.assert_has_calls([
-                call(10),
-                call(10),
-                call(10)])
+        sleep.assert_has_calls([call(10), call(10), call(10)])
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(osplatform, 'get_platform')

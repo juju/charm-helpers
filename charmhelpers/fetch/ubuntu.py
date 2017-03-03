@@ -254,7 +254,6 @@ def add_source(source, key=None):
         _retry_command(
             cmd, fatal=True, max_retries=APT_PPA_RETRY_COUNT,
             retry_exitcodes=(1,))
- 
     elif source.startswith('cloud:'):
         install(filter_installed_packages(['ubuntu-cloud-keyring']),
                 fatal=True)
