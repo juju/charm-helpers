@@ -172,6 +172,26 @@ class OVSHelpersTest(TestCase):
 
     @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
+    def test_add_ovsbridge_linuxbridge(self, check_call, log):
+        with patch_open() as (mock_open, mock_file):
+            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+
+        self.assertTrue(log.call_count == 2)
+
+    @patch('os.path.exists')
+    def test_is_linuxbridge_interface_false(self, exists):
+        exists.return_value = False
+        result = ovs.is_linuxbridge_interface('eno1')
+        self.assertFalse(result)
+
+    @patch('os.path.exists')
+    def test_is_linuxbridge_interface_true(self, exists):
+        exists.return_value = True
+        result = ovs.is_linuxbridge_interface('eno1')
+        self.assertTrue(result)
+
+    @patch.object(ovs, 'log')
+    @patch('subprocess.check_call')
     def test_set_manager(self, check_call, log):
         ovs.set_manager('manager')
         check_call.assert_called_with(['ovs-vsctl', 'set-manager',
