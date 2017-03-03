@@ -118,7 +118,7 @@ CLOUD_ARCHIVE_POCKETS = {
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 APT_NO_LOCK_RETRY_DELAY = 10  # Wait 10 seconds between apt lock checks.
 APT_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
-APT_PPA_RETRY_COUNT = 3       # Retry to add-ppa-repository X times.
+APT_PPA_RETRY_COUNT = 3       # Retry to add-apt-repository X times.
 
 
 def filter_installed_packages(packages):
