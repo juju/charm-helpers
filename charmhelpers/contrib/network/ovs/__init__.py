@@ -23,6 +23,18 @@ from charmhelpers.core.host import (
     service
 )
 
+BRIDGE_TEMPLATE = """\
+# This veth pair is required when neutron data-port is mapped to an existing linux bridge. lp:1635067
+
+auto {linuxbridge_port}
+iface {linuxbridge_port} inet manual
+    pre-up ip link add name {linuxbridge_port} type veth peer name {ovsbridge_port}
+    pre-up ip link set {ovsbridge_port} master {bridge}
+    pre-up ip link set {ovsbridge_port} up
+    up ip link set {linuxbridge_port} up
+    down ip link del {linuxbridge_port}
+"""
+
 
 def add_bridge(name, datapath_type=None):
     ''' Add the named bridge to openvswitch '''
@@ -62,7 +74,11 @@ def del_bridge_port(name, port):
 
 
 def add_ovsbridge_linuxbridge(name, bridge):
-    ''' Add linux bridge to the named openvswitch bridge '''
+    ''' Add linux bridge to the named openvswitch bridge
+    :param name: Name of ovs bridge to be added to Linux bridge
+    :param bridge: Name of Linux bridge to be added to ovs bridge
+    :returns: True if veth is added between ovs bridge and linux bridge, False otherwise'''
+
     ovsbridge_port = "veth-" + name
     linuxbridge_port = "veth-" + bridge
     log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name), level=INFO)
@@ -73,25 +89,17 @@ def add_ovsbridge_linuxbridge(name, bridge):
             return
 
     with open('/etc/network/interfaces.d/{}.cfg'.format(linuxbridge_port), 'w') as config:
-        config.write("""\
-# This veth pair is required when neutron data-port is mapped to an existing linux bridge. lp:1635067
-
-auto {linuxbridge_port}
-iface {linuxbridge_port} inet manual
-    pre-up ip link add name {linuxbridge_port} type veth peer name {ovsbridge_port}
-    pre-up ip link set {ovsbridge_port} master {bridge}
-    pre-up ip link set {ovsbridge_port} up
-    up ip link set {linuxbridge_port} up
-    down ip link del {linuxbridge_port}
-""".format(linuxbridge_port=linuxbridge_port, ovsbridge_port=ovsbridge_port, bridge=bridge))
-        config.close()
+        config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port, ovsbridge_port=ovsbridge_port, bridge=bridge))
 
     subprocess.check_call(["ifup", linuxbridge_port])
     add_bridge_port(name, linuxbridge_port)
 
 
 def is_linuxbridge_interface(port):
-    ''' Check if the interface is a linuxbridge bridge '''
+    ''' Check if the interface is a linuxbridge bridge
+    :param port: Name of an interface to check whether it is a Linux bridge
+    :returns: True if port is a Linux bridge'''
+
     if os.path.exists('/sys/class/net/' + port + '/bridge'):
         log('Interface {} is a Linux bridge'.format(port), level=DEBUG)
         return True
