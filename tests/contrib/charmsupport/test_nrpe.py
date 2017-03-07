@@ -3,7 +3,7 @@ import yaml
 import subprocess
 
 from testtools import TestCase
-from mock import patch, call
+from mock import patch, call, MagicMock
 
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.core import host
@@ -29,6 +29,7 @@ class NRPEBaseTestCase(TestCase):
         'relations_of_type': {'object': nrpe},
         'service': {'object': nrpe},
         'init_is_systemd': {'object': host},
+        'user_exists': {'object': host},
     }
 
     def setUp(self):
@@ -309,11 +310,13 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
 
         self.patched['exists'].side_effect = _exists
 
-        # Test without systemd
+        # Test without systemd and nagios user does not exist
         self.patched['init_is_systemd'].return_value = False
+        self.patched['user_exists'].return_value = False
         bill = nrpe.NRPE()
         services = ['apache2', 'haproxy']
         nrpe.add_init_service_checks(bill, services, 'testunit')
+        self.patched['call'].assert_not_called()
         expect_cmds = {
             'apache2': '/usr/lib/nagios/plugins/check_upstart_job apache2',
             'haproxy': '/usr/lib/nagios/plugins/check_status_file.py -f '
@@ -323,6 +326,18 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.assertEqual(bill.checks[0].check_cmd, expect_cmds['apache2'])
         self.assertEqual(bill.checks[1].shortname, 'haproxy')
         self.assertEqual(bill.checks[1].check_cmd, expect_cmds['haproxy'])
+
+        # without systemd and nagios user does exist
+        self.patched['user_exists'].return_value = True
+        f = MagicMock()
+        self.patched['open'].return_value = f
+        bill = nrpe.NRPE()
+        services = ['apache2', 'haproxy']
+        nrpe.add_init_service_checks(bill, services, 'testunit')
+        self.patched['call'].assert_called_with(
+            ['/usr/local/lib/nagios/plugins/check_exit_status.pl', '-s',
+             '/etc/init.d/haproxy', 'status'], stdout=f,
+            stderr=subprocess.STDOUT)
 
         # Test with systemd
         self.patched['init_is_systemd'].return_value = True
