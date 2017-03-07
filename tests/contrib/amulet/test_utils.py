@@ -4,12 +4,16 @@
 #  Adam Collard <adam.collard@canonical.com>
 
 from contextlib import contextmanager
+from mock import patch
 import sys
 import unittest
 
 import six
 
-from charmhelpers.contrib.amulet.utils import AmuletUtils
+from charmhelpers.contrib.amulet.utils import (
+    AmuletUtils,
+    amulet,
+)
 
 
 @contextmanager
@@ -35,6 +39,9 @@ class FakeSentry(object):
 
     def run(self, command):
         return self.commands[command]
+
+    def run_action(self, action, action_args=None):
+        return 'action-id'
 
 
 class ValidateServicesByNameTestCase(unittest.TestCase):
@@ -130,88 +137,46 @@ class RunActionTestCase(unittest.TestCase):
         self.utils = AmuletUtils()
         self.sentry_unit = FakeSentry()
 
-    def test_request_json_output(self):
-        """Juju is called with --format=json, to guarantee output format."""
-        output_calls = []
-
-        def fake_check_output(call, **kwargs):
-            output_calls.append(call)
-            return '{"Action queued with id": "action-id"}'
-
-        self.utils.run_action(
-            self.sentry_unit, "foo", _check_output=fake_check_output)
-        call, = output_calls
-        self.assertIn("--format=json", call)
-
     def test_returns_action_id(self):
-        """JSON output is parsed and returns action_id."""
-
-        def fake_check_output(call, **kwargs):
-            return '{"Action queued with id": "action-id"}'
+        """Returns action_id."""
 
         self.assertEqual("action-id", self.utils.run_action(
-            self.sentry_unit, "foo", _check_output=fake_check_output))
+            self.sentry_unit, "foo"))
 
 
 class WaitActionTestCase(unittest.TestCase):
 
     def setUp(self):
         self.utils = AmuletUtils()
-        self.sentry_unit = FakeSentry()
 
-    def test_request_json_output(self):
-        """Juju is called with --format=json, to guarantee output format."""
-        output_calls = []
-
-        def fake_check_output(call, **kwargs):
-            output_calls.append(call)
-            return '{"status": "completed"}'
-
-        self.utils.wait_on_action(
-            "action-id", _check_output=fake_check_output)
-        call, = output_calls
-        self.assertIn("--format=json", call)
-
-    def test_request_indefinitely(self):
-        """Juju  with --wait=0, to block until a result is available."""
-        output_calls = []
-
-        def fake_check_output(call, **kwargs):
-            output_calls.append(call)
-            return '{"status": "completed"}'
-
-        self.utils.wait_on_action(
-            "action-id", _check_output=fake_check_output)
-        call, = output_calls
-        self.assertIn("--wait=0", call)
-
-    def test_returns_true_if_completed(self):
+    @patch.object(amulet.actions, "get_action_output")
+    def test_returns_true_if_completed(self, get_action_output):
         """JSON output is parsed and returns True if the action completed."""
-        def fake_check_output(call, **kwargs):
-            return '{"status": "completed"}'
 
-        self.assertTrue(self.utils.wait_on_action(
-            "action-id", _check_output=fake_check_output))
+        get_action_output.return_value = {"status": "completed"}
 
-    def test_returns_false_if_still_running(self):
+        self.assertTrue(self.utils.wait_on_action("action-id"))
+        get_action_output.assert_called_with("action-id", full_output=True)
+
+    @patch.object(amulet.actions, "get_action_output")
+    def test_returns_false_if_still_running(self, get_action_output):
         """
         JSON output is parsed and returns False if the action is still running.
         """
-        def fake_check_output(call, **kwargs):
-            return '{"status": "running"}'
+        get_action_output.return_value = {"status": "running"}
 
-        self.assertFalse(self.utils.wait_on_action(
-            "action-id", _check_output=fake_check_output))
+        self.assertFalse(self.utils.wait_on_action("action-id"))
+        get_action_output.assert_called_with("action-id", full_output=True)
 
-    def test_returns_false_if_no_status(self):
+    @patch.object(amulet.actions, "get_action_output")
+    def test_returns_false_if_no_status(self, get_action_output):
         """
         JSON output is parsed and returns False if there is no action status.
         """
-        def fake_check_output(call, **kwargs):
-            return '{"status": "running"}'
+        get_action_output.return_value = {}
 
-        self.assertFalse(self.utils.wait_on_action(
-            "action-id", _check_output=fake_check_output))
+        self.assertFalse(self.utils.wait_on_action("action-id"))
+        get_action_output.assert_called_with("action-id", full_output=True)
 
 
 class GetProcessIdListTestCase(unittest.TestCase):
