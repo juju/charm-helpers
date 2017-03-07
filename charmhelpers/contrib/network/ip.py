@@ -20,11 +20,17 @@ import socket
 
 from functools import partial
 
-from charmhelpers.core.hookenv import unit_get
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
+    config,
     log,
+    network_get_primary_address,
+    unit_get,
     WARNING,
+)
+
+from charmhelpers.core.host import (
+    lsb_release,
 )
 
 try:
@@ -511,3 +517,40 @@ def port_has_listener(address, port):
     cmd = ['nc', '-z', address, str(port)]
     result = subprocess.call(cmd)
     return not(bool(result))
+
+
+def assert_charm_supports_ipv6():
+    """Check whether we are able to support charms ipv6."""
+    if lsb_release()['DISTRIB_CODENAME'].lower() < "trusty":
+        raise Exception("IPv6 is not supported in the charms for Ubuntu "
+                        "versions less than Trusty 14.04")
+
+
+def get_relation_ip(interface, config_override=None):
+    """Return this unit's IP for the given relation.
+
+    Allow for an arbitrary interface to use with network-get to select an IP.
+    Handle all address selection options including configuration parameter
+    override and IPv6.
+
+    Usage: get_relation_ip('amqp', config_override='access-network')
+
+    @param interface: string name of the relation.
+    @param config_override: string name of the config option for network
+           override. Supports legacy network override configuration parameters.
+    @raises Exception if prefer-ipv6 is configured but IPv6 unsupported.
+    @returns IPv6 or IPv4 address
+    """
+
+    fallback = get_host_ip(unit_get('private-address'))
+    if config('prefer-ipv6'):
+        assert_charm_supports_ipv6()
+        return get_ipv6_addr()[0]
+    elif config_override and config(config_override):
+        return get_address_in_network(config(config_override),
+                                      fallback)
+    else:
+        try:
+            return network_get_primary_address(interface)
+        except NotImplementedError:
+            return fallback
