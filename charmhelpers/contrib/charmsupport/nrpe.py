@@ -384,9 +384,8 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
                 description='service check {%s}' % unit_name,
                 check_cmd='check_status_file.py -f %s' % checkpath,
             )
-            # if nagios user doesn't exist, it means nagios-nrpe-server hasn't
-            # been installed yet and /var/lib/nagios doesn't exist either, so
-            # open(checkpath, 'w') will fail (LP: #1670223).
+            # if /var/lib/nagios doesn't exist open(checkpath, 'w') will fail
+            # (LP: #1670223).
             if immediate_check and os.path.isdir(nrpe.homedir):
                 f = open(checkpath, 'w')
                 subprocess.call(
