@@ -29,7 +29,6 @@ class NRPEBaseTestCase(TestCase):
         'relations_of_type': {'object': nrpe},
         'service': {'object': nrpe},
         'init_is_systemd': {'object': host},
-        'user_exists': {'object': host},
     }
 
     def setUp(self):
@@ -296,7 +295,8 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.patched['relations_of_type'].return_value = []
         self.assertEqual(nrpe.get_nagios_unit_name(), 'testunit')
 
-    def test_add_init_service_checks(self):
+    @patch.object(os.path, 'isdir')
+    def test_add_init_service_checks(self, mock_isdir):
         def _exists(init_file):
             files = ['/etc/init/apache2.conf',
                      '/usr/lib/nagios/plugins/check_upstart_job',
@@ -310,12 +310,13 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
 
         self.patched['exists'].side_effect = _exists
 
-        # Test without systemd and nagios user does not exist
+        # Test without systemd and /var/lib/nagios does not exist
         self.patched['init_is_systemd'].return_value = False
-        self.patched['user_exists'].return_value = False
+        mock_isdir.return_value = False
         bill = nrpe.NRPE()
         services = ['apache2', 'haproxy']
         nrpe.add_init_service_checks(bill, services, 'testunit')
+        mock_isdir.assert_called_with('/var/lib/nagios')
         self.patched['call'].assert_not_called()
         expect_cmds = {
             'apache2': '/usr/lib/nagios/plugins/check_upstart_job apache2',
@@ -327,13 +328,14 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.assertEqual(bill.checks[1].shortname, 'haproxy')
         self.assertEqual(bill.checks[1].check_cmd, expect_cmds['haproxy'])
 
-        # without systemd and nagios user does exist
-        self.patched['user_exists'].return_value = True
+        # without systemd and /var/lib/nagios does exist
+        mock_isdir.return_value = True
         f = MagicMock()
         self.patched['open'].return_value = f
         bill = nrpe.NRPE()
         services = ['apache2', 'haproxy']
         nrpe.add_init_service_checks(bill, services, 'testunit')
+        mock_isdir.assert_called_with('/var/lib/nagios')
         self.patched['call'].assert_called_with(
             ['/usr/local/lib/nagios/plugins/check_exit_status.pl', '-s',
              '/etc/init.d/haproxy', 'status'], stdout=f,
