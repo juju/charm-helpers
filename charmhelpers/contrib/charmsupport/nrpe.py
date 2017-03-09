@@ -227,6 +227,7 @@ class NRPE(object):
     nagios_logdir = '/var/log/nagios'
     nagios_exportdir = '/var/lib/nagios/export'
     nrpe_confdir = '/etc/nagios/nrpe.d'
+    homedir = '/var/lib/nagios'  # home dir provided by nagios-nrpe-server
 
     def __init__(self, hostname=None, primary=True):
         super(NRPE, self).__init__()
@@ -369,7 +370,7 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
             )
         elif os.path.exists(sysv_init):
             cronpath = '/etc/cron.d/nagios-service-check-%s' % svc
-            checkpath = '/var/lib/nagios/service-check-%s.txt' % svc
+            checkpath = '%s/service-check-%s.txt' % (nrpe.homedir, svc)
             croncmd = (
                 '/usr/local/lib/nagios/plugins/check_exit_status.pl '
                 '-s /etc/init.d/%s status' % svc
@@ -383,7 +384,9 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
                 description='service check {%s}' % unit_name,
                 check_cmd='check_status_file.py -f %s' % checkpath,
             )
-            if immediate_check:
+            # if /var/lib/nagios doesn't exist open(checkpath, 'w') will fail
+            # (LP: #1670223).
+            if immediate_check and os.path.isdir(nrpe.homedir):
                 f = open(checkpath, 'w')
                 subprocess.call(
                     croncmd.split(),
