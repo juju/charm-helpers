@@ -200,16 +200,17 @@ def _get_for_address(address, key):
         if address.version == 6 and netifaces.AF_INET6 in addresses:
             for addr in addresses[netifaces.AF_INET6]:
                 network = _get_ipv6_network_from_address(addr)
-                if network:
-                    cidr = network.cidr
-                if network and address in network.cidr:
-                    if address in cidr:
-                        if key == 'iface':
-                            return iface
-                        elif key == 'netmask' and cidr:
-                            return str(cidr).split('/')[1]
-                        else:
-                            return addr[key]
+                if not network:
+                    continue
+
+                cidr = network.cidr
+                if address in cidr:
+                    if key == 'iface':
+                        return iface
+                    elif key == 'netmask' and cidr:
+                        return str(cidr).split('/')[1]
+                    else:
+                        return addr[key]
     return None
 
 
