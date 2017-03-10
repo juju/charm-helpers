@@ -75,17 +75,14 @@ def _get_ipv6_network_from_address(address):
     """
     if address['addr'].startswith('fe80') or address['addr'] == "::1":
         return None
-    try:
-        network = netaddr.IPNetwork("%s/%s" % (
-            address['addr'], address['netmask']))
-    except ValueError:
-        # (niedbalski) if IPv6 netmask comes in the format
-        # 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff::/128'
-        # a ValueError exception will be raised
-        prefix = address['netmask'].split("/")[1]
-        network = netaddr.IPNetwork("%s/%s" % (address['addr'],
-                                               prefix))
-    return network
+
+    prefix = address['netmask'].split("/")
+    if len(prefix) > 1:
+        netmask = prefix[1]
+    else:
+        netmask = address['netmask']
+    return netaddr.IPNetwork("%s/%s" % (address['addr'],
+                                        netmask))
 
 
 def get_address_in_network(network, fallback=None, fatal=False):
