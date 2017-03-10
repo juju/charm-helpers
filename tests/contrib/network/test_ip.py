@@ -34,6 +34,8 @@ DUMMY_ADDRESSES = {
               'netmask': 'ffff:ffff:ffff:ffff::'},
              {'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
               'netmask': 'ffff:ffff:ffff:ffff::'},
+             {'netmask': 'ffff:ffff:ffff:ffff::/64',
+              'addr': 'fd2d:dec4:cf59:3c16::1'},
              {'addr': '2001:db8:1::',
               'netmask': 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'}],
         17: [{'addr': '3c:97:0e:8b:1c:f7',
@@ -213,6 +215,19 @@ class IPTest(unittest.TestCase):
 
     def test_get_address_in_network_not_found_not_fatal(self):
         self._test_get_address_in_network(None, '172.16.0.0/16', fatal=False)
+
+    @patch.object(netifaces, 'ifaddresses')
+    @patch.object(netifaces, 'interfaces')
+    def test_get_address_in_network_netmask(self, _interfaces, _ifaddresses):
+        """
+        Validates that get_address_in_network works with a netmask
+        that uses the format 'ffff:ffff:ffff::/prefixlen'
+        """
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
+        self._test_get_address_in_network('fd2d:dec4:cf59:3c16::1',
+                                          'fd2d:dec4:cf59:3c16::/64',
+                                          fatal=False)
 
     def test_is_address_in_network(self):
         self.assertTrue(
