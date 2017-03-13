@@ -97,6 +97,40 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
 
+UBUNTU_RELEASES = (
+    'lucid',
+    'maverick',
+    'natty',
+    'oneiric',
+    'precise',
+    'quantal',
+    'raring',
+    'saucy',
+    'trusty',
+    'utopic',
+    'vivid',
+    'wily',
+    'xenial',
+    'yaketty',
+    'zesty',
+)
+
+OPENSTACK_RELEASES = (
+    'diablo',
+    'essex',
+    'folsom',
+    'grizzly',
+    'havana',
+    'icehouse',
+    'juno',
+    'kilo',
+    'liberty',
+    'mitaka',
+    'newton',
+    'ocata',
+    'pike',
+)
+
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('oneiric', 'diablo'),
     ('precise', 'essex'),
@@ -236,6 +270,77 @@ GIT_DEFAULT_BRANCHES = {
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
+
+
+class BasicStringComparator(object):
+    """Provides a class that will compare strings from an iterator type object.
+    Used to provide > and < comparisons on strings that may not necessarily be
+    alphanumerically ordered.  e.g. OpenStack or Ubuntu releases AFTER the
+    z-wrap.
+    """
+
+    _list = None
+
+    def __init__(self, item):
+        if self._list is None:
+            raise Exception("Must define the _list in the class definition!")
+        self.index = self._list.index(item)
+
+    def __eq__(self, other):
+        assert isinstance(other, str) or isinstance(other, self.__class__)
+        return self.index == self._list.index(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __lt__(self, other):
+        assert isinstance(other, str) or isinstance(other, self.__class__)
+        return self.index < self._list.index(other)
+
+    def __ge__(self, other):
+        return not self.__lt__(other)
+
+    def __gt__(self, other):
+        assert isinstance(other, str) or isinstance(other, self.__class__)
+        return self.index > self._list.index(other)
+
+    def __le__(self, other):
+        return not self.__gt__(other)
+
+    def __str__(self):
+        """Always give back the item at the index so it can be used in
+        comparisons like:
+
+        s_mitaka = CompareOpenStack('mitaka')
+        s_newton = CompareOpenstack('newton')
+
+        assert s_newton > s_mitaka
+
+        @returns: <string>
+        """
+        return self._list[self.index]
+
+
+class CompareOpenStackReleases(BasicStringComparator):
+    """Provide comparisons of OpenStack releases.
+
+    Use in the form of
+
+    if CompareOpenStackReleases(release) > 'mitaka':
+        # do something with mitaka
+    """
+    _list = OPENSTACK_RELEASES
+
+
+class CompareUbuntuReleases(BasicStringComparator):
+    """Provide comparisons of Ubuntu releases.
+
+    Use in the form of
+
+    if CompareUbuntuReleases(release) > 'trusty':
+        # do something with mitaka
+    """
+    _list = UBUNTU_RELEASES
 
 
 def error_out(msg):
@@ -1066,7 +1171,8 @@ def git_generate_systemd_init_files(templates_dir):
 
             shutil.copyfile(init_in_source, init_source)
             with open(init_source, 'a') as outfile:
-                template = '/usr/share/openstack-pkg-tools/init-script-template'
+                template = ('/usr/share/openstack-pkg-tools/'
+                            'init-script-template')
                 with open(template) as infile:
                     outfile.write('\n\n{}'.format(infile.read()))
 

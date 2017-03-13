@@ -94,6 +94,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_determine_usr_bin,
     git_determine_python_path,
     enable_memcache,
+    CompareUbuntuReleases,
 )
 from charmhelpers.core.unitdata import kv
 
@@ -155,7 +156,8 @@ class OSContextGenerator(object):
 
         if self.missing_data:
             self.complete = False
-            log('Missing required data: %s' % ' '.join(self.missing_data), level=INFO)
+            log('Missing required data: %s' % ' '.join(self.missing_data),
+                level=INFO)
         else:
             self.complete = True
         return self.complete
@@ -213,8 +215,9 @@ class SharedDBContext(OSContextGenerator):
                 hostname_key = "{}_hostname".format(self.relation_prefix)
             else:
                 hostname_key = "hostname"
-            access_hostname = get_address_in_network(access_network,
-                                                     unit_get('private-address'))
+            access_hostname = get_address_in_network(
+                access_network,
+                unit_get('private-address'))
             set_hostname = relation_get(attribute=hostname_key,
                                         unit=local_unit())
             if set_hostname != access_hostname:
@@ -308,7 +311,8 @@ def db_ssl(rdata, ctxt, ssl_dir):
 
 class IdentityServiceContext(OSContextGenerator):
 
-    def __init__(self, service=None, service_user=None, rel_name='identity-service'):
+    def __init__(self, service=None, service_user=None,
+                 rel_name='identity-service'):
         self.service = service
         self.service_user = service_user
         self.rel_name = rel_name
@@ -1601,7 +1605,8 @@ class MemcacheContext(OSContextGenerator):
         if ctxt['use_memcache']:
             # Trusty version of memcached does not support ::1 as a listen
             # address so use host file entry instead
-            if lsb_release()['DISTRIB_CODENAME'].lower() > 'trusty':
+            release = lsb_release()['DISTRIB_CODENAME'].lower()
+            if CompareUbuntuReleases(release) > 'trusty':
                 ctxt['memcache_server'] = '::1'
             else:
                 ctxt['memcache_server'] = 'ip6-localhost'
