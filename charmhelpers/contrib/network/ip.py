@@ -521,7 +521,11 @@ def port_has_listener(address, port):
 
 def assert_charm_supports_ipv6():
     """Check whether we are able to support charms ipv6."""
-    if lsb_release()['DISTRIB_CODENAME'].lower() < "trusty":
+    # workaround circular import -- means we have a code organisation issue,
+    # but charms depend on this location for this function ...
+    from charmhelpers.contrib.openstack.utils import CompareUbuntuReleases
+    release = lsb_release()['DISTRIB_CODENAME'].lower()
+    if CompareUbuntuReleases(release) < "trusty":
         raise Exception("IPv6 is not supported in the charms for Ubuntu "
                         "versions less than Trusty 14.04")
 
