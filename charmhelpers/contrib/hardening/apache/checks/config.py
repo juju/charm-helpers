@@ -52,7 +52,7 @@ def get_audits():
                                    'mods-available/alias.conf'),
                       context,
                       TEMPLATES_DIR,
-                      mode=0o0755,
+                      mode=0o0640,
                       user='root',
                       service_actions=[{'service': 'apache2',
                                         'actions': ['restart']}]),
@@ -69,7 +69,7 @@ def get_audits():
         DirectoryPermissionAudit(settings['common']['apache_dir'],
                                  user='root',
                                  group='root',
-                                 mode=0o640),
+                                 mode=0o0750),
 
         DisabledModuleAudit(settings['hardening']['modules_to_disable']),
 
