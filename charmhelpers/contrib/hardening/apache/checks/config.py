@@ -58,7 +58,7 @@ def get_audits():
                                         'actions': ['restart']}]),
 
         TemplatedFile(os.path.join(settings['common']['apache_dir'],
-                                   'conf-enabled/hardening.conf'),
+                                   'conf-enabled/99-hardening.conf'),
                       context,
                       TEMPLATES_DIR,
                       mode=0o0640,
