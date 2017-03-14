@@ -72,7 +72,7 @@ class UtilsTests(unittest.TestCase):
         self.assertTrue(utils.CompareOpenStackReleases('pike') > 'essex')
 
     def test_compare_ubuntu_releases(self):
-        self.assertTrue(utils.CompareUbuntuReleases('yaketty') < 'zesty')
+        self.assertTrue(utils.CompareUbuntuReleases('yakkety') < 'zesty')
 
     @mock.patch.object(utils, 'config')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
