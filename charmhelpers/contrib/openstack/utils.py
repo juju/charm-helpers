@@ -111,7 +111,7 @@ UBUNTU_RELEASES = (
     'vivid',
     'wily',
     'xenial',
-    'yaketty',
+    'yakkety',
     'zesty',
 )
 
