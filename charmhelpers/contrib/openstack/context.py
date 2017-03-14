@@ -94,6 +94,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_determine_usr_bin,
     git_determine_python_path,
     enable_memcache,
+    CompareUbuntuReleases,
 )
 from charmhelpers.core.unitdata import kv
 
@@ -1604,7 +1605,8 @@ class MemcacheContext(OSContextGenerator):
         if ctxt['use_memcache']:
             # Trusty version of memcached does not support ::1 as a listen
             # address so use host file entry instead
-            if lsb_release()['DISTRIB_CODENAME'].lower() > 'trusty':
+            release = lsb_release()['DISTRIB_CODENAME'].lower()
+            if CompareUbuntuReleases(release) > 'trusty':
                 ctxt['memcache_server'] = '::1'
             else:
                 ctxt['memcache_server'] = 'ip6-localhost'
