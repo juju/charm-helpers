@@ -11,3 +11,4 @@ hardening:
     traceenable: 'off'
     allowed_http_methods: "GET POST"
     modules_to_disable: [ cgi, cgid ]
+    servertokens: 'Prod'
