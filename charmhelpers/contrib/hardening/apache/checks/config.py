@@ -95,4 +95,5 @@ class ApacheConfContext(object):
                                            out).group(1)
         ctxt['apache_icondir'] = '/usr/share/apache2/icons/'
         ctxt['traceenable'] = settings['hardening']['traceenable']
+        ctxt['servertokens'] = settings['hardening']['servertokens']
         return ctxt
