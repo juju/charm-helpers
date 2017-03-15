@@ -221,7 +221,8 @@ class TemplatingTestCase(TestCase):
         'hardening': {
             'allowed_http_methods': {'GOGETEM'},
             'modules_to_disable': {'modfoo'},
-            'traceenable': 'off'
+            'traceenable': 'off',
+            'servertokens': 'Prod'
         }
     })
     @patch('charmhelpers.contrib.hardening.audits.file.os.path.exists',
