@@ -58,7 +58,8 @@ class ApacheConfigTestCase(TestCase):
         'hardening': {
             'allowed_http_methods': {'GOGETEM'},
             'modules_to_disable': {'modfoo'},
-            'traceenable': 'off'
+            'traceenable': 'off',
+            'servertokens': 'Prod'
         }
     })
     @patch.object(config, 'subprocess')
@@ -77,4 +78,5 @@ class ApacheConfigTestCase(TestCase):
                                       '/usr/share/apache2/icons/',
                                       'apache_version': '2.4.7',
                                       'modules_to_disable': set(['modfoo']),
+                                      'servertokens': 'Prod',
                                       'traceenable': 'off'})
