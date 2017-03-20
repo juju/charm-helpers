@@ -33,6 +33,11 @@ def get_audits():
                                     ProfileContext(),
                                     template_dir=TEMPLATES_DIR,
                                     mode=0o0755, user='root', group='root'))
+    if not settings['security']['ssh_tmout']:
+        audits.append(TemplatedFile('/etc/profile.d/99-hardening.sh',
+                                    ProfileContext(),
+                                    template_dir=TEMPLATES_DIR,
+                                    mode=0o0755, user='root', group='root'))
     return audits
 
 
