@@ -47,7 +47,7 @@ class UtilsTests(unittest.TestCase):
             MyComparator('nope')
             raise Exception("MyComparator('nope') should have failed")
         except Exception as e:
-            self.assertTrue(isinstance(e, ValueError))
+            self.assertTrue(isinstance(e, KeyError))
 
     def test_basic_string_comparator_fails_different_comparators(self):
 
