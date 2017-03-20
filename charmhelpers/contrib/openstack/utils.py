@@ -284,7 +284,11 @@ class BasicStringComparator(object):
     def __init__(self, item):
         if self._list is None:
             raise Exception("Must define the _list in the class definition!")
-        self.index = self._list.index(item)
+        try:
+            self.index = self._list.index(item)
+        except Exception:
+            raise KeyError("Item '{}' is not in list '{}'"
+                           .format(item, self._list))
 
     def __eq__(self, other):
         assert isinstance(other, str) or isinstance(other, self.__class__)
