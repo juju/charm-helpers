@@ -29,8 +29,22 @@ class ProfileTestCase(TestCase):
         self.assertTrue(isinstance(audits[0], profile.TemplatedFile))
 
     @patch.object(profile.utils, 'get_settings', lambda x: {
-        'security': {'kernel_enable_core_dump': True, 'ssh_tmout': 300}
+        'security': {'kernel_enable_core_dump': True, 'ssh_tmout': False}
     })
     def test_core_dump_enabled(self):
         audits = profile.get_audits()
-        self.assertEqual(2, len(audits))
+        self.assertEqual(0, len(audits))
+
+    @patch.object(profile.utils, 'get_settings', lambda x:
+                  {'security': {'kernel_enable_core_dump': True, 'ssh_tmout': False}})
+    def test_ssh_tmout_disabled(self):
+        audits = profile.get_audits()
+        self.assertEqual(0, len(audits))
+
+    @patch.object(profile.utils, 'get_settings', lambda x: {
+        'security': {'kernel_enable_core_dump': True, 'ssh_tmout': 300}
+    })
+    def test_ssh_tmout_enabled(self):
+        audits = profile.get_audits()
+        self.assertEqual(1, len(audits))
+        self.assertTrue(isinstance(audits[0], profile.TemplatedFile))
