@@ -222,7 +222,9 @@ class TemplatingTestCase(TestCase):
             'allowed_http_methods': {'GOGETEM'},
             'modules_to_disable': {'modfoo'},
             'traceenable': 'off',
-            'servertokens': 'Prod'
+            'servertokens': 'Prod',
+            'honor_cipher_order': 'on',
+            'cipher_suite': 'ALL:+MEDIUM:+HIGH:!LOW:!MD5:!RC4:!eNULL:!aNULL:!3DES'
         }
     })
     @patch('charmhelpers.contrib.hardening.audits.file.os.path.exists',

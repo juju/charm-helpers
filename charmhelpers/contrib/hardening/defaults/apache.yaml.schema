@@ -8,3 +8,5 @@ hardening:
     allowed_http_methods:
     modules_to_disable:
     servertokens:
+    honor_cipher_order:
+    cipher_suite:
