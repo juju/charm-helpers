@@ -43,5 +43,7 @@ def get_audits():
 class ProfileContext(object):
 
     def __call__(self):
-        ctxt = {}
+        settings = utils.get_settings('os')
+        ctxt = {'ssh_tmout':
+                 settings['security']['ssh_tmout']}
         return ctxt
