@@ -45,6 +45,7 @@ if __platform__ == "ubuntu":
         add_new_group,
         lsb_release,
         cmp_pkgrevno,
+        CompareHostReleases,
     )  # flake8: noqa -- ignore F401 for this import
 elif __platform__ == "centos":
     from charmhelpers.core.host_factory.centos import (

@@ -1814,4 +1814,13 @@ class HelpersTest(TestCase):
 
         self.assertTrue(handle.read.call_count == 1)
         self.assertTrue(handle.seek.call_count == 1)
-        handle.write.assert_called_once_with('PRUNEPATHS="/tmp /srv/node /tmp/test"')
+        handle.write.assert_called_once_with(
+            'PRUNEPATHS="/tmp /srv/node /tmp/test"')
+
+
+class TestHostCompator(TestCase):
+
+    def test_compare_ubuntu_releases(self):
+        from charmhelpers.osplatform import get_platform
+        if get_platform() == 'ubuntu':
+            self.assertTrue(host.CompareHostReleases('yakkety') < 'zesty')
