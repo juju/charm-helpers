@@ -33,9 +33,7 @@ import yaml
 
 from charmhelpers.contrib.network import ip
 
-from charmhelpers.core import (
-    unitdata,
-)
+from charmhelpers.core import unitdata
 
 from charmhelpers.core.hookenv import (
     action_fail,
@@ -54,6 +52,8 @@ from charmhelpers.core.hookenv import (
     hook_name,
     application_version_set,
 )
+
+from charmhelpers.core.strutils import BasicStringComparator
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
@@ -96,24 +96,6 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
-
-UBUNTU_RELEASES = (
-    'lucid',
-    'maverick',
-    'natty',
-    'oneiric',
-    'precise',
-    'quantal',
-    'raring',
-    'saucy',
-    'trusty',
-    'utopic',
-    'vivid',
-    'wily',
-    'xenial',
-    'yakkety',
-    'zesty',
-)
 
 OPENSTACK_RELEASES = (
     'diablo',
@@ -272,59 +254,6 @@ GIT_DEFAULT_BRANCHES = {
 DEFAULT_LOOPBACK_SIZE = '5G'
 
 
-class BasicStringComparator(object):
-    """Provides a class that will compare strings from an iterator type object.
-    Used to provide > and < comparisons on strings that may not necessarily be
-    alphanumerically ordered.  e.g. OpenStack or Ubuntu releases AFTER the
-    z-wrap.
-    """
-
-    _list = None
-
-    def __init__(self, item):
-        if self._list is None:
-            raise Exception("Must define the _list in the class definition!")
-        try:
-            self.index = self._list.index(item)
-        except Exception:
-            raise KeyError("Item '{}' is not in list '{}'"
-                           .format(item, self._list))
-
-    def __eq__(self, other):
-        assert isinstance(other, str) or isinstance(other, self.__class__)
-        return self.index == self._list.index(other)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __lt__(self, other):
-        assert isinstance(other, str) or isinstance(other, self.__class__)
-        return self.index < self._list.index(other)
-
-    def __ge__(self, other):
-        return not self.__lt__(other)
-
-    def __gt__(self, other):
-        assert isinstance(other, str) or isinstance(other, self.__class__)
-        return self.index > self._list.index(other)
-
-    def __le__(self, other):
-        return not self.__gt__(other)
-
-    def __str__(self):
-        """Always give back the item at the index so it can be used in
-        comparisons like:
-
-        s_mitaka = CompareOpenStack('mitaka')
-        s_newton = CompareOpenstack('newton')
-
-        assert s_newton > s_mitaka
-
-        @returns: <string>
-        """
-        return self._list[self.index]
-
-
 class CompareOpenStackReleases(BasicStringComparator):
     """Provide comparisons of OpenStack releases.
 
@@ -334,17 +263,6 @@ class CompareOpenStackReleases(BasicStringComparator):
         # do something with mitaka
     """
     _list = OPENSTACK_RELEASES
-
-
-class CompareUbuntuReleases(BasicStringComparator):
-    """Provide comparisons of Ubuntu releases.
-
-    Use in the form of
-
-    if CompareUbuntuReleases(release) > 'trusty':
-        # do something with mitaka
-    """
-    _list = UBUNTU_RELEASES
 
 
 def error_out(msg):
@@ -2081,9 +1999,7 @@ def enable_memcache(source=None, release=None, package=None):
     if not _release:
         _release = get_os_codename_install_source(source)
 
-    # TODO: this should be changed to a numeric comparison using a known list
-    # of releases and comparing by index.
-    return _release >= 'mitaka'
+    return CompareOpenStackReleases(_release) >= 'mitaka'
 
 
 def token_cache_pkgs(source=None, release=None):
