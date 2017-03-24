@@ -26,6 +26,7 @@ from charmhelpers.contrib.hardening.audits.file import (
     DirectoryPermissionAudit,
     NoReadWriteForOther,
     TemplatedFile,
+    DeletedFile
 )
 from charmhelpers.contrib.hardening.audits.apache import DisabledModuleAudit
 from charmhelpers.contrib.hardening.apache import TEMPLATES_DIR
@@ -74,6 +75,8 @@ def get_audits():
         DisabledModuleAudit(settings['hardening']['modules_to_disable']),
 
         NoReadWriteForOther(settings['common']['apache_dir']),
+
+        DeletedFile(['/var/www/html/index.html'])
     ]
 
     return audits
@@ -94,6 +97,4 @@ class ApacheConfContext(object):
         ctxt['apache_version'] = re.search(r'.+version: Apache/(.+?)\s.+',
                                            out).group(1)
         ctxt['apache_icondir'] = '/usr/share/apache2/icons/'
-        ctxt['traceenable'] = settings['hardening']['traceenable']
-        ctxt['servertokens'] = settings['hardening']['servertokens']
         return ctxt
