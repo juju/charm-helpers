@@ -22,15 +22,35 @@ from charmhelpers.contrib.hardening.host.checks import profile
 class ProfileTestCase(TestCase):
 
     @patch.object(profile.utils, 'get_settings', lambda x:
-                  {'security': {'kernel_enable_core_dump': False}})
+                  {'security': {'kernel_enable_core_dump': False, 'ssh_tmout': False}})
     def test_core_dump_disabled(self):
         audits = profile.get_audits()
         self.assertEqual(1, len(audits))
         self.assertTrue(isinstance(audits[0], profile.TemplatedFile))
 
     @patch.object(profile.utils, 'get_settings', lambda x: {
-        'security': {'kernel_enable_core_dump': True}
+        'security': {'kernel_enable_core_dump': True, 'ssh_tmout': False}
     })
     def test_core_dump_enabled(self):
         audits = profile.get_audits()
         self.assertEqual(0, len(audits))
+
+    @patch.object(profile.utils, 'get_settings', lambda x:
+                  {'security': {'kernel_enable_core_dump': True, 'ssh_tmout': False}})
+    def test_ssh_tmout_disabled(self):
+        audits = profile.get_audits()
+        self.assertEqual(0, len(audits))
+
+    @patch.object(profile.utils, 'get_settings', lambda x: {
+        'security': {'kernel_enable_core_dump': True, 'ssh_tmout': 300}
+    })
+    def test_ssh_tmout_enabled(self):
+        audits = profile.get_audits()
+        self.assertEqual(1, len(audits))
+        self.assertTrue(isinstance(audits[0], profile.TemplatedFile))
+
+    def test_ProfileContext(self):
+        ctxt = profile.ProfileContext()
+        self.assertEqual(ctxt(), {
+            'ssh_tmout': 300
+        })
