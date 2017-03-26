@@ -40,7 +40,7 @@ from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
 from charmhelpers.core.decorators import retry_on_exception
-from charmhelpers.contrib.openstack.utils import CompareHostReleases
+from charmhelpers.core.host import CompareHostReleases
 
 DEBUG = logging.DEBUG
 ERROR = logging.ERROR
