@@ -47,3 +47,61 @@ class TestStrUtils(unittest.TestCase):
 
         self.assertRaises(ValueError, strutils.bytes_from_string, None)
         self.assertRaises(ValueError, strutils.bytes_from_string, 'foo')
+
+    def test_basic_string_comparator_class_fails_instantiation(self):
+        try:
+            strutils.BasicStringComparator('hello')
+            raise Exception("instantiating BasicStringComparator should fail")
+        except Exception as e:
+            assert (str(e) == "Must define the _list in the class definition!")
+
+    def test_basic_string_comparator_class(self):
+
+        class MyComparator(strutils.BasicStringComparator):
+
+            _list = ('zomg', 'bartlet', 'over', 'and')
+
+        x = MyComparator('zomg')
+        self.assertEquals(x.index, 0)
+        y = MyComparator('over')
+        self.assertEquals(y.index, 2)
+        self.assertTrue(x == 'zomg')
+        self.assertTrue(x != 'bartlet')
+        self.assertTrue(x == x)
+        self.assertTrue(x != y)
+        self.assertTrue(x < y)
+        self.assertTrue(y > x)
+        self.assertTrue(x < 'bartlet')
+        self.assertTrue(y > 'bartlet')
+        self.assertTrue(x >= 'zomg')
+        self.assertTrue(x <= 'zomg')
+        self.assertTrue(x >= x)
+        self.assertTrue(x <= x)
+        self.assertTrue(y >= 'zomg')
+        self.assertTrue(y <= 'over')
+        self.assertTrue(y >= x)
+        self.assertTrue(x <= y)
+        # ensure that something not in the list dies
+        try:
+            MyComparator('nope')
+            raise Exception("MyComparator('nope') should have failed")
+        except Exception as e:
+            self.assertTrue(isinstance(e, KeyError))
+
+    def test_basic_string_comparator_fails_different_comparators(self):
+
+        class MyComparator1(strutils.BasicStringComparator):
+
+            _list = ('the truth is out there'.split(' '))
+
+        class MyComparator2(strutils.BasicStringComparator):
+
+            _list = ('no one in space can hear you scream'.split(' '))
+
+        x = MyComparator1('is')
+        y = MyComparator2('you')
+        try:
+            x > y
+            raise Exception("Comparing different comparators should fail")
+        except Exception as e:
+            self.assertTrue(isinstance(e, AssertionError))
