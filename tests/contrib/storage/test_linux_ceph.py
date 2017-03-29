@@ -1021,6 +1021,17 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, '_keyring_path')
     @patch.object(ceph_utils, 'create_keyring')
     @patch.object(ceph_utils, 'relation_ids')
+    def test_ensure_ceph_keyring_no_relation_but_key(self, rids,
+                                                     create, _path):
+        rids.return_value = []
+        self.assertTrue(ceph_utils.ensure_ceph_keyring(service='foo',
+                                                       key='testkey'))
+        create.assert_called_with(service='foo', key='testkey')
+        _path.assert_called_with('foo')
+
+    @patch.object(ceph_utils, '_keyring_path')
+    @patch.object(ceph_utils, 'create_keyring')
+    @patch.object(ceph_utils, 'relation_ids')
     @patch.object(ceph_utils, 'related_units')
     @patch.object(ceph_utils, 'relation_get')
     def test_ensure_ceph_keyring_with_data(self, rget, runits,
