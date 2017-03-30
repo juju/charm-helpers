@@ -60,6 +60,7 @@ from charmhelpers.core.host import (
     pwgen,
     lsb_release,
     CompareHostReleases,
+    is_container,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
@@ -1221,6 +1222,10 @@ class BindHostContext(OSContextGenerator):
             return {'bind_host': '0.0.0.0'}
 
 
+MAX_DEFAULT_WORKERS = 4
+DEFAULT_MULTIPLIER = 2
+
+
 class WorkerConfigContext(OSContextGenerator):
 
     @property
@@ -1232,10 +1237,19 @@ class WorkerConfigContext(OSContextGenerator):
             return psutil.NUM_CPUS
 
     def __call__(self):
-        multiplier = config('worker-multiplier') or 0
+        multiplier = config('worker-multiplier') or DEFAULT_MULTIPLIER
         count = int(self.num_cpus * multiplier)
         if multiplier > 0 and count == 0:
             count = 1
+
+        if config('worker-multiplier') is None and is_container():
+            # NOTE(jamespage): Limit unconfigured worker-multiplier
+            #                  to MAX_DEFAULT_WORKERS to avoid insane
+            #                  worker configuration in LXD containers
+            #                  on large servers
+            # Reference: https://pad.lv/1665270
+            count = min(count, MAX_DEFAULT_WORKERS)
+
         ctxt = {"workers": count}
         return ctxt
 
