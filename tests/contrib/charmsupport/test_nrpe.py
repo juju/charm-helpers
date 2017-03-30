@@ -337,7 +337,7 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         nrpe.add_init_service_checks(bill, services, 'testunit')
         mock_isdir.assert_called_with('/var/lib/nagios')
         self.patched['call'].assert_called_with(
-            ['/usr/local/lib/nagios/plugins/check_exit_status.pl', '-s',
+            ['/usr/local/lib/nagios/plugins/check_exit_status.pl', '-e', '-s',
              '/etc/init.d/haproxy', 'status'], stdout=f,
             stderr=subprocess.STDOUT)
 
