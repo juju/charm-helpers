@@ -49,9 +49,12 @@ DUMMY_ADDRESSES = {
     'eth1': {
         2: [{'addr': '10.5.0.1',
              'broadcast': '10.5.255.255',
-             'netmask': '255.255.0.0'}],
-        10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth1',
-              'netmask': 'ffff:ffff:ffff:ffff::'}],
+             'netmask': '255.255.0.0'},
+            {'addr': '10.6.0.2',
+             'broadcast': '10.6.0.255',
+             'netmask': '255.255.255.0'}],
+        3: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth1',
+             'netmask': 'ffff:ffff:ffff:ffff::'}],
         17: [{'addr': '3c:97:0e:8b:1c:f7',
               'broadcast': 'ff:ff:ff:ff:ff:ff'}]
     },
@@ -196,6 +199,10 @@ class IPTest(unittest.TestCase):
         # Assumes that there is nothing configured on 192.168.11.0/24
         self._test_get_address_in_network('192.168.10.58',
                                           '192.168.11.0/24 192.168.10.0/24')
+
+    def test_get_address_in_network_ipv4_secondary(self):
+        self._test_get_address_in_network('10.6.0.2',
+                                          '10.6.0.0/24')
 
     def test_get_address_in_network_ipv6(self):
         self._test_get_address_in_network('2a01:348:2f4:0:685e:5748:ae62:209f',
