@@ -111,11 +111,11 @@ def get_address_in_network(network, fallback=None, fatal=False):
         for iface in netifaces.interfaces():
             addresses = netifaces.ifaddresses(iface)
             if network.version == 4 and netifaces.AF_INET in addresses:
-                addr = addresses[netifaces.AF_INET][0]['addr']
-                netmask = addresses[netifaces.AF_INET][0]['netmask']
-                cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
-                if cidr in network:
-                    return str(cidr.ip)
+                for addr in addresses[netifaces.AF_INET]:
+                    cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
+                                                        addr['netmask']))
+                    if cidr in network:
+                        return str(cidr.ip)
 
             if network.version == 6 and netifaces.AF_INET6 in addresses:
                 for addr in addresses[netifaces.AF_INET6]:
