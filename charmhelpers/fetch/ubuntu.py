@@ -144,13 +144,6 @@ CLOUD_ARCHIVE_POCKETS = {
     'xenial-ocata/newton': 'xenial-proposed/ocata',
 }
 
-# The order of this list is very important. Handlers should be listed in from
-# least- to most-specific URL matching.
-FETCH_HANDLERS = (
-    'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
-    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
-    'charmhelpers.fetch.giturl.GitUrlFetchHandler',
-)
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 APT_NO_LOCK_RETRY_DELAY = 10  # Wait 10 seconds between apt lock checks.
@@ -559,25 +552,6 @@ def install_from_config(config_var_name):
     charm_config = config()
     source = charm_config[config_var_name]
     return install_remote(source)
-
-
-def plugins(fetch_handlers=None):
-    if not fetch_handlers:
-        fetch_handlers = FETCH_HANDLERS
-    plugin_list = []
-    for handler_name in fetch_handlers:
-        package, classname = handler_name.rsplit('.', 1)
-        try:
-            handler_class = getattr(
-                importlib.import_module(package),
-                classname)
-            plugin_list.append(handler_class())
-        except NotImplementedError:
-            # Skip missing plugins so that they can be ommitted from
-            # installation if desired
-            log("FetchHandler {} not found, skipping plugin".format(
-                handler_name))
-    return plugin_list
 
 
 def _run_apt_command(cmd, fatal=False):
