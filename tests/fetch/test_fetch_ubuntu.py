@@ -2,7 +2,6 @@ import six
 import subprocess
 import io
 import os
-import yaml
 import tempfile
 
 from tests.helpers import patch_open
@@ -431,71 +430,6 @@ class FetchTest(TestCase):
         source = "distro"
         # distro is a noop but test validate no exception is thrown
         fetch.add_source(source=source)
-
-    @patch('charmhelpers.fetch.ubuntu.log')
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_single_source(self, add_source, config, log):
-        config.side_effect = ['source', 'key']
-        fetch.configure_sources()
-        add_source.assert_called_with('source', 'key')
-
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_null_source(self, add_source, config):
-        config.side_effect = [None, None]
-        fetch.configure_sources()
-        self.assertEqual(add_source.call_count, 0)
-
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_empty_source(self, add_source, config):
-        config.side_effect = ['', '']
-        fetch.configure_sources()
-        self.assertEqual(add_source.call_count, 0)
-
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_single_source_no_key(self, add_source, config):
-        config.side_effect = ['source', None]
-        fetch.configure_sources()
-        add_source.assert_called_with('source', None)
-
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_multiple_sources(self, add_source, config):
-        sources = ["sourcea", "sourceb"]
-        keys = ["keya", None]
-        config.side_effect = [
-            yaml.dump(sources),
-            yaml.dump(keys)
-        ]
-        fetch.configure_sources()
-        add_source.assert_has_calls([
-            call('sourcea', 'keya'),
-            call('sourceb', None)
-        ])
-
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_missing_keys(self, add_source, config):
-        sources = ["sourcea", "sourceb"]
-        keys = ["keya"]  # Second key is missing
-        config.side_effect = [
-            yaml.dump(sources),
-            yaml.dump(keys)
-        ]
-        self.assertRaises(fetch.SourceConfigError, fetch.configure_sources)
-
-    @patch('charmhelpers.fetch.ubuntu.apt_update')
-    @patch.object(fetch, 'config')
-    @patch.object(fetch, 'add_source')
-    def test_configure_sources_update_called_ubuntu(self, add_source, config,
-                                                    apt_update):
-        config.side_effect = ['source', 'key']
-        fetch.configure_sources(update=True)
-        add_source.assert_called_with('source', 'key')
-        self.assertTrue(apt_update.called)
 
 
 class AptTests(TestCase):
