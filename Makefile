@@ -41,7 +41,6 @@ userinstall:
 	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
-	.venv/bin/pip install -U distribute
 	.venv/bin/pip install -I -r test_requirements.txt
 	.venv/bin/pip install bzr
 
@@ -49,7 +48,6 @@ userinstall:
 	sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt
 	virtualenv .venv3 --python=python3 --system-site-packages
 	.venv3/bin/pip install -U pip
-	.venv3/bin/pip install -U distribute
 	.venv3/bin/pip install -I -r test_requirements.txt
 
 # Note we don't even attempt to run tests if lint isn't passing.

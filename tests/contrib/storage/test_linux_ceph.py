@@ -1067,17 +1067,26 @@ class CephUtilsTests(TestCase):
             b'ceph version 0.67.4 (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
         self.assertEquals(ceph_utils.ceph_version(), '0.67.4')
 
+    @patch.object(ceph_utils, 'service_name')
     @patch.object(ceph_utils, 'uuid')
-    def test_ceph_broker_rq_class(self, uuid):
+    def test_ceph_broker_rq_class(self, uuid, service_name):
+        service_name.return_value = 'service_test'
         uuid.uuid1.return_value = 'uuid'
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('pool1', replica_count=1)
         rq.add_op_create_pool('pool2')
+        rq.add_op_create_pool('pool3', group='test')
+        rq.add_op_request_access_to_group(name='test')
+        rq.add_op_request_access_to_group(name='objects',
+                                          key_name='test')
         expected = {
             'api-version': 1,
             'request-id': 'uuid',
             'ops': [{'op': 'create-pool', 'name': 'pool1', 'replicas': 1},
-                    {'op': 'create-pool', 'name': 'pool2', 'replicas': 3}]
+                    {'op': 'create-pool', 'name': 'pool2', 'replicas': 3},
+                    {'op': 'create-pool', 'name': 'pool3', 'replicas': 3, 'group': 'test'},
+                    {'op': 'add-permissions-to-key', 'group': 'test', 'name': 'service_test'},
+                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'}]
         }
         request_dict = json.loads(rq.request)
         for key in ['api-version', 'request-id']:

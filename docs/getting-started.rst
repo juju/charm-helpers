@@ -9,7 +9,7 @@ page.
 Installing Charm Tools
 ----------------------
 
-First, follow `these instructions <https://juju.ubuntu.com/docs/tools-charm-tools.html>`_
+First, follow `these instructions <https://jujucharms.com/docs/stable/tools-charm-tools.html>`_
 to install the ``charm-tools`` package for your platform.
 
 Creating a New Charm

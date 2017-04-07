@@ -17,6 +17,7 @@ import sys
 import platform
 import os
 import glob
+import six
 
 # from string import upper
 
@@ -50,7 +51,10 @@ try:
     import MySQLdb
 except ImportError:
     apt_update(fatal=True)
-    apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
+    if six.PY2:
+        apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
+    else:
+        apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
     import MySQLdb
 
 
@@ -135,6 +139,13 @@ class MySQLHelper(object):
             cursor.execute("DROP FROM mysql.user WHERE user='{}' "
                            "AND HOST='{}'".format(db_user,
                                                   remote_ip))
+        finally:
+            cursor.close()
+
+    def flush_priviledges(self):
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("FLUSH PRIVILEGES")
         finally:
             cursor.close()
 
@@ -319,6 +330,7 @@ class MySQLHelper(object):
                 self.create_grant(database, username, remote_ip, password)
             else:
                 self.create_admin_grant(username, remote_ip, password)
+            self.flush_priviledges()
 
         return password
 
@@ -330,6 +342,22 @@ class PerconaClusterHelper(object):
 
     DEFAULT_PAGE_SIZE = 16 * 1024 * 1024
     DEFAULT_INNODB_BUFFER_FACTOR = 0.50
+    DEFAULT_INNODB_BUFFER_SIZE_MAX = 512 * 1024 * 1024
+
+    # Validation and lookups for InnoDB configuration
+    INNODB_VALID_BUFFERING_VALUES = [
+        'none',
+        'inserts',
+        'deletes',
+        'changes',
+        'purges',
+        'all'
+    ]
+    INNODB_FLUSH_CONFIG_VALUES = {
+        'fast': 2,
+        'safest': 1,
+        'unsafe': 0,
+    }
 
     def human_to_bytes(self, human):
         """Convert human readable configuration options to bytes."""
@@ -394,7 +422,18 @@ class PerconaClusterHelper(object):
             mysql_config['wait_timeout'] = config['wait-timeout']
 
         if 'innodb-flush-log-at-trx-commit' in config:
-            mysql_config['innodb_flush_log_at_trx_commit'] = config['innodb-flush-log-at-trx-commit']
+            mysql_config['innodb_flush_log_at_trx_commit'] = \
+                config['innodb-flush-log-at-trx-commit']
+        elif 'tuning-level' in config:
+            mysql_config['innodb_flush_log_at_trx_commit'] = \
+                self.INNODB_FLUSH_CONFIG_VALUES.get(config['tuning-level'], 1)
+
+        if ('innodb-change-buffering' in config and
+                config['innodb-change-buffering'] in self.INNODB_VALID_BUFFERING_VALUES):
+            mysql_config['innodb_change_buffering'] = config['innodb-change-buffering']
+
+        if 'innodb-io-capacity' in config:
+            mysql_config['innodb_io_capacity'] = config['innodb-io-capacity']
 
         # Set a sane default key_buffer size
         mysql_config['key_buffer'] = self.human_to_bytes('32M')
@@ -412,8 +451,14 @@ class PerconaClusterHelper(object):
             innodb_buffer_pool_size = self.human_to_bytes(
                 dataset_bytes)
         else:
-            innodb_buffer_pool_size = int(
-                total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR)
+            # NOTE(jamespage): pick the smallest of 50% of RAM or 512MB
+            #                  to ensure that deployments in containers
+            #                  without constraints don't try to consume
+            #                  silly amounts of memory.
+            innodb_buffer_pool_size = min(
+                int(total_memory * self.DEFAULT_INNODB_BUFFER_FACTOR),
+                self.DEFAULT_INNODB_BUFFER_SIZE_MAX
+            )
 
         if innodb_buffer_pool_size > total_memory:
             log("innodb_buffer_pool_size; {} is greater than system available memory:{}".format(

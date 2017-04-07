@@ -113,3 +113,16 @@ class HATests(unittest.TestCase):
         lsb_release.return_value = {'DISTRIB_RELEASE': '12.04'}
         self.assertRaises(ha.DNSHAException,
                           lambda: ha.assert_charm_supports_dns_ha())
+
+    def tests_expect_ha(self):
+        self.conf = {'vip': None,
+                     'dns-ha': None}
+        self.assertFalse(ha.expect_ha())
+
+        self.conf = {'vip': '10.0.0.1',
+                     'dns-ha': None}
+        self.assertTrue(ha.expect_ha())
+
+        self.conf = {'vip': None,
+                     'dns-ha': True}
+        self.assertTrue(ha.expect_ha())

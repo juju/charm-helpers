@@ -50,23 +50,20 @@ class MysqlTests(unittest.TestCase):
         units = helper.get_allowed_units('dbA', 'userA')
 
         calls = [mock.call('dbA', 'userA', 'hostA'),
-                 mock.call().__nonzero__(),
                  mock.call('dbA', 'userA', '10.0.0.2'),
-                 mock.call().__nonzero__(),
                  mock.call('dbA', 'userA', '2001:db8:1::2'),
-                 mock.call().__nonzero__(),
-                 mock.call('dbA', 'userA', '10.0.0.3'),
-                 mock.call().__nonzero__()]
+                 mock.call('dbA', 'userA', '10.0.0.3')]
 
-        helper.grant_exists.assert_has_calls(calls)
+        helper.grant_exists.assert_has_calls(calls, any_order=True)
         self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2']))
 
+    @mock.patch('charmhelpers.contrib.network.ip.ns_query')
     @mock.patch('charmhelpers.contrib.network.ip.socket')
     @mock.patch.object(mysql, 'unit_get')
     @mock.patch.object(mysql, 'config_get')
     @mock.patch.object(mysql, 'log')
     def test_normalize_address(self, mock_log, mock_config_get, mock_unit_get,
-                               mock_socket):
+                               mock_socket, mock_ns_query):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         # prefer-ipv6
         mock_config_get.return_value = False
@@ -88,6 +85,7 @@ class MysqlTests(unittest.TestCase):
         mock_config_get.assert_called_with('prefer-ipv6')
 
         mock_socket.gethostbyname.side_effect = Exception
+        mock_ns_query.return_value = None
         out = helper.normalize_address('unresolvable')
         self.assertEqual('unresolvable', out)
         mock_config_get.assert_called_with('prefer-ipv6')
@@ -187,7 +185,8 @@ class MysqlTests(unittest.TestCase):
                      mock.call('userA.passwd', '2'),
                      mock.call('mysql-userA.passwd', '3')]
 
-            mock_peer_store.assert_has_calls(calls)
+            mock_peer_store.assert_has_calls(calls,
+                                             any_order=True)
         finally:
             os.rmdir(tmpdir)
 
@@ -231,8 +230,7 @@ class PerconaTests(unittest.TestCase):
 
         self.assertEqual(
             mysql_config.get('innodb_buffer_pool_size'),
-            int(helper.human_to_bytes(mem.return_value) *
-                helper.DEFAULT_INNODB_BUFFER_FACTOR))
+            helper.DEFAULT_INNODB_BUFFER_SIZE_MAX)
 
     @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'config_get')
@@ -248,7 +246,25 @@ class PerconaTests(unittest.TestCase):
         mysql_config = helper.parse_config()
 
         self.assertEqual(
-            mysql_config.get('innodb-buffer-pool-size'),
+            mysql_config.get('innodb_buffer_pool_size'),
+            helper.DEFAULT_INNODB_BUFFER_SIZE_MAX)
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_innodb_buffer_unset_small(self, mog,
+                                                    config, mem):
+        mem.return_value = "512M"
+        config.return_value = {
+            'innodb-buffer-pool-size': None,
+            'dataset-size': None,
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('innodb_buffer_pool_size'),
             int(helper.human_to_bytes(mem.return_value) *
                 helper.DEFAULT_INNODB_BUFFER_FACTOR))
 
@@ -265,7 +281,7 @@ class PerconaTests(unittest.TestCase):
         mysql_config = helper.parse_config()
 
         self.assertEqual(
-            mysql_config.get('innodb-buffer-pool-size'),
+            mysql_config.get('innodb_buffer_pool_size'),
             int(helper.human_to_bytes("10G")))
 
     @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
@@ -285,3 +301,97 @@ class PerconaTests(unittest.TestCase):
         self.assertEqual(
             mysql_config.get('wait_timeout'),
             timeout)
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_tuning_level(self, mog,
+                                       config, mem):
+        mem.return_value = "512M"
+        config.return_value = {
+            'tuning-level': 'safest',
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('innodb_flush_log_at_trx_commit'),
+            1
+        )
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_tuning_level_fast(self, mog,
+                                            config, mem):
+        mem.return_value = "512M"
+        config.return_value = {
+            'tuning-level': 'fast',
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('innodb_flush_log_at_trx_commit'),
+            2
+        )
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_tuning_level_unsafe(self, mog,
+                                              config, mem):
+        mem.return_value = "512M"
+        config.return_value = {
+            'tuning-level': 'unsafe',
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('innodb_flush_log_at_trx_commit'),
+            0
+        )
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_innodb_valid_values(self, mog,
+                                              config, mem):
+        mem.return_value = "512M"
+        config.return_value = {
+            'innodb-change-buffering': 'all',
+            'innodb-io-capacity': 100,
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertEqual(
+            mysql_config.get('innodb_change_buffering'),
+            'all'
+        )
+
+        self.assertEqual(
+            mysql_config.get('innodb_io_capacity'),
+            100
+        )
+
+    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql, 'log')
+    def test_parse_config_innodb_invalid_values(self, mog,
+                                                config, mem):
+        mem.return_value = "512M"
+        config.return_value = {
+            'innodb-change-buffering': 'invalid',
+        }
+
+        helper = mysql.PerconaClusterHelper()
+        mysql_config = helper.parse_config()
+
+        self.assertTrue('innodb_change_buffering' not in mysql_config)
+        self.assertTrue('innodb_io_capacity' not in mysql_config)
