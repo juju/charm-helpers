@@ -275,6 +275,74 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
     }
 }
 
+CEPH_REL_WITH_PUBLIC_ADDR_PORT = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph-public-address': '192.168.1.10:1234',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph-public-address': '192.168.1.11:4321',
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
+CEPH_REL_WITH_PUBLIC_IPv6_ADDR = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph-public-address': '2001:5c0:9168::1',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph-public-address': '2001:5c0:9168::2',
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
+CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph-public-address': '[2001:5c0:9168::1]:1234',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph-public-address': '[2001:5c0:9168::2]:4321',
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
+CEPH_REL_WITH_MULTI_PUBLIC_ADDR = {
+    'ceph:0': {
+        'ceph/0': {
+            'ceph-public-address': '192.168.1.10 192.168.1.20',
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+        'ceph/1': {
+            'ceph-public-address': '192.168.1.11 192.168.1.21',
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+        },
+    }
+}
+
 IDENTITY_RELATION_NO_CERT = {
     'identity-service:0': {
         'keystone/0': {
@@ -376,6 +444,15 @@ nova-compute:
                 - [nova-key4, value4]
 """
 
+NOVA_SUB_CONFIG3 = """
+nova-compute:
+    /etc/nova/nova.conf:
+        sections:
+            DEFAULT:
+                - [nova-key5, value5]
+                - [nova-key6, value6]
+"""
+
 CINDER_SUB_CONFIG1 = """
 cinder:
     /etc/cinder/cinder.conf:
@@ -439,6 +516,12 @@ SUB_CONFIG_RELATION2 = {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG2)),
         },
+    },
+    'neutron-plugin:4': {
+        'neutron-other-plugin/0': {
+            'private-address': 'nova_node1',
+            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG3)),
+        },
     }
 }
 
@@ -498,7 +581,6 @@ TO_PATCH = [
     'get_netmask_for_address',
     'local_unit',
     'get_ipv6_addr',
-    'format_ipv6_addr',
     'mkdir',
     'write_file',
     'get_host_ip',
@@ -555,7 +637,6 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = ['foo:0']
         self.related_units.return_value = ['foo/0']
         self.local_unit.return_value = 'localunit'
-        self.format_ipv6_addr.return_value = None
         self.get_host_ip.side_effect = lambda hostname: hostname
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
@@ -689,13 +770,14 @@ class ContextTests(unittest.TestCase):
                      'database_host': 'bar',
                      'database_type': 'mysql'})
 
-    def test_shared_db_context_with_ipv6(self):
+    @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
+    def test_shared_db_context_with_ipv6(self, format_ipv6_addr):
         '''Test shared-db context with ipv6'''
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
         relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
         self.relation_get.side_effect = relation.get
-        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        format_ipv6_addr.return_value = '[2001:db8:1::1]'
         result = shared_db()
         self.assertIn(
             call(rid='foo:0', unit='foo/0'),
@@ -888,11 +970,12 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_ipv6(self):
+    @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
+    def test_identity_service_context_with_ipv6(self, format_ipv6_addr):
         '''Test identity-service context with ipv6'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
         self.relation_get.side_effect = relation.get
-        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        format_ipv6_addr.return_value = '[2001:db8:1::1]'
         identity_service = context.IdentityServiceContext()
         result = identity_service()
         expected = {
@@ -931,7 +1014,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo'
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -948,7 +1032,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
-            'rabbitmq_virtual_host': 'foo'
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -969,6 +1054,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbit_ssl_ca': ssl_dir + '/rabbit-client-ca.pem',
             'rabbitmq_ha_queues': True,
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
         _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'w')
         self.assertEquals(result, expected)
@@ -990,6 +1076,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbit_ssl_ca': 'cert',
             'rabbitmq_ha_queues': True,
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1008,6 +1095,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@10.0.0.1:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1027,6 +1115,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': 'rabbithost1,rabbithost2',
+            'transport_url': 'rabbit://adam:foobar@rabbithost1:5672,adam:foobar@rabbithost2:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1051,14 +1140,15 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         self.assertRaises(context.OSContextError, amqp)
 
-    def test_amqp_context_with_ipv6(self):
+    @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
+    def test_amqp_context_with_ipv6(self, format_ipv6_addr):
         '''Test amqp context with ipv6'''
         relation_data = copy(AMQP_AA_RELATION)
         relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.relation_units
-        self.format_ipv6_addr.return_value = '[2001:db8:1::1]'
+        format_ipv6_addr.return_value = '[2001:db8:1::1]'
         self.config.return_value = AMQP_CONFIG
         amqp = context.AMQPContext()
         result = amqp()
@@ -1068,6 +1158,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
+            'transport_url': 'rabbit://adam:foobar@[2001:db8:1::1]:5672,adam:foobar@[2001:db8:1::1]:5672/foo'
         }
         self.assertEquals(result, expected)
 
@@ -1089,6 +1180,7 @@ class ContextTests(unittest.TestCase):
                 'rabbit_retry_backoff': '1',
                 'rabbit_retry_interval': '1'
             },
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
         self.assertEquals(result, expected)
@@ -1216,6 +1308,131 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         expected = {
             'mon_hosts': '192.168.1.10 192.168.1.11',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_public_addr_and_port(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_PUBLIC_ADDR_PORT)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.10:1234 192.168.1.11:4321',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_public_ipv6_addr(self, ensure_packages, mkdir,
+                                                isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_PUBLIC_IPv6_ADDR)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '[2001:5c0:9168::1] [2001:5c0:9168::2]',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_public_ipv6_addr_port(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(
+            relation_data=CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '[2001:5c0:9168::1]:1234 [2001:5c0:9168::2]:4321',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_multi_public_addr(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_MULTI_PUBLIC_ADDR)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': '192.168.1.10 192.168.1.11 192.168.1.20 192.168.1.21',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
@@ -2332,7 +2549,9 @@ class ContextTests(unittest.TestCase):
                     ['nova-key1', 'value1'],
                     ['nova-key2', 'value2'],
                     ['nova-key3', 'value3'],
-                    ['nova-key4', 'value4']]
+                    ['nova-key4', 'value4'],
+                    ['nova-key5', 'value5'],
+                    ['nova-key6', 'value6']]
             }}
         )
 

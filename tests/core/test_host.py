@@ -9,7 +9,7 @@ import apt_pkg
 import imp
 
 from charmhelpers import osplatform
-from mock import patch, call
+from mock import patch, call, mock_open
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
@@ -142,6 +142,14 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_start(service_name))
 
         service.assert_called_with('start', service_name)
+
+    @patch.object(host, 'service')
+    def test_starts_a_service_with_parms(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        self.assertTrue(host.service_start(service_name, id=4))
+
+        service.assert_called_with('start', service_name, id=4)
 
     @patch.object(host, 'service')
     def test_stops_a_service(self, service):
@@ -537,6 +545,30 @@ class HelpersTest(TestCase):
         os.path.exists.side_effect = [False, True]
         self.assertFalse(host.service_running('keystone'))
         service.assert_called_with('status', 'keystone')
+
+    @patch('subprocess.call')
+    @patch.object(host, 'init_is_systemd')
+    def test_service_start_with_params(self, systemd, call):
+        systemd.return_value = False
+        call.return_value = 0
+        self.assertTrue(host.service_start('ceph-osd', id=4))
+        call.assert_called_with(['service', 'ceph-osd', 'start', 'id=4'])
+
+    @patch('subprocess.call')
+    @patch.object(host, 'init_is_systemd')
+    def test_service_stop_with_params(self, systemd, call):
+        systemd.return_value = False
+        call.return_value = 0
+        self.assertTrue(host.service_stop('ceph-osd', id=4))
+        call.assert_called_with(['service', 'ceph-osd', 'stop', 'id=4'])
+
+    @patch('subprocess.call')
+    @patch.object(host, 'init_is_systemd')
+    def test_service_start_systemd_with_params(self, systemd, call):
+        systemd.return_value = True
+        call.return_value = 0
+        self.assertTrue(host.service_start('ceph-osd', id=4))
+        call.assert_called_with(['systemctl', 'start', 'ceph-osd'])
 
     @patch('grp.getgrnam')
     @patch('pwd.getpwnam')
@@ -1672,6 +1704,20 @@ class HelpersTest(TestCase):
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
 
+    @patch.object(host.os, 'stat')
+    @patch.object(host.pwd, 'getpwuid')
+    @patch.object(host.grp, 'getgrgid')
+    @patch('posix.stat_result')
+    def test_owner(self, stat_result_, getgrgid_, getpwuid_, stat_):
+        getgrgid_.return_value = ['testgrp']
+        getpwuid_.return_value = ['testuser']
+        stat_.return_value = stat_result_()
+
+        user, group = host.owner('/some/path')
+        stat_.assert_called_once_with('/some/path')
+        self.assertEqual('testuser', user)
+        self.assertEqual('testgrp', group)
+
     def test_get_total_ram(self):
         raw = dedent('''\
                      MemFree:          183868 kB
@@ -1730,3 +1776,28 @@ class HelpersTest(TestCase):
         mock_os.path.exists.return_value = False
         self.assertFalse(host.is_container())
         mock_os.path.exists.assert_called_with('/run/container_type')
+
+    def test_updatedb(self):
+        updatedb_text = 'PRUNEPATHS="/tmp"'
+        self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
+                         'PRUNEPATHS="/tmp /srv/node"')
+
+    def test_no_change_updatedb(self):
+        updatedb_text = 'PRUNEPATHS="/tmp /srv/node"'
+        self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
+                         updatedb_text)
+
+    def test_no_prunepaths(self):
+        updatedb_text = 'PRUNE_BIND_MOUNTS="yes"'
+        self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
+                         updatedb_text)
+
+    def test_write_updatedb(self):
+        _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
+        with patch('charmhelpers.core.host.open', _open, create=True):
+            host.add_to_updatedb_prunepath("/tmp/test")
+        handle = _open()
+
+        self.assertTrue(handle.read.call_count == 1)
+        self.assertTrue(handle.seek.call_count == 1)
+        handle.write.assert_called_once_with('PRUNEPATHS="/tmp /srv/node /tmp/test"')

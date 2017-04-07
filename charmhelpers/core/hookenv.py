@@ -1035,3 +1035,34 @@ def network_get_primary_address(binding):
     '''
     cmd = ['network-get', '--primary-address', binding]
     return subprocess.check_output(cmd).decode('UTF-8').strip()
+
+
+def add_metric(*args, **kwargs):
+    """Add metric values. Values may be expressed with keyword arguments. For
+    metric names containing dashes, these may be expressed as one or more
+    'key=value' positional arguments. May only be called from the collect-metrics
+    hook."""
+    _args = ['add-metric']
+    _kvpairs = []
+    _kvpairs.extend(args)
+    _kvpairs.extend(['{}={}'.format(k, v) for k, v in kwargs.items()])
+    _args.extend(sorted(_kvpairs))
+    try:
+        subprocess.check_call(_args)
+        return
+    except EnvironmentError as e:
+        if e.errno != errno.ENOENT:
+            raise
+    log_message = 'add-metric failed: {}'.format(' '.join(_kvpairs))
+    log(log_message, level='INFO')
+
+
+def meter_status():
+    """Get the meter status, if running in the meter-status-changed hook."""
+    return os.environ.get('JUJU_METER_STATUS')
+
+
+def meter_info():
+    """Get the meter status information, if running in the meter-status-changed
+    hook."""
+    return os.environ.get('JUJU_METER_INFO')

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import mock
+import six
+
 from unittest import TestCase
 from charmhelpers.contrib.python import packages
-
-import mock
 
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
@@ -169,5 +170,8 @@ class PipTestCase(TestCase):
         """
         join.return_value = 'joined-path'
         packages.pip_create_virtualenv()
-        self.apt_install.assert_called_with('python-virtualenv')
+        if six.PY2:
+            self.apt_install.assert_called_with('python-virtualenv')
+        else:
+            self.apt_install.assert_called_with('python3-virtualenv')
         check_call.assert_called_with(['virtualenv', 'joined-path'])
