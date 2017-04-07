@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from collections import OrderedDict
-import importlib
 import os
 import platform
 import re
@@ -21,17 +20,15 @@ import six
 import time
 import subprocess
 from tempfile import NamedTemporaryFile
-from yaml import safe_load
 
 from charmhelpers.core.host import (
     lsb_release
 )
 from charmhelpers.core.hookenv import (
-    config,
     log,
     DEBUG,
 )
-from charmhelpers.fetch import SourceConfigError, GPGKeyError, UnhandledSource
+from charmhelpers.fetch import SourceConfigError, GPGKeyError
 
 PROPOSED_POCKET = (
     "# Proposed\n"
@@ -470,88 +467,6 @@ def _verify_is_ubuntu_rel(release, os_release):
         raise SourceConfigError(
             'Invalid Cloud Archive release specified: {}-{} on this Ubuntu'
             'version ({})'.format(release, os_release, ubuntu_rel))
-
-
-def configure_sources(update=False,
-                      sources_var='install_sources',
-                      keys_var='install_keys'):
-    """
-    Configure multiple sources from charm configuration.
-
-    The lists are encoded as yaml fragments in the configuration.
-    The frament needs to be included as a string. Sources and their
-    corresponding keys are of the types supported by add_source().
-
-    Example config:
-        install_sources: |
-          - "ppa:foo"
-          - "http://example.com/repo precise main"
-        install_keys: |
-          - null
-          - "a1b2c3d4"
-
-    Note that 'null' (a.k.a. None) should not be quoted.
-    """
-    sources = safe_load((config(sources_var) or '').strip()) or []
-    keys = safe_load((config(keys_var) or '').strip()) or None
-
-    if isinstance(sources, six.string_types):
-        sources = [sources]
-
-    if keys is None:
-        for source in sources:
-            add_source(source, None)
-    else:
-        if isinstance(keys, six.string_types):
-            keys = [keys]
-
-        if len(sources) != len(keys):
-            raise SourceConfigError(
-                'Install sources and keys lists are different lengths')
-        for source, key in zip(sources, keys):
-            add_source(source, key)
-    if update:
-        apt_update(fatal=True)
-
-
-def install_remote(source, *args, **kwargs):
-    """
-    Install a file tree from a remote source
-
-    The specified source should be a url of the form:
-        scheme://[host]/path[#[option=value][&...]]
-
-    Schemes supported are based on this modules submodules.
-    Options supported are submodule-specific.
-    Additional arguments are passed through to the submodule.
-
-    For example::
-
-        dest = install_remote('http://example.com/archive.tgz',
-                              checksum='deadbeef',
-                              hash_type='sha1')
-
-    This will download `archive.tgz`, validate it using SHA1 and, if
-    the file is ok, extract it and return the directory in which it
-    was extracted.  If the checksum fails, it will raise
-    :class:`charmhelpers.core.host.ChecksumError`.
-    """
-    # We ONLY check for True here because can_handle may return a string
-    # explaining why it can't handle a given source.
-    handlers = [h for h in plugins() if h.can_handle(source) is True]
-    for handler in handlers:
-        try:
-            return handler.install(source, *args, **kwargs)
-        except UnhandledSource as e:
-            log('Install source attempt unsuccessful: {}'.format(e),
-                level='WARNING')
-    raise UnhandledSource("No handler found for source {}".format(source))
-
-
-def install_from_config(config_var_name):
-    charm_config = config()
-    source = charm_config[config_var_name]
-    return install_remote(source)
 
 
 def _run_apt_command(cmd, fatal=False):
