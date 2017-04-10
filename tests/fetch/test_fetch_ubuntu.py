@@ -169,6 +169,29 @@ class FetchTest(TestCase):
         check_call.assert_called_with(
             ['add-apt-repository', '--yes', source])
 
+    @patch("charmhelpers.fetch.ubuntu.log")
+    @patch('subprocess.check_call')
+    @patch('time.sleep')
+    def test_add_source_ppa_retries_30_times(self, sleep, check_call, log):
+        self.call_count = 0
+
+        def side_effect(*args, **kwargs):
+            """Raise an 3 times, then return 0 """
+            self.call_count += 1
+            if self.call_count <= fetch.CMD_RETRY_COUNT:
+                raise subprocess.CalledProcessError(
+                    returncode=1, cmd="some add-apt-repository command")
+            else:
+                return 0
+        check_call.side_effect = side_effect
+
+        source = "ppa:test-ppa"
+        fetch.add_source(source=source)
+        check_call.assert_called_with(
+            ['add-apt-repository', '--yes', source])
+        sleep.assert_called_with(10)
+        self.assertTrue(fetch.CMD_RETRY_COUNT, sleep.call_count)
+
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch('subprocess.check_call')
     def test_add_source_http_ubuntu(self, check_call, log):
@@ -214,6 +237,7 @@ class FetchTest(TestCase):
     def test_add_source_http_and_key_id(self, check_call, log):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key_id = "akey"
+        check_call.return_value = 0  # Successful exit code
         fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
@@ -226,6 +250,7 @@ class FetchTest(TestCase):
     def test_add_source_https_and_key_id(self, check_call, log):
         source = "https://USER:PASS@private-ppa.launchpad.net/project/awesome"
         key_id = "GPGPGP"
+        check_call.return_value = 0  # Success from both calls
         fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
@@ -243,6 +268,7 @@ class FetchTest(TestCase):
             -----END PGP PUBLIC KEY BLOCK-----
             '''
         with patch('subprocess.check_call') as check_call:
+            check_call.return_value = 0
             fetch.add_source(source=source, key=key)
             check_call.assert_any_call(['add-apt-repository', '--yes', source])
             check_call.assert_any_call(['apt-key', 'add', ANY])
@@ -334,11 +360,10 @@ class FetchTest(TestCase):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key_id = "akey"
         fetch.add_source(source=source, key=key_id)
-        check_call.assert_has_calls([
-            call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'adv', '--keyserver',
-                  'hkp://keyserver.ubuntu.com:80', '--recv-keys', key_id])
-        ])
+        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call([
+            'apt-key', 'adv', '--keyserver',
+            'hkp://keyserver.ubuntu.com:80', '--recv-keys', key_id])
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch('subprocess.check_call')
@@ -346,11 +371,10 @@ class FetchTest(TestCase):
         source = "https://USER:PASS@private-ppa.launchpad.net/project/awesome"
         key_id = "GPGPGP"
         fetch.add_source(source=source, key=key_id)
-        check_call.assert_has_calls([
-            call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'adv', '--keyserver',
-                  'hkp://keyserver.ubuntu.com:80', '--recv-keys', key_id])
-        ])
+        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call([
+            'apt-key', 'adv', '--keyserver',
+            'hkp://keyserver.ubuntu.com:80', '--recv-keys', key_id])
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch('subprocess.check_call')
@@ -361,11 +385,9 @@ class FetchTest(TestCase):
             [...]
             -----END PGP PUBLIC KEY BLOCK-----
             '''
-
-        with patch('subprocess.check_call') as check_call:
-            fetch.add_source(source=source, key=key)
-            check_call.assert_any_call(['add-apt-repository', '--yes', source])
-            check_call.assert_any_call(['apt-key', 'add', ANY])
+        fetch.add_source(source=source, key=key)
+        check_call.assert_any_call(['add-apt-repository', '--yes', source])
+        check_call.assert_any_call(['apt-key', 'add', ANY])
 
     @patch('charmhelpers.fetch.ubuntu.log')
     def test_configure_bad_install_source(self, log):
@@ -416,8 +438,8 @@ class FetchTest(TestCase):
             self.fail("add_source('cloud:foo-bar') should fail")
         except fetch.SourceConfigError as e:
             _e = ('Invalid Cloud Archive release specified: foo-bar'
-                  ' on this Ubuntuversion (xenial)')
-            self.assertEqual(str(e), _e)
+                  ' on this Ubuntuversion')
+            self.assertTrue(str(e).startswith(_e))
 
     @patch('charmhelpers.fetch.ubuntu.log')
     def test_add_unparsable_source(self, log_):
