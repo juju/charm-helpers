@@ -1,8 +1,9 @@
 from mock import patch, call
-from testtools import TestCase
+
 
 from tests.helpers import patch_open
 
+import unittest
 import charmhelpers.contrib.network.ovs as ovs
 
 
@@ -105,38 +106,48 @@ h59KJJyg
 -----END CERTIFICATE-----'''
 
 BAD_CERT = ''' NO MARKERS '''
+TO_PATCH = [
+    "apt_install",
+    "log",
+]
 
 
-class OVSHelpersTest(TestCase):
+class OVSHelpersTest(unittest.TestCase):
 
-    @patch.object(ovs, 'log')
+    def setUp(self):
+        for m in TO_PATCH:
+            setattr(self, m, self._patch(m))
+
+    def _patch(self, method):
+        _m = patch('charmhelpers.contrib.network.ovs.' + method)
+        mock = _m.start()
+        self.addCleanup(_m.stop)
+        return mock
+
     @patch('subprocess.check_call')
-    def test_add_bridge(self, check_call, log):
+    def test_add_bridge(self, check_call):
         ovs.add_bridge('test')
         check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
                                        "add-br", 'test'])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
-    def test_add_bridge_datapath_type(self, check_call, log):
+    def test_add_bridge_datapath_type(self, check_call):
         ovs.add_bridge('test', datapath_type='netdev')
         check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
                                        "add-br", 'test', "--", "set",
                                        "bridge", "test", "datapath_type=netdev"])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
-    def test_del_bridge(self, check_call, log):
+    def test_del_bridge(self, check_call):
         ovs.del_bridge('test')
         check_call.assert_called_with(["ovs-vsctl", "--", "--if-exists",
                                        "del-br", 'test'])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
-    def test_add_bridge_port(self, check_call, log):
+    def test_add_bridge_port(self, check_call):
         ovs.add_bridge_port('test', 'eth1')
         check_call.assert_has_calls([
             call(["ovs-vsctl", "--", "--may-exist", "add-port",
@@ -144,11 +155,10 @@ class OVSHelpersTest(TestCase):
             call(['ip', 'link', 'set', 'eth1', 'up']),
             call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
         ])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
-    def test_add_bridge_port_promisc(self, check_call, log):
+    def test_add_bridge_port_promisc(self, check_call):
         ovs.add_bridge_port('test', 'eth1', promisc=True)
         check_call.assert_has_calls([
             call(["ovs-vsctl", "--", "--may-exist", "add-port",
@@ -156,11 +166,10 @@ class OVSHelpersTest(TestCase):
             call(['ip', 'link', 'set', 'eth1', 'up']),
             call(['ip', 'link', 'set', 'eth1', 'promisc', 'on'])
         ])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
-    def test_del_bridge_port(self, check_call, log):
+    def test_del_bridge_port(self, check_call):
         ovs.del_bridge_port('test', 'eth1')
         check_call.assert_has_calls([
             call(["ovs-vsctl", "--", "--if-exists", "del-port",
@@ -168,40 +177,55 @@ class OVSHelpersTest(TestCase):
             call(['ip', 'link', 'set', 'eth1', 'down']),
             call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
         ])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('subprocess.check_call')
-    def test_set_manager(self, check_call, log):
+    def test_add_ovsbridge_linuxbridge(self, check_call):
+        with patch_open() as (mock_open, mock_file):
+            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+
+        self.assertTrue(self.log.call_count == 2)
+
+    @patch('os.path.exists')
+    def test_is_linuxbridge_interface_false(self, exists):
+        exists.return_value = False
+        result = ovs.is_linuxbridge_interface('eno1')
+        self.assertFalse(result)
+
+    @patch('os.path.exists')
+    def test_is_linuxbridge_interface_true(self, exists):
+        exists.return_value = True
+        result = ovs.is_linuxbridge_interface('eno1')
+        self.assertTrue(result)
+
+    @patch('subprocess.check_call')
+    def test_set_manager(self, check_call):
         ovs.set_manager('manager')
         check_call.assert_called_with(['ovs-vsctl', 'set-manager',
                                        'ssl:manager'])
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('os.path.exists')
-    def test_get_certificate_good_cert(self, exists, log):
+    def test_get_certificate_good_cert(self, exists):
         exists.return_value = True
         with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = GOOD_CERT
             self.assertEqual(ovs.get_certificate(), PEM_ENCODED)
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('os.path.exists')
-    def test_get_certificate_bad_cert(self, exists, log):
+    def test_get_certificate_bad_cert(self, exists):
         exists.return_value = True
         with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = BAD_CERT
             self.assertRaises(RuntimeError, ovs.get_certificate)
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
-    @patch.object(ovs, 'log')
     @patch('os.path.exists')
-    def test_get_certificate_missing(self, exists, log):
+    def test_get_certificate_missing(self, exists):
         exists.return_value = False
         self.assertIsNone(ovs.get_certificate())
-        self.assertTrue(log.call_count == 1)
+        self.assertTrue(self.log.call_count == 1)
 
     @patch('os.path.exists')
     @patch.object(ovs, 'service')

@@ -81,19 +81,33 @@ link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
 
 class HelpersTest(TestCase):
 
+    @patch('charmhelpers.core.host.lsb_release')
     @patch('os.path')
-    def test_init_is_systemd_upstart(self, path):
+    def test_init_is_systemd_upstart(self, path, lsb_release):
         """Upstart based init is correctly detected"""
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'whatever'}
         path.isdir.return_value = False
         self.assertFalse(host.init_is_systemd())
         path.isdir.assert_called_with('/run/systemd/system')
 
+    @patch('charmhelpers.core.host.lsb_release')
     @patch('os.path')
-    def test_init_is_systemd_system(self, path):
+    def test_init_is_systemd_system(self, path, lsb_release):
         """Systemd based init is correctly detected"""
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'whatever'}
         path.isdir.return_value = True
         self.assertTrue(host.init_is_systemd())
         path.isdir.assert_called_with('/run/systemd/system')
+
+    @patch('charmhelpers.core.host.lsb_release')
+    @patch('os.path')
+    def test_init_is_systemd_trusty(self, path, lsb_release):
+        # Never returns true under trusty, even if the systemd
+        # packages have been installed. lp:1670944
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
+        path.isdir.return_value = True
+        self.assertFalse(host.init_is_systemd())
+        self.assertFalse(path.isdir.called)
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
@@ -1800,4 +1814,13 @@ class HelpersTest(TestCase):
 
         self.assertTrue(handle.read.call_count == 1)
         self.assertTrue(handle.seek.call_count == 1)
-        handle.write.assert_called_once_with('PRUNEPATHS="/tmp /srv/node /tmp/test"')
+        handle.write.assert_called_once_with(
+            'PRUNEPATHS="/tmp /srv/node /tmp/test"')
+
+
+class TestHostCompator(TestCase):
+
+    def test_compare_ubuntu_releases(self):
+        from charmhelpers.osplatform import get_platform
+        if get_platform() == 'ubuntu':
+            self.assertTrue(host.CompareHostReleases('yakkety') < 'zesty')

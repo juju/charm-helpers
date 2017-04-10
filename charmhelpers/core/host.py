@@ -45,6 +45,7 @@ if __platform__ == "ubuntu":
         add_new_group,
         lsb_release,
         cmp_pkgrevno,
+        CompareHostReleases,
     )  # flake8: noqa -- ignore F401 for this import
 elif __platform__ == "centos":
     from charmhelpers.core.host_factory.centos import (
@@ -52,6 +53,7 @@ elif __platform__ == "centos":
         add_new_group,
         lsb_release,
         cmp_pkgrevno,
+        CompareHostReleases,
     )  # flake8: noqa -- ignore F401 for this import
 
 UPDATEDB_PATH = '/etc/updatedb.conf'
@@ -306,6 +308,8 @@ SYSTEMD_SYSTEM = '/run/systemd/system'
 
 def init_is_systemd():
     """Return True if the host system uses systemd, False otherwise."""
+    if lsb_release()['DISTRIB_CODENAME'] == 'trusty':
+        return False
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 

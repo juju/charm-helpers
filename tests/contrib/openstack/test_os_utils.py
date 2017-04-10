@@ -9,6 +9,10 @@ class UtilsTests(unittest.TestCase):
     def setUp(self):
         super(UtilsTests, self).setUp()
 
+    def test_compare_openstack_comparator(self):
+        self.assertTrue(utils.CompareOpenStackReleases('mitaka') < 'newton')
+        self.assertTrue(utils.CompareOpenStackReleases('pike') > 'essex')
+
     @mock.patch.object(utils, 'config')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_set')
     @mock.patch('charmhelpers.contrib.openstack.utils.relation_ids')
@@ -161,19 +165,19 @@ class UtilsTests(unittest.TestCase):
                              _os_release):
         # Check call with 'release'
         self.assertFalse(utils.enable_memcache(release='icehouse'))
-        self.assertTrue(utils.enable_memcache(release='zebra'))
+        self.assertTrue(utils.enable_memcache(release='ocata'))
         # Check call with 'source'
         _os_release.return_value = None
         _get_os_codename_install_source.return_value = 'icehouse'
         self.assertFalse(utils.enable_memcache(source='distro'))
         _os_release.return_value = None
-        _get_os_codename_install_source.return_value = 'zebra'
+        _get_os_codename_install_source.return_value = 'ocata'
         self.assertTrue(utils.enable_memcache(source='distro'))
         # Check call with 'package'
         _os_release.return_value = 'icehouse'
         _get_os_codename_install_source.return_value = None
         self.assertFalse(utils.enable_memcache(package='pkg1'))
-        _os_release.return_value = 'zebra'
+        _os_release.return_value = 'ocata'
         _get_os_codename_install_source.return_value = None
         self.assertTrue(utils.enable_memcache(package='pkg1'))
 
