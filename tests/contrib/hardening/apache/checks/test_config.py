@@ -51,14 +51,17 @@ class ApacheConfigTestCase(TestCase):
     @patch.object(config.subprocess, 'call', lambda *args, **kwargs: 0)
     def test_get_audits_apache_is_installed(self):
         audits = config.get_audits()
-        self.assertEqual(6, len(audits))
+        self.assertEqual(7, len(audits))
 
     @patch.object(config.utils, 'get_settings', lambda x: {
         'common': {'apache_dir': TEST_TMPDIR},
         'hardening': {
             'allowed_http_methods': {'GOGETEM'},
             'modules_to_disable': {'modfoo'},
-            'traceenable': 'off'
+            'traceenable': 'off',
+            'servertokens': 'Prod',
+            'honor_cipher_order': 'on',
+            'cipher_suite': 'ALL:+MEDIUM:+HIGH:!LOW:!MD5:!RC4:!eNULL:!aNULL:!3DES'
         }
     })
     @patch.object(config, 'subprocess')
@@ -72,9 +75,14 @@ class ApacheConfigTestCase(TestCase):
 
             mock_subprocess.check_output.side_effect = fake_check_output
             ctxt = config.ApacheConfContext()
-            self.assertEqual(ctxt(), {'allowed_http_methods': set(['GOGETEM']),
-                                      'apache_icondir':
-                                      '/usr/share/apache2/icons/',
-                                      'apache_version': '2.4.7',
-                                      'modules_to_disable': set(['modfoo']),
-                                      'traceenable': 'off'})
+            self.assertEqual(ctxt(), {
+                'allowed_http_methods': set(['GOGETEM']),
+                'apache_icondir':
+                '/usr/share/apache2/icons/',
+                'apache_version': '2.4.7',
+                'modules_to_disable': set(['modfoo']),
+                'servertokens': 'Prod',
+                'traceenable': 'off',
+                'honor_cipher_order': 'on',
+                'cipher_suite': 'ALL:+MEDIUM:+HIGH:!LOW:!MD5:!RC4:!eNULL:!aNULL:!3DES'
+            })

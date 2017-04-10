@@ -34,6 +34,8 @@ DUMMY_ADDRESSES = {
               'netmask': 'ffff:ffff:ffff:ffff::'},
              {'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',
               'netmask': 'ffff:ffff:ffff:ffff::'},
+             {'netmask': 'ffff:ffff:ffff:ffff::/64',
+              'addr': 'fd2d:dec4:cf59:3c16::1'},
              {'addr': '2001:db8:1::',
               'netmask': 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'}],
         17: [{'addr': '3c:97:0e:8b:1c:f7',
@@ -47,9 +49,12 @@ DUMMY_ADDRESSES = {
     'eth1': {
         2: [{'addr': '10.5.0.1',
              'broadcast': '10.5.255.255',
-             'netmask': '255.255.0.0'}],
-        10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth1',
-              'netmask': 'ffff:ffff:ffff:ffff::'}],
+             'netmask': '255.255.0.0'},
+            {'addr': '10.6.0.2',
+             'broadcast': '10.6.0.255',
+             'netmask': '255.255.255.0'}],
+        3: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth1',
+             'netmask': 'ffff:ffff:ffff:ffff::'}],
         17: [{'addr': '3c:97:0e:8b:1c:f7',
               'broadcast': 'ff:ff:ff:ff:ff:ff'}]
     },
@@ -195,6 +200,10 @@ class IPTest(unittest.TestCase):
         self._test_get_address_in_network('192.168.10.58',
                                           '192.168.11.0/24 192.168.10.0/24')
 
+    def test_get_address_in_network_ipv4_secondary(self):
+        self._test_get_address_in_network('10.6.0.2',
+                                          '10.6.0.0/24')
+
     def test_get_address_in_network_ipv6(self):
         self._test_get_address_in_network('2a01:348:2f4:0:685e:5748:ae62:209f',
                                           '2a01:348:2f4::/64')
@@ -213,6 +222,19 @@ class IPTest(unittest.TestCase):
 
     def test_get_address_in_network_not_found_not_fatal(self):
         self._test_get_address_in_network(None, '172.16.0.0/16', fatal=False)
+
+    @patch.object(netifaces, 'ifaddresses')
+    @patch.object(netifaces, 'interfaces')
+    def test_get_address_in_network_netmask(self, _interfaces, _ifaddresses):
+        """
+        Validates that get_address_in_network works with a netmask
+        that uses the format 'ffff:ffff:ffff::/prefixlen'
+        """
+        _interfaces.return_value = DUMMY_ADDRESSES.keys()
+        _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
+        self._test_get_address_in_network('fd2d:dec4:cf59:3c16::1',
+                                          'fd2d:dec4:cf59:3c16::/64',
+                                          fatal=False)
 
     def test_is_address_in_network(self):
         self.assertTrue(
@@ -749,3 +771,64 @@ class IPTest(unittest.TestCase):
         subprocess_call.return_value = 0
         self.assertEqual(net_ip.port_has_listener('ip-address', 70), True)
         subprocess_call.assert_called_with(['nc', '-z', 'ip-address', '70'])
+
+    @patch.object(net_ip, 'config')
+    @patch.object(net_ip, 'network_get_primary_address')
+    @patch.object(net_ip, 'get_address_in_network')
+    @patch.object(net_ip, 'unit_get')
+    @patch.object(net_ip, 'get_ipv6_addr')
+    @patch.object(net_ip, 'assert_charm_supports_ipv6')
+    def test_get_relation_ip(self, assert_charm_supports_ipv6, get_ipv6_addr,
+                             unit_get, get_address_in_network,
+                             network_get_primary_address, config):
+        AMQP_IP = '10.200.1.1'
+        OVERRIDE_AMQP_IP = '10.250.1.1'
+        CLUSTER_IP = '10.100.1.1'
+        OVERRIDE_CLUSTER_IP = '10.150.1.1'
+        IPV6_IP = '2001:DB8::1'
+        DEFAULT_IP = '172.16.1.1'
+        assert_charm_supports_ipv6.return_value = True
+        get_ipv6_addr.return_value = [IPV6_IP]
+        unit_get.return_value = DEFAULT_IP
+        get_address_in_network.return_value = DEFAULT_IP
+        network_get_primary_address.return_value = DEFAULT_IP
+
+        # IPv6
+        _config = {'prefer-ipv6': True,
+                   'cluster-network': '10.100.1.0/24',
+                   'access-network': '10.200.1.0/24'}
+        config.side_effect = lambda key: _config.get(key)
+        self.assertEqual(IPV6_IP, net_ip.get_relation_ip('amqp'))
+
+        # Overrides
+        _config = {'prefer-ipv6': False,
+                   'cluster-network': '10.100.1.0/24',
+                   'access-network': '10.200.1.0/24'}
+        config.side_effect = lambda key: _config.get(key)
+
+        get_address_in_network.return_value = OVERRIDE_AMQP_IP
+        self.assertEqual(
+            OVERRIDE_AMQP_IP,
+            net_ip.get_relation_ip('amqp',
+                                   config_override='access-network'))
+
+        get_address_in_network.return_value = OVERRIDE_CLUSTER_IP
+        self.assertEqual(OVERRIDE_CLUSTER_IP,
+                         net_ip.get_relation_ip(
+                             'cluster',
+                             config_override='cluster-network'))
+
+        # Network-get calls
+        _config = {'prefer-ipv6': False,
+                   'cluster-network': None,
+                   'access-network': None}
+        config.side_effect = lambda key: _config.get(key)
+
+        network_get_primary_address.return_value = AMQP_IP
+        self.assertEqual(AMQP_IP, net_ip.get_relation_ip('amqp'))
+
+        network_get_primary_address.return_value = CLUSTER_IP
+        self.assertEqual(CLUSTER_IP,
+                         net_ip.get_relation_ip(
+                             config_override='cluster-network',
+                             interface='cluster'))

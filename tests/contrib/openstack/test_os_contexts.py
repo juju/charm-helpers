@@ -589,6 +589,7 @@ TO_PATCH = [
     'kv',
     'pwgen',
     'lsb_release',
+    'is_container',
 ]
 
 
@@ -641,6 +642,7 @@ class ContextTests(unittest.TestCase):
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
         self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
+        self.is_container.return_value = False
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -2720,9 +2722,29 @@ class ContextTests(unittest.TestCase):
 
     def test_workerconfig_context_noconfig(self):
         self.config.return_value = None
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 1):
             worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 0}, worker())
+            self.assertEqual({'workers': 2}, worker())
+
+    def test_workerconfig_context_noconfig_container(self):
+        self.config.return_value = None
+        self.is_container.return_value = True
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 1):
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 2}, worker())
+
+    def test_workerconfig_context_noconfig_lotsa_cpus_container(self):
+        self.config.return_value = None
+        self.is_container.return_value = True
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 32):
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 4}, worker())
+
+    def test_workerconfig_context_noconfig_lotsa_cpus_not_container(self):
+        self.config.return_value = None
+        with patch.object(context.WorkerConfigContext, 'num_cpus', 32):
+            worker = context.WorkerConfigContext()
+            self.assertEqual({'workers': 64}, worker())
 
     def test_workerconfig_context_withconfig(self):
         self.config.side_effect = fake_config({

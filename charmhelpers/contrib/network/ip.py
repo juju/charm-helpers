@@ -20,11 +20,18 @@ import socket
 
 from functools import partial
 
-from charmhelpers.core.hookenv import unit_get
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
+    config,
     log,
+    network_get_primary_address,
+    unit_get,
     WARNING,
+)
+
+from charmhelpers.core.host import (
+    lsb_release,
+    CompareHostReleases,
 )
 
 try:
@@ -61,6 +68,24 @@ def no_ip_found_error_out(network):
     raise ValueError(errmsg)
 
 
+def _get_ipv6_network_from_address(address):
+    """Get an netaddr.IPNetwork for the given IPv6 address
+    :param address: a dict as returned by netifaces.ifaddresses
+    :returns netaddr.IPNetwork: None if the address is a link local or loopback
+    address
+    """
+    if address['addr'].startswith('fe80') or address['addr'] == "::1":
+        return None
+
+    prefix = address['netmask'].split("/")
+    if len(prefix) > 1:
+        netmask = prefix[1]
+    else:
+        netmask = address['netmask']
+    return netaddr.IPNetwork("%s/%s" % (address['addr'],
+                                        netmask))
+
+
 def get_address_in_network(network, fallback=None, fatal=False):
     """Get an IPv4 or IPv6 address within the network from the host.
 
@@ -86,19 +111,17 @@ def get_address_in_network(network, fallback=None, fatal=False):
         for iface in netifaces.interfaces():
             addresses = netifaces.ifaddresses(iface)
             if network.version == 4 and netifaces.AF_INET in addresses:
-                addr = addresses[netifaces.AF_INET][0]['addr']
-                netmask = addresses[netifaces.AF_INET][0]['netmask']
-                cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
-                if cidr in network:
-                    return str(cidr.ip)
+                for addr in addresses[netifaces.AF_INET]:
+                    cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
+                                                        addr['netmask']))
+                    if cidr in network:
+                        return str(cidr.ip)
 
             if network.version == 6 and netifaces.AF_INET6 in addresses:
                 for addr in addresses[netifaces.AF_INET6]:
-                    if not addr['addr'].startswith('fe80'):
-                        cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
-                                                            addr['netmask']))
-                        if cidr in network:
-                            return str(cidr.ip)
+                    cidr = _get_ipv6_network_from_address(addr)
+                    if cidr and cidr in network:
+                        return str(cidr.ip)
 
     if fallback is not None:
         return fallback
@@ -174,18 +197,18 @@ def _get_for_address(address, key):
 
         if address.version == 6 and netifaces.AF_INET6 in addresses:
             for addr in addresses[netifaces.AF_INET6]:
-                if not addr['addr'].startswith('fe80'):
-                    network = netaddr.IPNetwork("%s/%s" % (addr['addr'],
-                                                           addr['netmask']))
-                    cidr = network.cidr
-                    if address in cidr:
-                        if key == 'iface':
-                            return iface
-                        elif key == 'netmask' and cidr:
-                            return str(cidr).split('/')[1]
-                        else:
-                            return addr[key]
+                network = _get_ipv6_network_from_address(addr)
+                if not network:
+                    continue
 
+                cidr = network.cidr
+                if address in cidr:
+                    if key == 'iface':
+                        return iface
+                    elif key == 'netmask' and cidr:
+                        return str(cidr).split('/')[1]
+                    else:
+                        return addr[key]
     return None
 
 
@@ -511,3 +534,41 @@ def port_has_listener(address, port):
     cmd = ['nc', '-z', address, str(port)]
     result = subprocess.call(cmd)
     return not(bool(result))
+
+
+def assert_charm_supports_ipv6():
+    """Check whether we are able to support charms ipv6."""
+    release = lsb_release()['DISTRIB_CODENAME'].lower()
+    if CompareHostReleases(release) < "trusty":
+        raise Exception("IPv6 is not supported in the charms for Ubuntu "
+                        "versions less than Trusty 14.04")
+
+
+def get_relation_ip(interface, config_override=None):
+    """Return this unit's IP for the given relation.
+
+    Allow for an arbitrary interface to use with network-get to select an IP.
+    Handle all address selection options including configuration parameter
+    override and IPv6.
+
+    Usage: get_relation_ip('amqp', config_override='access-network')
+
+    @param interface: string name of the relation.
+    @param config_override: string name of the config option for network
+           override. Supports legacy network override configuration parameters.
+    @raises Exception if prefer-ipv6 is configured but IPv6 unsupported.
+    @returns IPv6 or IPv4 address
+    """
+
+    fallback = get_host_ip(unit_get('private-address'))
+    if config('prefer-ipv6'):
+        assert_charm_supports_ipv6()
+        return get_ipv6_addr()[0]
+    elif config_override and config(config_override):
+        return get_address_in_network(config(config_override),
+                                      fallback)
+    else:
+        try:
+            return network_get_primary_address(interface)
+        except NotImplementedError:
+            return fallback
