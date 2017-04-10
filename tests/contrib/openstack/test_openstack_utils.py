@@ -489,9 +489,10 @@ class OpenStackHelpersTestCase(TestCase):
     def test_add_source_cloud_invalid_pocket(self, _log, _out,
                                              apt_install, filter_pkg):
         openstack.configure_installation_source("cloud:havana-updates")
-        _out.assert_called_once_with(
-            'Invalid Cloud Archive release specified: '
-            'havana-updates on this Ubuntuversion (xenial)')
+        _e = ('Invalid Cloud Archive release specified: '
+              'havana-updates on this Ubuntuversion')
+        _s = _out.call_args[0][0]
+        self.assertTrue(_s.startswith(_e))
 
     @patch.object(fetch, 'filter_installed_packages')
     @patch.object(fetch, 'apt_install')
@@ -587,8 +588,9 @@ class OpenStackHelpersTestCase(TestCase):
             # and doesn't sys.exit(1)
             pass
         _e = ('Invalid Cloud Archive release specified: foo-bar'
-              ' on this Ubuntuversion (xenial)')
-        mocked_error.assert_called_with(_e)
+              ' on this Ubuntuversion')
+        _s = mocked_error.call_args[0][0]
+        self.assertTrue(_s.startswith(_e))
 
     @patch.object(openstack, 'fetch_import_key')
     def test_import_key_calls_fetch_import_key(self, fetch_import_key):
