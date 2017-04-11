@@ -206,7 +206,7 @@ class HelpersTest(TestCase):
         systemd.return_value = True
         self.assertTrue(host.service_resume(service_name))
         service.assert_has_calls([
-            call('enable', service_name),
+            call('unmask', service_name),
             call('start', service_name)])
 
     @patch.object(host, 'service_running')
