@@ -193,7 +193,7 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_pause(service_name))
         service.assert_has_calls([
             call('stop', service_name),
-            call('disable', service_name)])
+            call('mask', service_name)])
 
     @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
