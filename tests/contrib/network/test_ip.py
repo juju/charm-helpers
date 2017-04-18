@@ -781,6 +781,8 @@ class IPTest(unittest.TestCase):
     def test_get_relation_ip(self, assert_charm_supports_ipv6, get_ipv6_addr,
                              unit_get, get_address_in_network,
                              network_get_primary_address, config):
+        ACCESS_IP = '10.50.1.1'
+        ACCESS_NETWORK = '10.50.1.0/24'
         AMQP_IP = '10.200.1.1'
         OVERRIDE_AMQP_IP = '10.250.1.1'
         CLUSTER_IP = '10.100.1.1'
@@ -800,6 +802,19 @@ class IPTest(unittest.TestCase):
         config.side_effect = lambda key: _config.get(key)
         self.assertEqual(IPV6_IP, net_ip.get_relation_ip('amqp'))
 
+        # Access network
+        _config = {'prefer-ipv6': False,
+                   'cluster-network': None,
+                   'access-network': None}
+        config.side_effect = lambda key: _config.get(key)
+
+        get_address_in_network.return_value = ACCESS_IP
+        self.assertEqual(
+            ACCESS_IP,
+            net_ip.get_relation_ip('shared-db',
+                                   access_network=ACCESS_NETWORK))
+        get_address_in_network.assert_called_with(ACCESS_NETWORK, DEFAULT_IP)
+
         # Overrides
         _config = {'prefer-ipv6': False,
                    'cluster-network': '10.100.1.0/24',
@@ -811,12 +826,14 @@ class IPTest(unittest.TestCase):
             OVERRIDE_AMQP_IP,
             net_ip.get_relation_ip('amqp',
                                    config_override='access-network'))
+        get_address_in_network.assert_called_with('10.200.1.0/24', DEFAULT_IP)
 
         get_address_in_network.return_value = OVERRIDE_CLUSTER_IP
         self.assertEqual(OVERRIDE_CLUSTER_IP,
                          net_ip.get_relation_ip(
                              'cluster',
                              config_override='cluster-network'))
+        get_address_in_network.assert_called_with('10.100.1.0/24', DEFAULT_IP)
 
         # Network-get calls
         _config = {'prefer-ipv6': False,
