@@ -1602,7 +1602,7 @@ class MemcacheContext(OSContextGenerator):
     """Memcache context
 
     This context provides options for configuring a local memcache client and
-    server
+    server for both IPv4 and IPv6
     """
 
     def __init__(self, package=None):
@@ -1619,14 +1619,26 @@ class MemcacheContext(OSContextGenerator):
         if ctxt['use_memcache']:
             # Trusty version of memcached does not support ::1 as a listen
             # address so use host file entry instead
-            release = lsb_release()['DISTRIB_CODENAME'].lower()
-            if CompareHostReleases(release) > 'trusty':
-                ctxt['memcache_server'] = '::1'
+            if config('prefer-ipv6'):
+                release = lsb_release()['DISTRIB_CODENAME'].lower()
+                if CompareHostReleases(release) > 'trusty':
+                    ctxt['memcache_server'] = '::1'
+                else:
+                    ctxt['memcache_server'] = 'ip6-localhost'
+                ctxt['memcache_server_formatted'] = '[::1]'
+                ctxt['memcache_port'] = '11211'
+                ctxt['memcache_url'] = 'inet6:{}:{}'.format(
+                    ctxt['memcache_server_formatted'],
+                    ctxt['memcache_port'])
             else:
-                ctxt['memcache_server'] = 'ip6-localhost'
-            ctxt['memcache_server_formatted'] = '[::1]'
-            ctxt['memcache_port'] = '11211'
-            ctxt['memcache_url'] = 'inet6:{}:{}'.format(
-                ctxt['memcache_server_formatted'],
-                ctxt['memcache_port'])
+                release = lsb_release()['DISTRIB_CODENAME'].lower()
+                if CompareHostReleases(release) > 'trusty':
+                    ctxt['memcache_server'] = '127.0.0.1'
+                else:
+                    ctxt['memcache_server'] = 'localhost'
+                ctxt['memcache_server_formatted'] = '127.0.0.1'
+                ctxt['memcache_port'] = '11211'
+                ctxt['memcache_url'] = '{}:{}'.format(
+                    ctxt['memcache_server_formatted'],
+                    ctxt['memcache_port'])
         return ctxt
