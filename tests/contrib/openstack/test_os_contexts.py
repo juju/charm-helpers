@@ -3287,12 +3287,13 @@ class ContextTests(unittest.TestCase):
         AA.manually_disable_aa_profile.assert_called_with()
 
     @patch.object(context, 'enable_memcache')
-    def test_memcache_context_ipv6(self, _enable_memcache):
+    @patch.object(context, 'is_ipv6_disabled')
+    def test_memcache_context_ipv6(self, _is_ipv6_disabled, _enable_memcache):
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
         _enable_memcache.return_value = True
+        _is_ipv6_disabled.return_value = False
         config = {
             'openstack-origin': 'distro',
-            'prefer-ipv6': True,
         }
         self.config.side_effect = fake_config(config)
         ctxt = context.MemcacheContext()
@@ -3310,12 +3311,13 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(ctxt(), expect)
 
     @patch.object(context, 'enable_memcache')
-    def test_memcache_context_ipv4(self, _enable_memcache):
+    @patch.object(context, 'is_ipv6_disabled')
+    def test_memcache_context_ipv4(self, _is_ipv6_disabled, _enable_memcache):
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
         _enable_memcache.return_value = True
+        _is_ipv6_disabled.return_value = True
         config = {
             'openstack-origin': 'distro',
-            'prefer-ipv6': False,
         }
         self.config.side_effect = fake_config(config)
         ctxt = context.MemcacheContext()
