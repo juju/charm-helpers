@@ -1631,7 +1631,6 @@ class MemcacheContext(OSContextGenerator):
                 ctxt['memcache_url'] = '{}:{}'.format(
                     ctxt['memcache_server_formatted'],
                     ctxt['memcache_port'])
-                release = lsb_release()['DISTRIB_CODENAME'].lower()
             else:
                 if CompareHostReleases(release) > 'trusty':
                     ctxt['memcache_server'] = '::1'
