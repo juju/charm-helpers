@@ -89,6 +89,7 @@ from charmhelpers.contrib.network.ip import (
     format_ipv6_addr,
     is_address_in_network,
     is_bridge_member,
+    is_ipv6_disabled,
 )
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
@@ -1619,19 +1620,8 @@ class MemcacheContext(OSContextGenerator):
         if ctxt['use_memcache']:
             # Trusty version of memcached does not support ::1 as a listen
             # address so use host file entry instead
-            if config('prefer-ipv6'):
-                release = lsb_release()['DISTRIB_CODENAME'].lower()
-                if CompareHostReleases(release) > 'trusty':
-                    ctxt['memcache_server'] = '::1'
-                else:
-                    ctxt['memcache_server'] = 'ip6-localhost'
-                ctxt['memcache_server_formatted'] = '[::1]'
-                ctxt['memcache_port'] = '11211'
-                ctxt['memcache_url'] = 'inet6:{}:{}'.format(
-                    ctxt['memcache_server_formatted'],
-                    ctxt['memcache_port'])
-            else:
-                release = lsb_release()['DISTRIB_CODENAME'].lower()
+            release = lsb_release()['DISTRIB_CODENAME'].lower()
+            if is_ipv6_disabled():
                 if CompareHostReleases(release) > 'trusty':
                     ctxt['memcache_server'] = '127.0.0.1'
                 else:
@@ -1639,6 +1629,17 @@ class MemcacheContext(OSContextGenerator):
                 ctxt['memcache_server_formatted'] = '127.0.0.1'
                 ctxt['memcache_port'] = '11211'
                 ctxt['memcache_url'] = '{}:{}'.format(
+                    ctxt['memcache_server_formatted'],
+                    ctxt['memcache_port'])
+                release = lsb_release()['DISTRIB_CODENAME'].lower()
+            else:
+                if CompareHostReleases(release) > 'trusty':
+                    ctxt['memcache_server'] = '::1'
+                else:
+                    ctxt['memcache_server'] = 'ip6-localhost'
+                ctxt['memcache_server_formatted'] = '[::1]'
+                ctxt['memcache_port'] = '11211'
+                ctxt['memcache_url'] = 'inet6:{}:{}'.format(
                     ctxt['memcache_server_formatted'],
                     ctxt['memcache_port'])
         return ctxt
