@@ -228,7 +228,9 @@ AMQP_CONFIG = {
 }
 
 AMQP_OSLO_CONFIG = {
-    'oslo-messaging-flags': "rabbit_max_retries=1,rabbit_retry_backoff=1,rabbit_retry_interval=1"
+    'oslo-messaging-flags': ("rabbit_max_retries=1"
+                             ",rabbit_retry_backoff=1"
+                             ",rabbit_retry_interval=1")
 }
 
 AMQP_NOVA_CONFIG = {
@@ -493,13 +495,15 @@ SUB_CONFIG_RELATION = {
     'cinder-subordinate:0': {
         'cinder-subordinate/0': {
             'private-address': 'cinder_node1',
-            'subordinate_configuration': json.dumps(yaml.load(CINDER_SUB_CONFIG1)),
+            'subordinate_configuration': json.dumps(
+                yaml.load(CINDER_SUB_CONFIG1)),
         },
     },
     'cinder-subordinate:1': {
         'cinder-subordinate/1': {
             'private-address': 'cinder_node1',
-            'subordinate_configuration': json.dumps(yaml.load(CINDER_SUB_CONFIG2)),
+            'subordinate_configuration': json.dumps(
+                yaml.load(CINDER_SUB_CONFIG2)),
         },
     },
 }
@@ -508,19 +512,22 @@ SUB_CONFIG_RELATION2 = {
     'nova-ceilometer:6': {
         'ceilometer-agent/0': {
             'private-address': 'nova_node1',
-            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG1)),
+            'subordinate_configuration': json.dumps(
+                yaml.load(NOVA_SUB_CONFIG1)),
         },
     },
     'neutron-plugin:3': {
         'neutron-ovs-plugin/0': {
             'private-address': 'nova_node1',
-            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG2)),
+            'subordinate_configuration': json.dumps(
+                yaml.load(NOVA_SUB_CONFIG2)),
         },
     },
     'neutron-plugin:4': {
         'neutron-other-plugin/0': {
             'private-address': 'nova_node1',
-            'subordinate_configuration': json.dumps(yaml.load(NOVA_SUB_CONFIG3)),
+            'subordinate_configuration': json.dumps(
+                yaml.load(NOVA_SUB_CONFIG3)),
         },
     }
 }
@@ -672,7 +679,8 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     def test_shared_db_context_with_data_and_access_net_mismatch(self):
-        '''Mismatch between hostname and hostname for access net - defers execution'''
+        """Mismatch between hostname and hostname for access net - defers
+        execution"""
         relation = FakeRelation(
             relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
@@ -686,7 +694,7 @@ class ContextTests(unittest.TestCase):
                 'hostname': '10.5.5.1'})
 
     def test_shared_db_context_with_data_and_access_net_match(self):
-        '''Correctly set hostname for access net returns complete context'''
+        """Correctly set hostname for access net returns complete context"""
         relation = FakeRelation(
             relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
@@ -952,7 +960,8 @@ class ContextTests(unittest.TestCase):
 
     def test_identity_service_context_with_data_versioned(self):
         '''Test shared-db context with api version supplied from keystone'''
-        relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
+        relation = FakeRelation(
+            relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1117,7 +1126,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': 'rabbithost1,rabbithost2',
-            'transport_url': 'rabbit://adam:foobar@rabbithost1:5672,adam:foobar@rabbithost2:5672/foo'
+            'transport_url': ('rabbit://adam:foobar@rabbithost1:5672'
+                              ',adam:foobar@rabbithost2:5672/foo')
         }
         self.assertEquals(result, expected)
 
@@ -1160,7 +1170,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
-            'transport_url': 'rabbit://adam:foobar@[2001:db8:1::1]:5672,adam:foobar@[2001:db8:1::1]:5672/foo'
+            'transport_url': ('rabbit://adam:foobar@[2001:db8:1::1]:5672'
+                              ',adam:foobar@[2001:db8:1::1]:5672/foo')
         }
         self.assertEquals(result, expected)
 
@@ -1829,7 +1840,8 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
+    def test_haproxy_context_with_no_peers_singlemode(
+            self, local_unit, unit_get):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -3186,7 +3198,8 @@ class ContextTests(unittest.TestCase):
         rel = FakeRelation(QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
         self.relation_ids.side_effect = rel.relation_ids
         self.related_units.side_effect = rel.relation_units
-        relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
+        relation = FakeRelation(
+            relation_data=QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
 
@@ -3274,10 +3287,13 @@ class ContextTests(unittest.TestCase):
         AA.manually_disable_aa_profile.assert_called_with()
 
     @patch.object(context, 'enable_memcache')
-    def test_memcache_context(self, _enable_memcache):
+    def test_memcache_context_ipv6(self, _enable_memcache):
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
         _enable_memcache.return_value = True
-        config = {'openstack-origin': 'distro'}
+        config = {
+            'openstack-origin': 'distro',
+            'prefer-ipv6': True,
+        }
         self.config.side_effect = fake_config(config)
         ctxt = context.MemcacheContext()
         self.assertTrue(ctxt()['use_memcache'])
@@ -3290,6 +3306,29 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(ctxt(), expect)
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
         expect['memcache_server'] = 'ip6-localhost'
+        ctxt = context.MemcacheContext()
+        self.assertEqual(ctxt(), expect)
+
+    @patch.object(context, 'enable_memcache')
+    def test_memcache_context_ipv4(self, _enable_memcache):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
+        _enable_memcache.return_value = True
+        config = {
+            'openstack-origin': 'distro',
+            'prefer-ipv6': False,
+        }
+        self.config.side_effect = fake_config(config)
+        ctxt = context.MemcacheContext()
+        self.assertTrue(ctxt()['use_memcache'])
+        expect = {
+            'memcache_port': '11211',
+            'memcache_server': '127.0.0.1',
+            'memcache_server_formatted': '127.0.0.1',
+            'memcache_url': '127.0.0.1:11211',
+            'use_memcache': True}
+        self.assertEqual(ctxt(), expect)
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
+        expect['memcache_server'] = 'localhost'
         ctxt = context.MemcacheContext()
         self.assertEqual(ctxt(), expect)
 
