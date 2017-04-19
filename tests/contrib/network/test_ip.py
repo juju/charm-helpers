@@ -292,7 +292,8 @@ class IPTest(unittest.TestCase):
             '255.255.0.0')
         self.assertEquals(net_ip.get_netmask_for_address('172.4.5.5'), None)
         self.assertEquals(
-            net_ip.get_netmask_for_address('2a01:348:2f4:0:685e:5748:ae62:210f'),
+            net_ip.get_netmask_for_address(
+                '2a01:348:2f4:0:685e:5748:ae62:210f'),
             '64'
         )
         self.assertEquals(
@@ -378,6 +379,28 @@ class IPTest(unittest.TestCase):
     def test_get_ipv6_addr_invalid_nic(self, _interfaces):
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         self.assertRaises(Exception, net_ip.get_ipv6_addr, 'eth1')
+
+    @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
+    def test_is_ipv6_disabled(self, mock_check_output):
+        # verify that the function does look for the right thing
+        mock_check_output.return_value = """
+        Some lines before
+        net.ipv6.conf.all.disable_ipv6 = 1
+        Some lines afterward
+        """
+        self.assertTrue(net_ip.is_ipv6_disabled())
+        mock_check_output.assert_called_once_with(
+            ['sysctl', 'net.ipv6.conf.all.disable_ipv6'],
+            stderr=subprocess.STDOUT)
+        # if it isn't there, it must return false
+        mock_check_output.return_value = ""
+        self.assertFalse(net_ip.is_ipv6_disabled())
+        # If the syscall returns an error, then return True
+
+        def fake_check_call(*args, **kwargs):
+            raise subprocess.CalledProcessError(['called'], 1)
+        mock_check_output.side_effect = fake_check_call
+        self.assertTrue(net_ip.is_ipv6_disabled())
 
     @patch.object(netifaces, 'ifaddresses')
     @patch.object(netifaces, 'interfaces')
@@ -561,9 +584,8 @@ class IPTest(unittest.TestCase):
 
     @patch('charmhelpers.contrib.network.ip.subprocess.check_output')
     @patch('charmhelpers.contrib.network.ip.get_iface_addr')
-    def test_get_ipv6_global_dynamic_address_invalid_address(self,
-                                                             mock_get_iface_addr,
-                                                             mock_check_out):
+    def test_get_ipv6_global_dynamic_address_invalid_address(
+            self, mock_get_iface_addr, mock_check_out):
         mock_get_iface_addr.return_value = []
         with nose.tools.assert_raises(Exception):
             net_ip.get_ipv6_addr()
