@@ -803,54 +803,42 @@ class IPTest(unittest.TestCase):
     def test_get_relation_ip(self, assert_charm_supports_ipv6, get_ipv6_addr,
                              unit_get, get_address_in_network,
                              network_get_primary_address, config):
+        ACCESS_IP = '10.50.1.1'
+        ACCESS_NETWORK = '10.50.1.0/24'
         AMQP_IP = '10.200.1.1'
-        OVERRIDE_AMQP_IP = '10.250.1.1'
-        CLUSTER_IP = '10.100.1.1'
-        OVERRIDE_CLUSTER_IP = '10.150.1.1'
         IPV6_IP = '2001:DB8::1'
         DEFAULT_IP = '172.16.1.1'
         assert_charm_supports_ipv6.return_value = True
         get_ipv6_addr.return_value = [IPV6_IP]
         unit_get.return_value = DEFAULT_IP
         get_address_in_network.return_value = DEFAULT_IP
-        network_get_primary_address.return_value = DEFAULT_IP
-
-        # IPv6
-        _config = {'prefer-ipv6': True,
-                   'cluster-network': '10.100.1.0/24',
-                   'access-network': '10.200.1.0/24'}
-        config.side_effect = lambda key: _config.get(key)
-        self.assertEqual(IPV6_IP, net_ip.get_relation_ip('amqp'))
-
-        # Overrides
-        _config = {'prefer-ipv6': False,
-                   'cluster-network': '10.100.1.0/24',
-                   'access-network': '10.200.1.0/24'}
-        config.side_effect = lambda key: _config.get(key)
-
-        get_address_in_network.return_value = OVERRIDE_AMQP_IP
-        self.assertEqual(
-            OVERRIDE_AMQP_IP,
-            net_ip.get_relation_ip('amqp',
-                                   config_override='access-network'))
-
-        get_address_in_network.return_value = OVERRIDE_CLUSTER_IP
-        self.assertEqual(OVERRIDE_CLUSTER_IP,
-                         net_ip.get_relation_ip(
-                             'cluster',
-                             config_override='cluster-network'))
+        network_get_primary_address.return_value = AMQP_IP
 
         # Network-get calls
-        _config = {'prefer-ipv6': False,
-                   'cluster-network': None,
-                   'access-network': None}
+        _config = {'prefer-ipv6': False}
         config.side_effect = lambda key: _config.get(key)
 
-        network_get_primary_address.return_value = AMQP_IP
+        network_get_primary_address.side_effect = NotImplementedError
+        self.assertEqual(DEFAULT_IP, net_ip.get_relation_ip('amqp'))
+
+        network_get_primary_address.side_effect = None
         self.assertEqual(AMQP_IP, net_ip.get_relation_ip('amqp'))
 
-        network_get_primary_address.return_value = CLUSTER_IP
-        self.assertEqual(CLUSTER_IP,
-                         net_ip.get_relation_ip(
-                             config_override='cluster-network',
-                             interface='cluster'))
+        self.assertFalse(get_address_in_network.called)
+
+        # Specific CIDR network
+        get_address_in_network.return_value = ACCESS_IP
+        network_get_primary_address.return_value = DEFAULT_IP
+        self.assertEqual(
+            ACCESS_IP,
+            net_ip.get_relation_ip('shared-db',
+                                   cidr_network=ACCESS_NETWORK))
+        get_address_in_network.assert_called_with(ACCESS_NETWORK, DEFAULT_IP)
+
+        self.assertFalse(assert_charm_supports_ipv6.called)
+
+        # IPv6
+        _config = {'prefer-ipv6': True}
+        config.side_effect = lambda key: _config.get(key)
+        self.assertEqual(IPV6_IP, net_ip.get_relation_ip('amqp'))
+        assert_charm_supports_ipv6.assert_called_with()
