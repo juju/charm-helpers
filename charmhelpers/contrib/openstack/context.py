@@ -111,6 +111,7 @@ except ImportError:
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
+HAPROXY_RUN_DIR = '/var/run/haproxy/'
 
 
 def ensure_packages(packages):
@@ -536,6 +537,8 @@ class HAProxyContext(OSContextGenerator):
     """Provides half a context for the haproxy template, which describes
     all peers to be included in the cluster.  Each charm needs to include
     its own context generator that describes the port mapping.
+
+    :side effect: mkdir is called on HAPROXY_RUN_DIR
     """
     interfaces = ['cluster']
 
@@ -543,6 +546,8 @@ class HAProxyContext(OSContextGenerator):
         self.singlenode_mode = singlenode_mode
 
     def __call__(self):
+        if not os.path.isdir(HAPROXY_RUN_DIR):
+            mkdir(path=HAPROXY_RUN_DIR)
         if not relation_ids('cluster') and not self.singlenode_mode:
             return {}
 
