@@ -537,6 +537,8 @@ class HAProxyContext(OSContextGenerator):
     """Provides half a context for the haproxy template, which describes
     all peers to be included in the cluster.  Each charm needs to include
     its own context generator that describes the port mapping.
+
+    :side effect: mkdir is called on HAPROXY_RUN_DIR
     """
     interfaces = ['cluster']
 
