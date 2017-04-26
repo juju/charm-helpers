@@ -1266,10 +1266,9 @@ def _num_cpus():
 
     @returns: int: number of CPU cores detected
     '''
-    # NOTE: use cpu_count if present (16.04 support)
-    if hasattr(psutil, 'cpu_count'):
+    try:
         return psutil.cpu_count()
-    else:
+    except AttributeError:
         return psutil.NUM_CPUS
 
 
