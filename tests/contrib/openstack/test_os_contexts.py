@@ -2604,15 +2604,16 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch.object(context, 'psutil')
+    @patch.object(context, '_calculate_workers')
     @patch.object(context, 'git_determine_python_path')
     @patch.object(context, 'git_determine_usr_bin')
-    def test_wsgi_worker_config_context(self, usr_bin, python_path, psutil):
+    def test_wsgi_worker_config_context(self, usr_bin, python_path,
+                                        _calculate_workers):
         self.config.return_value = 2  # worker-multiplier=2
         usr_bin_path = '/usr/bin'
         usr_bin.return_value = usr_bin_path
         python_path.return_value = None
-        psutil.cpu_count.return_value = 4
+        _calculate_workers.return_value = 8
         service_name = 'service-name'
         script = '/usr/bin/script'
         ctxt = context.WSGIWorkerConfigContext(name=service_name,
@@ -2625,8 +2626,8 @@ class ContextTests(unittest.TestCase):
             "admin_script": None,
             "public_script": None,
             "processes": 8,
-            "admin_processes": 6,
-            "public_processes": 2,
+            "admin_processes": 2,
+            "public_processes": 6,
             "threads": 1,
             "usr_bin": usr_bin_path,
             "python_path": None,
@@ -2688,83 +2689,74 @@ class ContextTests(unittest.TestCase):
                           {'notifications': 'True'})
 
     @patch.object(context, 'psutil')
-    def test_workerconfig_context_xenial(self, _psutil):
-        self.config.side_effect = fake_config({
-            'worker-multiplier': 1,
-        })
+    def test_num_cpus_xenial(self, _psutil):
         _psutil.cpu_count.return_value = 4
-        worker = context.WorkerConfigContext()
-        self.assertTrue(worker.num_cpus, 4)
+        self.assertTrue(context._num_cpus(), 4)
 
     @patch.object(context, 'psutil')
-    def test_workerconfig_context_trusty(self, _psutil):
-        self.config.side_effect = fake_config({
-            'worker-multiplier': 2,
-        })
+    def test_num_cpus_trusty(self, _psutil):
         _psutil.NUM_CPUS = 4
-        worker = context.WorkerConfigContext()
-        self.assertTrue(worker.num_cpus, 2)
+        self.assertTrue(context._num_cpus(), 4)
 
-    def test_workerconfig_context_float(self):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_float(self, _num_cpus):
         self.config.side_effect = fake_config({
             'worker-multiplier': 0.3
         })
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 4):
-            worker = context.WorkerConfigContext()
-            self.assertTrue(worker.num_cpus, 1)
+        _num_cpus.return_value = 4
+        self.assertTrue(context._calculate_workers(), 4)
 
-    def test_workerconfig_context_not_quite_0(self):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_not_quite_0(self, _num_cpus):
         # Make sure that the multiplier evaluating to somewhere between
         # 0 and 1 in the floating point range still has at least one
         # worker.
         self.config.side_effect = fake_config({
             'worker-multiplier': 0.001
         })
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 100):
-            worker = context.WorkerConfigContext()
-            self.assertTrue(worker.num_cpus, 1)
+        _num_cpus.return_value = 100
+        self.assertTrue(context._calculate_workers(), 1)
 
-    def test_workerconfig_context_0(self):
+    @patch.object(context, 'psutil')
+    def test_calculate_workers_0(self, _psutil):
         self.config.side_effect = fake_config({
             'worker-multiplier': 0
         })
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
-            worker = context.WorkerConfigContext()
-            self.assertTrue(worker.num_cpus, 0)
+        _psutil.cpu_count.return_value = 2
+        self.assertTrue(context._calculate_workers(), 0)
 
-    def test_workerconfig_context_noconfig(self):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_noconfig(self, _num_cpus):
         self.config.return_value = None
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 1):
-            worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 2}, worker())
+        _num_cpus.return_value = 1
+        self.assertTrue(context._calculate_workers(), 2)
 
-    def test_workerconfig_context_noconfig_container(self):
-        self.config.return_value = None
-        self.is_container.return_value = True
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 1):
-            worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 2}, worker())
-
-    def test_workerconfig_context_noconfig_lotsa_cpus_container(self):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_noconfig_container(self, _num_cpus):
         self.config.return_value = None
         self.is_container.return_value = True
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 32):
-            worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 4}, worker())
+        _num_cpus.return_value = 1
+        self.assertTrue(context._calculate_workers(), 2)
 
-    def test_workerconfig_context_noconfig_lotsa_cpus_not_container(self):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_noconfig_lotsa_cpus_container(self,
+                                                             _num_cpus):
         self.config.return_value = None
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 32):
-            worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 64}, worker())
+        self.is_container.return_value = True
+        _num_cpus.return_value = 32
+        self.assertTrue(context._calculate_workers(), 4)
 
-    def test_workerconfig_context_withconfig(self):
-        self.config.side_effect = fake_config({
-            'worker-multiplier': 4,
-        })
-        with patch.object(context.WorkerConfigContext, 'num_cpus', 2):
-            worker = context.WorkerConfigContext()
-            self.assertEqual({'workers': 8}, worker())
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_noconfig_lotsa_cpus_not_container(self,
+                                                                 _num_cpus):
+        self.config.return_value = None
+        _num_cpus.return_value = 32
+        self.assertTrue(context._calculate_workers(), 64)
+
+    @patch.object(context, '_calculate_workers', return_value=256)
+    def test_worker_context(self, calculate_workers):
+        self.assertEqual(context.WorkerConfigContext()(),
+                         {'workers': 256})
 
     def test_apache_get_addresses_no_network_splits(self):
         self.https.return_value = True
