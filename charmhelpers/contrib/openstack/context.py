@@ -1235,7 +1235,11 @@ DEFAULT_MULTIPLIER = 2
 def _calculate_workers():
     '''
     Determine the number of worker processes based on the CPU
-    count of the unit containing the application
+    count of the unit containing the application.
+
+    Workers will be limited to MAX_DEFAULT_WORKERS in
+    container environments where no worker-multipler configuration
+    option been set.
 
     @returns int: number of worker processes to use
     '''
@@ -1257,8 +1261,8 @@ def _calculate_workers():
 
 def _num_cpus():
     '''
-    Compatibility wrapper for caculating the number of CPU's
-    a unit has
+    Compatibility wrapper for calculating the number of CPU's
+    a unit has.
 
     @returns: int: number of CPU cores detected
     '''
