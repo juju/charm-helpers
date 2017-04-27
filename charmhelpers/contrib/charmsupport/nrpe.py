@@ -193,6 +193,9 @@ define service {{
         nrpe_check_file = self._get_check_filename()
         with open(nrpe_check_file, 'w') as nrpe_check_config:
             nrpe_check_config.write("# check {}\n".format(self.shortname))
+            if nagios_servicegroups:
+                nrpe_check_config.write(
+                    "# servicegroups: {}\n".format(nagios_servicegroups))
             nrpe_check_config.write("command[{}]={}\n".format(
                 self.command, self.check_cmd))
 
