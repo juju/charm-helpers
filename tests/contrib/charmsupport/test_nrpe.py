@@ -159,6 +159,7 @@ define service {
 """
         expected = [
             '# check myservice\n',
+            '# The following header was added automatically by juju\n',
             '# servicegroups: a\n',
             'command[check_myservice]=/usr/lib/nagios/plugins/check_http http://localhost\n',
             service_file_contents,
