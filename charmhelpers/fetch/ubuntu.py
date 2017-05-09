@@ -121,6 +121,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'pike/proposed': 'xenial-proposed/pike',
     'xenial-pike/proposed': 'xenial-proposed/pike',
     'xenial-pike/newton': 'xenial-proposed/pike',
+    # Queens
+    'queens': 'xenial-updates/queens',
+    'xenial-queens': 'xenial-updates/queens',
+    'xenial-queens/updates': 'xenial-updates/queens',
+    'xenial-updates/queens': 'xenial-updates/queens',
+    'queens/proposed': 'xenial-proposed/queens',
+    'xenial-queens/proposed': 'xenial-proposed/queens',
+    'xenial-queens/newton': 'xenial-proposed/queens',
 }
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
