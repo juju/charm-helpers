@@ -197,6 +197,8 @@ define service {{
                 nrpe_check_config.write(
                     "# The following header was added automatically by juju\n")
                 nrpe_check_config.write(
+                    "# Modifying it will affect nagios monitoring and alerting\n")
+                nrpe_check_config.write(
                     "# servicegroups: {}\n".format(nagios_servicegroups))
             nrpe_check_config.write("command[{}]={}\n".format(
                 self.command, self.check_cmd))
