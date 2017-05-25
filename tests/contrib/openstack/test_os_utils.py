@@ -126,7 +126,7 @@ class UtilsTests(unittest.TestCase):
                         mock_git_os_codename_install_source,
                         mock_config):
         # Wipe the modules cached os_rel
-        utils.os_rel = None
+        utils._os_rel = None
         mock_get_os_codename_install_source.return_value = None
         mock_get_os_codename_package.return_value = None
         mock_git_os_codename_install_source.return_value = None
