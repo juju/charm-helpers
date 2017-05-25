@@ -1,13 +1,13 @@
 import io
 import os
-import subprocess
-import tempfile
 import contextlib
 import unittest
 from copy import copy
+from tests.helpers import patch_open
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
+from charmhelpers.fetch import ubuntu as fetch
 import charmhelpers.contrib.openstack.utils as openstack
 
 import six
@@ -123,23 +123,9 @@ openstack_origin_git = """
 
 # Mock python-dnspython resolver used by get_host_ip()
 
-PGP_KEY_ASCII_ARMOR = """-----BEGIN PGP PUBLIC KEY BLOCK-----
-Version: SKS 1.1.5
-Comment: Hostname: keyserver.ubuntu.com
-
-mI0EUCEyTAEEAMuUxyfiegCCwn4J/c0nw5PUTSJdn5FqiUTq6iMfij65xf1vl0g/Mxqw0gfg
-AJIsCDvO9N9dloLAwF6FUBMg5My7WyhRPTAKF505TKJboyX3Pp4J1fU1LV8QFVOp87vUh1Rz
-B6GU7cSglhnbL85gmbJTllkzkb3h4Yw7W+edjcQ/ABEBAAG0K0xhdW5jaHBhZCBQUEEgZm9y
-IFVidW50dSBDbG91ZCBBcmNoaXZlIFRlYW2IuAQTAQIAIgUCUCEyTAIbAwYLCQgHAwIGFQgC
-CQoLBBYCAwECHgECF4AACgkQimhEop9oEE7kJAP/eTBgq3Mhbvo0d8elMOuqZx3nmU7gSyPh
-ep0zYIRZ5TJWl/7PRtvp0CJA6N6ZywYTQ/4ANHhpibcHZkh8K0AzUvsGXnJRSFoJeqyDbD91
-EhoO+4ZfHs2HvRBQEDZILMa2OyuB497E5Mmyua3HDEOrG2cVLllsUZzpTFCx8NgeMHk=
-=jLBm
------END PGP PUBLIC KEY BLOCK-----
-"""
-
 
 class FakeAnswer(object):
+
     def __init__(self, ip):
         self.ip = ip
 
@@ -148,6 +134,7 @@ class FakeAnswer(object):
 
 
 class FakeResolver(object):
+
     def __init__(self, ip):
         self.ip = ip
 
@@ -159,16 +146,19 @@ class FakeResolver(object):
 
 
 class FakeReverse(object):
+
     def from_address(self, address):
         return '156.94.189.91.in-addr.arpa'
 
 
 class FakeDNSName(object):
+
     def __init__(self, dnsname):
         pass
 
 
 class FakeDNS(object):
+
     def __init__(self, ip):
         self.resolver = FakeResolver(ip)
         self.reversename = FakeReverse()
@@ -177,6 +167,7 @@ class FakeDNS(object):
 
 
 class OpenStackHelpersTestCase(TestCase):
+
     def _apt_cache(self):
         # mocks out the apt cache
         def cache_get(package):
@@ -197,7 +188,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_install_source(self, mocked_lsb):
-        '''Test mapping install source to OpenStack release name'''
+        """Test mapping install source to OpenStack release name"""
         mocked_lsb.return_value = FAKE_RELEASE
 
         # the openstack release shipped with respective ubuntu/lsb release.
@@ -236,7 +227,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_bad_install_source(self, mocked_lsb):
-        '''Test mapping install source to OpenStack release name'''
+        """Test mapping install source to OpenStack release name"""
         _fake_release = copy(FAKE_RELEASE)
         _fake_release['DISTRIB_CODENAME'] = 'natty'
 
@@ -249,32 +240,32 @@ class OpenStackHelpersTestCase(TestCase):
             mocked_err.assert_called_with(_er)
 
     def test_os_codename_from_version(self):
-        '''Test mapping OpenStack numerical versions to code name'''
+        """Test mapping OpenStack numerical versions to code name"""
         self.assertEquals(openstack.get_os_codename_version('2013.1'),
                           'grizzly')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_version(self, mocked_error):
-        '''Test mapping a bad OpenStack numerical versions to code name'''
+        """Test mapping a bad OpenStack numerical versions to code name"""
         openstack.get_os_codename_version('2014.5.5')
         expected_err = ('Could not determine OpenStack codename for '
                         'version 2014.5.5')
         mocked_error.assert_called_with(expected_err)
 
     def test_os_version_from_codename(self):
-        '''Test mapping a OpenStack codename to numerical version'''
+        """Test mapping a OpenStack codename to numerical version"""
         self.assertEquals(openstack.get_os_version_codename('folsom'),
                           '2012.2')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_bad_codename(self, mocked_error):
-        '''Test mapping a bad OpenStack codename to numerical version'''
+        """Test mapping a bad OpenStack codename to numerical version"""
         openstack.get_os_version_codename('foo')
         expected_err = 'Could not derive OpenStack version for codename: foo'
         mocked_error.assert_called_with(expected_err)
 
     def test_os_version_swift_from_codename(self):
-        '''Test mapping a swift codename to numerical version'''
+        """Test mapping a swift codename to numerical version"""
         self.assertEquals(openstack.get_os_version_codename_swift('liberty'),
                           '2.5.0')
 
@@ -283,7 +274,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_swift_from_bad_codename(self, mocked_error):
-        '''Test mapping a bad swift codename to numerical version'''
+        """Test mapping a bad swift codename to numerical version"""
         openstack.get_os_version_codename_swift('foo')
         expected_err = 'Could not derive swift version for codename: foo'
         mocked_error.assert_called_with(expected_err)
@@ -302,7 +293,7 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
 
     def test_os_codename_from_package(self):
-        '''Test deriving OpenStack codename from an installed package'''
+        """Test deriving OpenStack codename from an installed package"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             for pkg, vers in six.iteritems(FAKE_REPO):
@@ -316,7 +307,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_package_version(self, mocked_error):
-        '''Test deriving OpenStack codename for a poorly versioned package'''
+        """Test deriving OpenStack codename for a poorly versioned package"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             openstack.get_os_codename_package('bad-version')
@@ -325,7 +316,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_package(self, mocked_error):
-        '''Test deriving OpenStack codename from an unavailable package'''
+        """Test deriving OpenStack codename from an unavailable package"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -339,7 +330,7 @@ class OpenStackHelpersTestCase(TestCase):
             mocked_error.assert_called_with(e)
 
     def test_os_codename_from_bad_package_nonfatal(self):
-        '''Test OpenStack codename from an unavailable package is non-fatal'''
+        """Test OpenStack codename from an unavailable package is non-fatal"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -349,7 +340,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_uninstalled_package(self, mock_error):
-        '''Test OpenStack codename from an available but uninstalled pkg'''
+        """Test OpenStack codename from an available but uninstalled pkg"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -361,7 +352,7 @@ class OpenStackHelpersTestCase(TestCase):
             mock_error.assert_called_with(e)
 
     def test_os_codename_from_uninstalled_package_nonfatal(self):
-        '''Test OpenStack codename from avail uninstalled pkg is non fatal'''
+        """Test OpenStack codename from avail uninstalled pkg is non fatal"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -371,7 +362,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_package(self, mocked_error):
-        '''Test deriving OpenStack version from an installed package'''
+        """Test deriving OpenStack version from an installed package"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             for pkg, vers in six.iteritems(FAKE_REPO):
@@ -384,7 +375,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_bad_package(self, mocked_error):
-        '''Test deriving OpenStack version from an uninstalled package'''
+        """Test deriving OpenStack version from an uninstalled package"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -398,7 +389,7 @@ class OpenStackHelpersTestCase(TestCase):
             mocked_error.assert_called_with(e)
 
     def test_os_version_from_bad_package_nonfatal(self):
-        '''Test OpenStack version from an uninstalled package is non-fatal'''
+        """Test OpenStack version from an uninstalled package is non-fatal"""
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -410,7 +401,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'git_os_codename_install_source')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_os_release_uncached(self, config, git_cn, get_cn):
-        openstack.os_rel = None
+        openstack._os_rel = None
         get_cn.return_value = 'folsom'
         git_cn.return_value = None
 
@@ -420,69 +411,142 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals('folsom', openstack.os_release('nova-common'))
 
     def test_os_release_cached(self):
-        openstack.os_rel = 'foo'
+        openstack._os_rel = 'foo'
         self.assertEquals('foo', openstack.os_release('nova-common'))
 
     @patch.object(openstack, 'juju_log')
     @patch('sys.exit')
     def test_error_out(self, mocked_exit, juju_log):
-        '''Test erroring out'''
+        """Test erroring out"""
         openstack.error_out('Everything broke.')
         _log = 'FATAL ERROR: Everything broke.'
         juju_log.assert_called_with(_log, level='ERROR')
         mocked_exit.assert_called_with(1)
 
+    def test_get_source_and_pgp_key(self):
+        tests = {
+            "source|key": ('source', 'key'),
+            "source|": ('source', None),
+            "|key": ('', 'key'),
+            "source": ('source', None),
+        }
+        for k, v in six.iteritems(tests):
+            self.assertEqual(openstack.get_source_and_pgp_key(k), v)
+
+    # These should still work, even though the bulk of the functionality has
+    # moved to charmhelpers.fetch.add_source()
     def test_configure_install_source_distro(self):
-        '''Test configuring installation from distro'''
+        """Test configuring installation from distro"""
         self.assertIsNone(openstack.configure_installation_source('distro'))
 
     def test_configure_install_source_ppa(self):
-        '''Test configuring installation source from PPA'''
+        """Test configuring installation source from PPA"""
         with patch('subprocess.check_call') as mock:
             src = 'ppa:gandelman-a/openstack'
             openstack.configure_installation_source(src)
-            ex_cmd = ['add-apt-repository', '-y', 'ppa:gandelman-a/openstack']
+            ex_cmd = [
+                'add-apt-repository', '--yes', 'ppa:gandelman-a/openstack']
             mock.assert_called_with(ex_cmd)
 
-    @patch(builtin_open)
-    @patch('charmhelpers.contrib.openstack.utils.juju_log')
-    @patch('charmhelpers.contrib.openstack.utils.import_key')
-    def test_configure_install_source_deb_url(self, _import, _log, _open):
-        '''Test configuring installation source from deb repo url'''
-        _file = MagicMock(spec=io.FileIO)
-        _open.return_value = _file
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'import_key')
+    def test_configure_install_source_deb_url(self, _import, _spcc):
+        """Test configuring installation source from deb repo url"""
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main|KEYID')
         openstack.configure_installation_source(src)
         _import.assert_called_with('KEYID')
-        _file.__enter__().write.assert_called_with(src.split('|')[0])
-        src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
-               'precise-havana main')
-        openstack.configure_installation_source(src)
-        _file.__enter__().write.assert_called_with(src)
+        _spcc.assert_called_once_with(
+            ['add-apt-repository', '--yes',
+             'deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
+             'precise-havana main'])
 
-    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
+    @patch.object(fetch, 'lsb_release')
     @patch(builtin_open)
-    @patch('charmhelpers.contrib.openstack.utils.juju_log')
-    def test_configure_install_source_distro_proposed(self, _log, _open, _lsb):
-        '''Test configuring installation source from deb repo url'''
+    @patch('subprocess.check_call')
+    def test_configure_install_source_distro_proposed(
+            self, _spcc, _open, _lsb):
+        """Test configuring installation source from deb repo url"""
         _lsb.return_value = FAKE_RELEASE
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         openstack.configure_installation_source('distro-proposed')
+        _file.__enter__().write.assert_called_once_with(
+            '# Proposed\ndeb http://archive.ubuntu.com/ubuntu '
+            'precise-proposed main universe multiverse restricted\n')
         src = ('deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
                'restricted main multiverse universe')
         openstack.configure_installation_source(src)
-        _file.__enter__().write.assert_called_with(src)
+        _spcc.assert_called_once_with(
+            ['add-apt-repository', '--yes',
+             'deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
+             'restricted main multiverse universe'])
+
+    @patch('charmhelpers.fetch.filter_installed_packages')
+    @patch('charmhelpers.fetch.apt_install')
+    @patch.object(openstack, 'error_out')
+    @patch.object(openstack, 'juju_log')
+    def test_add_source_cloud_invalid_pocket(self, _log, _out,
+                                             apt_install, filter_pkg):
+        openstack.configure_installation_source("cloud:havana-updates")
+        _e = ('Invalid Cloud Archive release specified: '
+              'havana-updates on this Ubuntuversion')
+        _s = _out.call_args[0][0]
+        self.assertTrue(_s.startswith(_e))
+
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'lsb_release')
+    def test_add_source_cloud_pocket_style(self, lsb_release,
+                                           apt_install, filter_pkg):
+        source = "cloud:precise-updates/havana"
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        result = (
+            "# Ubuntu Cloud Archive\n"
+            "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
+            "precise-updates/havana main\n")
+        with patch_open() as (mock_open, mock_file):
+            openstack.configure_installation_source(source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'lsb_release')
+    def test_add_source_cloud_os_style(self, lsb_release,
+                                       apt_install, filter_pkg):
+        source = "cloud:precise-havana"
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        result = (
+            "# Ubuntu Cloud Archive\n"
+            "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
+            "precise-updates/havana main\n")
+        with patch_open() as (mock_open, mock_file):
+            openstack.configure_installation_source(source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    def test_add_source_cloud_distroless_style(self, apt_install, filter_pkg):
+        source = "cloud:havana"
+        result = (
+            "# Ubuntu Cloud Archive\n"
+            "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
+            "precise-updates/havana main\n")
+        with patch_open() as (mock_open, mock_file):
+            openstack.configure_installation_source(source)
+            mock_file.write.assert_called_with(result)
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_configure_bad_install_source(self, _error):
         openstack.configure_installation_source('foo')
-        _error.assert_called_with('Invalid openstack-release specified: foo')
+        _error.assert_called_with("Unknown source: 'foo'")
 
-    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
+    @patch.object(fetch, 'lsb_release')
     def test_configure_install_source_uca_staging(self, _lsb):
-        '''Test configuring installation source from UCA staging sources'''
+        """Test configuring installation source from UCA staging sources"""
         _lsb.return_value = FAKE_RELEASE
         # staging pockets are configured as PPAs
         with patch('subprocess.check_call') as _subp:
@@ -493,76 +557,63 @@ class OpenStackHelpersTestCase(TestCase):
             _subp.assert_called_with(cmd)
 
     @patch(builtin_open)
-    @patch('charmhelpers.contrib.openstack.utils.apt_install')
-    @patch('charmhelpers.contrib.openstack.utils.lsb_release')
-    def test_configure_install_source_uca_repos(self, _lsb, _install, _open):
-        '''Test configuring installation source from UCA sources'''
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'filter_installed_packages')
+    def test_configure_install_source_uca_repos(
+            self, _fip, _lsb, _install, _open):
+        """Test configuring installation source from UCA sources"""
         _lsb.return_value = FAKE_RELEASE
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
+        _fip.side_effect = lambda x: x
         for src, url in UCA_SOURCES:
+            actual_url = "# Ubuntu Cloud Archive\n{}\n".format(url)
             openstack.configure_installation_source(src)
-            _install.assert_called_with('ubuntu-cloud-keyring',
+            _install.assert_called_with(['ubuntu-cloud-keyring'],
                                         fatal=True)
             _open.assert_called_with(
                 '/etc/apt/sources.list.d/cloud-archive.list',
                 'w'
             )
-            _file.__enter__().write.assert_called_with(url)
+            _file.__enter__().write.assert_called_with(actual_url)
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_configure_install_source_bad_uca(self, mocked_error):
-        '''Test configuring installation source from bad UCA source'''
+        """Test configuring installation source from bad UCA source"""
         try:
             openstack.configure_installation_source('cloud:foo-bar')
         except:
             # ignore exceptions that raise when error_out is mocked
             # and doesn't sys.exit(1)
             pass
-        _e = 'Invalid Cloud Archive release specified: foo-bar'
-        mocked_error.assert_called_with(_e)
+        _e = ('Invalid Cloud Archive release specified: foo-bar'
+              ' on this Ubuntuversion')
+        _s = mocked_error.call_args[0][0]
+        self.assertTrue(_s.startswith(_e))
 
-    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
-    def test_import_apt_key_radix(self):
-        '''Ensure shell out apt-key during key import'''
-        with patch('subprocess.check_call') as _subp:
-            openstack.import_key('foo')
-            cmd = ['apt-key', 'adv', '--keyserver',
-                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
-            _subp.assert_called_with(cmd)
+    @patch.object(openstack, 'fetch_import_key')
+    def test_import_key_calls_fetch_import_key(self, fetch_import_key):
+        openstack.import_key('random-string')
+        fetch_import_key.assert_called_once_with('random-string')
 
-    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
-    def test_import_apt_key_ascii_armor(self):
-        with tempfile.NamedTemporaryFile() as tmp:
-            with patch.object(openstack, 'tempfile') as \
-                    mock_tmpfile:
-                tmpfile = mock_tmpfile.NamedTemporaryFile.return_value
-                tmpfile.__enter__.return_value = tmpfile
-                tmpfile.name = tmp.name
-                with patch('subprocess.check_call') as _subp:
-                    openstack.import_key(PGP_KEY_ASCII_ARMOR)
-                    cmd = ['apt-key', 'add', tmp.name]
-                    _subp.assert_called_with(cmd)
+    @patch.object(openstack, 'fetch_import_key')
+    @patch.object(openstack, 'sys')
+    def test_import_key_calls_sys_exit_on_error(self, mock_sys,
+                                                fetch_import_key):
 
-    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
-    @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_import_bad_apt_key(self, mocked_error):
-        '''Ensure error when importing apt key fails'''
-        with patch('subprocess.check_call') as _subp:
-            cmd = ['apt-key', 'adv', '--keyserver',
-                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
-            _subp.side_effect = subprocess.CalledProcessError(1, cmd, '')
-            openstack.import_key('foo')
-            cmd = ['apt-key', 'adv', '--keyserver',
-                   'hkp://keyserver.ubuntu.com:80', '--recv-keys', 'foo']
-        mocked_error.assert_called_with("Error importing PGP key 'foo'")
+        def raiser(_):
+            raise openstack.GPGKeyError("an error occurred")
+        fetch_import_key.side_effect = raiser
+        openstack.import_key('random failure')
+        mock_sys.exit.assert_called_once_with(1)
 
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
     @patch(builtin_open)
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
-        '''Test generation of scriptrc from environment'''
+        """Test generation of scriptrc from environment"""
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
                     'export setting2=bar\n']
@@ -618,14 +669,14 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
     def test_ensure_block_device_bad_config(self, err, is_bd):
-        '''Test it doesn't prepare storage with bad config'''
+        """Test it doesn't prepare storage with bad config"""
         openstack.ensure_block_device(block_device='none')
         self.assertTrue(err.called)
 
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'ensure_loopback_device')
     def test_ensure_block_device_loopback(self, ensure_loopback, is_bd):
-        '''Test it ensures loopback device when checking block device'''
+        """Test it ensures loopback device when checking block device"""
         defsize = openstack.DEFAULT_LOOPBACK_SIZE
         is_bd.return_value = True
 
@@ -641,7 +692,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'is_block_device')
     def test_ensure_standard_block_device(self, is_bd):
-        '''Test it looks for storage at both relative and full device path'''
+        """Test it looks for storage at both relative and full device path"""
         for dev in ['vdb', '/dev/vdb']:
             openstack.ensure_block_device(dev)
             is_bd.assert_called_with('/dev/vdb')
@@ -649,7 +700,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
     def test_ensure_nonexistent_block_device(self, error_out, is_bd):
-        '''Test it will not ensure a non-existant block device'''
+        """Test it will not ensure a non-existant block device"""
         is_bd.return_value = False
         openstack.ensure_block_device(block_device='foo')
         self.assertTrue(error_out.called)
@@ -660,7 +711,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'zap_disk')
     @patch.object(openstack, 'is_lvm_physical_volume')
     def test_clean_storage_unmount(self, is_pv, zap_disk, mounts, umount, log):
-        '''Test it unmounts block device when cleaning storage'''
+        """Test it unmounts block device when cleaning storage"""
         is_pv.return_value = False
         zap_disk.return_value = True
         mounts.return_value = MOUNTS
@@ -673,7 +724,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'mounts')
     @patch.object(openstack, 'is_lvm_physical_volume')
     def test_clean_storage_lvm_wipe(self, is_pv, mounts, rm_lv, rm_vg, log):
-        '''Test it removes traces of LVM when cleaning storage'''
+        """Test it removes traces of LVM when cleaning storage"""
         mounts.return_value = []
         is_pv.return_value = True
         openstack.clean_storage('/dev/vdb')
@@ -684,7 +735,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'is_lvm_physical_volume')
     @patch.object(openstack, 'mounts')
     def test_clean_storage_zap_disk(self, mounts, is_pv, zap_disk):
-        '''It removes traces of LVM when cleaning storage'''
+        """It removes traces of LVM when cleaning storage"""
         mounts.return_value = []
         is_pv.return_value = False
         openstack.clean_storage('/dev/vdb')
