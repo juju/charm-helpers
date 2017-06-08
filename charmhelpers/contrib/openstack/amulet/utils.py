@@ -407,7 +407,8 @@ class OpenStackAmuletUtils(AmuletUtils):
             keystone_ip = keystone_sentry.info['public-address']
 
         # To support backward compatibility usage of this function
-        project_name = tenant
+        if not project_name:
+            project_name = tenant
         if api_version == 3 and not user_domain_name:
             user_domain_name = 'admin_domain'
         if api_version == 3 and not project_domain_name:
