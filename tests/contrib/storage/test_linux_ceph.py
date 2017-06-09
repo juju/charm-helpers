@@ -11,9 +11,7 @@ import shutil
 
 import charmhelpers.contrib.storage.linux.ceph as ceph_utils
 
-from charmhelpers.core.unitdata import (
-    Storage as KVStore,
-)
+from charmhelpers.core.unitdata import Storage
 from subprocess import CalledProcessError
 from tests.helpers import patch_open, FakeRelation
 import nose.plugins.attrib
@@ -1408,7 +1406,7 @@ class CephUtilsTests(TestCase):
         tmpdir = mkdtemp()
         try:
             db_path = '{}/kv.db'.format(tmpdir)
-            with patch.object(ceph_utils, 'get_kv_db_path', lambda: db_path):
+            with patch('charmhelpers.core.unitdata._KV', Storage(db_path)):
                 rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
                 broker_key = ceph_utils.get_broker_rsp_key()
                 self.relation_get.return_value = {broker_key:
@@ -1434,8 +1432,8 @@ class CephUtilsTests(TestCase):
     def test_mark_broker_action_done(self):
         tmpdir = mkdtemp()
         try:
-            dbpath = '{}/kv.db'.format(tmpdir)
-            with patch.object(ceph_utils, 'get_kv_db_path', lambda: dbpath):
+            db_path = '{}/kv.db'.format(tmpdir)
+            with patch('charmhelpers.core.unitdata._KV', Storage(db_path)):
                 rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
                 broker_key = ceph_utils.get_broker_rsp_key()
                 self.relation_get.return_value = {broker_key:
@@ -1446,7 +1444,7 @@ class CephUtilsTests(TestCase):
                                                    unit="ceph/0")
                 key = 'unit_0_ceph_broker_action.{}'.format(action)
                 self.relation_get.assert_has_calls([call('ceph:1', 'ceph/0')])
-                kvstore = KVStore(dbpath)
+                kvstore = Storage(db_path)
                 self.assertEqual(kvstore.get(key=key), rq_id)
         finally:
             if os.path.exists(tmpdir):
