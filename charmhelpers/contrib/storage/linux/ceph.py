@@ -63,12 +63,17 @@ from charmhelpers.core.host import (
 from charmhelpers.fetch import (
     apt_install,
 )
+from charmhelpers.core.unitdata import (
+    Storage as KVStore,
+)
 
 from charmhelpers.core.kernel import modprobe
 from charmhelpers.contrib.openstack.utils import config_flags_parser
 
 KEYRING = '/etc/ceph/ceph.client.{}.keyring'
 KEYFILE = '/etc/ceph/ceph.client.{}.key'
+KV_DB_PATH = ('/var/lib/juju/{}/charm_ceph_broker_kvdata.db'.
+              format(service_name()))
 
 CEPH_CONF = """[global]
 auth supported = {auth}
@@ -1312,6 +1317,64 @@ def send_request_if_needed(request, relation='ceph'):
         for rid in relation_ids(relation):
             log('Sending request {}'.format(request.request_id), level=DEBUG)
             relation_set(relation_id=rid, broker_req=request.request)
+
+
+def ensure_kvstore(f):
+    """Decorator to ensure that kvdb path exists prior to use.
+    """
+    def _ensure_kvstore(*args, **kwargs):
+        d = os.path.dirname(KV_DB_PATH)
+        if not os.path.isdir(d):
+            os.mkdir(d)
+
+        return f(*args, **kwargs)
+
+    return _ensure_kvstore
+
+
+@ensure_kvstore
+def is_broker_action_done(action, rid=None, unit=None):
+    """Check whether broker action has completed yet.
+
+    @param action: name of action to be performed
+    @returns True if action complete otherwise False
+    """
+    rdata = relation_get(rid, unit) or {}
+    broker_rsp = rdata.get(get_broker_rsp_key())
+    if not broker_rsp:
+        return False
+
+    rsp = CephBrokerRsp(broker_rsp)
+    unit_name = local_unit().partition('/')[2]
+    key = "unit_{}_ceph_broker_action.{}".format(unit_name, action)
+    kvstore = KVStore(KV_DB_PATH)
+    val = kvstore.get(key=key)
+    kvstore.close()
+    if val and val == rsp.request_id:
+        return True
+
+    return False
+
+
+@ensure_kvstore
+def mark_broker_action_done(action, rid=None, unit=None):
+    """Mark action as having been completed.
+
+    @param action: name of action to be performed
+    @returns None
+    """
+    rdata = relation_get(rid, unit) or {}
+    broker_rsp = rdata.get(get_broker_rsp_key())
+    if not broker_rsp:
+        return
+
+    rsp = CephBrokerRsp(broker_rsp)
+    unit_name = local_unit().partition('/')[2]
+    key = "unit_{}_ceph_broker_action.{}".format(unit_name, action)
+    kvstore = KVStore(KV_DB_PATH)
+    kvstore.set(key=key, value=rsp.request_id)
+    kvstore.flush()
+    kvstore.close()
 
 
 class CephConfContext(object):
