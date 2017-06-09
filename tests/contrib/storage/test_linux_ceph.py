@@ -7,8 +7,15 @@ from threading import Timer
 from testtools import TestCase
 import json
 import copy
+import shutil
 
-import charmhelpers.contrib.storage.linux.ceph as ceph_utils
+
+with patch('charmhelpers.core.hookenv.service_name', lambda: 'test_svc'):
+    import charmhelpers.contrib.storage.linux.ceph as ceph_utils
+
+from charmhelpers.core.unitdata import (
+    Storage as KVStore,
+)
 from subprocess import CalledProcessError
 from tests.helpers import patch_open, FakeRelation
 import nose.plugins.attrib
@@ -1397,3 +1404,52 @@ class CephUtilsTests(TestCase):
         mock_config.return_value = ("{'osd': {'foo': 1},"
                                     "'unknown': {'blah': 1}}")
         self.assertEqual({'osd': {'foo': 1}}, ctxt)
+
+    @patch.object(ceph_utils, 'local_unit', lambda: "nova-compute/0")
+    def test_is_broker_action_done(self):
+        tmpdir = mkdtemp()
+        try:
+            db_path = '{}/kv.db'.format(tmpdir)
+            with patch.object(ceph_utils, 'KV_DB_PATH', db_path):
+                rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
+                broker_key = ceph_utils.get_broker_rsp_key()
+                self.relation_get.return_value = {broker_key:
+                                                  json.dumps({"request-id":
+                                                              rq_id,
+                                                              "exit-code": 0})}
+                action = 'restart_nova_compute'
+                ret = ceph_utils.is_broker_action_done(action, rid="ceph:1",
+                                                       unit="ceph/0")
+                self.relation_get.assert_has_calls([call('ceph:1', 'ceph/0')])
+                self.assertFalse(ret)
+
+                ceph_utils.mark_broker_action_done(action)
+                self.assertTrue(os.path.exists(tmpdir))
+                ret = ceph_utils.is_broker_action_done(action, rid="ceph:1",
+                                                       unit="ceph/0")
+                self.assertTrue(ret)
+        finally:
+            if os.path.exists(tmpdir):
+                shutil.rmtree(tmpdir)
+
+    @patch.object(ceph_utils, 'local_unit', lambda: "nova-compute/0")
+    def test_mark_broker_action_done(self):
+        tmpdir = mkdtemp()
+        try:
+            dbpath = '{}/kv.db'.format(tmpdir)
+            with patch.object(ceph_utils, 'KV_DB_PATH', dbpath):
+                rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
+                broker_key = ceph_utils.get_broker_rsp_key()
+                self.relation_get.return_value = {broker_key:
+                                                  json.dumps({"request-id":
+                                                              rq_id})}
+                action = 'restart_nova_compute'
+                ceph_utils.mark_broker_action_done(action, rid="ceph:1",
+                                                   unit="ceph/0")
+                key = 'unit_0_ceph_broker_action.{}'.format(action)
+                self.relation_get.assert_has_calls([call('ceph:1', 'ceph/0')])
+                kvstore = KVStore(dbpath)
+                self.assertEqual(kvstore.get(key=key), rq_id)
+        finally:
+            if os.path.exists(tmpdir):
+                shutil.rmtree(tmpdir)
