@@ -72,8 +72,6 @@ from charmhelpers.contrib.openstack.utils import config_flags_parser
 
 KEYRING = '/etc/ceph/ceph.client.{}.keyring'
 KEYFILE = '/etc/ceph/ceph.client.{}.key'
-KV_DB_PATH = ('/var/lib/juju/{}/charm_ceph_broker_kvdata.db'.
-              format(service_name()))
 
 CEPH_CONF = """[global]
 auth supported = {auth}
@@ -1319,11 +1317,16 @@ def send_request_if_needed(request, relation='ceph'):
             relation_set(relation_id=rid, broker_req=request.request)
 
 
+def get_kv_db_path():
+    return ('/var/lib/juju/{}/charm_ceph_broker_kvdata.db'.
+            format(service_name()))
+
+
 def ensure_kvstore(f):
     """Decorator to ensure that kvdb path exists prior to use.
     """
     def _ensure_kvstore(*args, **kwargs):
-        d = os.path.dirname(KV_DB_PATH)
+        d = os.path.dirname(get_kv_db_path())
         if not os.path.isdir(d):
             os.mkdir(d)
 
@@ -1347,7 +1350,7 @@ def is_broker_action_done(action, rid=None, unit=None):
     rsp = CephBrokerRsp(broker_rsp)
     unit_name = local_unit().partition('/')[2]
     key = "unit_{}_ceph_broker_action.{}".format(unit_name, action)
-    kvstore = KVStore(KV_DB_PATH)
+    kvstore = KVStore(get_kv_db_path())
     val = kvstore.get(key=key)
     kvstore.close()
     if val and val == rsp.request_id:
@@ -1371,7 +1374,7 @@ def mark_broker_action_done(action, rid=None, unit=None):
     rsp = CephBrokerRsp(broker_rsp)
     unit_name = local_unit().partition('/')[2]
     key = "unit_{}_ceph_broker_action.{}".format(unit_name, action)
-    kvstore = KVStore(KV_DB_PATH)
+    kvstore = KVStore(get_kv_db_path())
     kvstore.set(key=key, value=rsp.request_id)
     kvstore.flush()
     kvstore.close()
