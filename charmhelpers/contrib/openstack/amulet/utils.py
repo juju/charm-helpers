@@ -25,7 +25,7 @@ import urlparse
 import cinderclient.v1.client as cinder_client
 import glanceclient.v1.client as glance_client
 import heatclient.v1.client as heat_client
-import keystoneclient.v2_0 as keystone_client
+from keystoneclient.v2_0 import client as keystone_client
 from keystoneauth1.identity import (
     v3,
     v2,
@@ -378,7 +378,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                 auth_url=ep
             )
             sess = keystone_session.Session(auth=auth)
-            client = keystone_client.client.Client(session=sess)
+            client = keystone_client.Client(session=sess)
             # This populates the client.service_catalog
             client.auth_ref = auth.get_access(sess)
             return client
@@ -394,7 +394,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                 auth_url=ep
             )
             sess = keystone_session.Session(auth=auth)
-            client = keystone_client_v3.client.Client(session=sess)
+            client = keystone_client_v3.Client(session=sess)
             # This populates the client.service_catalog
             client.auth_ref = auth.get_access(sess)
             return client
