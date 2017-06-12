@@ -377,10 +377,11 @@ class OpenStackAmuletUtils(AmuletUtils):
                 tenant_name=project_name,
                 auth_url=ep
             )
-
-            return keystone_client.Client(
-                session=keystone_session.Session(auth=auth)
-            )
+            sess = keystone_session.Session(auth=auth)
+            client = keystone_client.client.Client(session=sess)
+            # This populates the client.service_catalog
+            client.auth_ref = auth.get_access(sess)
+            return client
         else:
             ep = base_ep + "/v3"
             auth = v3.Password(
@@ -392,9 +393,11 @@ class OpenStackAmuletUtils(AmuletUtils):
                 project_name=project_name,
                 auth_url=ep
             )
-            return keystone_client_v3.Client(
-                session=keystone_session.Session(auth=auth)
-            )
+            sess = keystone_session.Session(auth=auth)
+            client = keystone_client_v3.client.Client(session=sess)
+            # This populates the client.service_catalog
+            client.auth_ref = auth.get_access(sess)
+            return client
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
                                     tenant=None, api_version=None,
@@ -427,11 +430,8 @@ class OpenStackAmuletUtils(AmuletUtils):
     def authenticate_keystone_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with the keystone public endpoint."""
         self.log.debug('Authenticating keystone user ({})...'.format(user))
-
-        endpoint_filter = {'service_type': 'identity',
-                           'interface': 'public',
-                           'region_name': 'RegionOne'}
-        ep = keystone.session.get_endpoint(**endpoint_filter)
+        ep = keystone.service_catalog.url_for(service_type='identity',
+                                              interface='publicURL')
         keystone_ip = urlparse.urlparse(ep).hostname
 
         return self.authenticate_keystone(keystone_ip, user, password,
@@ -440,30 +440,33 @@ class OpenStackAmuletUtils(AmuletUtils):
     def authenticate_glance_admin(self, keystone):
         """Authenticates admin user with glance."""
         self.log.debug('Authenticating glance admin...')
-        endpoint_filter = {'service_type': 'image',
-                           'interface': 'admin',
-                           'region_name': 'RegionOne'}
-        ep = keystone.session.get_endpoint(**endpoint_filter)
-        return glance_client.Client(ep, token=keystone.auth_token)
+        ep = keystone.service_catalog.url_for(service_type='image',
+                                              interface='adminURL')
+        if keystone.session:
+            return glance_client.Client(ep, session=keystone.session)
+        else:
+            return glance_client.Client(ep, token=keystone.auth_token)
 
     def authenticate_heat_admin(self, keystone):
         """Authenticates the admin user with heat."""
         self.log.debug('Authenticating heat admin...')
-        endpoint_filter = {'service_type': 'orchestration',
-                           'interface': 'public',
-                           'region_name': 'RegionOne'}
-        ep = keystone.session.get_endpoint(**endpoint_filter)
-        return heat_client.Client(endpoint=ep, token=keystone.auth_token)
+        ep = keystone.service_catalog.url_for(service_type='orchestration',
+                                              interface='publicURL')
+        if keystone.session:
+            return heat_client.Client(endpoint=ep, session=keystone.session)
+        else:
+            return heat_client.Client(endpoint=ep, token=keystone.auth_token)
 
     def authenticate_nova_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with nova-api."""
         self.log.debug('Authenticating nova user ({})...'.format(user))
-        endpoint_filter = {'service_type': 'identity',
-                           'interface': 'public',
-                           'region_name': 'RegionOne'}
-        ep = keystone.session.get_endpoint(**endpoint_filter)
-
-        if novaclient.__version__[0] >= "7":
+        ep = keystone.service_catalog.url_for(service_type='identity',
+                                              interface='publicURL')
+        if keystone.session:
+            return nova_client.Client(NOVA_CLIENT_VERSION,
+                                      session=keystone.session,
+                                      auth_url=ep)
+        elif novaclient.__version__[0] >= "7":
             return nova_client.Client(NOVA_CLIENT_VERSION,
                                       username=user, password=password,
                                       project_name=tenant, auth_url=ep)
@@ -475,15 +478,16 @@ class OpenStackAmuletUtils(AmuletUtils):
     def authenticate_swift_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with swift api."""
         self.log.debug('Authenticating swift user ({})...'.format(user))
-        endpoint_filter = {'service_type': 'identity',
-                           'interface': 'public',
-                           'region_name': 'RegionOne'}
-        ep = keystone.session.get_endpoint(**endpoint_filter)
-        return swiftclient.Connection(authurl=ep,
-                                      user=user,
-                                      key=password,
-                                      tenant_name=tenant,
-                                      auth_version='2.0')
+        ep = keystone.service_catalog.url_for(service_type='identity',
+                                              interface='publicURL')
+        if keystone.session:
+            return swiftclient.Connection(session=keystone.session)
+        else:
+            return swiftclient.Connection(authurl=ep,
+                                          user=user,
+                                          key=password,
+                                          tenant_name=tenant,
+                                          auth_version='2.0')
 
     def create_flavor(self, nova, name, ram, vcpus, disk, flavorid="auto",
                       ephemeral=0, swap=0, rxtx_factor=1.0, is_public=True):
