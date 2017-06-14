@@ -364,6 +364,7 @@ def add_source(source, key=None, fail_invalid=False):
         (r"^cloud:(.*)-(.*)\/staging$", _add_cloud_staging),
         (r"^cloud:(.*)-(.*)$", _add_cloud_distro_check),
         (r"^cloud:(.*)$", _add_cloud_pocket),
+        (r"^snap:.*-(.*)-(.*)$", _add_cloud_distro_check),
     ])
     if source is None:
         source = ''

@@ -292,8 +292,10 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_swift_codename_none(self):
         self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
 
-    def test_os_codename_from_package(self):
+    @patch.object(openstack, 'snap_install_requested')
+    def test_os_codename_from_package(self, mock_snap_install_requested):
         """Test deriving OpenStack codename from an installed package"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             for pkg, vers in six.iteritems(FAKE_REPO):
@@ -305,18 +307,24 @@ class OpenStackHelpersTestCase(TestCase):
                 self.assertEquals(openstack.get_os_codename_package(pkg),
                                   vers['os_release'])
 
+    @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_os_codename_from_bad_package_version(self, mocked_error):
+    def test_os_codename_from_bad_package_version(self, mocked_error,
+                                                  mock_snap_install_requested):
         """Test deriving OpenStack codename for a poorly versioned package"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             openstack.get_os_codename_package('bad-version')
             _e = ('Could not determine OpenStack codename for version 2200.1')
             mocked_error.assert_called_with(_e)
 
+    @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_os_codename_from_bad_package(self, mocked_error):
+    def test_os_codename_from_bad_package(self, mocked_error,
+                                          mock_snap_install_requested):
         """Test deriving OpenStack codename from an unavailable package"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -338,9 +346,12 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_codename_package('foo', fatal=False)
             )
 
+    @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_os_codename_from_uninstalled_package(self, mock_error):
+    def test_os_codename_from_uninstalled_package(self, mock_error,
+                                                  mock_snap_install_requested):
         """Test OpenStack codename from an available but uninstalled pkg"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -360,9 +371,12 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_codename_package('cinder-common', fatal=False)
             )
 
+    @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_os_version_from_package(self, mocked_error):
+    def test_os_version_from_package(self, mocked_error,
+                                     mock_snap_install_requested):
         """Test deriving OpenStack version from an installed package"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             for pkg, vers in six.iteritems(FAKE_REPO):
@@ -373,9 +387,12 @@ class OpenStackHelpersTestCase(TestCase):
                 self.assertEquals(openstack.get_os_version_package(pkg),
                                   vers['os_version'])
 
+    @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_os_version_from_bad_package(self, mocked_error):
+    def test_os_version_from_bad_package(self, mocked_error,
+                                         mock_snap_install_requested):
         """Test deriving OpenStack version from an uninstalled package"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             try:
