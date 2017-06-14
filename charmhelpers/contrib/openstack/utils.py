@@ -90,6 +90,11 @@ from charmhelpers.fetch import (
     GPGKeyError,
     get_upstream_version
 )
+
+from charmhelpers.fetch.snap import (
+    snap_install,
+)
+
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 from charmhelpers.contrib.openstack.exceptions import OSContextError
@@ -289,6 +294,13 @@ GIT_DEFAULT_BRANCHES = {
 
 DEFAULT_LOOPBACK_SIZE = '5G'
 
+SNAP_CHANNELS = [
+    'edge',
+    'beta',
+    'candidate',
+    'stable',
+]
+
 
 class CompareOpenStackReleases(BasicStringComparator):
     """Provide comparisons of OpenStack releases.
@@ -321,13 +333,17 @@ def get_os_codename_install_source(src):
             error_out(e)
         return rel
 
+    # This could probably go in the lower check to be consistent
     if src.startswith('cloud:'):
         ca_rel = src.split(':')[1]
         ca_rel = ca_rel.split('%s-' % ubuntu_rel)[1].split('/')[0]
         return ca_rel
 
+    # XXX determine if snap here
     # Best guess match based on deb string provided
-    if src.startswith('deb') or src.startswith('ppa'):
+    if (src.startswith('deb') or
+            src.startswith('ppa') or
+            src.startswith('snap')):
         for k, v in six.iteritems(OPENSTACK_CODENAMES):
             if v in src:
                 return v
@@ -349,6 +365,10 @@ def get_os_codename_version(vers):
 
 def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
     '''Determine OpenStack version number from codename.'''
+    #NOTE(coreycb): Need logic to check what track snap is from. Possibly
+    # just based on openstack-origin?
+    # REMOVING return 'ocata'
+
     for k, v in six.iteritems(version_map):
         if v == codename:
             return k
@@ -397,6 +417,11 @@ def get_swift_codename(version):
 
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
+    #NOTE(coreycb): Need logic to check what track snap is from. Possibly
+    # just based on openstack-origin?
+    if snap_install_requested():
+        return None
+
     import apt_pkg as apt
 
     cache = apt_cache()
@@ -483,6 +508,7 @@ def reset_os_release():
 
 
 def os_release(package, base='essex', reset_cache=False):
+    #TODO make this smarts
     '''
     Returns OpenStack release codename from a cached global.
 
@@ -609,6 +635,10 @@ def openstack_upgrade_available(package):
     :returns: bool:    : Returns True if configured installation source offers
                          a newer version of package.
     """
+
+    #TODO make this snap aware
+    if snap_install_requested():
+        return False
 
     import apt_pkg as apt
     src = config('openstack-origin')
@@ -1982,3 +2012,62 @@ def token_cache_pkgs(source=None, release=None):
     if enable_memcache(source=source, release=release):
         packages.extend(['memcached', 'python-memcache'])
     return packages
+
+
+def snap_install_requested():
+    # TODO Make this more robust and general
+    for channel in SNAP_CHANNELS:
+        if channel in config('openstack-origin'):
+            return True
+    return False
+
+
+def get_snaps_install_info_from_origin(snaps, src, mode='classic'):
+    """Generate a dictionary of snap install information from origin
+
+    @param snaps: List of snaps
+    @param src: String of openstack-origin or source of the form
+        snap:channel-series-release
+    @param mode: String classic, devmode or jailmode
+    @returns: Dictionary of snaps with channels and modes
+    """
+
+    if not src.startswith('snap:'):
+        juju_log("Snap source is not a snap origin", 'WARN')
+        return {}
+
+    _src = src[5:]
+    channel, series, release = _src.split('-')
+
+    snap_info = {}
+    for snap in snaps:
+        snap_info[snap] = {'channel': channel,
+                           'mode': mode}
+
+    return snap_info
+
+
+def install_os_snaps(snaps, post_snap_install=None):
+    """Install OpenStack snaps from channel and with mode
+
+    @param snaps: Dictionary of snaps whith channels and modes of the form:
+        {'snap_name': {'channel': 'snap_channel',
+                       'mode': 'snap_mode'}}
+        Where channel a snapstore channel and mode is --classic, --devmode or
+        --jailmode.
+    @param post_snap_install: Callback function to run after snaps have been
+    installed
+    """
+
+    def _make_flag(flag):
+        if not flag.startswith('--'):
+            flag = '--{}'.format(flag)
+        return flag
+
+    for snap in snaps.keys():
+        snap_install(snap,
+                     _make_flag(snaps[snap]['channel']),
+                     _make_flag(snaps[snap]['mode']))
+
+    if post_snap_install:
+        post_snap_install()
