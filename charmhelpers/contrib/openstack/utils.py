@@ -333,13 +333,11 @@ def get_os_codename_install_source(src):
             error_out(e)
         return rel
 
-    # This could probably go in the lower check to be consistent
     if src.startswith('cloud:'):
         ca_rel = src.split(':')[1]
         ca_rel = ca_rel.split('%s-' % ubuntu_rel)[1].split('/')[0]
         return ca_rel
 
-    # XXX determine if snap here
     # Best guess match based on deb string provided
     if (src.startswith('deb') or
             src.startswith('ppa') or
@@ -365,10 +363,6 @@ def get_os_codename_version(vers):
 
 def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
     '''Determine OpenStack version number from codename.'''
-    #NOTE(coreycb): Need logic to check what track snap is from. Possibly
-    # just based on openstack-origin?
-    # REMOVING return 'ocata'
-
     for k, v in six.iteritems(version_map):
         if v == codename:
             return k
@@ -417,8 +411,7 @@ def get_swift_codename(version):
 
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
-    #NOTE(coreycb): Need logic to check what track snap is from. Possibly
-    # just based on openstack-origin?
+
     if snap_install_requested():
         return None
 
@@ -508,7 +501,6 @@ def reset_os_release():
 
 
 def os_release(package, base='essex', reset_cache=False):
-    #TODO make this smarts
     '''
     Returns OpenStack release codename from a cached global.
 
@@ -636,7 +628,7 @@ def openstack_upgrade_available(package):
                          a newer version of package.
     """
 
-    #TODO make this snap aware
+    # TODO make upgrades snap aware
     if snap_install_requested():
         return False
 
@@ -2015,7 +2007,6 @@ def token_cache_pkgs(source=None, release=None):
 
 
 def snap_install_requested():
-    # TODO Make this more robust and general
     for channel in SNAP_CHANNELS:
         if channel in config('openstack-origin'):
             return True
