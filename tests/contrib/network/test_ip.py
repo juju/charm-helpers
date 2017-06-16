@@ -391,7 +391,7 @@ class IPTest(unittest.TestCase):
         self.assertTrue(net_ip.is_ipv6_disabled())
         mock_check_output.assert_called_once_with(
             ['sysctl', 'net.ipv6.conf.all.disable_ipv6'],
-            stderr=subprocess.STDOUT)
+            stderr=subprocess.STDOUT, universal_newlines=True)
         # if it isn't there, it must return false
         mock_check_output.return_value = ""
         self.assertFalse(net_ip.is_ipv6_disabled())
