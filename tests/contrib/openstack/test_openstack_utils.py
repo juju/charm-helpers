@@ -8,6 +8,7 @@ from testtools import TestCase
 from mock import MagicMock, patch, call
 
 from charmhelpers.fetch import ubuntu as fetch
+from charmhelpers.core.hookenv import flush
 import charmhelpers.contrib.openstack.utils as openstack
 
 import six
@@ -337,8 +338,11 @@ class OpenStackHelpersTestCase(TestCase):
                 'candidate: foo'
             mocked_error.assert_called_with(e)
 
-    def test_os_codename_from_bad_package_nonfatal(self):
+    @patch.object(openstack, 'snap_install_requested')
+    def test_os_codename_from_bad_package_nonfatal(
+            self, mock_snap_install_requested):
         """Test OpenStack codename from an unavailable package is non-fatal"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -362,8 +366,11 @@ class OpenStackHelpersTestCase(TestCase):
                  'cinder-common')
             mock_error.assert_called_with(e)
 
-    def test_os_codename_from_uninstalled_package_nonfatal(self):
+    @patch.object(openstack, 'snap_install_requested')
+    def test_os_codename_from_uninstalled_package_nonfatal(
+            self, mock_snap_install_requested):
         """Test OpenStack codename from avail uninstalled pkg is non fatal"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -405,8 +412,11 @@ class OpenStackHelpersTestCase(TestCase):
                 'candidate: foo'
             mocked_error.assert_called_with(e)
 
-    def test_os_version_from_bad_package_nonfatal(self):
+    @patch.object(openstack, 'snap_install_requested')
+    def test_os_version_from_bad_package_nonfatal(
+            self, mock_snap_install_requested):
         """Test OpenStack version from an uninstalled package is non-fatal"""
+        mock_snap_install_requested.return_value = False
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -1902,6 +1912,47 @@ class OpenStackHelpersTestCase(TestCase):
             mock_application_version_set.assert_called_with('7.0.1')
             openstack.os_application_version_set('cinder-common')
             mock_application_version_set.assert_called_with('mitaka')
+
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_snap_install_requested(self, config):
+        # Expect True
+        flush('snap_install_requested')
+        config.return_value = 'snap:edge-xenial-ocata'
+        self.assertTrue(openstack.snap_install_requested())
+        flush('snap_install_requested')
+        config.return_value = 'snap:BETA-xenial-ocata'
+        self.assertTrue(openstack.snap_install_requested())
+        # Expect False
+        flush('snap_install_requested')
+        config.return_value = 'snap:None-xenial-ocata'
+        self.assertFalse(openstack.snap_install_requested())
+        flush('snap_install_requested')
+        config.return_value = 'cloud:xenial-ocata'
+        self.assertFalse(openstack.snap_install_requested())
+
+    def test_get_snaps_install_info_from_origin(self):
+        snaps = ['os_project']
+        mode = 'jailmode'
+        src = 'snap:beta-xenial-ocata'
+        expected = {snaps[0]: {'mode': mode,
+                               'channel': 'beta'}}
+        self.assertEqual(
+            expected,
+            openstack.get_snaps_install_info_from_origin(snaps, src,
+                                                         mode=mode))
+
+    @patch.object(openstack, 'snap_install')
+    def test_install_os_snaps(self, mock_snap_install):
+        snaps = ['os_project']
+        mode = 'jailmode'
+        src = 'snap:beta-xenial-ocata'
+        post_install = MagicMock()
+
+        openstack.install_os_snaps(
+            openstack.get_snaps_install_info_from_origin(
+                    snaps, src, mode=mode))
+        mock_snap_install.assert_called_with(
+            'os_project', '--beta', '--jailmode')
 
 
 if __name__ == '__main__':

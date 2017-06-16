@@ -51,6 +51,7 @@ from charmhelpers.core.hookenv import (
     status_set,
     hook_name,
     application_version_set,
+    cached,
 )
 
 from charmhelpers.core.strutils import BasicStringComparator
@@ -93,6 +94,7 @@ from charmhelpers.fetch import (
 
 from charmhelpers.fetch.snap import (
     snap_install,
+    SNAP_CHANNELS,
 )
 
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
@@ -294,13 +296,6 @@ GIT_DEFAULT_BRANCHES = {
 
 DEFAULT_LOOPBACK_SIZE = '5G'
 
-SNAP_CHANNELS = [
-    'edge',
-    'beta',
-    'candidate',
-    'stable',
-]
-
 
 class CompareOpenStackReleases(BasicStringComparator):
     """Provide comparisons of OpenStack releases.
@@ -342,7 +337,7 @@ def get_os_codename_install_source(src):
     if (src.startswith('deb') or
             src.startswith('ppa') or
             src.startswith('snap')):
-        for k, v in six.iteritems(OPENSTACK_CODENAMES):
+        for v in OPENSTACK_CODENAMES.values():
             if v in src:
                 return v
 
@@ -2006,10 +2001,21 @@ def token_cache_pkgs(source=None, release=None):
     return packages
 
 
+@cached
 def snap_install_requested():
-    for channel in SNAP_CHANNELS:
-        if channel in config('openstack-origin'):
-            return True
+    """ Determine if installing from snaps
+
+    If openstack-origin is of the form snap:channel-series-release
+    and channel is is SNAPS_CHANNELS return True.
+    """
+    origin = config('openstack-origin')
+    if not origin.startswith('snap:'):
+        return False
+
+    _src = origin[5:]
+    channel, series, release = _src.split('-')
+    if channel.lower() in SNAP_CHANNELS:
+        return True
     return False
 
 
@@ -2030,15 +2036,11 @@ def get_snaps_install_info_from_origin(snaps, src, mode='classic'):
     _src = src[5:]
     channel, series, release = _src.split('-')
 
-    snap_info = {}
-    for snap in snaps:
-        snap_info[snap] = {'channel': channel,
-                           'mode': mode}
-
-    return snap_info
+    return {snap: {'channel': channel, 'mode': mode}
+            for snap in snaps}
 
 
-def install_os_snaps(snaps, post_snap_install=None):
+def install_os_snaps(snaps):
     """Install OpenStack snaps from channel and with mode
 
     @param snaps: Dictionary of snaps whith channels and modes of the form:
@@ -2050,15 +2052,12 @@ def install_os_snaps(snaps, post_snap_install=None):
     installed
     """
 
-    def _make_flag(flag):
-        if not flag.startswith('--'):
-            flag = '--{}'.format(flag)
-        return flag
+    def _ensure_flag(flag):
+        if flag.startswith('--'):
+            return flag
+        return '--{}'.format(flag)
 
     for snap in snaps.keys():
         snap_install(snap,
-                     _make_flag(snaps[snap]['channel']),
-                     _make_flag(snaps[snap]['mode']))
-
-    if post_snap_install:
-        post_snap_install()
+                     _ensure_flag(snaps[snap]['channel']),
+                     _ensure_flag(snaps[snap]['mode']))
