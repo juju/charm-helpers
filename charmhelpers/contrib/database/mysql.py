@@ -57,6 +57,19 @@ except ImportError:
     import MySQLdb
 
 
+# NOTE(freyes): Due to skip-name-resolve root@$HOSTNAME account fails when
+# using SET PASSWORD so using UPDATE against the mysql.user table is needed,
+# but changes to this table are not replicated across the cluster, so this
+# update needs to run in all the nodes.
+# More info at http://galeracluster.com/documentation-webpages/userchanges.html
+SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET password = PASSWORD( %s ) "
+                     "WHERE user = %s;")
+
+
+class MySQLSetPasswordError(Exception):
+    pass
+
+
 class MySQLHelper(object):
 
     def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
@@ -70,6 +83,7 @@ class MySQLHelper(object):
         self.migrate_passwd_to_leader_storage = migrate_passwd_to_leader_storage
         # If we migrate we have the option to delete local copy of root passwd
         self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
+        self.connection = None
 
     def connect(self, user='root', password=None):
         log("Opening db connection for %s@%s" % (user, self.host), level=DEBUG)
@@ -267,6 +281,67 @@ class MySQLHelper(object):
     def get_mysql_root_password(self, password=None):
         """Retrieve or generate mysql root password for service units."""
         return self.get_mysql_password(username=None, password=password)
+
+    def set_mysql_password(self, username, password):
+        """Update a mysql password for the provided username changing the
+        leader settings
+
+        To update root's password pass `None` in the username
+        """
+
+        if username is None:
+            username = 'root'
+
+        # get root password via leader-get, it may be that in the past (when
+        # changes to root-password were not supported) the user changed the
+        # password, so leader-get is more reliable source than
+        # config.previous('root-password').
+        rel_username = None if username == 'root' else username
+        cur_passwd = self.get_mysql_password(rel_username)
+
+        # password that needs to be set
+        new_passwd = password
+
+        # update password for all users (e.g. root@localhost, root@::1, etc)
+        try:
+            self.connect(user=username, password=cur_passwd)
+            cursor = self.connection.cursor()
+        except MySQLdb.OperationalError as ex:
+            raise MySQLSetPasswordError(('Cannot connect using password in '
+                                         'leader settings (%s)') % ex, ex)
+
+        try:
+            cursor.execute(SQL_UPDATE_PASSWD, (new_passwd, username))
+            cursor.execute('FLUSH PRIVILEGES;')
+            self.connection.commit()
+        except MySQLdb.OperationalError as ex:
+            raise MySQLSetPasswordError('Cannot update password: %s' % str(ex),
+                                        ex)
+        finally:
+            cursor.close()
+
+        # check the password was changed
+        try:
+            self.connect(user=username, password=new_passwd)
+            self.execute('select 1;')
+        except MySQLdb.OperationalError as ex:
+            raise MySQLSetPasswordError(('Cannot connect using new password: '
+                                         '%s') % str(ex), ex)
+
+        if not is_leader():
+            log('Only the leader can set a new password in the relation',
+                level=DEBUG)
+            return
+
+        for key in self.passwd_keys(rel_username):
+            _password = leader_get(key)
+            if _password:
+                log('Updating password for %s (%s)' % (key, rel_username),
+                    level=DEBUG)
+                leader_set(settings={key: new_passwd})
+
+    def set_mysql_root_password(self, password):
+        self.set_mysql_password('root', password)
 
     def normalize_address(self, hostname):
         """Ensure that address returned is an IP address (i.e. not fqdn)"""
