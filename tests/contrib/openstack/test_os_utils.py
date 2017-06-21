@@ -1,8 +1,14 @@
 import json
 import mock
 import unittest
+import six
 
 from charmhelpers.contrib.openstack import utils
+
+if not six.PY3:
+    builtin_open = '__builtin__.open'
+else:
+    builtin_open = 'builtins.open'
 
 
 class UtilsTests(unittest.TestCase):
@@ -188,3 +194,31 @@ class UtilsTests(unittest.TestCase):
         _enable_memcache.return_value = True
         self.assertEqual(utils.token_cache_pkgs(source='distro'),
                          ['memcached', 'python-memcache'])
+
+    def test_update_policy(self):
+        TEST_POLICY = """{
+        "delete_image_location": "",
+        "get_image_location": "",
+        "set_image_location": "",
+        "extra_property": "False"
+        }"""
+
+        TEST_POLICY_FILE = "/etc/glance/policy.json"
+
+        item_to_update = {
+            "get_image_location": "role:admin",
+            "extra_policy": "extra",
+        }
+
+        mock_open = mock.mock_open(read_data=TEST_POLICY)
+        with mock.patch(builtin_open, mock_open) as mock_file:
+            utils.update_policy(TEST_POLICY_FILE, item_to_update)
+            mock_file.assert_has_calls([
+                mock.call(TEST_POLICY_FILE),
+                mock.call(TEST_POLICY_FILE, 'w'),
+            ], any_order=True)
+
+        modified_policy = json.loads(TEST_POLICY)
+        modified_policy.update(item_to_update)
+        mock_open().write.assert_called_with(
+            json.dumps(modified_policy, indent=4))
