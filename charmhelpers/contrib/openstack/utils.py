@@ -1982,3 +1982,15 @@ def token_cache_pkgs(source=None, release=None):
     if enable_memcache(source=source, release=release):
         packages.extend(['memcached', 'python-memcache'])
     return packages
+
+
+def update_json_file(filename, items):
+    """Updates the json `filename` with a given dict.
+    :param filename: json filename (i.e.: /etc/glance/policy.json)
+    :param items: dict of items to update
+    """
+    with open(filename) as fd:
+        policy = json.load(fd)
+    policy.update(items)
+    with open(filename, "w") as fd:
+        fd.write(json.dumps(policy, indent=4))
