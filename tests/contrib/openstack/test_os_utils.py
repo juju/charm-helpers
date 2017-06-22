@@ -195,7 +195,7 @@ class UtilsTests(unittest.TestCase):
         self.assertEqual(utils.token_cache_pkgs(source='distro'),
                          ['memcached', 'python-memcache'])
 
-    def test_update_policy(self):
+    def test_update_json_file(self):
         TEST_POLICY = """{
         "delete_image_location": "",
         "get_image_location": "",
@@ -212,7 +212,7 @@ class UtilsTests(unittest.TestCase):
 
         mock_open = mock.mock_open(read_data=TEST_POLICY)
         with mock.patch(builtin_open, mock_open) as mock_file:
-            utils.update_policy(TEST_POLICY_FILE, item_to_update)
+            utils.update_json_file(TEST_POLICY_FILE, item_to_update)
             mock_file.assert_has_calls([
                 mock.call(TEST_POLICY_FILE),
                 mock.call(TEST_POLICY_FILE, 'w'),

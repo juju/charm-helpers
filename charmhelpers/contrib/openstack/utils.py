@@ -1984,9 +1984,9 @@ def token_cache_pkgs(source=None, release=None):
     return packages
 
 
-def update_policy(filename, items):
-    """Updates the policy `filename` with a given dict.
-    :param filename: policy filename (i.e.: /etc/glance/policy.json)
+def update_json_file(filename, items):
+    """Updates the json `filename` with a given dict.
+    :param filename: json filename (i.e.: /etc/glance/policy.json)
     :param items: dict of items to update
     """
     with open(filename) as fd:
