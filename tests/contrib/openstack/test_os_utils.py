@@ -1,5 +1,7 @@
+import collections
 import json
 import mock
+import six
 import unittest
 import six
 
@@ -222,3 +224,30 @@ class UtilsTests(unittest.TestCase):
         modified_policy.update(item_to_update)
         mock_open().write.assert_called_with(
             json.dumps(modified_policy, indent=4))
+
+    def test_ordered(self):
+        data = {'one': 1, 'two': 2, 'three': 3}
+        expected = [('one', 1), ('three', 3), ('two', 2)]
+        self.assertSequenceEqual(expected,
+                                 [x for x in utils.ordered(data).items()])
+
+        data = {
+            'one': 1,
+            'two': 2,
+            'three': {
+                'uno': 1,
+                'dos': 2,
+                'tres': 3
+            }
+        }
+        expected = collections.OrderedDict()
+        expected['one'] = 1
+        nested = collections.OrderedDict()
+        nested['dos'] = 2
+        nested['tres'] = 3
+        nested['uno'] = 1
+        expected['three'] = nested
+        expected['two'] = 2
+        self.assertEqual(expected, utils.ordered(data))
+
+        self.assertRaises(ValueError, utils.ordered, "foo")
