@@ -61,7 +61,10 @@ def get_bcache_fs():
 
 
 def get_stats_action(cachespec, interval):
-    """Action for getting bcache statistics
+    """Action for getting bcache statistics for a given cachespec.
+    Cachespec can either be a device name, eg. 'sdb', which will retrieve
+    cache stats for the given device, or 'global', which will retrieve stats
+    for all cachesets
     """
     if cachespec == 'global':
         caches = get_bcache_fs()

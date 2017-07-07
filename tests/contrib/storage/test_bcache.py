@@ -40,7 +40,10 @@ class BcacheTestCase(TestCase):
     def setUp(self):
         super(BcacheTestCase, self).setUp()
         self.sysfs = sysfs = mkdtemp(prefix=tmpdir)
-        bcache.SYSFS = sysfs
+        self.addCleanup(shutil.rmtree, sysfs)
+        p = patch('charmhelpers.contrib.storage.linux.bcache.SYSFS', new=sysfs)
+        p.start()
+        self.addCleanup(p.stop)
         self.cacheset = '{}/fs/bcache/{}'.format(sysfs, cacheset)
         os.makedirs(self.cacheset)
         self.devcache = '{}/block/{}/bcache'.format(sysfs, cachedev)
@@ -60,9 +63,9 @@ class BcacheTestCase(TestCase):
         assert len(bcachedirs) == 1
         assert next(iter(bcachedirs)).cachepath.endswith('/fs/bcache/abcde')
 
-    @patch('charmhelpers.contrib.storage.linux.bcache.os')
-    def test_get_bcache_fs_nobcache(self, mock_os):
-        mock_os.listdir.side_effect = OSError(
+    @patch('charmhelpers.contrib.storage.linux.bcache.os.listdir')
+    def test_get_bcache_fs_nobcache(self, mock_listdir):
+        mock_listdir.side_effect = OSError(
             '[Errno 2] No such file or directory:...')
         bcachedirs = bcache.get_bcache_fs()
         assert bcachedirs == []
@@ -84,7 +87,3 @@ class BcacheTestCase(TestCase):
         k = next(iter(out.keys()))
         assert k.endswith('sdfoo/bcache')
         assert out[k]['cache_hit_ratio'] == '64'
-
-    def tearDown(self):
-        super(BcacheTestCase, self).tearDown()
-        shutil.rmtree(self.sysfs)
