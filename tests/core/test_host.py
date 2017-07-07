@@ -193,6 +193,7 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_pause(service_name))
         service.assert_has_calls([
             call('stop', service_name),
+            call('disable', service_name),
             call('mask', service_name)])
 
     @patch.object(host, 'service_running')
@@ -207,6 +208,9 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_resume(service_name))
         service.assert_has_calls([
             call('unmask', service_name),
+            # Ensures a package starts up if disabled but not masked,
+            # per lp:1692178
+            call('enable', service_name),
             call('start', service_name)])
 
     @patch.object(host, 'service_running')

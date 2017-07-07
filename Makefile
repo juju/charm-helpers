@@ -27,6 +27,7 @@ clean:
 	-python setup.py clean
 	rm -rf build/ MANIFEST
 	find . -name '*.pyc' -delete
+	find . -name '__pycache__' -delete
 	rm -rf dist/*
 	rm -rf .venv
 	rm -rf .venv3
@@ -37,14 +38,14 @@ userinstall:
 	python setup.py install --user
 
 .venv:
-	sudo apt-get install -y gcc python-dev python-virtualenv python-apt
+	dpkg -l gcc python-dev python-virtualenv python-apt > /dev/null || sudo apt-get install -y gcc python-dev python-virtualenv python-apt
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt
 	.venv/bin/pip install bzr
 
 .venv3:
-	sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt
+	dpkg -l gcc python3-dev python-virtualenv python3-apt > /dev/null || sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt
 	virtualenv .venv3 --python=python3 --system-site-packages
 	.venv3/bin/pip install -U pip
 	.venv3/bin/pip install -I -r test_requirements.txt

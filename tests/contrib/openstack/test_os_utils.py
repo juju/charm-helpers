@@ -1,8 +1,15 @@
+import collections
 import json
 import mock
+import six
 import unittest
 
 from charmhelpers.contrib.openstack import utils
+
+if not six.PY3:
+    builtin_open = '__builtin__.open'
+else:
+    builtin_open = 'builtins.open'
 
 
 class UtilsTests(unittest.TestCase):
@@ -126,7 +133,7 @@ class UtilsTests(unittest.TestCase):
                         mock_git_os_codename_install_source,
                         mock_config):
         # Wipe the modules cached os_rel
-        utils.os_rel = None
+        utils._os_rel = None
         mock_get_os_codename_install_source.return_value = None
         mock_get_os_codename_package.return_value = None
         mock_git_os_codename_install_source.return_value = None
@@ -188,3 +195,58 @@ class UtilsTests(unittest.TestCase):
         _enable_memcache.return_value = True
         self.assertEqual(utils.token_cache_pkgs(source='distro'),
                          ['memcached', 'python-memcache'])
+
+    def test_update_json_file(self):
+        TEST_POLICY = """{
+        "delete_image_location": "",
+        "get_image_location": "",
+        "set_image_location": "",
+        "extra_property": "False"
+        }"""
+
+        TEST_POLICY_FILE = "/etc/glance/policy.json"
+
+        item_to_update = {
+            "get_image_location": "role:admin",
+            "extra_policy": "extra",
+        }
+
+        mock_open = mock.mock_open(read_data=TEST_POLICY)
+        with mock.patch(builtin_open, mock_open) as mock_file:
+            utils.update_json_file(TEST_POLICY_FILE, item_to_update)
+            mock_file.assert_has_calls([
+                mock.call(TEST_POLICY_FILE),
+                mock.call(TEST_POLICY_FILE, 'w'),
+            ], any_order=True)
+
+        modified_policy = json.loads(TEST_POLICY)
+        modified_policy.update(item_to_update)
+        mock_open().write.assert_called_with(
+            json.dumps(modified_policy, indent=4))
+
+    def test_ordered(self):
+        data = {'one': 1, 'two': 2, 'three': 3}
+        expected = [('one', 1), ('three', 3), ('two', 2)]
+        self.assertSequenceEqual(expected,
+                                 [x for x in utils.ordered(data).items()])
+
+        data = {
+            'one': 1,
+            'two': 2,
+            'three': {
+                'uno': 1,
+                'dos': 2,
+                'tres': 3
+            }
+        }
+        expected = collections.OrderedDict()
+        expected['one'] = 1
+        nested = collections.OrderedDict()
+        nested['dos'] = 2
+        nested['tres'] = 3
+        nested['uno'] = 1
+        expected['three'] = nested
+        expected['two'] = 2
+        self.assertEqual(expected, utils.ordered(data))
+
+        self.assertRaises(ValueError, utils.ordered, "foo")
