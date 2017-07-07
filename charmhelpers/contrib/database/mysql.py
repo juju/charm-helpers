@@ -89,7 +89,7 @@ class MySQLHelper(object):
     def create_database(self, db_name):
         cursor = self.connection.cursor()
         try:
-            cursor.execute("CREATE DATABASE {} CHARACTER SET UTF8"
+            cursor.execute("CREATE DATABASE `{}` CHARACTER SET UTF8"
                            .format(db_name))
         finally:
             cursor.close()
@@ -114,7 +114,7 @@ class MySQLHelper(object):
         cursor = self.connection.cursor()
         try:
             # TODO: review for different grants
-            cursor.execute("GRANT ALL PRIVILEGES ON {}.* TO '{}'@'{}' "
+            cursor.execute("GRANT ALL PRIVILEGES ON `{}`.* TO '{}'@'{}' "
                            "IDENTIFIED BY '{}'".format(db_name,
                                                        db_user,
                                                        remote_ip,
