@@ -2006,7 +2006,7 @@ def snap_install_requested():
     """ Determine if installing from snaps
 
     If openstack-origin is of the form snap:channel-series-release
-    and channel is is SNAPS_CHANNELS return True.
+    and channel is in SNAPS_CHANNELS return True.
     """
     origin = config('openstack-origin')
     if not origin.startswith('snap:'):
@@ -2043,7 +2043,7 @@ def get_snaps_install_info_from_origin(snaps, src, mode='classic'):
 def install_os_snaps(snaps):
     """Install OpenStack snaps from channel and with mode
 
-    @param snaps: Dictionary of snaps whith channels and modes of the form:
+    @param snaps: Dictionary of snaps with channels and modes of the form:
         {'snap_name': {'channel': 'snap_channel',
                        'mode': 'snap_mode'}}
         Where channel a snapstore channel and mode is --classic, --devmode or
