@@ -6,6 +6,7 @@ import sys
 import shutil
 import tempfile
 
+
 sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
 
@@ -160,6 +161,108 @@ class MysqlTests(unittest.TestCase):
         self.assertEqual(helper.get_mysql_password(username='userA'),
                          "passwdA")
         self.assertTrue(mock_migrate_pw.called)
+
+    @mock.patch.object(mysql.MySQLHelper, 'set_mysql_password')
+    def test_set_mysql_root_password(self, mock_set_passwd):
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper.set_mysql_root_password(password='1234')
+        mock_set_passwd.assert_called_with('root', '1234')
+
+    @mock.patch.object(mysql, 'is_leader')
+    @mock.patch.object(mysql, 'leader_get')
+    @mock.patch.object(mysql, 'leader_set')
+    @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
+    @mock.patch.object(mysql.MySQLHelper, 'connect')
+    def test_set_mysql_password(self, mock_connect, mock_get_passwd,
+                                mock_leader_set, mock_leader_get,
+                                mock_is_leader):
+        mock_connection = mock.MagicMock()
+        mock_cursor = mock.MagicMock()
+        mock_connection.cursor.return_value = mock_cursor
+        mock_get_passwd.return_value = 'asdf'
+        mock_is_leader.return_value = True
+        mock_leader_get.return_value = '1234'
+
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper.connection = mock_connection
+
+        helper.set_mysql_password(username='root', password='1234')
+
+        mock_connect.assert_has_calls(
+            [mock.call(user='root', password='asdf'),  # original password
+             mock.call(user='root', password='1234')])  # new password
+        mock_leader_get.assert_has_calls([mock.call('mysql.passwd')])
+        mock_leader_set.assert_has_calls(
+            [mock.call(settings={'mysql.passwd': '1234'})]
+        )
+        mock_cursor.assert_has_calls(
+            [mock.call.execute(mysql.SQL_UPDATE_PASSWD, ('1234', 'root')),
+             mock.call.execute('FLUSH PRIVILEGES;'),
+             mock.call.close(),
+             mock.call.execute('select 1;'),
+             mock.call.close()]
+        )
+
+        # make sure for the non-leader leader-set is not called
+        mock_is_leader.return_value = False
+        mock_leader_set.reset_mock()
+        helper.set_mysql_password(username='root', password='1234')
+        mock_leader_set.assert_not_called()
+
+    @mock.patch.object(mysql, 'leader_get')
+    @mock.patch.object(mysql, 'leader_set')
+    @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
+    @mock.patch.object(mysql.MySQLHelper, 'connect')
+    def test_set_mysql_password_fail_to_connect(self, mock_connect,
+                                                mock_get_passwd,
+                                                mock_leader_set,
+                                                mock_leader_get):
+
+        class FakeOperationalError(Exception):
+            pass
+
+        def fake_connect(*args, **kwargs):
+            raise FakeOperationalError('foobar')
+
+        mysql.MySQLdb.OperationalError = FakeOperationalError
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        mock_connect.side_effect = fake_connect
+        self.assertRaises(mysql.MySQLSetPasswordError,
+                          helper.set_mysql_password,
+                          username='root', password='1234')
+
+    @mock.patch.object(mysql, 'leader_get')
+    @mock.patch.object(mysql, 'leader_set')
+    @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
+    @mock.patch.object(mysql.MySQLHelper, 'connect')
+    def test_set_mysql_password_fail_to_connect2(self, mock_connect,
+                                                 mock_get_passwd,
+                                                 mock_leader_set,
+                                                 mock_leader_get):
+
+        class FakeOperationalError(Exception):
+            def __str__(self):
+                return 'some-error'
+
+        operational_error = FakeOperationalError('foobar')
+
+        def fake_connect(user, password):
+            # fail for the new password
+            if user == 'root' and password == '1234':
+                raise operational_error
+            else:
+                return mock.MagicMock()
+
+        mysql.MySQLdb.OperationalError = FakeOperationalError
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper.connection = mock.MagicMock()
+        mock_connect.side_effect = fake_connect
+        with self.assertRaises(mysql.MySQLSetPasswordError) as cm:
+            helper.set_mysql_password(username='root', password='1234')
+
+        ex = cm.exception
+        self.assertEqual(ex.args[0], 'Cannot connect using new password: some-error')
+        self.assertEqual(ex.args[1], operational_error)
 
     @mock.patch.object(mysql, 'is_leader')
     @mock.patch.object(mysql, 'leader_set')
