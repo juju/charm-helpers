@@ -1880,6 +1880,30 @@ def pausable_restart_on_change(restart_map, stopstart=False,
     return wrap
 
 
+def ordered(orderme):
+    """Converts the provided dictionary into a collections.OrderedDict.
+
+    The items in the returned OrderedDict will be inserted based on the
+    natural sort order of the keys. Nested dictionaries will also be sorted
+    in order to ensure fully predictable ordering.
+
+    :param orderme: the dict to order
+    :return: collections.OrderedDict
+    :raises: ValueError: if `orderme` isn't a dict instance.
+    """
+    if not isinstance(orderme, dict):
+        raise ValueError('argument must be a dict type')
+
+    result = OrderedDict()
+    for k, v in sorted(six.iteritems(orderme), key=lambda x: x[0]):
+        if isinstance(v, dict):
+            result[k] = ordered(v)
+        else:
+            result[k] = v
+
+    return result
+
+
 def config_flags_parser(config_flags):
     """Parses config flags string into dict.
 
@@ -1891,15 +1915,13 @@ def config_flags_parser(config_flags):
          example, a string in the format of 'key1=value1, key2=value2' will
          return a dict of:
 
-             {'key1': 'value1',
-              'key2': 'value2'}.
+             {'key1': 'value1', 'key2': 'value2'}.
 
       2. A string in the above format, but supporting a comma-delimited list
          of values for the same key. For example, a string in the format of
          'key1=value1, key2=value3,value4,value5' will return a dict of:
 
-             {'key1', 'value1',
-              'key2', 'value2,value3,value4'}
+             {'key1': 'value1', 'key2': 'value2,value3,value4'}
 
       3. A string containing a colon character (:) prior to an equal
          character (=) will be treated as yaml and parsed as such. This can be
@@ -1919,7 +1941,7 @@ def config_flags_parser(config_flags):
     equals = config_flags.find('=')
     if colon > 0:
         if colon < equals or equals < 0:
-            return yaml.safe_load(config_flags)
+            return ordered(yaml.safe_load(config_flags))
 
     if config_flags.find('==') >= 0:
         juju_log("config_flags is not in expected format (key=value)",
@@ -1932,7 +1954,7 @@ def config_flags_parser(config_flags):
     # split on '='.
     split = config_flags.strip(' =').split('=')
     limit = len(split)
-    flags = {}
+    flags = OrderedDict()
     for i in range(0, limit - 1):
         current = split[i]
         next = split[i + 1]
@@ -1999,6 +2021,18 @@ def token_cache_pkgs(source=None, release=None):
     if enable_memcache(source=source, release=release):
         packages.extend(['memcached', 'python-memcache'])
     return packages
+
+
+def update_json_file(filename, items):
+    """Updates the json `filename` with a given dict.
+    :param filename: json filename (i.e.: /etc/glance/policy.json)
+    :param items: dict of items to update
+    """
+    with open(filename) as fd:
+        policy = json.load(fd)
+    policy.update(items)
+    with open(filename, "w") as fd:
+        fd.write(json.dumps(policy, indent=4))
 
 
 @cached
