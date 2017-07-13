@@ -3117,6 +3117,9 @@ class ContextTests(unittest.TestCase):
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
             self.assertTrue(key in api_ctxt)
+        self.assertEquals(api_ctxt['polling_interval'], 2)
+        self.assertEquals(api_ctxt['rpc_response_timeout'], 60)
+        self.assertEquals(api_ctxt['report_interval'], 30)
 
     def test_neutronapicontext_string_converted(self):
         self.relation_ids.return_value = ['neutron-plugin-api:1']

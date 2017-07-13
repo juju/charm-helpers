@@ -1397,6 +1397,18 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'dns-domain',
                 'default': None,
             },
+            'polling_interval': {
+                'rel_key': 'polling-interval',
+                'default': 2,
+            },
+            'rpc_response_timeout': {
+                'rel_key': 'rpc-response-timeout',
+                'default': 60,
+            },
+            'report_interval': {
+                'rel_key': 'report-interval',
+                'default': 30,
+            },
         }
         ctxt = self.get_neutron_options({})
         for rid in relation_ids('neutron-plugin-api'):
