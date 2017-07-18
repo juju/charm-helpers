@@ -139,7 +139,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'xenial-updates/ocata': 'xenial-updates/ocata',
     'ocata/proposed': 'xenial-proposed/ocata',
     'xenial-ocata/proposed': 'xenial-proposed/ocata',
-    'xenial-ocata/newton': 'xenial-proposed/ocata',
+    'xenial-proposed/ocata': 'xenial-proposed/ocata',
     # Pike
     'pike': 'xenial-updates/pike',
     'xenial-pike': 'xenial-updates/pike',
@@ -147,7 +147,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'xenial-updates/pike': 'xenial-updates/pike',
     'pike/proposed': 'xenial-proposed/pike',
     'xenial-pike/proposed': 'xenial-proposed/pike',
-    'xenial-pike/newton': 'xenial-proposed/pike',
+    'xenial-proposed/pike': 'xenial-proposed/pike',
     # Queens
     'queens': 'xenial-updates/queens',
     'xenial-queens': 'xenial-updates/queens',
@@ -155,7 +155,7 @@ CLOUD_ARCHIVE_POCKETS = {
     'xenial-updates/queens': 'xenial-updates/queens',
     'queens/proposed': 'xenial-proposed/queens',
     'xenial-queens/proposed': 'xenial-proposed/queens',
-    'xenial-queens/newton': 'xenial-proposed/queens',
+    'xenial-proposed/queens': 'xenial-proposed/queens',
 }
 
 
