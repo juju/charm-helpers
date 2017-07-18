@@ -27,6 +27,12 @@ __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
 SNAP_NO_LOCK = 1  # The return code for "couldn't acquire lock" in Snap (hopefully this will be improved).
 SNAP_NO_LOCK_RETRY_DELAY = 10  # Wait X seconds between Snap lock checks.
 SNAP_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
+SNAP_CHANNELS = [
+    'edge',
+    'beta',
+    'candidate',
+    'stable',
+]
 
 
 class CouldNotAcquireLockException(Exception):
