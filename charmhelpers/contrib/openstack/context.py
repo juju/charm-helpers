@@ -97,6 +97,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_determine_usr_bin,
     git_determine_python_path,
     enable_memcache,
+    snap_install_requested,
 )
 from charmhelpers.core.unitdata import kv
 
@@ -244,6 +245,11 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql'
                 }
+                # Note(coreycb): We can drop mysql+pymysql if we want when the
+                # following review lands, though it seems mysql+pymysql would
+                # be preferred. https://review.openstack.org/#/c/462190/
+                if snap_install_requested():
+                    ctxt['database_type'] = 'mysql+pymysql'
                 if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
