@@ -1183,6 +1183,8 @@ class HelpersTest(TestCase):
     def test_gets_charm_dir(self):
         with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
             self.assertEqual(hookenv.charm_dir(), '/var/empty')
+        with patch.dict('os.environ', {'JUJU_CHARM_DIR': '/var/empty'}):
+            self.assertEqual(hookenv.charm_dir(), '/var/empty')
 
     @patch('subprocess.check_output')
     def test_resource_get_unsupported(self, check_output_):

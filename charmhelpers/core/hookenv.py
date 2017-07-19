@@ -753,7 +753,10 @@ class Hooks(object):
 
 def charm_dir():
     """Return the root directory of the current charm"""
-    return os.environ.get('CHARM_DIR')
+    d = os.environ.get('CHARM_DIR')
+    if d is not None:
+        return d
+    return os.environ.get('JUJU_CHARM_DIR')
 
 
 @cached
