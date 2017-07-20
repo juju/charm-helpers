@@ -161,7 +161,7 @@ CLOUD_ARCHIVE_POCKETS = {
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 CMD_RETRY_DELAY = 10  # Wait 10 seconds between command retries.
-CMD_RETRY_COUNT = 30  # Retry a failing fatal command X times.
+CMD_RETRY_COUNT = 3  # Retry a failing fatal command X times.
 
 
 def filter_installed_packages(packages):
