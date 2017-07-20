@@ -1946,11 +1946,9 @@ class OpenStackHelpersTestCase(TestCase):
         snaps = ['os_project']
         mode = 'jailmode'
         src = 'snap:beta-xenial-ocata'
-        post_install = MagicMock()
-
         openstack.install_os_snaps(
             openstack.get_snaps_install_info_from_origin(
-                    snaps, src, mode=mode))
+                snaps, src, mode=mode))
         mock_snap_install.assert_called_with(
             'os_project', '--beta', '--jailmode')
 
