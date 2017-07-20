@@ -1372,7 +1372,7 @@ class CephConfContext(object):
             return {}
 
         conf = config_flags_parser(conf)
-        if type(conf) != dict:
+        if not isinstance(conf, dict):
             log("Provided config-flags is not a dictionary - ignoring",
                 level=WARNING)
             return {}
