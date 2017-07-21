@@ -250,12 +250,14 @@ CEPH_RELATION = {
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd-features': 'rbd_features1'
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'false',
+            'rbd-features': 'rbd_features2'
         },
     }
 }
@@ -267,12 +269,14 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features1'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features2'
         },
     }
 }
@@ -284,12 +288,14 @@ CEPH_REL_WITH_PUBLIC_ADDR_PORT = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features1'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features2'
         },
     }
 }
@@ -301,12 +307,14 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features1'
         },
         'ceph/1': {
             'ceph-public-address': '2001:5c0:9168::2',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features2'
         },
     }
 }
@@ -318,12 +326,14 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features1'
         },
         'ceph/1': {
             'ceph-public-address': '[2001:5c0:9168::2]:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features2'
         },
     }
 }
@@ -335,12 +345,14 @@ CEPH_REL_WITH_MULTI_PUBLIC_ADDR = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features1'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11 192.168.1.21',
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
+            'rbd-features': 'rbd_features2'
         },
     }
 }
@@ -1243,7 +1255,8 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node1 ceph_node2',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'true'
+            'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1294,7 +1307,8 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node1 ceph_node2',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'true'
+            'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
 
@@ -1324,6 +1338,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1355,6 +1370,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1386,6 +1402,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1418,6 +1435,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1449,6 +1467,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1495,6 +1514,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'false',
+            'rbd_features': 'rbd_features1',
         }
         expected['rbd_client_cache_settings'] = \
             {'rbd cache': 'true',
@@ -1556,6 +1576,7 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
