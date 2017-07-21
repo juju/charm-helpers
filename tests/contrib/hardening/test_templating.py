@@ -19,7 +19,7 @@ import six
 from mock import call, patch
 from unittest import TestCase
 
-os.environ['JUJU_CHARM_DIR'] = '/tmp'
+os.environ['JUJU_CHARM_DIR'] = '/tmp'  # noqa: E402
 
 from charmhelpers.contrib.hardening import templating
 from charmhelpers.contrib.hardening import utils
