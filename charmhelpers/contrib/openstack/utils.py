@@ -94,6 +94,7 @@ from charmhelpers.fetch import (
 
 from charmhelpers.fetch.snap import (
     snap_install,
+    snap_refresh,
     SNAP_CHANNELS,
 )
 
@@ -408,7 +409,16 @@ def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
 
     if snap_install_requested():
-        return None
+        cmd = ['snap', 'list', package]
+        try:
+            out = subprocess.check_output(cmd)
+        except subprocess.CalledProcessError as e:
+            return None
+        lines = out.split('\n')
+        for line in lines:
+            if package in line:
+                # Second item in list is Version
+                return line.split()[1]
 
     import apt_pkg as apt
 
@@ -622,10 +632,6 @@ def openstack_upgrade_available(package):
     :returns: bool:    : Returns True if configured installation source offers
                          a newer version of package.
     """
-
-    # TODO make upgrades snap aware
-    if snap_install_requested():
-        return False
 
     import apt_pkg as apt
     src = config('openstack-origin')
@@ -2058,7 +2064,7 @@ def get_snaps_install_info_from_origin(snaps, src, mode='classic'):
 
     @param snaps: List of snaps
     @param src: String of openstack-origin or source of the form
-        snap:channel-series-release
+        snap:channel-series-track
     @param mode: String classic, devmode or jailmode
     @returns: Dictionary of snaps with channels and modes
     """
@@ -2068,13 +2074,14 @@ def get_snaps_install_info_from_origin(snaps, src, mode='classic'):
         return {}
 
     _src = src[5:]
-    channel, series, release = _src.split('-')
+    _channel, _series, _release = _src.split('-')
+    channel = '--channel={}/{}'.format(_release, _channel)
 
     return {snap: {'channel': channel, 'mode': mode}
             for snap in snaps}
 
 
-def install_os_snaps(snaps):
+def install_os_snaps(snaps, refresh=False):
     """Install OpenStack snaps from channel and with mode
 
     @param snaps: Dictionary of snaps with channels and modes of the form:
@@ -2091,7 +2098,13 @@ def install_os_snaps(snaps):
             return flag
         return '--{}'.format(flag)
 
-    for snap in snaps.keys():
-        snap_install(snap,
-                     _ensure_flag(snaps[snap]['channel']),
-                     _ensure_flag(snaps[snap]['mode']))
+    if refresh:
+        for snap in snaps.keys():
+            snap_refresh(snap,
+                         _ensure_flag(snaps[snap]['channel']),
+                         _ensure_flag(snaps[snap]['mode']))
+    else:
+        for snap in snaps.keys():
+            snap_install(snap,
+                         _ensure_flag(snaps[snap]['channel']),
+                         _ensure_flag(snaps[snap]['mode']))
