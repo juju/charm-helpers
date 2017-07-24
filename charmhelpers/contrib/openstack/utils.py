@@ -636,6 +636,9 @@ def openstack_upgrade_available(package):
     import apt_pkg as apt
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
+    if not cur_vers:
+        # The package has not been installed yet do not attempt upgrade
+        return False
     if "swift" in package:
         codename = get_os_codename_install_source(src)
         avail_vers = get_os_version_codename_swift(codename)
