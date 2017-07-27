@@ -255,7 +255,7 @@ class NRPE(object):
             else:
                 self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
         self.checks = []
-        # Iff in an nrpe-external-master relation hook, set primary status
+        # If in an nrpe-external-master relation hook, set primary status
         relation = relation_ids('nrpe-external-master')
         if relation:
             log("Setting charm primary status {}".format(primary))

@@ -202,6 +202,25 @@ def service_name():
     return local_unit().split('/')[0]
 
 
+def principal_unit(reltype=None):
+    """The principal service/unit of this unit"""
+    # Juju 2.2 and above provides JUJU_PRINCIPAL_UNIT
+    principal_unit = os.environ.get('JUJU_PRINCIPAL_UNIT', None)
+    # If it's empty, then this unit is the principal
+    if principal_unit == '':
+        return os.environ['JUJU_UNIT_NAME']
+    elif principal_unit:
+        return principal_unit
+    # For Juju 2.1 and below, let's try work out the principle unit by
+    # the various charms' metadata.yaml.
+    for rid in relation_ids(reltype):
+        for unit in related_units(rid):
+            md = metadata_unit(unit)
+            subordinate = md.pop('subordinate', None)
+            if not subordinate:
+                return unit
+
+
 @cached
 def remote_service_name(relid=None):
     """The remote service name for a given relation-id (or the current relation)"""
@@ -475,6 +494,15 @@ def relations_of_type(reltype=None):
 def metadata():
     """Get the current charm metadata.yaml contents as a python object"""
     with open(os.path.join(charm_dir(), 'metadata.yaml')) as md:
+        return yaml.safe_load(md)
+
+
+def metadata_unit(unit):
+    """Get the unit charm metadata.yaml contents as a python object"""
+    basedir = '/'.join(charm_dir().split('/')[:-2])
+    unitdir = 'unit-{}'.format(unit.replace('/', '-'))
+    charmdir = os.path.join(basedir, unitdir, 'charm')
+    with open(os.path.join(charmdir, 'metadata.yaml')) as md:
         return yaml.safe_load(md)
 
 
