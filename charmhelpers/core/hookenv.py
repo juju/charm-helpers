@@ -202,7 +202,7 @@ def service_name():
     return local_unit().split('/')[0]
 
 
-def principal_unit(reltype=None):
+def principal_unit():
     """The principal service/unit of this unit"""
     # Juju 2.2 and above provides JUJU_PRINCIPAL_UNIT
     principal_unit = os.environ.get('JUJU_PRINCIPAL_UNIT', None)
@@ -213,12 +213,13 @@ def principal_unit(reltype=None):
         return principal_unit
     # For Juju 2.1 and below, let's try work out the principle unit by
     # the various charms' metadata.yaml.
-    for rid in relation_ids(reltype):
-        for unit in related_units(rid):
-            md = metadata_unit(unit)
-            subordinate = md.pop('subordinate', None)
-            if not subordinate:
-                return unit
+    for reltype in relation_types():
+        for rid in relation_ids(reltype):
+            for unit in related_units(rid):
+                md = metadata_unit(unit)
+                subordinate = md.pop('subordinate', None)
+                if not subordinate:
+                    return unit
 
 
 @cached
@@ -498,7 +499,10 @@ def metadata():
 
 
 def metadata_unit(unit):
-    """Get the unit charm metadata.yaml contents as a python object"""
+    """Get the unit charm metadata.yaml contents as a python object. Unit must
+    be unit needs to be co-located, such as a subordinate or principal/primary.
+
+    """
     basedir = '/'.join(charm_dir().split('/')[:-2])
     unitdir = 'unit-{}'.format(unit.replace('/', '-'))
     charmdir = os.path.join(basedir, unitdir, 'charm')
