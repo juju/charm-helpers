@@ -500,8 +500,8 @@ def metadata():
 
 
 def metadata_unit(unit):
-    """Get the unit charm metadata.yaml contents as a python object. Unit must
-    be unit needs to be co-located, such as a subordinate or principal/primary.
+    """Get the unit charm metadata.yaml contents as a python object. Unit needs
+    to be co-located, such as a subordinate or principal/primary.
 
     """
     basedir = os.sep.join(charm_dir().split(os.sep)[:-2])
