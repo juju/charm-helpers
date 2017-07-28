@@ -2051,7 +2051,7 @@ def snap_install_requested():
     If openstack-origin is of the form snap:channel-series-release
     and channel is in SNAPS_CHANNELS return True.
     """
-    origin = config('openstack-origin')
+    origin = config('openstack-origin') or ""
     if not origin.startswith('snap:'):
         return False
 
