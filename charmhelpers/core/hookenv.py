@@ -216,7 +216,7 @@ def principal_unit():
     for reltype in relation_types():
         for rid in relation_ids(reltype):
             for unit in related_units(rid):
-                md = metadata_unit(unit)
+                md = _metadata_unit(unit)
                 subordinate = md.pop('subordinate', None)
                 if not subordinate:
                     return unit
@@ -499,9 +499,13 @@ def metadata():
         return yaml.safe_load(md)
 
 
-def metadata_unit(unit):
-    """Get the unit charm metadata.yaml contents as a python object. Unit needs
-    to be co-located, such as a subordinate or principal/primary.
+def _metadata_unit(unit):
+    """Given the name of a unit (e.g. apache2/0), get the unit charm's
+    metadata.yaml. Very similar to metadata() but allows us to inspect
+    other units. Unit needs to be co-located, such as a subordinate or
+    principal/primary.
+
+    :returns: metadata.yaml as a python object.
 
     """
     basedir = os.sep.join(charm_dir().split(os.sep)[:-2])
