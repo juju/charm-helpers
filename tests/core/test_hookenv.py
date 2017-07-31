@@ -1181,10 +1181,12 @@ class HelpersTest(TestCase):
         self.assertEquals(calls, ['hello', 'foo', 'baz'])
 
     def test_gets_charm_dir(self):
+        with patch.dict('os.environ', {}):
+            self.assertEqual(hookenv.charm_dir(), None)
         with patch.dict('os.environ', {'CHARM_DIR': '/var/empty'}):
             self.assertEqual(hookenv.charm_dir(), '/var/empty')
-        with patch.dict('os.environ', {'JUJU_CHARM_DIR': '/var/empty'}):
-            self.assertEqual(hookenv.charm_dir(), '/var/empty')
+        with patch.dict('os.environ', {'JUJU_CHARM_DIR': '/var/another'}):
+            self.assertEqual(hookenv.charm_dir(), '/var/another')
 
     @patch('subprocess.check_output')
     def test_resource_get_unsupported(self, check_output_):
