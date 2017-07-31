@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 from unittest import TestCase
 
 from mock import patch
@@ -20,6 +22,12 @@ from charmhelpers.contrib.hardening.host.checks import profile
 
 
 class ProfileTestCase(TestCase):
+
+    def setUp(self):
+        super(ProfileTestCase, self).setUp()
+
+        os.environ['JUJU_CHARM_DIR'] = '/tmp'
+        self.addCleanup(lambda: os.environ.pop('JUJU_CHARM_DIR'))
 
     @patch.object(profile.utils, 'get_settings', lambda x:
                   {'security': {'kernel_enable_core_dump': False, 'ssh_tmout': False}})

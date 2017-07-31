@@ -19,8 +19,6 @@ import six
 from mock import call, patch
 from unittest import TestCase
 
-os.environ['JUJU_CHARM_DIR'] = '/tmp'
-
 from charmhelpers.contrib.hardening import templating
 from charmhelpers.contrib.hardening import utils
 from charmhelpers.contrib.hardening.audits.file import (
@@ -46,7 +44,10 @@ class TemplatingTestCase(TestCase):
 
     def setUp(self):
         super(TemplatingTestCase, self).setUp()
+
+        os.environ['JUJU_CHARM_DIR'] = '/tmp'
         self.pathindex = {}
+        self.addCleanup(lambda: os.environ.pop('JUJU_CHARM_DIR'))
 
     def get_renderers(self, audits):
         renderers = []
