@@ -517,7 +517,9 @@ class CephContext(OSContextGenerator):
                 if not ctxt.get('key'):
                     ctxt['key'] = relation_get('key', rid=rid, unit=unit)
                 if not ctxt.get('rbd_features'):
-                    ctxt['rbd_features'] = relation_get('rbd-features', rid=rid, unit=unit)
+                    default_features = relation_get('rbd-features', rid=rid, unit=unit)
+                    if default_features is not None:
+                        ctxt['rbd_features'] = default_features
 
                 ceph_addrs = relation_get('ceph-public-address', rid=rid,
                                           unit=unit)
