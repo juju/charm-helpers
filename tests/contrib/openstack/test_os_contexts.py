@@ -249,13 +249,13 @@ CEPH_RELATION = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'true',
+            'use_syslog': 'true'
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'false',
+            'use_syslog': 'false'
         },
     }
 }
@@ -266,13 +266,13 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
             'ceph-public-address': '192.168.1.10',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
     }
 }
@@ -283,13 +283,13 @@ CEPH_REL_WITH_PUBLIC_ADDR_PORT = {
             'ceph-public-address': '192.168.1.10:1234',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
     }
 }
@@ -300,13 +300,13 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR = {
             'ceph-public-address': '2001:5c0:9168::1',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '2001:5c0:9168::2',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
     }
 }
@@ -317,13 +317,13 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT = {
             'ceph-public-address': '[2001:5c0:9168::1]:1234',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '[2001:5c0:9168::2]:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
     }
 }
@@ -334,16 +334,36 @@ CEPH_REL_WITH_MULTI_PUBLIC_ADDR = {
             'ceph-public-address': '192.168.1.10 192.168.1.20',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11 192.168.1.21',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
+            'key': 'bar'
         },
     }
 }
+
+CEPH_REL_WITH_DEFAULT_FEATURES = {
+    'ceph:0': {
+        'ceph/0': {
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd-features': '1'
+        },
+        'ceph/1': {
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'false',
+            'rbd-features': '1'
+        },
+    }
+}
+
 
 IDENTITY_RELATION_NO_CERT = {
     'identity-service:0': {
@@ -1243,7 +1263,7 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node1 ceph_node2',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'true'
+            'use_syslog': 'true',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1294,7 +1314,7 @@ class ContextTests(unittest.TestCase):
             'mon_hosts': 'ceph_node1 ceph_node2',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'true'
+            'use_syslog': 'true',
         }
         self.assertEquals(result, expected)
 
@@ -1449,6 +1469,38 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_default_features(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
