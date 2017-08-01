@@ -197,7 +197,9 @@ class NRPECheckTestCase(NRPEBaseTestCase):
     def test_valid_shortname(self):
         cases = [
             '1_number_is_fine',
+            'dots.are.good',
             'dashes-ok',
+            'UPPER_case_allowed',
             '5',
         ]
         for shortname in cases:
