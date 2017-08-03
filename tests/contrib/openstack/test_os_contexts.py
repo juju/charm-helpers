@@ -1957,7 +1957,7 @@ class ContextTests(unittest.TestCase):
 
         config = {}
         config.update(network_config)
-        self.config.side_effect = lambda key: config[key]
+        self.config.side_effect = lambda key: config.get(key)
 
         self.unit_get.return_value = 'cinderhost1'
         self.is_clustered.return_value = is_clustered
@@ -2919,13 +2919,44 @@ class ContextTests(unittest.TestCase):
                  call('10.5.3.0/24', '10.5.1.50')]
         self.get_address_in_network.assert_has_calls(calls)
 
+    def test_apache_get_addresses_with_network_splits_and_hostnames(self):
+        self.https.return_value = True
+        self.config.side_effect = fake_config({
+            'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
+            'os-internal-network': '10.5.1.0/24',
+            'os-admin-network': '10.5.2.0/24',
+            'os-public-network': '10.5.3.0/24',
+            'os-internal-hostname': 'glance.internal',
+            'os-admin-hostname': 'glance.admin',
+            'os-public-hostname': 'glance.public',
+        })
+        self.is_clustered.side_effect = [True, True, True]
+        self.get_address_in_network.side_effect = ['10.5.1.100',
+                                                   '10.5.2.100',
+                                                   '10.5.3.100']
+
+        self.unit_get.return_value = '10.5.1.50'
+        apache = context.ApacheSSLContext()
+        apache.external_ports = '8776'
+
+        addresses = apache.get_network_addresses()
+        expected = [('10.5.1.100', 'glance.internal'),
+                    ('10.5.2.100', 'glance.admin'),
+                    ('10.5.3.100', 'glance.public')]
+
+        self.assertEqual(addresses, expected)
+
+        calls = [call('10.5.1.0/24', '10.5.1.50'),
+                 call('10.5.2.0/24', '10.5.1.50'),
+                 call('10.5.3.0/24', '10.5.1.50')]
+        self.get_address_in_network.assert_has_calls(calls)
+
     def test_apache_get_addresses_with_missing_network(self):
         self.https.return_value = True
         self.config.side_effect = fake_config({
             'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
             'os-internal-network': '10.5.1.0/24',
             'os-admin-network': '10.5.2.0/24',
-            'os-public-network': '',
         })
         self.is_clustered.side_effect = [True, True, True]
         self.get_address_in_network.side_effect = ['10.5.1.100',
