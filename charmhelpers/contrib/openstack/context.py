@@ -736,10 +736,16 @@ class ApacheSSLContext(OSContextGenerator):
         return sorted(list(set(cns)))
 
     def get_network_addresses(self):
-        """For each network configured, return corresponding address and vip
-           (if available).
+        """For each network configured, return corresponding address and
+           hostnamr or vip (if available).
 
         Returns a list of tuples of the form:
+
+            [(address_in_net_a, hostname_in_net_a),
+             (address_in_net_b, hostname_in_net_b),
+             ...]
+
+            or, if no hostnames(s) available:
 
             [(address_in_net_a, vip_in_net_a),
              (address_in_net_b, vip_in_net_b),
@@ -757,18 +763,22 @@ class ApacheSSLContext(OSContextGenerator):
         else:
             vips = []
 
-        for net_type in ['os-internal-network', 'os-admin-network',
-                         'os-public-network']:
-            addr = get_address_in_network(config(net_type),
+        for net_type in ['internal', 'admin', 'public']:
+            net_config = config('os-{}-network'.format(net_type))
+            addr = get_address_in_network(net_config,
                                           unit_get('private-address'))
-            if len(vips) > 1 and is_clustered():
-                if not config(net_type):
+
+            hostname_config = config('os-{}-hostname'.format(net_type))
+            if hostname_config:
+                addresses.append((addr, hostname_config))
+            elif len(vips) > 1 and is_clustered():
+                if not net_config:
                     log("Multiple networks configured but net_type "
                         "is None (%s)." % net_type, level=WARNING)
                     continue
 
                 for vip in vips:
-                    if is_address_in_network(config(net_type), vip):
+                    if is_address_in_network(net_config, vip):
                         addresses.append((addr, vip))
                         break
 
