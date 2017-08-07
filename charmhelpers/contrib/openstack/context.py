@@ -1445,9 +1445,9 @@ class NeutronAPIContext(OSContextGenerator):
                     ctxt.update(self.get_neutron_options(rdata))
 
         if ctxt['enable_qos']:
-            ctxt['extensions'] = 'qos'
+            ctxt['extension_drivers'] = 'qos'
         else:
-            ctxt['extensions'] = ''
+            ctxt['extension_drivers'] = ''
 
         return ctxt
 
