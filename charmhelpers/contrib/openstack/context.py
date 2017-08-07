@@ -41,9 +41,9 @@ from charmhelpers.core.hookenv import (
     charm_name,
     DEBUG,
     INFO,
-    WARNING,
     ERROR,
     status_set,
+    network_get_primary_address
 )
 
 from charmhelpers.core.sysctl import create as sysctl_create
@@ -80,6 +80,9 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.openstack.ip import (
     resolve_address,
     INTERNAL,
+    ADMIN,
+    PUBLIC,
+    ADDRESS_MAP,
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
@@ -87,7 +90,6 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
     get_netmask_for_address,
     format_ipv6_addr,
-    is_address_in_network,
     is_bridge_member,
     is_ipv6_disabled,
 )
@@ -758,36 +760,27 @@ class ApacheSSLContext(OSContextGenerator):
              ...]
         """
         addresses = []
-        if config('vip'):
-            vips = config('vip').split()
-        else:
-            vips = []
-
-        for net_type in ['internal', 'admin', 'public']:
-            net_config = config('os-{}-network'.format(net_type))
-            addr = get_address_in_network(net_config,
-                                          unit_get('private-address'))
-
-            hostname_config = config('os-{}-hostname'.format(net_type))
-            if hostname_config:
-                addresses.append((addr, hostname_config))
-            elif len(vips) > 1 and is_clustered():
-                if not net_config:
-                    log("Multiple networks configured but net_type "
-                        "is None (%s)." % net_type, level=WARNING)
-                    continue
-
-                for vip in vips:
-                    if is_address_in_network(net_config, vip):
-                        addresses.append((addr, vip))
-                        break
-
-            elif is_clustered() and config('vip'):
-                addresses.append((addr, config('vip')))
+        for net_type in [INTERNAL, ADMIN, PUBLIC]:
+            net_config = config(ADDRESS_MAP[net_type]['config'])
+            # NOTE(jamespage): Fallback must always be private address
+            #                  as this is used to bind services on the
+            #                  local unit.
+            fallback = unit_get("private-address")
+            if net_config:
+                addr = get_address_in_network(net_config,
+                                              fallback)
             else:
-                addresses.append((addr, addr))
+                try:
+                    addr = network_get_primary_address(
+                        ADDRESS_MAP[net_type]['binding']
+                    )
+                except NotImplementedError:
+                    addr = fallback
 
-        return sorted(addresses)
+            endpoint = resolve_address(net_type)
+            addresses.append((addr, endpoint))
+
+        return sorted(set(addresses))
 
     def __call__(self):
         if isinstance(self.external_ports, six.string_types):
@@ -814,7 +807,7 @@ class ApacheSSLContext(OSContextGenerator):
             self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
-        for address, endpoint in sorted(set(addresses)):
+        for address, endpoint in addresses:
             for api_port in self.external_ports:
                 ext_port = determine_apache_port(api_port,
                                                  singlenode_mode=True)
