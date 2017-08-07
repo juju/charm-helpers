@@ -3212,28 +3212,28 @@ class ContextTests(unittest.TestCase):
         # the api service on the other end is sending data in a recent format.
         self.relation_get.return_value = cfg
 
-    def test_neutronapicontext_extensions_qos_on(self):
+    def test_neutronapicontext_extension_drivers_qos_on(self):
         self.setup_neutron_api_context_relation({
             'enable-qos': 'True',
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertTrue(api_ctxt['enable_qos'])
-        self.assertEquals(api_ctxt['extensions'], 'qos')
+        self.assertEquals(api_ctxt['extension_drivers'], 'qos')
 
-    def test_neutronapicontext_extensions_qos_off(self):
+    def test_neutronapicontext_extension_drivers_qos_off(self):
         self.setup_neutron_api_context_relation({
             'enable-qos': 'False',
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertFalse(api_ctxt['enable_qos'])
-        self.assertEquals(api_ctxt['extensions'], '')
+        self.assertEquals(api_ctxt['extension_drivers'], '')
 
-    def test_neutronapicontext_extensions_qos_absent(self):
+    def test_neutronapicontext_extension_drivers_qos_absent(self):
         self.setup_neutron_api_context_relation({
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertFalse(api_ctxt['enable_qos'])
-        self.assertEquals(api_ctxt['extensions'], '')
+        self.assertEquals(api_ctxt['extension_drivers'], '')
 
     def test_neutronapicontext_string_converted(self):
         self.setup_neutron_api_context_relation({
