@@ -3195,7 +3195,8 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = []
         expected_keys = [
             'l2_population', 'enable_dvr', 'enable_l3ha',
-            'overlay_network_type', 'network_device_mtu'
+            'overlay_network_type', 'network_device_mtu',
+            'enable_qos'
         ]
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
@@ -3204,10 +3205,39 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(api_ctxt['rpc_response_timeout'], 60)
         self.assertEquals(api_ctxt['report_interval'], 30)
 
-    def test_neutronapicontext_string_converted(self):
+    def setup_neutron_api_context_relation(self, cfg):
         self.relation_ids.return_value = ['neutron-plugin-api:1']
         self.related_units.return_value = ['neutron-api/0']
-        self.relation_get.return_value = {'l2-population': 'True'}
+        # The l2-population key is used by the context as a way of checking if
+        # the api service on the other end is sending data in a recent format.
+        self.relation_get.return_value = cfg
+
+    def test_neutronapicontext_extensions_qos_on(self):
+        self.setup_neutron_api_context_relation({
+            'enable-qos': 'True',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertTrue(api_ctxt['enable_qos'])
+        self.assertEquals(api_ctxt['extensions'], 'qos')
+
+    def test_neutronapicontext_extensions_qos_off(self):
+        self.setup_neutron_api_context_relation({
+            'enable-qos': 'False',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertFalse(api_ctxt['enable_qos'])
+        self.assertEquals(api_ctxt['extensions'], '')
+
+    def test_neutronapicontext_extensions_qos_absent(self):
+        self.setup_neutron_api_context_relation({
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertFalse(api_ctxt['enable_qos'])
+        self.assertEquals(api_ctxt['extensions'], '')
+
+    def test_neutronapicontext_string_converted(self):
+        self.setup_neutron_api_context_relation({
+            'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertEquals(api_ctxt['l2_population'], True)
 
