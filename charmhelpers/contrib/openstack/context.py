@@ -1429,13 +1429,25 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'report-interval',
                 'default': 30,
             },
+            'enable_qos': {
+                'rel_key': 'enable-qos',
+                'default': False,
+            },
         }
         ctxt = self.get_neutron_options({})
         for rid in relation_ids('neutron-plugin-api'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
+                # The l2-population key is used by the context as a way of
+                # checking if the api service on the other end is sending data
+                # in a recent format.
                 if 'l2-population' in rdata:
                     ctxt.update(self.get_neutron_options(rdata))
+
+        if ctxt['enable_qos']:
+            ctxt['extensions'] = 'qos'
+        else:
+            ctxt['extensions'] = ''
 
         return ctxt
 
