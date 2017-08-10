@@ -249,15 +249,13 @@ CEPH_RELATION = {
             'private-address': 'ceph_node1',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'true',
-            'rbd-features': 'rbd_features1'
+            'use_syslog': 'true'
         },
         'ceph/1': {
             'private-address': 'ceph_node2',
             'auth': 'foo',
             'key': 'bar',
-            'use_syslog': 'false',
-            'rbd-features': 'rbd_features2'
+            'use_syslog': 'false'
         },
     }
 }
@@ -268,15 +266,13 @@ CEPH_RELATION_WITH_PUBLIC_ADDR = {
             'ceph-public-address': '192.168.1.10',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features1'
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features2'
+            'key': 'bar'
         },
     }
 }
@@ -287,15 +283,13 @@ CEPH_REL_WITH_PUBLIC_ADDR_PORT = {
             'ceph-public-address': '192.168.1.10:1234',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features1'
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features2'
+            'key': 'bar'
         },
     }
 }
@@ -306,15 +300,13 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR = {
             'ceph-public-address': '2001:5c0:9168::1',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features1'
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '2001:5c0:9168::2',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features2'
+            'key': 'bar'
         },
     }
 }
@@ -325,15 +317,13 @@ CEPH_REL_WITH_PUBLIC_IPv6_ADDR_PORT = {
             'ceph-public-address': '[2001:5c0:9168::1]:1234',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features1'
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '[2001:5c0:9168::2]:4321',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features2'
+            'key': 'bar'
         },
     }
 }
@@ -344,18 +334,36 @@ CEPH_REL_WITH_MULTI_PUBLIC_ADDR = {
             'ceph-public-address': '192.168.1.10 192.168.1.20',
             'private-address': 'ceph_node1',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features1'
+            'key': 'bar'
         },
         'ceph/1': {
             'ceph-public-address': '192.168.1.11 192.168.1.21',
             'private-address': 'ceph_node2',
             'auth': 'foo',
-            'key': 'bar',
-            'rbd-features': 'rbd_features2'
+            'key': 'bar'
         },
     }
 }
+
+CEPH_REL_WITH_DEFAULT_FEATURES = {
+    'ceph:0': {
+        'ceph/0': {
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd-features': '1'
+        },
+        'ceph/1': {
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'false',
+            'rbd-features': '1'
+        },
+    }
+}
+
 
 IDENTITY_RELATION_NO_CERT = {
     'identity-service:0': {
@@ -609,6 +617,8 @@ TO_PATCH = [
     'pwgen',
     'lsb_release',
     'is_container',
+    'network_get_primary_address',
+    'resolve_address',
 ]
 
 
@@ -662,6 +672,8 @@ class ContextTests(unittest.TestCase):
         self.pwgen.return_value = 'testpassword'
         self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
         self.is_container.return_value = False
+        self.network_get_primary_address.side_effect = NotImplementedError()
+        self.resolve_address.return_value = '10.5.1.50'
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -1256,7 +1268,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1308,7 +1319,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
 
@@ -1338,7 +1348,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1370,7 +1379,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1402,7 +1410,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1435,7 +1442,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1467,7 +1473,38 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_default_features(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with multiple networks with all
+        relation data'''
+        isdir.return_value = False
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1514,7 +1551,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'false',
-            'rbd_features': 'rbd_features1',
         }
         expected['rbd_client_cache_settings'] = \
             {'rbd cache': 'true',
@@ -1576,7 +1612,6 @@ class ContextTests(unittest.TestCase):
             'auth': 'foo',
             'key': 'bar',
             'use_syslog': 'true',
-            'rbd_features': 'rbd_features1',
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
@@ -1909,141 +1944,49 @@ class ContextTests(unittest.TestCase):
         self.https.return_value = False
         self.assertEquals({}, apache())
 
-    @patch('charmhelpers.contrib.network.ip.is_address_in_network')
-    def _test_https_context(self, mock_is_address_in_network, apache,
-                            is_clustered, peer_units,
-                            network_config=NONET_CONFIG, multinet=False,
-                            cn_provided=True):
+    def test_https_context(self):
         self.https.return_value = True
-        vips = network_config['vip'].split()
-        if multinet:
-            self.get_address_in_network.side_effect = ['10.5.1.100',
-                                                       '10.5.2.100',
-                                                       '10.5.3.100']
-        else:
-            self.get_address_in_network.return_value = 'cinderhost1'
-
-        config = {}
-        config.update(network_config)
-        self.config.side_effect = lambda key: config[key]
-
-        self.unit_get.return_value = 'cinderhost1'
-        self.is_clustered.return_value = is_clustered
+        self.determine_api_port.return_value = 8756
+        self.determine_apache_port.return_value = 8766
 
         apache = context.ApacheSSLContext()
         apache.configure_cert = MagicMock()
         apache.enable_modules = MagicMock()
         apache.configure_ca = MagicMock()
-        apache.canonical_names = MagicMock(return_value=[])
-
-        if is_clustered:
-            if cn_provided:
-                apache.canonical_names.return_value = \
-                    network_config['vip'].split()
-
-            self.determine_api_port.return_value = 8756
-            self.determine_apache_port.return_value = 8766
-            if len(vips) > 1:
-                mock_is_address_in_network.side_effect = [
-                    True, False, True, False, False, True
-                ]
-            else:
-                mock_is_address_in_network.return_value = True
-        else:
-            if cn_provided:
-                apache.canonical_names.return_value = ['cinderhost1']
-
-            self.determine_api_port.return_value = 8766
-            self.determine_apache_port.return_value = 8776
-
+        apache.canonical_names = MagicMock()
+        apache.canonical_names.return_value = [
+            '10.5.1.1',
+            '10.5.2.1',
+            '10.5.3.1',
+        ]
+        apache.get_network_addresses = MagicMock()
+        apache.get_network_addresses.return_value = [
+            ('10.5.1.100', '10.5.1.1'),
+            ('10.5.2.100', '10.5.2.1'),
+            ('10.5.3.100', '10.5.3.1'),
+        ]
         apache.external_ports = '8776'
         apache.service_namespace = 'cinder'
 
-        if is_clustered:
-            if len(vips) > 1:
-                ex = {
-                    'namespace': 'cinder',
-                    'endpoints': [('10.5.1.100', '10.5.1.1', 8766, 8756),
-                                  ('10.5.2.100', '10.5.2.1', 8766, 8756),
-                                  ('10.5.3.100', '10.5.3.1', 8766, 8756)],
-                    'ext_ports': [8766]
-                }
-            else:
-                ex = {
-                    'namespace': 'cinder',
-                    'endpoints': [('cinderhost1', 'cinderhost1vip',
-                                   8766, 8756)],
-                    'ext_ports': [8766]
-                }
-        else:
-            if multinet:
-                ex = {
-                    'namespace': 'cinder',
-                    'endpoints': sorted([
-                        ('10.5.3.100', '10.5.3.100', 8776, 8766),
-                        ('10.5.2.100', '10.5.2.100', 8776, 8766),
-                        ('10.5.1.100', '10.5.1.100', 8776, 8766)]),
-                    'ext_ports': [8776]
-                }
-            else:
-                ex = {
-                    'namespace': 'cinder',
-                    'endpoints': [('cinderhost1', 'cinderhost1', 8776, 8766)],
-                    'ext_ports': [8776]
-                }
+        ex = {
+            'namespace': 'cinder',
+            'endpoints': [('10.5.1.100', '10.5.1.1', 8766, 8756),
+                          ('10.5.2.100', '10.5.2.1', 8766, 8756),
+                          ('10.5.3.100', '10.5.3.1', 8766, 8756)],
+            'ext_ports': [8766]
+        }
 
         self.assertEquals(ex, apache())
-        if is_clustered:
-            if len(vips) > 1:
-                apache.configure_cert.assert_has_calls([
-                    call('10.5.1.1'),
-                    call('10.5.2.1'),
-                    call('10.5.3.1')
-                ])
-            else:
-                apache.configure_cert.assert_called_with('cinderhost1vip')
-        else:
-            if cn_provided:
-                apache.configure_cert.assert_called_with('cinderhost1')
-            else:
-                apache.configure_cert.assert_called_with('10.0.0.1')
+
+        apache.configure_cert.assert_has_calls([
+            call('10.5.1.1'),
+            call('10.5.2.1'),
+            call('10.5.3.1')
+        ])
 
         self.assertTrue(apache.configure_ca.called)
         self.assertTrue(apache.enable_modules.called)
         self.assertTrue(apache.configure_cert.called)
-
-    @patch.object(context, 'resolve_address')
-    def test_https_context_no_cn(self, mock_resolve_address):
-        '''Test apache2 https with no cn provided'''
-        mock_resolve_address.return_value = "10.0.0.1"
-        apache = context.ApacheSSLContext()
-        self._test_https_context(apache, is_clustered=False, peer_units=None,
-                                 cn_provided=False)
-
-    def test_https_context_no_peers_no_cluster(self):
-        '''Test apache2 https on a single, unclustered unit'''
-        apache = context.ApacheSSLContext()
-        self._test_https_context(apache, is_clustered=False, peer_units=None)
-
-    def test_https_context_multinetwork(self):
-        apache = context.ApacheSSLContext()
-        self._test_https_context(apache, is_clustered=False, peer_units=None,
-                                 network_config=FULLNET_CONFIG, multinet=True)
-
-    def test_https_context_multinetwork_cluster(self):
-        apache = context.ApacheSSLContext()
-        self._test_https_context(apache, is_clustered=True, peer_units=None,
-                                 network_config=FULLNET_CONFIG, multinet=True)
-
-    def test_https_context_wth_peers_no_cluster(self):
-        '''Test apache2 https on a unclustered unit with peers'''
-        apache = context.ApacheSSLContext()
-        self._test_https_context(apache, is_clustered=False, peer_units=[1, 2])
-
-    def test_https_context_wth_peers_cluster(self):
-        '''Test apache2 https on a clustered unit with peers'''
-        apache = context.ApacheSSLContext()
-        self._test_https_context(apache, is_clustered=True, peer_units=[1, 2])
 
     def test_https_context_loads_correct_apache_mods(self):
         '''Test apache2 context also loads required apache modules'''
@@ -2778,73 +2721,43 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(context.WorkerConfigContext()(),
                          {'workers': 256})
 
-    def test_apache_get_addresses_no_network_splits(self):
-        self.https.return_value = True
+    def test_apache_get_addresses_no_network_config(self):
         self.config.side_effect = fake_config({
-            'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
             'os-internal-network': None,
             'os-admin-network': None,
             'os-public-network': None
         })
-        self.is_clustered.side_effect = [True, True, True]
-        self.get_address_in_network.side_effect = ['10.5.1.100',
-                                                   '10.5.2.100',
-                                                   '10.5.3.100']
-
+        self.resolve_address.return_value = '10.5.1.50'
         self.unit_get.return_value = '10.5.1.50'
+
         apache = context.ApacheSSLContext()
         apache.external_ports = '8776'
 
         addresses = apache.get_network_addresses()
-        expected = []
+        expected = [('10.5.1.50', '10.5.1.50')]
+
         self.assertEqual(addresses, expected)
 
-        calls = [call(None, '10.5.1.50'),
-                 call(None, '10.5.1.50'),
-                 call(None, '10.5.1.50')]
-        self.get_address_in_network.assert_has_calls(calls)
+        self.get_address_in_network.assert_not_called()
+        self.resolve_address.assert_has_calls([
+            call(context.INTERNAL),
+            call(context.ADMIN),
+            call(context.PUBLIC)
+        ])
 
-    def test_apache_get_addresses_no_vips_no_networks(self):
-        self.https.return_value = True
+    def test_apache_get_addresses_with_network_config(self):
         self.config.side_effect = fake_config({
-            'vip': '',
-            'os-internal-network': None,
-            'os-admin-network': None,
-            'os-public-network': None
-        })
-        self.is_clustered.side_effect = [True, True, True]
-        self.get_address_in_network.side_effect = ['10.5.1.100',
-                                                   '10.5.2.100',
-                                                   '10.5.3.100']
-
-        self.unit_get.return_value = '10.5.1.50'
-        apache = context.ApacheSSLContext()
-
-        addresses = apache.get_network_addresses()
-        expected = [('10.5.1.100', '10.5.1.100'),
-                    ('10.5.2.100', '10.5.2.100'),
-                    ('10.5.3.100', '10.5.3.100')]
-        self.assertEqual(addresses, expected)
-
-        calls = [call(None, '10.5.1.50'),
-                 call(None, '10.5.1.50'),
-                 call(None, '10.5.1.50')]
-        self.get_address_in_network.assert_has_calls(calls)
-
-    def test_apache_get_addresses_no_vips_w_networks(self):
-        self.https.return_value = True
-        self.config.side_effect = fake_config({
-            'vip': '',
             'os-internal-network': '10.5.1.0/24',
             'os-admin-network': '10.5.2.0/24',
             'os-public-network': '10.5.3.0/24',
         })
-        self.is_clustered.side_effect = [True, True, True]
-        self.get_address_in_network.side_effect = ['10.5.1.100',
-                                                   '10.5.2.100',
-                                                   '10.5.3.100']
-
+        _base_addresses = ['10.5.1.100',
+                           '10.5.2.100',
+                           '10.5.3.100']
+        self.get_address_in_network.side_effect = _base_addresses
+        self.resolve_address.side_effect = _base_addresses
         self.unit_get.return_value = '10.5.1.50'
+
         apache = context.ApacheSSLContext()
 
         addresses = apache.get_network_addresses()
@@ -2857,91 +2770,37 @@ class ContextTests(unittest.TestCase):
                  call('10.5.2.0/24', '10.5.1.50'),
                  call('10.5.3.0/24', '10.5.1.50')]
         self.get_address_in_network.assert_has_calls(calls)
+        self.resolve_address.assert_has_calls([
+            call(context.INTERNAL),
+            call(context.ADMIN),
+            call(context.PUBLIC)
+        ])
 
-    def test_apache_get_addresses_with_network_splits(self):
-        self.https.return_value = True
+    def test_apache_get_addresses_network_spaces(self):
         self.config.side_effect = fake_config({
-            'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
-            'os-internal-network': '10.5.1.0/24',
-            'os-admin-network': '10.5.2.0/24',
-            'os-public-network': '10.5.3.0/24',
+            'os-internal-network': None,
+            'os-admin-network': None,
+            'os-public-network': None
         })
-        self.is_clustered.side_effect = [True, True, True]
-        self.get_address_in_network.side_effect = ['10.5.1.100',
-                                                   '10.5.2.100',
-                                                   '10.5.3.100']
-
+        self.network_get_primary_address.side_effect = None
+        self.network_get_primary_address.return_value = '10.5.2.50'
+        self.resolve_address.return_value = '10.5.2.100'
         self.unit_get.return_value = '10.5.1.50'
+
         apache = context.ApacheSSLContext()
         apache.external_ports = '8776'
 
         addresses = apache.get_network_addresses()
-        expected = [('10.5.1.100', '10.5.1.1'),
-                    ('10.5.2.100', '10.5.2.1'),
-                    ('10.5.3.100', '10.5.3.1')]
+        expected = [('10.5.2.50', '10.5.2.100')]
 
         self.assertEqual(addresses, expected)
 
-        calls = [call('10.5.1.0/24', '10.5.1.50'),
-                 call('10.5.2.0/24', '10.5.1.50'),
-                 call('10.5.3.0/24', '10.5.1.50')]
-        self.get_address_in_network.assert_has_calls(calls)
-
-    def test_apache_get_addresses_with_missing_network(self):
-        self.https.return_value = True
-        self.config.side_effect = fake_config({
-            'vip': '10.5.1.1 10.5.2.1 10.5.3.1',
-            'os-internal-network': '10.5.1.0/24',
-            'os-admin-network': '10.5.2.0/24',
-            'os-public-network': '',
-        })
-        self.is_clustered.side_effect = [True, True, True]
-        self.get_address_in_network.side_effect = ['10.5.1.100',
-                                                   '10.5.2.100',
-                                                   '10.5.1.50']
-
-        self.unit_get.return_value = '10.5.1.50'
-        apache = context.ApacheSSLContext()
-        apache.external_ports = '8776'
-
-        addresses = apache.get_network_addresses()
-        expected = [('10.5.1.100', '10.5.1.1'),
-                    ('10.5.2.100', '10.5.2.1')]
-
-        self.assertEqual(addresses, expected)
-
-        calls = [call('10.5.1.0/24', '10.5.1.50'),
-                 call('10.5.2.0/24', '10.5.1.50')]
-        self.get_address_in_network.assert_has_calls(calls)
-
-    def test_apache_get_addresses_with_network_splits_ipv6(self):
-        self.https.return_value = True
-        self.config.side_effect = fake_config({
-            'vip': ('2001:db8::5001 2001:db9::5001 2001:dba::5001'),
-            'os-internal-network': '2001:db8::/113',
-            'os-admin-network': '2001:db9::/113',
-            'os-public-network': '2001:dba::/113',
-        })
-        self.is_clustered.side_effect = [True, True, True]
-        self.get_address_in_network.side_effect = ['2001:db8::5100',
-                                                   '2001:db9::5100',
-                                                   '2001:dba::5100']
-
-        self.unit_get.return_value = '2001:db8::5050'
-        apache = context.ApacheSSLContext()
-        apache.external_ports = '8776'
-
-        addresses = apache.get_network_addresses()
-        expected = [('2001:db8::5100', '2001:db8::5001'),
-                    ('2001:db9::5100', '2001:db9::5001'),
-                    ('2001:dba::5100', '2001:dba::5001')]
-
-        self.assertEqual(addresses, expected)
-
-        calls = [call('2001:db8::/113', '2001:db8::5050'),
-                 call('2001:db9::/113', '2001:db8::5050'),
-                 call('2001:dba::/113', '2001:db8::5050')]
-        self.get_address_in_network.assert_has_calls(calls)
+        self.get_address_in_network.assert_not_called()
+        self.resolve_address.assert_has_calls([
+            call(context.INTERNAL),
+            call(context.ADMIN),
+            call(context.PUBLIC)
+        ])
 
     def test_config_flag_parsing_simple(self):
         # Standard key=value checks...
@@ -3132,7 +2991,8 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = []
         expected_keys = [
             'l2_population', 'enable_dvr', 'enable_l3ha',
-            'overlay_network_type', 'network_device_mtu'
+            'overlay_network_type', 'network_device_mtu',
+            'enable_qos'
         ]
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
@@ -3141,10 +3001,39 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(api_ctxt['rpc_response_timeout'], 60)
         self.assertEquals(api_ctxt['report_interval'], 30)
 
-    def test_neutronapicontext_string_converted(self):
+    def setup_neutron_api_context_relation(self, cfg):
         self.relation_ids.return_value = ['neutron-plugin-api:1']
         self.related_units.return_value = ['neutron-api/0']
-        self.relation_get.return_value = {'l2-population': 'True'}
+        # The l2-population key is used by the context as a way of checking if
+        # the api service on the other end is sending data in a recent format.
+        self.relation_get.return_value = cfg
+
+    def test_neutronapicontext_extension_drivers_qos_on(self):
+        self.setup_neutron_api_context_relation({
+            'enable-qos': 'True',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertTrue(api_ctxt['enable_qos'])
+        self.assertEquals(api_ctxt['extension_drivers'], 'qos')
+
+    def test_neutronapicontext_extension_drivers_qos_off(self):
+        self.setup_neutron_api_context_relation({
+            'enable-qos': 'False',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertFalse(api_ctxt['enable_qos'])
+        self.assertEquals(api_ctxt['extension_drivers'], '')
+
+    def test_neutronapicontext_extension_drivers_qos_absent(self):
+        self.setup_neutron_api_context_relation({
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertFalse(api_ctxt['enable_qos'])
+        self.assertEquals(api_ctxt['extension_drivers'], '')
+
+    def test_neutronapicontext_string_converted(self):
+        self.setup_neutron_api_context_relation({
+            'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertEquals(api_ctxt['l2_population'], True)
 
