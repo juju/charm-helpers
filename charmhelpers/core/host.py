@@ -502,7 +502,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
         pass
     if content != existing_content:
         log("Writing file {} {}:{} {:o}".format(path, owner, group, perms),
-            level=TRACE)
+            level=DEBUG)
         with open(path, 'wb') as target:
             os.fchown(target.fileno(), uid, gid)
             os.fchmod(target.fileno(), perms)
@@ -512,11 +512,11 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
     # ownership.
     if existing_uid != uid:
         log("Changing uid on already existing content: {} -> {}"
-            .format(existing_uid, uid), level=TRACE)
+            .format(existing_uid, uid), level=DEBUG)
         os.chown(path, uid, -1)
     if existing_gid != gid:
         log("Changing gid on already existing content: {} -> {}"
-            .format(existing_gid, gid), level=TRACE)
+            .format(existing_gid, gid), level=DEBUG)
         os.chown(path, -1, gid)
 
 
