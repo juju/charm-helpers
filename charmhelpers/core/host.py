@@ -34,7 +34,7 @@ import six
 
 from contextlib import contextmanager
 from collections import OrderedDict
-from .hookenv import log, TRACE
+from .hookenv import log, DEBUG
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
 
