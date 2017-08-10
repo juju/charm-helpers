@@ -197,7 +197,9 @@ class NRPECheckTestCase(NRPEBaseTestCase):
     def test_valid_shortname(self):
         cases = [
             '1_number_is_fine',
+            'dots.are.good',
             'dashes-ok',
+            'UPPER_case_allowed',
             '5',
         ]
         for shortname in cases:
@@ -344,14 +346,18 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
              '/etc/init.d/haproxy', 'status'], stdout=f,
             stderr=subprocess.STDOUT)
 
-        # Test with systemd
+        # Test regular services and snap services with systemd
+        services = ['apache2', 'haproxy', 'snap.test.test']
         self.patched['init_is_systemd'].return_value = True
         nrpe.add_init_service_checks(bill, services, 'testunit')
         expect_cmds = {
             'apache2': '/usr/lib/nagios/plugins/check_systemd.py apache2',
             'haproxy': '/usr/lib/nagios/plugins/check_systemd.py haproxy',
+            'snap.test.test': '/usr/lib/nagios/plugins/check_systemd.py snap.test.test',
         }
         self.assertEqual(bill.checks[2].shortname, 'apache2')
         self.assertEqual(bill.checks[2].check_cmd, expect_cmds['apache2'])
         self.assertEqual(bill.checks[3].shortname, 'haproxy')
         self.assertEqual(bill.checks[3].check_cmd, expect_cmds['haproxy'])
+        self.assertEqual(bill.checks[4].shortname, 'snap.test.test')
+        self.assertEqual(bill.checks[4].check_cmd, expect_cmds['snap.test.test'])
