@@ -1857,7 +1857,6 @@ class ContextTests(unittest.TestCase):
             'haproxy_host': '::',
             'stat_password': 'testpassword',
             'stat_port': '8888',
-            'ipv6': True
         }
         # the context gets generated.
         self.assertEquals(ex, result)
