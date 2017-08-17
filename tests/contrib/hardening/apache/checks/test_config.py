@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import shutil
 import tempfile
 
@@ -86,3 +87,24 @@ class ApacheConfigTestCase(TestCase):
                 'honor_cipher_order': 'on',
                 'cipher_suite': 'ALL:+MEDIUM:+HIGH:!LOW:!MD5:!RC4:!eNULL:!aNULL:!3DES'
             })
+
+    @patch.object(config.utils, 'get_settings', lambda x: {
+        'common': {'apache_dir': TEST_TMPDIR},
+        'hardening': {
+            'allowed_http_methods': {'GOGETEM'},
+            'modules_to_disable': {'modfoo'},
+            'traceenable': 'off',
+            'servertokens': 'Prod',
+            'honor_cipher_order': 'on',
+            'cipher_suite': 'ALL:+MEDIUM:+HIGH:!LOW:!MD5:!RC4:!eNULL:!aNULL:!3DES'
+        }
+    })
+    @patch.object(config.subprocess, 'call', lambda *args, **kwargs: 0)
+    def test_file_permission_audit(self):
+        audits = config.get_audits()
+        settings = config.utils.get_settings('apache')
+        conf_file_name = 'apache2.conf'
+        conf_file_path = os.path.join(
+            settings['common']['apache_dir'], conf_file_name
+        )
+        self.assertEqual(audits[0].paths[0], conf_file_path)
