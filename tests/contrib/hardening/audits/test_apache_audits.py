@@ -75,3 +75,12 @@ class DisabledModuleAuditsTest(TestCase):
         audit.ensure_compliance()
         mock_disable_module.assert_has_calls([call('bar')])
         mock_restart_apache.assert_has_calls([call()])
+
+    @patch('subprocess.check_output')
+    def test_get_loaded_modules(self, mock_check_output):
+        mock_check_output.return_value = ('Loaded Modules:\n'
+                                          ' foo_module (static)\n'
+                                          ' bar_module (shared)\n')
+        audit = apache.DisabledModuleAudit('bar')
+        result = audit._get_loaded_modules()
+        self.assertEqual(['foo', 'bar'], result)
