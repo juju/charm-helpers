@@ -513,11 +513,11 @@ def _metadata_unit(unit):
     """
     basedir = os.sep.join(charm_dir().split(os.sep)[:-2])
     unitdir = 'unit-{}'.format(unit.replace(os.sep, '-'))
-    try:
-        with open(os.path.join(basedir, unitdir, 'charm', 'metadata.yaml')) as md:
-            return yaml.safe_load(md)
-    except FileNotFoundError:
+    joineddir = os.path.join(basedir, unitdir, 'charm', 'metadata.yaml')
+    if not os.path.exists(joineddir):
         return None
+    with open(joineddir) as md:
+        return yaml.safe_load(md)
 
 
 @cached
