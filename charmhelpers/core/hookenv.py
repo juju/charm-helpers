@@ -218,6 +218,8 @@ def principal_unit():
         for rid in relation_ids(reltype):
             for unit in related_units(rid):
                 md = _metadata_unit(unit)
+                if not md:
+                    continue
                 subordinate = md.pop('subordinate', None)
                 if not subordinate:
                     return unit
@@ -511,8 +513,11 @@ def _metadata_unit(unit):
     """
     basedir = os.sep.join(charm_dir().split(os.sep)[:-2])
     unitdir = 'unit-{}'.format(unit.replace(os.sep, '-'))
-    with open(os.path.join(basedir, unitdir, 'charm', 'metadata.yaml')) as md:
-        return yaml.safe_load(md)
+    try:
+        with open(os.path.join(basedir, unitdir, 'charm', 'metadata.yaml')) as md:
+            return yaml.safe_load(md)
+    except FileNotFoundError:
+        return None
 
 
 @cached
