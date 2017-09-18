@@ -66,3 +66,11 @@ class AlternativesTestCase(TestCase):
              TARGET, NAME, SOURCE, '50']
         )
         _move.assert_not_called()
+
+    @patch('subprocess.check_call')
+    def test_remove_alternative(self, _check):
+        alternatives.remove_alternative(NAME, SOURCE)
+        _check.assert_called_with(
+            ['update-alternatives', '--remove',
+             NAME, SOURCE]
+        )
