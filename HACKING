@@ -6,9 +6,12 @@ To build and run the testsuite:
   make test
 
 
-
 Hacking on Docs
 ---------------
+
+Install html doc dependencies::
+
+  sudo apt install python-netifaces
 
 To build the html documentation::
 
