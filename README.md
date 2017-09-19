@@ -1,14 +1,13 @@
-============
-CharmHelpers
-============
+# CharmHelpers
+
+## Overview
 
 CharmHelpers provides an opinionated set of tools for building Juju
 charms that work together. In addition to basic tasks like interact-
 ing with the charm environment and the machine it runs on, it also
 helps keep you build hooks and establish relations effortlessly.
 
-License
-========
+## License
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

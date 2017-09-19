@@ -1,0 +1,17 @@
+dist: trusty
+sudo: required
+language: python
+python:
+  - "2.7"
+  - "3.4"
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y juju python3-apt python-apt
+  - sudo apt-get purge -y python-requests
+virtualenv:
+  system_site_packages: true
+install:
+  - pip install -r test_requirements.txt
+script:
+  - nosetests -s --nologcapture --with-coverage --cover-package=charmhelpers tests/
+  - flake8 --ignore=E501 charmhelpers tests tools
