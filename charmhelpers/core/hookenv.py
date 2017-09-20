@@ -672,6 +672,17 @@ def close_ports(start, end, protocol="TCP"):
     subprocess.check_call(_args)
 
 
+def opened_ports():
+    """Get the opened ports
+
+    *Note that this will only show ports opened in a previous hook*
+
+    :returns: Opened ports as a list of strings: ``['8080/tcp', '8081-8083/tcp']``
+    """
+    _args = ['opened-ports', '--format=json']
+    return json.loads(subprocess.check_output(_args).decode('UTF-8'))
+
+
 @cached
 def unit_get(attribute):
     """Get the unit ID for the remote unit"""
