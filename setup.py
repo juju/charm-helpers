@@ -26,9 +26,9 @@ with open(version_file) as v:
 SETUP = {
     'name': "charmhelpers",
     'version': VERSION,
-    'author': "Ubuntu Developers",
-    'author_email': "ubuntu-devel-discuss@lists.ubuntu.com",
-    'url': "https://code.launchpad.net/charm-helpers",
+    'author': "Charmers",
+    'author_email': "juju@lists.ubuntu.com",
+    'url': "https://github.com/juju/charm-helpers",
     'install_requires': [
         'netaddr',
         'PyYAML',
@@ -43,7 +43,7 @@ SETUP = {
         "bin/contrib/saltstack/salt-call",
     ],
     'license': "Apache 2.0 (ASL)",
-    'long_description': open('README.txt').read(),
+    'long_description': open('README.md').read(),
     'description': 'Helpers for Juju Charm development',
 }
 
