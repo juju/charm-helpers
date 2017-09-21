@@ -1,5 +1,0 @@
-Required Packages for Running Tests
------------------------------------
-sudo apt-get install python-flake8 python-shelltoolbox python-tempita \
-python-nose python-mock python-testtools python-jinja2 python-coverage \
-python-git python-netifaces python-netaddr python-pip zip

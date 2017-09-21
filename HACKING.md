@@ -1,23 +1,30 @@
 # Hacking on charmhelpers
 
-
 ## Run testsuite
 
     make test
 
 Run `make` without arguments for more options.
 
-## Use it in a charm
+## Test it in a charm
 
-Use following instructions to build a charm that uses your own branch of
+Use following instructions to build a charm that uses your own development branch of
 charmhelpers.
 
-Create an override file `override-wheelhouse.txt` that points to your own
-charmhelpers branch.
+1) Make sure your version of charmhelpers is recognised as the latest version by
+by appending `dev0` to the version number in the `VERSION` file.
 
-    -e git+https://github.com/<myuser>/charm-helpers#egg=charmhelpers
+2) Create an override file `override-wheelhouse.txt` that points to your own
+charmhelpers branch. *The format of this file is the same as pip's
+[`requirements.txt`](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format)
+file.
 
-Build the charm specifying the override file. *You might need to install the
+    # Override charmhelpers by the version found in folder
+    -e /path/to/charmhelpers
+    # Or point it to a github repo with
+    # -e git+https://github.com/<myuser>/charm-helpers#egg=charmhelpers
+
+3) Build the charm specifying the override file. *You might need to install the
 candidate channel of the charm snap*
 
     charm build <mycharm> -w wheelhouse-overrides.txt
@@ -35,7 +42,9 @@ charm, get the path of the installed charmhelpers by running following command.*
 Install html doc dependencies:
 
 ```bash
-sudo apt install python-netifaces
+sudo apt-get install python-flake8 python-shelltoolbox python-tempita \
+python-nose python-mock python-testtools python-jinja2 python-coverage \
+python-git python-netifaces python-netaddr python-pip zip
 ```
 
 To build the html documentation:
