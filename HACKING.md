@@ -11,10 +11,10 @@ Run `make` without arguments for more options.
 Use following instructions to build a charm that uses your own development branch of
 charmhelpers.
 
-1) Make sure your version of charmhelpers is recognised as the latest version by
+Step 1: Make sure your version of charmhelpers is recognised as the latest version by
 by appending `dev0` to the version number in the `VERSION` file.
 
-2) Create an override file `override-wheelhouse.txt` that points to your own
+Step 2: Create an override file `override-wheelhouse.txt` that points to your own
 charmhelpers branch. *The format of this file is the same as pip's
 [`requirements.txt`](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format)
 file.
@@ -22,9 +22,9 @@ file.
     # Override charmhelpers by the version found in folder
     -e /path/to/charmhelpers
     # Or point it to a github repo with
-    # -e git+https://github.com/<myuser>/charm-helpers#egg=charmhelpers
+    -e git+https://github.com/<myuser>/charm-helpers#egg=charmhelpers
 
-3) Build the charm specifying the override file. *You might need to install the
+Step 3: Build the charm specifying the override file. *You might need to install the
 candidate channel of the charm snap*
 
     charm build <mycharm> -w wheelhouse-overrides.txt
