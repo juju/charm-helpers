@@ -725,16 +725,23 @@ class ApacheSSLContext(OSContextGenerator):
 
     def canonical_names(self):
         """Figure out which canonical names clients will access this service.
+
+        Returns a dict of private ip addresses, and their respective
+        public names, so that we can put them together later.
+
         """
-        cns = []
+        cns = {}
         for r_id in relation_ids('identity-service'):
             for unit in related_units(r_id):
                 rdata = relation_get(rid=r_id, unit=unit)
                 for k in rdata:
                     if k.startswith('ssl_key_'):
-                        cns.append(k.lstrip('ssl_key_'))
+                        cn = k.lstrip('ssl_key_')
+                        ip = rdata['private-address']
+                        cns[ip] = cn
+                        break
 
-        return sorted(list(set(cns)))
+        return cns
 
     def get_network_addresses(self):
         """For each network configured, return corresponding address and
@@ -797,7 +804,7 @@ class ApacheSSLContext(OSContextGenerator):
 
         cns = self.canonical_names()
         if cns:
-            for cn in cns:
+            for cn in sorted(cns.keys()):
                 self.configure_cert(cn)
         else:
             # Expect cert/key provided in config (currently assumed that ca
@@ -811,6 +818,10 @@ class ApacheSSLContext(OSContextGenerator):
                 ext_port = determine_apache_port(api_port,
                                                  singlenode_mode=True)
                 int_port = determine_api_port(api_port, singlenode_mode=True)
+                # Translate endpoint into canonical name (reference to
+                # ssh cert in template will then match actual name of
+                # ssl cert file).
+                endpoint = cns.get(endpoint, endpoint)
                 portmap = (address, endpoint, int(ext_port), int(int_port))
                 ctxt['endpoints'].append(portmap)
                 ctxt['ext_ports'].append(int(ext_port))
