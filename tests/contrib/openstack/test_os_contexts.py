@@ -1954,11 +1954,11 @@ class ContextTests(unittest.TestCase):
         apache.enable_modules = MagicMock()
         apache.configure_ca = MagicMock()
         apache.canonical_names = MagicMock()
-        apache.canonical_names.return_value = [
-            '10.5.1.1',
-            '10.5.2.1',
-            '10.5.3.1',
-        ]
+        apache.canonical_names.return_value = {
+            '10.5.1.1': '10.5.1.1',
+            '10.5.2.1': '10.5.2.1',
+            '10.5.3.1': '10.5.3.1',
+        }
         apache.get_network_addresses = MagicMock()
         apache.get_network_addresses.return_value = [
             ('10.5.1.100', '10.5.1.1'),
@@ -2039,14 +2039,15 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = rel.relation_units
         self.relation_get.side_effect = rel.get
         apache = context.ApacheSSLContext()
-        self.assertEquals(apache.canonical_names(), ['cinderhost1'])
+        self.assertEquals(apache.canonical_names(), {'keystone1': 'cinderhost1'})
         rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
-        self.assertEquals(apache.canonical_names(),
-                          sorted(['cinderhost1-adm-network',
-                                  'cinderhost1-int-network',
-                                  'cinderhost1-pub-network']))
+        self.assertEquals(apache.canonical_names(), {
+            'keystone1': 'cinderhost1-adm-network',
+            'keystone1': 'cinderhost1-int-network',
+            'keystone1': 'cinderhost1-pub-network'
+        })
         rel.relation_data = IDENTITY_RELATION_NO_CERT
-        self.assertEquals(apache.canonical_names(), [])
+        self.assertEquals(apache.canonical_names(), {})
 
     def test_image_service_context_missing_data(self):
         '''Test image-service with missing relation and missing data'''
