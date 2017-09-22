@@ -1149,6 +1149,13 @@ class HelpersTest(TestCase):
         check_call_.assert_has_calls(calls)
 
     @patch('subprocess.check_output')
+    def test_gets_opened_ports(self, check_output_):
+        prts = ['8080/tcp', '8081-8083/tcp']
+        check_output_.return_value = json.dumps(prts).encode('UTF-8')
+        self.assertEqual(hookenv.opened_ports(), prts)
+        check_output_.assert_called_with(['opened-ports', '--format=json'])
+
+    @patch('subprocess.check_output')
     def test_gets_unit_attribute(self, check_output_):
         check_output_.return_value = json.dumps('bar').encode('UTF-8')
         self.assertEqual(hookenv.unit_get('foo'), 'bar')
