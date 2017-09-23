@@ -952,9 +952,9 @@ def modulo_distribution(modulo=3, wait=30):
     """ Modulo distribution
 
     This helper uses the unit number, a modulo value and a constant wait time
-    to produce a calculated wait time distribution.
-    This is useful in large scale deployments to distribute load during an
-    expensive operation such as service restarts.
+    to produce a calculated wait time distribution. This is useful in large
+    scale deployments to distribute load during an expensive operation such as
+    service restarts.
 
     If you have 1000 nodes that need to restart 100 at a time 1 minute at a
     time:

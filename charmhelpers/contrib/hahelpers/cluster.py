@@ -367,11 +367,15 @@ def canonical_url(configs, vip_setting='vip'):
     return '%s://%s' % (scheme, addr)
 
 
-def distributed_wait(modulo=None, wait=None):
+def distributed_wait(modulo=None, wait=None, operation_name='operation'):
     ''' Distribute operations by waiting based on modulo_distribution
 
     If modulo and or wait are not set, check config_get for those values.
 
+    :param modulo: int The modulo number creates the group distribution
+    :param wait: int The constant time wait value
+    :param operation_name: string Operation name for status message
+                           i.e.  'restart'
     :side effect: Calls config_get()
     :side effect: Calls log()
     :side effect: Calls status_set()
@@ -382,7 +386,8 @@ def distributed_wait(modulo=None, wait=None):
     if wait is None:
         wait = config_get('known-wait')
     calculated_wait = modulo_distribution(modulo=modulo, wait=wait)
-    msg = "Waiting {} seconds for operation ...".format(calculated_wait)
+    msg = "Waiting {} seconds for {} ...".format(calculated_wait,
+                                                 operation_name)
     log(msg, DEBUG)
     status_set('maintenance', msg)
     time.sleep(calculated_wait)
