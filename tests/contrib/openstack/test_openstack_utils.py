@@ -1913,8 +1913,10 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.os_application_version_set('cinder-common')
             mock_application_version_set.assert_called_with('mitaka')
 
+    @patch.object(openstack, 'valid_snap_channel')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_snap_install_requested(self, config):
+    def test_snap_install_requested(self, config, valid_snap_channel):
+        valid_snap_channel.return_value = True
         # Expect True
         flush('snap_install_requested')
         config.return_value = 'snap:edge-xenial-ocata'
@@ -1923,9 +1925,6 @@ class OpenStackHelpersTestCase(TestCase):
         config.return_value = 'snap:BETA-xenial-ocata'
         self.assertTrue(openstack.snap_install_requested())
         # Expect False
-        flush('snap_install_requested')
-        config.return_value = 'snap:None-xenial-ocata'
-        self.assertFalse(openstack.snap_install_requested())
         flush('snap_install_requested')
         config.return_value = 'cloud:xenial-ocata'
         self.assertFalse(openstack.snap_install_requested())
