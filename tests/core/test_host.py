@@ -1821,6 +1821,11 @@ class HelpersTest(TestCase):
         handle.write.assert_called_once_with(
             'PRUNEPATHS="/tmp /srv/node /tmp/test"')
 
+    @patch.object(host, 'local_unit')
+    def test_modulo_distribution(self, local_unit):
+        local_unit.return_value = 'test/7'
+        self.assertEqual(host.modulo_distribution(modulo=6, wait=10), 10)
+
 
 class TestHostCompator(TestCase):
 

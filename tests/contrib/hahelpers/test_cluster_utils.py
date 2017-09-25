@@ -518,3 +518,27 @@ class ClusterUtilsTests(TestCase):
         self.config_get.side_effect = _fake_config_get
         self.assertTrue(cluster_utils.valid_hacluster_config())
         self.assertFalse(status_set.called)
+
+    @patch.object(cluster_utils, 'status_set')
+    @patch.object(cluster_utils.time, 'sleep')
+    @patch.object(cluster_utils, 'modulo_distribution')
+    @patch.object(cluster_utils, 'log')
+    def test_distributed_wait(self, log, modulo_distribution, sleep,
+                              status_set):
+        conf = {
+            'modulo-nodes': 7,
+            'known-wait': 10,
+        }
+
+        def _fake_config_get(setting):
+            return conf[setting]
+
+        self.config_get.side_effect = _fake_config_get
+
+        # Uses config values
+        cluster_utils.distributed_wait()
+        modulo_distribution.assert_called_with(modulo=7, wait=10)
+
+        # Uses passed values
+        cluster_utils.distributed_wait(modulo=3, wait=45)
+        modulo_distribution.assert_called_with(modulo=3, wait=45)
