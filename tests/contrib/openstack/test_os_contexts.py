@@ -2013,9 +2013,9 @@ class ContextTests(unittest.TestCase):
         ])
 
         self.resolve_address.assert_has_calls([
-            call(endpoint_type=context.INTERNAL, override=False),
-            call(endpoint_type=context.ADMIN, override=False),
-            call(endpoint_type=context.PUBLIC, override=False),
+            call(endpoint_type=context.INTERNAL),
+            call(endpoint_type=context.ADMIN),
+            call(endpoint_type=context.PUBLIC),
         ])
 
         self.assertTrue(apache.configure_ca.called)

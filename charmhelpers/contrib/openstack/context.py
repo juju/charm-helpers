@@ -803,7 +803,7 @@ class ApacheSSLContext(OSContextGenerator):
             # Expect cert/key provided in config (currently assumed that ca
             # uses ip for cn)
             for net_type in (INTERNAL, ADMIN, PUBLIC):
-                cn = resolve_address(endpoint_type=net_type, override=False)
+                cn = resolve_address(endpoint_type=net_type)
                 self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
