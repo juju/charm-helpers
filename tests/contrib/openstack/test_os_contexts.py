@@ -1944,7 +1944,11 @@ class ContextTests(unittest.TestCase):
         self.https.return_value = False
         self.assertEquals({}, apache())
 
-    def test_https_context(self):
+    def _https_context_setup(self):
+        '''
+        Helper for test_https_context* tests.
+
+        '''
         self.https.return_value = True
         self.determine_api_port.return_value = 8756
         self.determine_apache_port.return_value = 8766
@@ -1976,12 +1980,42 @@ class ContextTests(unittest.TestCase):
             'ext_ports': [8766]
         }
 
+        return apache, ex
+
+    def test_https_context(self):
+        apache, ex = self._https_context_setup()
+
         self.assertEquals(ex, apache())
 
         apache.configure_cert.assert_has_calls([
             call('10.5.1.1'),
             call('10.5.2.1'),
             call('10.5.3.1')
+        ])
+
+        self.assertTrue(apache.configure_ca.called)
+        self.assertTrue(apache.enable_modules.called)
+        self.assertTrue(apache.configure_cert.called)
+
+    def test_https_context_no_canonical_names(self):
+        apache, ex = self._https_context_setup()
+        apache.canonical_names.return_value = []
+
+        self.resolve_address.side_effect = (
+            '10.5.1.4', '10.5.2.5', '10.5.3.6')
+
+        self.assertEquals(ex, apache())
+
+        apache.configure_cert.assert_has_calls([
+            call('10.5.1.4'),
+            call('10.5.2.5'),
+            call('10.5.3.6')
+        ])
+
+        self.resolve_address.assert_has_calls([
+            call(endpoint_type=context.INTERNAL, override=False),
+            call(endpoint_type=context.ADMIN, override=False),
+            call(endpoint_type=context.PUBLIC, override=False),
         ])
 
         self.assertTrue(apache.configure_ca.called)
