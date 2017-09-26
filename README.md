@@ -2,10 +2,25 @@
 
 ## Overview
 
-CharmHelpers provides an opinionated set of tools for building Juju
-charms that work together. In addition to basic tasks like interact-
-ing with the charm environment and the machine it runs on, it also
-helps keep you build hooks and establish relations effortlessly.
+CharmHelpers provides an opinionated set of tools for building Juju charms.
+
+## Common Usage Examples
+
+* interaction with charm-specific Juju unit agents via hook tools;
+* processing of events and execution of decorated functions based on event names;
+* handling of persistent storage between independent charm invocations;
+* rendering of configuration file templates;
+* modification of system configuration files;
+* installation of packages;
+* retrieval of machine-specific details;
+* implementation of application-specific code reused in similar charms.
+
+## Why Python?
+
+* Python is an extremely popular, easy to learn, and powerful language which is also common in automation tools;
+* An interpreted language helps with charm portability across different CPU architectures;
+* Doesn't require debugging symbols (just use pdb in-place);
+* An author or a user is able to make debugging changes without recompiling a charm.
 
 ## License
 
