@@ -28,10 +28,10 @@ class HelperSyncTests(unittest.TestCase):
     def test_clone_helpers(self):
         '''It properly branches the correct helpers branch'''
         with patch('subprocess.check_call') as check_call:
-            sync.clone_helpers(work_dir='/tmp/foo', branch='lp:charm-helpers')
-            check_call.assert_called_with(['bzr',
-                                           'checkout', '--lightweight',
-                                           'lp:charm-helpers',
+            sync.clone_helpers(work_dir='/tmp/foo', repo='git:charm-helpers')
+            check_call.assert_called_with(['git',
+                                           'clone', '--depth=1',
+                                           'git:charm-helpers',
                                            '/tmp/foo/charm-helpers'])
 
     def test_module_path(self):

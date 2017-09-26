@@ -34,7 +34,7 @@ import six
 
 from contextlib import contextmanager
 from collections import OrderedDict
-from .hookenv import log, DEBUG
+from .hookenv import log, DEBUG, local_unit
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
 
@@ -946,3 +946,31 @@ def updatedb(updatedb_text, new_path):
                 lines[i] = 'PRUNEPATHS="{}"'.format(' '.join(paths))
     output = "\n".join(lines)
     return output
+
+
+def modulo_distribution(modulo=3, wait=30):
+    """ Modulo distribution
+
+    This helper uses the unit number, a modulo value and a constant wait time
+    to produce a calculated wait time distribution. This is useful in large
+    scale deployments to distribute load during an expensive operation such as
+    service restarts.
+
+    If you have 1000 nodes that need to restart 100 at a time 1 minute at a
+    time:
+
+      time.wait(modulo_distribution(modulo=100, wait=60))
+      restart()
+
+    If you need restarts to happen serially set modulo to the exact number of
+    nodes and set a high constant wait time:
+
+      time.wait(modulo_distribution(modulo=10, wait=120))
+      restart()
+
+    @param modulo: int The modulo number creates the group distribution
+    @param wait: int The constant time wait value
+    @return: int Calculated time to wait for unit operation
+    """
+    unit_number = int(local_unit().split('/')[1])
+    return (unit_number % modulo) * wait
