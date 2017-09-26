@@ -1932,7 +1932,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_snaps_install_info_from_origin(self):
         snaps = ['os_project']
         mode = 'jailmode'
-        src = 'snap:beta-xenial-ocata'
+        src = 'snap:ocata/beta'
         expected = {snaps[0]: {'mode': mode,
                                'channel': '--channel=ocata/beta'}}
         self.assertEqual(
@@ -1944,7 +1944,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_install_os_snaps(self, mock_snap_install):
         snaps = ['os_project']
         mode = 'jailmode'
-        src = 'snap:beta-xenial-ocata'
+        src = 'snap:ocata/beta'
         openstack.install_os_snaps(
             openstack.get_snaps_install_info_from_origin(
                 snaps, src, mode=mode))
