@@ -13,7 +13,6 @@
 # limitations under the License.
 from mock import patch
 from unittest import TestCase
-
 __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
 
 TEST_ENV = {'foo': 'bar'}
@@ -64,3 +63,20 @@ class SnapTest(TestCase):
         check_call.return_value = 0
         snap_remove(['hello-world', 'htop'])
         check_call.assert_called_with(['snap', 'remove', 'hello-world', 'htop'], env=TEST_ENV)
+
+    def test_valid_snap_channel(self):
+        """ Test valid snap channel
+
+        :return: None
+        """
+
+        from charmhelpers.fetch.snap import (
+            valid_snap_channel,
+            InvalidSnapChannel,
+        )
+        # Valid
+        self.assertTrue(valid_snap_channel('edge'))
+
+        # Invalid
+        with self.assertRaises(InvalidSnapChannel):
+            valid_snap_channel('DOESNOTEXIST')
