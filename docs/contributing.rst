@@ -51,7 +51,7 @@ found at https://bugs.launchpad.net/charm-helpers.
 Documentation
 -------------
 
-If you'd like to contribute to the documentation, please refer to the ``HACKING``
+If you'd like to contribute to the documentation, please refer to the ``HACKING.md``
 document in the root of the source tree for instructions on building the documentation.
 
 Contributions to the :doc:`example-index` section of the documentation are
