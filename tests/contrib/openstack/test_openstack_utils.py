@@ -1919,11 +1919,13 @@ class OpenStackHelpersTestCase(TestCase):
         valid_snap_channel.return_value = True
         # Expect True
         flush('snap_install_requested')
-        config.return_value = 'snap:edge-xenial-ocata'
+        config.return_value = 'snap:ocata/edge'
         self.assertTrue(openstack.snap_install_requested())
+        valid_snap_channel.assert_called_with('edge')
         flush('snap_install_requested')
-        config.return_value = 'snap:BETA-xenial-ocata'
+        config.return_value = 'snap:pike'
         self.assertTrue(openstack.snap_install_requested())
+        valid_snap_channel.assert_called_with('stable')
         # Expect False
         flush('snap_install_requested')
         config.return_value = 'cloud:xenial-ocata'
@@ -1932,9 +1934,19 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_snaps_install_info_from_origin(self):
         snaps = ['os_project']
         mode = 'jailmode'
-        src = 'snap:beta-xenial-ocata'
+
+        # snap:track/channel
+        src = 'snap:ocata/beta'
         expected = {snaps[0]: {'mode': mode,
                                'channel': '--channel=ocata/beta'}}
+        self.assertEqual(
+            expected,
+            openstack.get_snaps_install_info_from_origin(snaps, src,
+                                                         mode=mode))
+        # snap:track
+        src = 'snap:pike'
+        expected = {snaps[0]: {'mode': mode,
+                               'channel': '--channel=pike'}}
         self.assertEqual(
             expected,
             openstack.get_snaps_install_info_from_origin(snaps, src,
@@ -1944,12 +1956,22 @@ class OpenStackHelpersTestCase(TestCase):
     def test_install_os_snaps(self, mock_snap_install):
         snaps = ['os_project']
         mode = 'jailmode'
-        src = 'snap:beta-xenial-ocata'
+
+        # snap:track/channel
+        src = 'snap:ocata/beta'
         openstack.install_os_snaps(
             openstack.get_snaps_install_info_from_origin(
                 snaps, src, mode=mode))
         mock_snap_install.assert_called_with(
             'os_project', '--channel=ocata/beta', '--jailmode')
+
+        # snap:track
+        src = 'snap:pike'
+        openstack.install_os_snaps(
+            openstack.get_snaps_install_info_from_origin(
+                snaps, src, mode=mode))
+        mock_snap_install.assert_called_with(
+            'os_project', '--channel=pike', '--jailmode')
 
 
 if __name__ == '__main__':
