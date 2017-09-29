@@ -28,7 +28,7 @@ from charmhelpers.contrib.network.ip import (
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
 
 PUBLIC = 'public'
-INTERNAL = 'int'
+INTERNAL = 'internal'
 ADMIN = 'admin'
 ACCESS = 'access'
 
