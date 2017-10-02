@@ -1658,6 +1658,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
@@ -1711,6 +1712,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
             'haproxy_client_timeout': 50000,
@@ -1797,6 +1799,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
@@ -1855,6 +1858,7 @@ class ContextTests(unittest.TestCase):
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
@@ -1930,6 +1934,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
+            'ipv6_enabled': False,
             'stat_port': '8888',
             'stat_password': 'testpassword',
         }
