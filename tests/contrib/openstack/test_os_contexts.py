@@ -1799,7 +1799,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
-            'ipv6_enalbed': False,
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
