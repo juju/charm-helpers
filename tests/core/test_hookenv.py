@@ -1661,7 +1661,7 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_network_get_primary(self, check_output):
-        '''Ensure that network-get is called correctly and output is returned'''
+        """Ensure that network-get is called correctly and output is returned"""
         check_output.return_value = b'192.168.22.1'
         ip = hookenv.network_get_primary_address('mybinding')
         check_output.assert_called_with(
@@ -1670,10 +1670,43 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_network_get_primary_unsupported(self, check_output):
-        '''Ensure that NotImplementedError is thrown when run on Juju < 2.0'''
+        """Ensure that NotImplementedError is thrown when run on Juju < 2.0"""
         check_output.side_effect = OSError(2, 'network-get')
         self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
                           'mybinding')
+
+    @patch('subprocess.check_output')
+    def test_network_get(self, check_output):
+        """Ensure that network-get is called correctly"""
+        check_output.return_value = b'192l.l168.22.1'
+        hookenv.network_get('mybinding')
+        check_output.assert_called_with(
+            ['network-get', 'mybinding', '--format', 'yaml'])
+
+    @patch('subprocess.check_output')
+    def test_network_get_relation_bound(self, check_output):
+        """Ensure that network-get supports relation context"""
+        check_output.return_value = b'192l.l168.22.1'
+        hookenv.network_get('mybinding', 'db')
+        check_output.assert_called_with(
+            ['network-get', 'mybinding', '--format', 'yaml', '-r', 'db'])
+
+    @patch('subprocess.check_output')
+    def test_network_get_parses_yaml(self, check_output):
+        """network-get returns loaded YAML output."""
+        check_output.return_value = b"""
+bind-addresses:
+- macaddress: ""
+  interfacename: ""
+  addresses:
+    - address: 10.136.107.33
+      cidr: ""
+ingress-addresses:
+- 10.136.107.33
+        """
+        ip = hookenv.network_get('mybinding')
+        self.assertEqual(len(ip['bind-addresses']), 1)
+        self.assertEqual(ip['ingress-addresses'], ['10.136.107.33'])
 
     @patch('subprocess.check_call')
     def test_add_metric(self, check_call_):
