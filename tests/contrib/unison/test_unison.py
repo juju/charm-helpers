@@ -194,10 +194,12 @@ class UnisonHelperTests(TestCase):
             for k in keys:
                 self.assertIn(call('%s\n' % k), _file.write.call_args_list)
 
+    @patch.object(unison, 'remove_password_expiry')
     @patch.object(unison, 'pwgen')
     @patch.object(unison, 'add_user_to_group')
     @patch.object(unison, 'adduser')
-    def test_ensure_user(self, adduser, to_group, pwgen):
+    def test_ensure_user(self, adduser, to_group, pwgen,
+                         remove_password_expiry):
         pwgen.return_value = sentinel.password
         unison.ensure_user('foo', group='foobar')
         adduser.assert_called_with('foo', sentinel.password)
