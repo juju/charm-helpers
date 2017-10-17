@@ -1619,6 +1619,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch.object(context, 'is_ipv6_disabled')
     def test_haproxy_context_with_data(
             self, local_unit, unit_get, _is_ipv6_disabled):
         '''Test haproxy context with all relation data'''
@@ -1672,6 +1673,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch.object(context, 'is_ipv6_disabled')
     def test_haproxy_context_with_data_timeout(
             self, local_unit, unit_get, _is_ipv6_disabled):
         '''Test haproxy context with all relation data and timeout'''
@@ -1730,6 +1732,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch.object(context, 'is_ipv6_disabled')
     def test_haproxy_context_with_data_multinet(
             self, local_unit, unit_get, _is_ipv6_disabled):
         '''Test haproxy context with all relation data for network splits'''
@@ -1817,6 +1820,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch.object(context, 'is_ipv6_disabled')
     def test_haproxy_context_with_data_ipv6(
             self, local_unit, unit_get, _is_ipv6_disabled):
         '''Test haproxy context with all relation data ipv6'''
@@ -1883,6 +1887,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch.object(context, 'is_ipv6_disabled')
     def test_haproxy_context_with_no_peers(
             self, local_unit, unit_get, is_ipv6_disabled):
         '''Test haproxy context with single unit'''
@@ -1907,6 +1912,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    @patch.object(context, 'is_ipv6_disabled')
     def test_haproxy_context_with_no_peers_singlemode(
             self, local_unit, unit_get, _is_ipv6_disabled):
         '''Test haproxy context with single unit'''
