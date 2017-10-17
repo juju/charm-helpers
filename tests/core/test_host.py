@@ -932,6 +932,40 @@ class HelpersTest(TestCase):
         ])
         getgrnam.assert_called_with(group_name)
 
+    @patch('subprocess.check_call')
+    def test_chage_no_chroot(self, check_call):
+        host.chage('usera', expiredate='2019-09-28', maxdays='11')
+        check_call.assert_called_with([
+            'chage',
+            '--expiredate', '2019-09-28',
+            '--maxdays', '11',
+            'usera'
+        ])
+
+    @patch('subprocess.check_call')
+    def test_chage_chroot(self, check_call):
+        host.chage('usera', expiredate='2019-09-28', maxdays='11',
+                   root='mychroot')
+        check_call.assert_called_with([
+            'chage',
+            '--root', 'mychroot',
+            '--expiredate', '2019-09-28',
+            '--maxdays', '11',
+            'usera'
+        ])
+
+    @patch('subprocess.check_call')
+    def test_remove_password_expiry(self, check_call):
+        host.remove_password_expiry('usera')
+        check_call.assert_called_with([
+            'chage',
+            '--expiredate', '-1',
+            '--inactive', '-1',
+            '--mindays', '0',
+            '--maxdays', '-1',
+            'usera'
+        ])
+
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_rsyncs_a_path(self, log, check_output):
