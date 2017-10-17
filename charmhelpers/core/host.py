@@ -462,6 +462,7 @@ def chage(username, lastday=None, expiredate=None, inactive=None,
     :param str root: Apply changes in the CHROOT_DIR directory
     :param str warndays: Set the number of days of warning before a password
                          change is required
+    :raises subprocess.CalledProcessError: if call to chage fails
     """
     cmd = ['chage']
     if root:
