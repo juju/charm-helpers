@@ -178,6 +178,7 @@ def ensure_user(user, group=None):
     adduser(user, pwgen())
     if group:
         add_user_to_group(user, group)
+    # Remove password expiry (Bug #1686085)
     remove_password_expiry(user)
 
 
