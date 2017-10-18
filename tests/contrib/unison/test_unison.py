@@ -204,6 +204,7 @@ class UnisonHelperTests(TestCase):
         unison.ensure_user('foo', group='foobar')
         adduser.assert_called_with('foo', sentinel.password)
         to_group.assert_called_with('foo', 'foobar')
+        remove_password_expiry.assert_called_with('foo')
 
     @patch.object(unison, '_run_as_user')
     def test_run_as_user(self, _run):
