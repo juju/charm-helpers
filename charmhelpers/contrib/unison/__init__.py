@@ -69,6 +69,7 @@ from charmhelpers.core.host import (
     adduser,
     add_user_to_group,
     pwgen,
+    remove_password_expiry,
 )
 
 from charmhelpers.core.hookenv import (
@@ -177,6 +178,8 @@ def ensure_user(user, group=None):
     adduser(user, pwgen())
     if group:
         add_user_to_group(user, group)
+    # Remove password expiry (Bug #1686085)
+    remove_password_expiry(user)
 
 
 def ssh_authorized_peers(peer_interface, user, group=None,
