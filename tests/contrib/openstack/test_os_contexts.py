@@ -619,6 +619,7 @@ TO_PATCH = [
     'is_container',
     'network_get_primary_address',
     'resolve_address',
+    'is_ipv6_disabled',
 ]
 
 
@@ -1619,9 +1620,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_haproxy_context_with_data(
-            self, local_unit, unit_get, _is_ipv6_disabled):
+    def test_haproxy_context_with_data(self, local_unit, unit_get):
         '''Test haproxy context with all relation data'''
         cluster_relation = {
             'cluster:0': {
@@ -1643,7 +1642,7 @@ class ContextTests(unittest.TestCase):
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
-        _is_ipv6_disabled.return_value = True
+        self.is_ipv6_disabled.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1673,9 +1672,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_haproxy_context_with_data_timeout(
-            self, local_unit, unit_get, _is_ipv6_disabled):
+    def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
         '''Test haproxy context with all relation data and timeout'''
         cluster_relation = {
             'cluster:0': {
@@ -1700,7 +1697,7 @@ class ContextTests(unittest.TestCase):
         c = fake_config(HAPROXY_CONFIG)
         c.data['prefer-ipv6'] = False
         self.config.side_effect = c
-        _is_ipv6_disabled.return_value = True
+        self.is_ipv6_disabled.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1732,9 +1729,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_haproxy_context_with_data_multinet(
-            self, local_unit, unit_get, _is_ipv6_disabled):
+    def test_haproxy_context_with_data_multinet(self, local_unit, unit_get):
         '''Test haproxy context with all relation data for network splits'''
         cluster_relation = {
             'cluster:0': {
@@ -1766,7 +1761,7 @@ class ContextTests(unittest.TestCase):
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
-        _is_ipv6_disabled.return_value = True
+        self.is_ipv6_disabled.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1820,9 +1815,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_haproxy_context_with_data_ipv6(
-            self, local_unit, unit_get, _is_ipv6_disabled):
+    def test_haproxy_context_with_data_ipv6(self, local_unit, unit_get):
         '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
@@ -1848,7 +1841,7 @@ class ContextTests(unittest.TestCase):
         c.data['prefer-ipv6'] = True
         self.config.side_effect = c
         self.maxDiff = None
-        _is_ipv6_disabled.return_value = False
+        self.is_ipv6_disabled.return_value = False
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1887,9 +1880,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_haproxy_context_with_no_peers(
-            self, local_unit, unit_get, is_ipv6_disabled):
+    def test_haproxy_context_with_no_peers(self, local_unit, unit_get):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -1912,9 +1903,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_haproxy_context_with_no_peers_singlemode(
-            self, local_unit, unit_get, _is_ipv6_disabled):
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -1934,7 +1923,7 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = False
         self.get_address_in_network.return_value = None
         self.get_netmask_for_address.return_value = '255.255.0.0'
-        _is_ipv6_disabled.return_value = True
+        self.is_ipv6_disabled.return_value = True
         with patch_open() as (_open, _file):
             result = context.HAProxyContext(singlenode_mode=True)()
         ex = {
