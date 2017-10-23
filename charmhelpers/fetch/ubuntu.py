@@ -572,7 +572,7 @@ def get_upstream_version(package):
     cache = apt_cache()
     try:
         pkg = cache[package]
-    except:
+    except KeyError:
         # the package is unknown to the current apt cache.
         return None
 

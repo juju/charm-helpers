@@ -330,7 +330,7 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_codename_package('foo')
-            except:
+            except Exception:
                 # ignore exceptions that raise when error_out is mocked
                 # and doesn't sys.exit(1)
                 pass
@@ -360,7 +360,7 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_codename_package('cinder-common', fatal=True)
-            except:
+            except Exception:
                 pass
             e = ('Could not determine version of uninstalled package: '
                  'cinder-common')
@@ -404,7 +404,7 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_version_package('foo')
-            except:
+            except Exception:
                 # ignore exceptions that raise when error_out is mocked
                 # and doesn't sys.exit(1)
                 pass
@@ -610,7 +610,7 @@ class OpenStackHelpersTestCase(TestCase):
         """Test configuring installation source from bad UCA source"""
         try:
             openstack.configure_installation_source('cloud:foo-bar')
-        except:
+        except Exception:
             # ignore exceptions that raise when error_out is mocked
             # and doesn't sys.exit(1)
             pass

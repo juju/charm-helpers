@@ -146,7 +146,7 @@ def ipoib_interfaces():
 
             if driver in IPOIB_DRIVERS:
                 interfaces.append(interface)
-        except:
+        except (subprocess.CalledProcessError, IndexError):
             log("Skipping interface %s" % interface, level=INFO)
             continue
 

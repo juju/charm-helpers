@@ -132,11 +132,11 @@ class ConfigTest(TestCase):
         # it gets copied into our current dictionary. If this is not
         # a deep copy, then mappings and lists will be shared instances
         # and changes will not be detected.
-        c = hookenv.Config(dict(l=[]))
+        c = hookenv.Config(dict(L=[]))
         c.save()
         c = hookenv.Config()
-        c['l'].append(42)
-        self.assertTrue(c.changed('l'), 'load_previous() did not deepcopy')
+        c['L'].append(42)
+        self.assertTrue(c.changed('L'), 'load_previous() did not deepcopy')
 
     def test_getitem(self):
         c = hookenv.Config(dict(foo='bar'))

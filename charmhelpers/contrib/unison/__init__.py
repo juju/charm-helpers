@@ -63,7 +63,7 @@ import os
 import pwd
 
 from copy import copy
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, CalledProcessError
 
 from charmhelpers.core.host import (
     adduser,
@@ -283,7 +283,7 @@ def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None,
     try:
         log('Syncing local path %s to %s@%s:%s' % (path, user, host, path))
         run_as_user(user, cmd, gid)
-    except:
+    except CalledProcessError:
         log('Error syncing remote files')
         if fatal:
             raise
