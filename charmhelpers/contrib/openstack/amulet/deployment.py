@@ -307,7 +307,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             # Kilo or later
             pools = [
                 'rbd',
-                'cinder',
+                'cinder-ceph',
                 'glance'
             ]
         else:
@@ -316,7 +316,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                 'data',
                 'metadata',
                 'rbd',
-                'cinder',
+                'cinder-ceph',
                 'glance'
             ]
 
