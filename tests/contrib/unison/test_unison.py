@@ -4,6 +4,7 @@ from testtools import TestCase
 
 from tests.helpers import patch_open, FakeRelation
 from charmhelpers.contrib import unison
+from subprocess import CalledProcessError
 
 
 FAKE_RELATION_ENV = {
@@ -362,12 +363,12 @@ class UnisonHelperTests(TestCase):
     @patch.object(unison, 'run_as_user')
     def test_sync_path_to_host_error(self, run_as_user):
         for i, path in enumerate(['/tmp/foo', '/tmp/foo/']):
-            run_as_user.side_effect = Exception
+            run_as_user.side_effect = CalledProcessError
             if i == 0:
                 unison.sync_path_to_host(path=path, host='clusterhost1',
                                          user='foo', verbose=True, gid=None)
             else:
-                self.assertRaises(Exception, unison.sync_path_to_host,
+                self.assertRaises(CalledProcessError, unison.sync_path_to_host,
                                   path=path, host='clusterhost1',
                                   user='foo', verbose=True, gid=None,
                                   fatal=True)

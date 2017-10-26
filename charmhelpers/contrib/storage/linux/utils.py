@@ -19,7 +19,8 @@ from stat import S_ISBLK
 from subprocess import (
     check_call,
     check_output,
-    call
+    call,
+    CalledProcessError,
 )
 
 
@@ -64,6 +65,6 @@ def is_device_mounted(device):
     '''
     try:
         out = check_output(['lsblk', '-P', device]).decode('UTF-8')
-    except:
+    except (CalledProcessError, ValueError):
         return False
     return bool(re.search(r'MOUNTPOINT=".+"', out))
