@@ -1926,6 +1926,10 @@ class OpenStackHelpersTestCase(TestCase):
         config.return_value = 'snap:pike'
         self.assertTrue(openstack.snap_install_requested())
         valid_snap_channel.assert_called_with('stable')
+        flush('snap_install_requested')
+        config.return_value = 'snap:pike/stable/jamespage'
+        self.assertTrue(openstack.snap_install_requested())
+        valid_snap_channel.assert_called_with('stable')
         # Expect False
         flush('snap_install_requested')
         config.return_value = 'cloud:xenial-ocata'
@@ -1939,6 +1943,15 @@ class OpenStackHelpersTestCase(TestCase):
         src = 'snap:ocata/beta'
         expected = {snaps[0]: {'mode': mode,
                                'channel': '--channel=ocata/beta'}}
+        self.assertEqual(
+            expected,
+            openstack.get_snaps_install_info_from_origin(snaps, src,
+                                                         mode=mode))
+
+        # snap:track/channel/branch
+        src = 'snap:ocata/beta/jamespage'
+        expected = {snaps[0]: {'mode': mode,
+                               'channel': '--channel=ocata/beta/jamespage'}}
         self.assertEqual(
             expected,
             openstack.get_snaps_install_info_from_origin(snaps, src,
