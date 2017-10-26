@@ -2051,7 +2051,7 @@ def update_json_file(filename, items):
 def snap_install_requested():
     """ Determine if installing from snaps
 
-    If openstack-origin is of the form snap:track/channel
+    If openstack-origin is of the form snap:track/channel[/branch]
     and channel is in SNAPS_CHANNELS return True.
     """
     origin = config('openstack-origin') or ""
@@ -2060,9 +2060,9 @@ def snap_install_requested():
 
     _src = origin[5:]
     if '/' in _src:
-        _track, channel = _src.split('/')
+        channel = _src.split('/')[1]
     else:
-        # Hanlde snap:track with no channel
+        # Handle snap:track with no channel
         channel = 'stable'
     return valid_snap_channel(channel)
 
