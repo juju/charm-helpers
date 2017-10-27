@@ -315,8 +315,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             pools = [
                 'rbd',
                 'cinder-ceph',
-                'glance',
                 'cinder',
+                'glance',
             ]
         else:
             # Juno or earlier
@@ -325,8 +325,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                 'metadata',
                 'rbd',
                 'cinder-ceph',
-                'glance',
                 'cinder',
+                'glance',
             ]
 
         if radosgw:
