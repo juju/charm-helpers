@@ -1105,10 +1105,12 @@ class HelpersTest(TestCase):
         hookenv.open_port(443, "TCP")
         hookenv.open_port(80)
         hookenv.open_port(100, "UDP")
+        hookenv.open_port(0, "ICMP")
         calls = [
             call(['open-port', '443/TCP']),
             call(['open-port', '80/TCP']),
             call(['open-port', '100/UDP']),
+            call(['open-port', 'ICMP']),
         ]
         check_call_.assert_has_calls(calls)
 
@@ -1117,10 +1119,12 @@ class HelpersTest(TestCase):
         hookenv.close_port(443, "TCP")
         hookenv.close_port(80)
         hookenv.close_port(100, "UDP")
+        hookenv.close_port(0, "ICMP")
         calls = [
             call(['close-port', '443/TCP']),
             call(['close-port', '80/TCP']),
             call(['close-port', '100/UDP']),
+            call(['close-port', 'ICMP']),
         ]
         check_call_.assert_has_calls(calls)
 
@@ -1676,12 +1680,20 @@ class HooksTest(TestCase):
                           'mybinding')
 
     @patch('subprocess.check_output')
+    def test_network_get_primary_required(self, check_output):
+        """Ensure that NotImplementedError is thrown when run on Juju < 2.1"""
+        check_output.side_effect = CalledProcessError(
+            2, 'network_get',
+            output='--primary-address is currently required'.encode('UTF-8'))
+        self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
+
+    @patch('subprocess.check_output')
     def test_network_get(self, check_output):
         """Ensure that network-get is called correctly"""
         check_output.return_value = b'192l.l168.22.1'
         hookenv.network_get('mybinding')
         check_output.assert_called_with(
-            ['network-get', 'mybinding', '--format', 'yaml'])
+            ['network-get', 'mybinding', '--format', 'yaml'], stderr=-2)
 
     @patch('subprocess.check_output')
     def test_network_get_relation_bound(self, check_output):
@@ -1689,7 +1701,8 @@ class HooksTest(TestCase):
         check_output.return_value = b'192l.l168.22.1'
         hookenv.network_get('mybinding', 'db')
         check_output.assert_called_with(
-            ['network-get', 'mybinding', '--format', 'yaml', '-r', 'db'])
+            ['network-get', 'mybinding', '--format', 'yaml', '-r', 'db'],
+            stderr=-2)
 
     @patch('subprocess.check_output')
     def test_network_get_parses_yaml(self, check_output):

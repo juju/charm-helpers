@@ -644,18 +644,31 @@ def is_relation_made(relation, keys='private-address'):
     return False
 
 
+def _port_op(op_name, port, protocol="TCP"):
+    """Open or close a service network port"""
+    _args = [op_name]
+    icmp = protocol.upper() == "ICMP"
+    if icmp:
+        _args.append(protocol)
+    else:
+        _args.append('{}/{}'.format(port, protocol))
+    try:
+        subprocess.check_call(_args)
+    except:
+        # Older Juju pre 2.3 doesn't support ICMP
+        # so treat it as a no-op if it fails.
+        if not icmp:
+            raise
+
+
 def open_port(port, protocol="TCP"):
     """Open a service network port"""
-    _args = ['open-port']
-    _args.append('{}/{}'.format(port, protocol))
-    subprocess.check_call(_args)
+    _port_op('open-port', port, protocol)
 
 
 def close_port(port, protocol="TCP"):
     """Close a service network port"""
-    _args = ['close-port']
-    _args.append('{}/{}'.format(port, protocol))
-    subprocess.check_call(_args)
+    _port_op('close-port', port, protocol)
 
 
 def open_ports(start, end, protocol="TCP"):
@@ -1101,13 +1114,24 @@ def network_get(endpoint, relation_id=None):
     :param endpoint: string. The name of a relation endpoint
     :param relation_id: int. The ID of the relation for the current context.
     :return: dict. The loaded YAML output of the network-get query.
-    :raise: NotImplementedError if run on Juju < 2.0
+    :raise: NotImplementedError if run on Juju < 2.1
     """
     cmd = ['network-get', endpoint, '--format', 'yaml']
     if relation_id:
         cmd.append('-r')
         cmd.append(relation_id)
-    response = subprocess.check_output(cmd).decode('UTF-8').strip()
+    try:
+        response = subprocess.check_output(
+            cmd,
+            stderr=subprocess.STDOUT).decode('UTF-8').strip()
+    except CalledProcessError as e:
+        # Early versions of Juju 2.0.x required the --primary-address argument.
+        # We catch that condition here and raise NotImplementedError since
+        # the requested semantics are not available - the caller can then
+        # use the network_get_primary_address() method instead.
+        if '--primary-address is currently required' in e.output.decode('UTF-8'):
+            raise NotImplementedError
+        raise
     return yaml.safe_load(response)
 
 
