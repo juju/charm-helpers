@@ -617,7 +617,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug('Keypair ({}) already exists, '
                            'using it.'.format(keypair_name))
             return _keypair
-        except:
+        except Exception:
             self.log.debug('Keypair ({}) does not exist, '
                            'creating it.'.format(keypair_name))
 
