@@ -285,7 +285,7 @@ class NRPE(object):
         try:
             nagios_uid = pwd.getpwnam('nagios').pw_uid
             nagios_gid = grp.getgrnam('nagios').gr_gid
-        except:
+        except Exception:
             log("Nagios user not set up, nrpe checks not updated")
             return
 

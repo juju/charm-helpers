@@ -426,7 +426,7 @@ def get_os_codename_package(package, fatal=True):
 
     try:
         pkg = cache[package]
-    except:
+    except Exception:
         if not fatal:
             return None
         # the package is unknown to the current apt cache.
@@ -1618,7 +1618,7 @@ def do_action_openstack_upgrade(package, upgrade_callback, configs):
                     upgrade_callback(configs=configs)
                     action_set({'outcome': 'success, upgrade completed.'})
                     ret = True
-                except:
+                except Exception:
                     action_set({'outcome': 'upgrade failed, see traceback.'})
                     action_set({'traceback': traceback.format_exc()})
                     action_fail('do_openstack_upgrade resulted in an '
@@ -1723,7 +1723,7 @@ def is_unit_paused_set():
             kv = t[0]
             # transform something truth-y into a Boolean.
             return not(not(kv.get('unit-paused')))
-    except:
+    except Exception:
         return False
 
 

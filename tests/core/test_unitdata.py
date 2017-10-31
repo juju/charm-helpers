@@ -7,7 +7,7 @@
 #
 try:
     from StringIO import StringIO
-except:
+except Exception:
     from io import StringIO
 
 import os
