@@ -654,7 +654,7 @@ def _port_op(op_name, port, protocol="TCP"):
         _args.append('{}/{}'.format(port, protocol))
     try:
         subprocess.check_call(_args)
-    except:
+    except subprocess.CalledProcessError:
         # Older Juju pre 2.3 doesn't support ICMP
         # so treat it as a no-op if it fails.
         if not icmp:
