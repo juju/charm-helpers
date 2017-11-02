@@ -1674,18 +1674,14 @@ class HooksTest(TestCase):
 
     @patch.object(hookenv, 'relation_get')
     def test_ingress_address(self, relation_get):
-        """Ensure ingress_address returns the ingress-address when availble
-        and returns the private-address when ingress-address is not availabe.
+        """Ensure ingress_address returns the ingress-address when available
+        and returns the private-address when not.
         """
-        _with_ingress = {
-                'egress-subnets': '10.5.0.23/32',
-                'ingress-address': '10.5.0.23',
-                'private-address': '172.16.5.10',
-                }
+        _with_ingress = {'egress-subnets': '10.5.0.23/32',
+                         'ingress-address': '10.5.0.23',
+                         'private-address': '172.16.5.10'}
 
-        _without_ingress = {
-                'private-address': '172.16.5.10',
-                }
+        _without_ingress = {'private-address': '172.16.5.10'}
 
         # Return the ingress-address
         relation_get.return_value = _with_ingress
