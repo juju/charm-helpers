@@ -1135,6 +1135,28 @@ def network_get(endpoint, relation_id=None):
     return yaml.safe_load(response)
 
 
+def ingress_address(rid=None, unit=None):
+    """
+    Retrieve the ingress-address from a relation when available. Otherwise,
+    return the private-address. This function is to be used on the consuming
+    side of the relation.
+
+    Usage:
+    addresses = []
+    for rid in relation_ids(relation_name):
+        for unit in related_units(rid):
+             addresses.append(ingress_address(rid=rid, unit=unit))
+
+    :param rid: string relation id
+    :param unit: string unit name
+    :side effect: calls relation_get
+    :return: string IP address
+    """
+    settings = relation_get(rid=rid, unit=unit)
+    return (settings.get('ingress-address') or
+            settings.get('private-address'))
+
+
 def add_metric(*args, **kwargs):
     """Add metric values. Values may be expressed with keyword arguments. For
     metric names containing dashes, these may be expressed as one or more

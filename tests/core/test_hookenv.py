@@ -1672,6 +1672,31 @@ class HooksTest(TestCase):
             ['network-get', '--primary-address', 'mybinding'])
         self.assertEqual(ip, '192.168.22.1')
 
+    @patch.object(hookenv, 'relation_get')
+    def test_ingress_address(self, relation_get):
+        """Ensure ingress_address returns the ingress-address when availble
+        and returns the private-address when ingress-address is not availabe.
+        """
+        _with_ingress = {
+                'egress-subnets': '10.5.0.23/32',
+                'ingress-address': '10.5.0.23',
+                'private-address': '172.16.5.10',
+                }
+
+        _without_ingress = {
+                'private-address': '172.16.5.10',
+                }
+
+        # Return the ingress-address
+        relation_get.return_value = _with_ingress
+        self.assertEqual(hookenv.ingress_address(rid='test:1', unit='unit/1'),
+                         '10.5.0.23')
+        relation_get.assert_called_with(rid='test:1', unit='unit/1')
+        # Return the private-address
+        relation_get.return_value = _without_ingress
+        self.assertEqual(hookenv.ingress_address(rid='test:1'),
+                         '172.16.5.10')
+
     @patch('subprocess.check_output')
     def test_network_get_primary_unsupported(self, check_output):
         """Ensure that NotImplementedError is thrown when run on Juju < 2.0"""
