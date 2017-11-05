@@ -1,3 +1,4 @@
+import collections
 import charmhelpers.contrib.openstack.context as context
 import yaml
 import json
@@ -1769,35 +1770,35 @@ class ContextTests(unittest.TestCase):
             'frontends': {
                 'cluster-peer0.admin': {
                     'network': 'cluster-peer0.admin/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.admin',
-                        'peer-1': 'cluster-peer1.admin',
-                        'peer-2': 'cluster-peer2.admin',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.admin'),
+                        ('peer-1', 'cluster-peer1.admin'),
+                        ('peer-2', 'cluster-peer2.admin'),
+                    ]),
                 },
                 'cluster-peer0.internal': {
                     'network': 'cluster-peer0.internal/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.internal',
-                        'peer-1': 'cluster-peer1.internal',
-                        'peer-2': 'cluster-peer2.internal',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.internal'),
+                        ('peer-1', 'cluster-peer1.internal'),
+                        ('peer-2', 'cluster-peer2.internal'),
+                    ]),
                 },
                 'cluster-peer0.public': {
                     'network': 'cluster-peer0.public/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.public',
-                        'peer-1': 'cluster-peer1.public',
-                        'peer-2': 'cluster-peer2.public',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.public'),
+                        ('peer-1', 'cluster-peer1.public'),
+                        ('peer-2', 'cluster-peer2.public'),
+                    ]),
                 },
                 'cluster-peer0.localnet': {
                     'network': 'cluster-peer0.localnet/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.localnet',
-                        'peer-1': 'cluster-peer1.localnet',
-                        'peer-2': 'cluster-peer2.localnet',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
                 }
             },
             'default_backend': 'cluster-peer0.localnet',
