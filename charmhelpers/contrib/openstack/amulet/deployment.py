@@ -312,8 +312,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                 'cinder-ceph',
                 'glance'
             ]
-        elif (self.trust_kilo <= self._get_openstack_release()
-              <= self.zesty_ocata):
+        elif (self.trust_kilo <= self._get_openstack_release() <=
+              self.zesty_ocata):
             # Kilo through Ocata
             pools = [
                 'rbd',
