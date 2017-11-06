@@ -1672,27 +1672,6 @@ class HooksTest(TestCase):
             ['network-get', '--primary-address', 'mybinding'])
         self.assertEqual(ip, '192.168.22.1')
 
-    @patch.object(hookenv, 'relation_get')
-    def test_ingress_address(self, relation_get):
-        """Ensure ingress_address returns the ingress-address when available
-        and returns the private-address when not.
-        """
-        _with_ingress = {'egress-subnets': '10.5.0.23/32',
-                         'ingress-address': '10.5.0.23',
-                         'private-address': '172.16.5.10'}
-
-        _without_ingress = {'private-address': '172.16.5.10'}
-
-        # Return the ingress-address
-        relation_get.return_value = _with_ingress
-        self.assertEqual(hookenv.ingress_address(rid='test:1', unit='unit/1'),
-                         '10.5.0.23')
-        relation_get.assert_called_with(rid='test:1', unit='unit/1')
-        # Return the private-address
-        relation_get.return_value = _without_ingress
-        self.assertEqual(hookenv.ingress_address(rid='test:1'),
-                         '172.16.5.10')
-
     @patch('subprocess.check_output')
     def test_network_get_primary_unsupported(self, check_output):
         """Ensure that NotImplementedError is thrown when run on Juju < 2.0"""
@@ -1769,3 +1748,37 @@ ingress-addresses:
         }
         self.assertEqual(hookenv.meter_status(), 'GREEN')
         self.assertEqual(hookenv.meter_info(), 'all good')
+
+    @patch.object(hookenv, 'related_units')
+    @patch.object(hookenv, 'relation_ids')
+    def test_iter_units_for_relation_name(self, relation_ids, related_units):
+        relation_ids.return_value = ['rel:1']
+        related_units.return_value = ['unit/0', 'unit/1', 'unit/2']
+        expected = [('rel:1', 'unit/0'),
+                    ('rel:1', 'unit/1'),
+                    ('rel:1', 'unit/2')]
+        related_units_data = [
+            (u.rid, u.unit)
+            for u in hookenv.iter_units_for_relation_name('rel')]
+        self.assertEqual(expected, related_units_data)
+
+    @patch.object(hookenv, 'relation_get')
+    def test_ingress_address(self, relation_get):
+        """Ensure ingress_address returns the ingress-address when available
+        and returns the private-address when not.
+        """
+        _with_ingress = {'egress-subnets': '10.5.0.23/32',
+                         'ingress-address': '10.5.0.23',
+                         'private-address': '172.16.5.10'}
+
+        _without_ingress = {'private-address': '172.16.5.10'}
+
+        # Return the ingress-address
+        relation_get.return_value = _with_ingress
+        self.assertEqual(hookenv.ingress_address(rid='test:1', unit='unit/1'),
+                         '10.5.0.23')
+        relation_get.assert_called_with(rid='test:1', unit='unit/1')
+        # Return the private-address
+        relation_get.return_value = _without_ingress
+        self.assertEqual(hookenv.ingress_address(rid='test:1'),
+                         '172.16.5.10')
