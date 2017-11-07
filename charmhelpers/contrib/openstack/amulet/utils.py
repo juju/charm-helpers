@@ -23,6 +23,7 @@ import urllib
 import urlparse
 
 import cinderclient.v1.client as cinder_client
+import cinderclient.v2.client as cinder_clientv2
 import glanceclient.v1.client as glance_client
 import heatclient.v1.client as heat_client
 from keystoneclient.v2_0 import client as keystone_client
@@ -351,12 +352,15 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.keystone_wait_for_propagation(sentry_relation_pairs, api_version)
 
     def authenticate_cinder_admin(self, keystone_sentry, username,
-                                  password, tenant):
+                                  password, tenant, api_version=2):
         """Authenticates admin user with cinder."""
         # NOTE(beisner): cinder python client doesn't accept tokens.
         keystone_ip = keystone_sentry.info['public-address']
         ept = "http://{}:5000/v2.0".format(keystone_ip.strip().decode('utf-8'))
-        return cinder_client.Client(username, password, tenant, ept)
+        _clients = {
+            1: cinder_client.Client,
+            2: cinder_clientv2.Client}
+        return _clients[api_version](username, password, tenant, ept)
 
     def authenticate_keystone(self, keystone_ip, username, password,
                               api_version=False, admin_port=False,
