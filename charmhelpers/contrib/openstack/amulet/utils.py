@@ -628,6 +628,18 @@ class OpenStackAmuletUtils(AmuletUtils):
         _keypair = nova.keypairs.create(name=keypair_name)
         return _keypair
 
+    def _get_cinder_obj_name(self, cinder_object):
+        """Retrieve name of cinder object.
+
+        :param cinder_object: cinder snapshot or volume object
+        :returns: str cinder object name
+        """
+        # v1 objects store name in 'display_name' attr but v2+ use 'name'
+        try:
+            return cinder_object.display_name
+        except AttributeError:
+            return cinder_object.name
+
     def create_cinder_volume(self, cinder, vol_name="demo-vol", vol_size=1,
                              img_id=None, src_vol_id=None, snap_id=None):
         """Create cinder volume, optionally from a glance image, OR
@@ -678,6 +690,13 @@ class OpenStackAmuletUtils(AmuletUtils):
                                             source_volid=src_vol_id,
                                             snapshot_id=snap_id)
             vol_id = vol_new.id
+        except TypeError:
+            vol_new = cinder.volumes.create(name=vol_name,
+                                            imageRef=img_id,
+                                            size=vol_size,
+                                            source_volid=src_vol_id,
+                                            snapshot_id=snap_id)
+            vol_id = vol_new.id
         except Exception as e:
             msg = 'Failed to create volume: {}'.format(e)
             amulet.raise_status(amulet.FAIL, msg=msg)
@@ -692,7 +711,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         # Re-validate new volume
         self.log.debug('Validating volume attributes...')
-        val_vol_name = cinder.volumes.get(vol_id).display_name
+        val_vol_name = self._get_cinder_obj_name(cinder.volumes.get(vol_id))
         val_vol_boot = cinder.volumes.get(vol_id).bootable
         val_vol_stat = cinder.volumes.get(vol_id).status
         val_vol_size = cinder.volumes.get(vol_id).size
