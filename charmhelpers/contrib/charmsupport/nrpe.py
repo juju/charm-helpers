@@ -30,6 +30,7 @@ import yaml
 
 from charmhelpers.core.hookenv import (
     config,
+    hook_name,
     local_unit,
     log,
     relation_ids,
@@ -302,7 +303,12 @@ class NRPE(object):
                 "command": nrpecheck.command,
             }
 
-        service('restart', 'nagios-nrpe-server')
+        # update-status hooks are configured to firing every 5 minutes by
+        # default. When nagios-nrpe-server is restarted, the nagios server
+        # reports checks failing causing unneccessary alerts. Let's not restart
+        # on update-status hooks.
+        if not hook_name() == 'update-status':
+            service('restart', 'nagios-nrpe-server')
 
         monitor_ids = relation_ids("local-monitors") + \
             relation_ids("nrpe-external-master")
