@@ -22,6 +22,7 @@ from __future__ import print_function
 import copy
 from distutils.version import LooseVersion
 from functools import wraps
+from collections import namedtuple
 import glob
 import os
 import json
@@ -1164,3 +1165,42 @@ def meter_info():
     """Get the meter status information, if running in the meter-status-changed
     hook."""
     return os.environ.get('JUJU_METER_INFO')
+
+
+def iter_units_for_relation_name(relation_name):
+    """Iterate through all units in a relation
+
+    Generator that iterates through all the units in a relation and yields
+    a named tuple with rid and unit field names.
+
+    Usage:
+    data = [(u.rid, u.unit)
+            for u in iter_units_for_relation_name(relation_name)]
+
+    :param relation_name: string relation name
+    :yield: Named Tuple with rid and unit field names
+    """
+    RelatedUnit = namedtuple('RelatedUnit', 'rid, unit')
+    for rid in relation_ids(relation_name):
+        for unit in related_units(rid):
+            yield RelatedUnit(rid, unit)
+
+
+def ingress_address(rid=None, unit=None):
+    """
+    Retrieve the ingress-address from a relation when available. Otherwise,
+    return the private-address. This function is to be used on the consuming
+    side of the relation.
+
+    Usage:
+    addresses = [ingress_address(rid=u.rid, unit=u.unit)
+                 for u in iter_units_for_relation_name(relation_name)]
+
+    :param rid: string relation id
+    :param unit: string unit name
+    :side effect: calls relation_get
+    :return: string IP address
+    """
+    settings = relation_get(rid=rid, unit=unit)
+    return (settings.get('ingress-address') or
+            settings.get('private-address'))

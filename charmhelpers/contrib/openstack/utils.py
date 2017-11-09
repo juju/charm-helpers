@@ -797,7 +797,7 @@ def git_default_repos(projects_yaml):
     service = service_name()
     core_project = service
 
-    for default, branch in GIT_DEFAULT_BRANCHES.iteritems():
+    for default, branch in six.iteritems(GIT_DEFAULT_BRANCHES):
         if projects_yaml == default:
 
             # add the requirements repo first

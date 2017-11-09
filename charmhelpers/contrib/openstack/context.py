@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import glob
 import json
 import math
@@ -578,11 +579,14 @@ class HAProxyContext(OSContextGenerator):
             laddr = get_address_in_network(config(cfg_opt))
             if laddr:
                 netmask = get_netmask_for_address(laddr)
-                cluster_hosts[laddr] = {'network': "{}/{}".format(laddr,
-                                                                  netmask),
-                                        'backends': {l_unit: laddr}}
+                cluster_hosts[laddr] = {
+                    'network': "{}/{}".format(laddr,
+                                              netmask),
+                    'backends': collections.OrderedDict([(l_unit,
+                                                          laddr)])
+                }
                 for rid in relation_ids('cluster'):
-                    for unit in related_units(rid):
+                    for unit in sorted(related_units(rid)):
                         _laddr = relation_get('{}-address'.format(addr_type),
                                               rid=rid, unit=unit)
                         if _laddr:
@@ -594,10 +598,13 @@ class HAProxyContext(OSContextGenerator):
         # match in the frontend
         cluster_hosts[addr] = {}
         netmask = get_netmask_for_address(addr)
-        cluster_hosts[addr] = {'network': "{}/{}".format(addr, netmask),
-                               'backends': {l_unit: addr}}
+        cluster_hosts[addr] = {
+            'network': "{}/{}".format(addr, netmask),
+            'backends': collections.OrderedDict([(l_unit,
+                                                  addr)])
+        }
         for rid in relation_ids('cluster'):
-            for unit in related_units(rid):
+            for unit in sorted(related_units(rid)):
                 _laddr = relation_get('private-address',
                                       rid=rid, unit=unit)
                 if _laddr:
