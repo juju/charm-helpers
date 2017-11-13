@@ -2132,23 +2132,6 @@ class ContextTests(unittest.TestCase):
         neutron._ensure_packages()
         _install.assert_called_with(['quantum-plugin-package'], fatal=True)
 
-    @patch.object(context.NeutronContext, 'network_manager')
-    @patch.object(context.NeutronContext, 'plugin')
-    def test_neutron_save_flag_file(self, plugin, nm):
-        neutron = context.NeutronContext()
-        plugin.__get__ = MagicMock(return_value='ovs')
-        nm.__get__ = MagicMock(return_value='quantum')
-        with patch_open() as (_o, _f):
-            neutron._save_flag_file()
-            _o.assert_called_with('/etc/nova/quantum_plugin.conf', 'wb')
-            _f.write.assert_called_with('ovs\n')
-
-        nm.__get__ = MagicMock(return_value='neutron')
-        with patch_open() as (_o, _f):
-            neutron._save_flag_file()
-            _o.assert_called_with('/etc/nova/neutron_plugin.conf', 'wb')
-            _f.write.assert_called_with('ovs\n')
-
     @patch.object(context.NeutronContext, 'neutron_security_groups')
     @patch.object(context, 'unit_private_ip')
     @patch.object(context, 'neutron_plugin_attribute')
@@ -2318,7 +2301,6 @@ class ContextTests(unittest.TestCase):
         )
 
     @patch.object(context.NeutronContext, 'neutron_ctxt')
-    @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'ovs_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
@@ -2326,7 +2308,6 @@ class ContextTests(unittest.TestCase):
     def test_neutron_main_context_generation(self, mock_network_manager,
                                              mock_ensure_packages,
                                              mock_plugin, mock_ovs_ctxt,
-                                             mock_save_flag_file,
                                              mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
@@ -2357,7 +2338,6 @@ class ContextTests(unittest.TestCase):
         )
 
     @patch.object(context.NeutronContext, 'neutron_ctxt')
-    @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'nvp_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
@@ -2367,7 +2347,6 @@ class ContextTests(unittest.TestCase):
                                                       mock_ensure_packages,
                                                       mock_plugin,
                                                       mock_nvp_ctxt,
-                                                      mock_save_flag_file,
                                                       mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
@@ -2399,7 +2378,6 @@ class ContextTests(unittest.TestCase):
         )
 
     @patch.object(context.NeutronContext, 'neutron_ctxt')
-    @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'calico_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
@@ -2407,7 +2385,6 @@ class ContextTests(unittest.TestCase):
     def test_neutron_main_context_gen_calico(self, mock_network_manager,
                                              mock_ensure_packages,
                                              mock_plugin, mock_ovs_ctxt,
-                                             mock_save_flag_file,
                                              mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
