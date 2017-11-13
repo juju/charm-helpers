@@ -653,7 +653,7 @@ class OpenStackHelpersTestCase(TestCase):
         rcdir = '/var/lib/juju/units/testing-foo-0/charm/scripts'
         _mkdir.assert_called_with(rcdir)
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
-        _open.assert_called_with(expected_f, 'wb')
+        _open.assert_called_with(expected_f, 'wt')
         _mkdir.assert_called_with(os.path.dirname(expected_f))
         _file.__enter__().write.assert_has_calls(
             list(call(line) for line in scriptrc), any_order=True)
