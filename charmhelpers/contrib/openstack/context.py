@@ -853,15 +853,6 @@ class NeutronContext(OSContextGenerator):
         for pkgs in self.packages:
             ensure_packages(pkgs)
 
-    def _save_flag_file(self):
-        if self.network_manager == 'quantum':
-            _file = '/etc/nova/quantum_plugin.conf'
-        else:
-            _file = '/etc/nova/neutron_plugin.conf'
-
-        with open(_file, 'wb') as out:
-            out.write(self.plugin + '\n')
-
     def ovs_ctxt(self):
         driver = neutron_plugin_attribute(self.plugin, 'driver',
                                           self.network_manager)
@@ -1006,7 +997,6 @@ class NeutronContext(OSContextGenerator):
             flags = config_flags_parser(alchemy_flags)
             ctxt['neutron_alchemy_flags'] = flags
 
-        self._save_flag_file()
         return ctxt
 
 
