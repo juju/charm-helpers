@@ -43,7 +43,6 @@ import swiftclient
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
-from charmhelpers.core.decorators import retry_on_exception
 from charmhelpers.core.host import CompareHostReleases
 
 DEBUG = logging.DEBUG
