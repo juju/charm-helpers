@@ -412,6 +412,8 @@ def get_os_codename_package(package, fatal=True):
         cmd = ['snap', 'list', package]
         try:
             out = subprocess.check_output(cmd)
+            if six.PY3:
+                out = out.decode('UTF-8')
         except subprocess.CalledProcessError as e:
             return None
         lines = out.split('\n')
@@ -615,14 +617,22 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     updated config information necessary to perform health checks or
     service changes.
     """
-    juju_rc_path = "%s/%s" % (charm_dir(), script_path)
+    juju_rc_path = "{}/{}".format(charm_dir(), script_path)
     if not os.path.exists(os.path.dirname(juju_rc_path)):
         os.mkdir(os.path.dirname(juju_rc_path))
-    with open(juju_rc_path, 'wt') as rc_script:
-        rc_script.write(
-            "#!/bin/bash\n")
-        [rc_script.write('export %s=%s\n' % (u, p))
-         for u, p in six.iteritems(env_vars) if u != "script_path"]
+    with open(juju_rc_path, 'wb') as rc_script:
+        if six.PY2:
+            rc_script.write("#!/bin/bash\n")
+        else:
+            rc_script.write(b"#!/bin/bash\n")
+        for u, p in six.iteritems(env_vars):
+            if u != "script_path":
+                if six.PY2:
+                    rc_script.write('export {}={}\n'.format(u, p))
+                else:
+                    rc_script.write('export {}={}\n'
+                                    .format(u, p)
+                                    .encode('UTF8'))
 
 
 def openstack_upgrade_available(package):
