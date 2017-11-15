@@ -641,9 +641,15 @@ class OpenStackHelpersTestCase(TestCase):
     @patch(builtin_open)
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         """Test generation of scriptrc from environment"""
-        scriptrc = ['#!/bin/bash\n',
-                    'export setting1=foo\n',
-                    'export setting2=bar\n']
+        if six.PY2:
+            scriptrc = ['#!/bin/bash\n',
+                        'export setting1=foo\n',
+                        'export setting2=bar\n']
+        else:
+            scriptrc = [b'#!/bin/bash\n',
+                        b'export setting1=foo\n',
+                        b'export setting2=bar\n']
+
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
@@ -653,7 +659,7 @@ class OpenStackHelpersTestCase(TestCase):
         rcdir = '/var/lib/juju/units/testing-foo-0/charm/scripts'
         _mkdir.assert_called_with(rcdir)
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
-        _open.assert_called_with(expected_f, 'wt')
+        _open.assert_called_with(expected_f, 'wb')
         _mkdir.assert_called_with(os.path.dirname(expected_f))
         _file.__enter__().write.assert_has_calls(
             list(call(line) for line in scriptrc), any_order=True)

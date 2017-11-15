@@ -549,10 +549,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
         with open(path, 'wb') as target:
             os.fchown(target.fileno(), uid, gid)
             os.fchmod(target.fileno(), perms)
-            if six.PY2:
-                target.write(content)
-            else:
-                target.write(content.encode('UTF-8'))
+            target.write(content)
         return
     # the contents were the same, but we might still need to change the
     # ownership.
