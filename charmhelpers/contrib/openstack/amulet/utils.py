@@ -311,7 +311,6 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Checking if tenant exists ({})...'.format(tenant))
         return tenant in [t.name for t in keystone.tenants.list()]
 
-    @retry_on_exception(5, base_delay=10)
     def keystone_wait_for_propagation(self, sentry_relation_pairs,
                                       api_version):
         """Iterate over list of sentry and relation tuples and verify that
@@ -327,7 +326,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             rel = sentry.relation('identity-service',
                                   relation_name)
             self.log.debug('keystone relation data: {}'.format(rel))
-            if rel['api_version'] != str(api_version):
+            if rel.get('api_version') != str(api_version):
                 raise Exception("api_version not propagated through relation"
                                 " data yet ('{}' != '{}')."
                                 "".format(rel['api_version'], api_version))
@@ -349,6 +348,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         config = {'preferred-api-version': api_version}
         deployment.d.configure('keystone', config)
+        deployment._auto_wait_for_status()
         self.keystone_wait_for_propagation(sentry_relation_pairs, api_version)
 
     def authenticate_cinder_admin(self, keystone_sentry, username,
