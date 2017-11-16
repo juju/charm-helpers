@@ -319,7 +319,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                 'cinder-ceph',
                 'glance'
             ]
-        elif (self.trust_kilo <= self._get_openstack_release() <=
+        elif (self.trusty_kilo <= self._get_openstack_release() <=
               self.zesty_ocata):
             # Kilo through Ocata
             pools = [
