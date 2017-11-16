@@ -412,6 +412,8 @@ def get_os_codename_package(package, fatal=True):
         cmd = ['snap', 'list', package]
         try:
             out = subprocess.check_output(cmd)
+            if six.PY3:
+                out = out.decode('UTF-8')
         except subprocess.CalledProcessError as e:
             return None
         lines = out.split('\n')
