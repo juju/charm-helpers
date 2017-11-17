@@ -270,7 +270,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         (self.trusty_icehouse, self.trusty_kilo, self.trusty_liberty,
          self.trusty_mitaka, self.xenial_mitaka, self.xenial_newton,
          self.yakkety_newton, self.xenial_ocata, self.zesty_ocata,
-         self.xenial_pike, self.artful_pike) = range(11)
+         self.xenial_pike, self.artful_pike, self.xenial_queens,
+         self.bionic_queens,) = range(13)
 
         releases = {
             ('trusty', None): self.trusty_icehouse,
@@ -281,9 +282,11 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('xenial', 'cloud:xenial-newton'): self.xenial_newton,
             ('xenial', 'cloud:xenial-ocata'): self.xenial_ocata,
             ('xenial', 'cloud:xenial-pike'): self.xenial_pike,
+            ('xenial', 'cloud:xenial-queens'): self.xenial_queens,
             ('yakkety', None): self.yakkety_newton,
             ('zesty', None): self.zesty_ocata,
             ('artful', None): self.artful_pike,
+            ('bionic', None): self.bionic_queens,
         }
         return releases[(self.series, self.openstack)]
 
@@ -298,6 +301,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('yakkety', 'newton'),
             ('zesty', 'ocata'),
             ('artful', 'pike'),
+            ('bionic', 'queens'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]
