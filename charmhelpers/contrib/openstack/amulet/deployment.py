@@ -286,7 +286,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('yakkety', None): self.yakkety_newton,
             ('zesty', None): self.zesty_ocata,
             ('artful', None): self.artful_pike,
-            ('queens', None): self.bionic_queens,
+            ('bionic', None): self.bionic_queens,
         }
         return releases[(self.series, self.openstack)]
 
