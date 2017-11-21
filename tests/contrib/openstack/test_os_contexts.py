@@ -749,9 +749,9 @@ class ContextTests(unittest.TestCase):
             'database_ssl_key': ssl_dir + '/db-client.key',
         }
         files = [
-            call(expected['database_ssl_ca'], 'w'),
-            call(expected['database_ssl_cert'], 'w'),
-            call(expected['database_ssl_key'], 'w')
+            call(expected['database_ssl_ca'], 'wb'),
+            call(expected['database_ssl_cert'], 'wb'),
+            call(expected['database_ssl_key'], 'wb')
         ]
         for f in files:
             self.assertIn(f, _open.call_args_list)
@@ -1093,7 +1093,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_ha_queues': True,
             'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
-        _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'w')
+        _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'wb')
         self.assertEquals(result, expected)
         self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
                           self.b64decode.call_args_list)
