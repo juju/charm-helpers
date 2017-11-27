@@ -256,9 +256,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         service_messages = {service: message for service in services}
 
         # Check for idleness
-        self.d.sentry.wait()
+        self.d.sentry.wait(timeout=timeout)
         # Check for error states and bail early
-        self.d.sentry.wait_for_status(self.d.juju_env, services)
+        self.d.sentry.wait_for_status(self.d.juju_env, services, timeout=timeout)
         # Check for ready messages
         self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
 
