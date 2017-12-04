@@ -1,3 +1,4 @@
+import collections
 import charmhelpers.contrib.openstack.context as context
 import yaml
 import json
@@ -619,6 +620,7 @@ TO_PATCH = [
     'is_container',
     'network_get_primary_address',
     'resolve_address',
+    'is_ipv6_disabled',
 ]
 
 
@@ -747,9 +749,9 @@ class ContextTests(unittest.TestCase):
             'database_ssl_key': ssl_dir + '/db-client.key',
         }
         files = [
-            call(expected['database_ssl_ca'], 'w'),
-            call(expected['database_ssl_cert'], 'w'),
-            call(expected['database_ssl_key'], 'w')
+            call(expected['database_ssl_ca'], 'wb'),
+            call(expected['database_ssl_cert'], 'wb'),
+            call(expected['database_ssl_key'], 'wb')
         ]
         for f in files:
             self.assertIn(f, _open.call_args_list)
@@ -1091,7 +1093,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_ha_queues': True,
             'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
-        _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'w')
+        _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'wb')
         self.assertEquals(result, expected)
         self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
                           self.b64decode.call_args_list)
@@ -1641,6 +1643,7 @@ class ContextTests(unittest.TestCase):
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
+        self.is_ipv6_disabled.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1658,6 +1661,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
@@ -1694,6 +1698,7 @@ class ContextTests(unittest.TestCase):
         c = fake_config(HAPROXY_CONFIG)
         c.data['prefer-ipv6'] = False
         self.config.side_effect = c
+        self.is_ipv6_disabled.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1711,6 +1716,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
             'haproxy_client_timeout': 50000,
@@ -1756,6 +1762,7 @@ class ContextTests(unittest.TestCase):
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
+        self.is_ipv6_disabled.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1763,40 +1770,41 @@ class ContextTests(unittest.TestCase):
             'frontends': {
                 'cluster-peer0.admin': {
                     'network': 'cluster-peer0.admin/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.admin',
-                        'peer-1': 'cluster-peer1.admin',
-                        'peer-2': 'cluster-peer2.admin',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.admin'),
+                        ('peer-1', 'cluster-peer1.admin'),
+                        ('peer-2', 'cluster-peer2.admin'),
+                    ]),
                 },
                 'cluster-peer0.internal': {
                     'network': 'cluster-peer0.internal/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.internal',
-                        'peer-1': 'cluster-peer1.internal',
-                        'peer-2': 'cluster-peer2.internal',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.internal'),
+                        ('peer-1', 'cluster-peer1.internal'),
+                        ('peer-2', 'cluster-peer2.internal'),
+                    ]),
                 },
                 'cluster-peer0.public': {
                     'network': 'cluster-peer0.public/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.public',
-                        'peer-1': 'cluster-peer1.public',
-                        'peer-2': 'cluster-peer2.public',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.public'),
+                        ('peer-1', 'cluster-peer1.public'),
+                        ('peer-2', 'cluster-peer2.public'),
+                    ]),
                 },
                 'cluster-peer0.localnet': {
                     'network': 'cluster-peer0.localnet/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.localnet',
-                        'peer-1': 'cluster-peer1.localnet',
-                        'peer-2': 'cluster-peer2.localnet',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
                 }
             },
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
@@ -1808,8 +1816,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_ipv6(
-            self, local_unit, unit_get):
+    def test_haproxy_context_with_data_ipv6(self, local_unit, unit_get):
         '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
@@ -1835,6 +1842,7 @@ class ContextTests(unittest.TestCase):
         c.data['prefer-ipv6'] = True
         self.config.side_effect = c
         self.maxDiff = None
+        self.is_ipv6_disabled.return_value = False
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -1855,6 +1863,7 @@ class ContextTests(unittest.TestCase):
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
+            'ipv6_enabled': True,
             'stat_password': 'testpassword',
             'stat_port': '8888',
         }
@@ -1895,8 +1904,7 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers_singlemode(
-            self, local_unit, unit_get):
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -1916,6 +1924,7 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = False
         self.get_address_in_network.return_value = None
         self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.is_ipv6_disabled.return_value = True
         with patch_open() as (_open, _file):
             result = context.HAProxyContext(singlenode_mode=True)()
         ex = {
@@ -1930,6 +1939,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
+            'ipv6_enabled': False,
             'stat_port': '8888',
             'stat_password': 'testpassword',
         }
@@ -2122,23 +2132,6 @@ class ContextTests(unittest.TestCase):
         neutron._ensure_packages()
         _install.assert_called_with(['quantum-plugin-package'], fatal=True)
 
-    @patch.object(context.NeutronContext, 'network_manager')
-    @patch.object(context.NeutronContext, 'plugin')
-    def test_neutron_save_flag_file(self, plugin, nm):
-        neutron = context.NeutronContext()
-        plugin.__get__ = MagicMock(return_value='ovs')
-        nm.__get__ = MagicMock(return_value='quantum')
-        with patch_open() as (_o, _f):
-            neutron._save_flag_file()
-            _o.assert_called_with('/etc/nova/quantum_plugin.conf', 'wb')
-            _f.write.assert_called_with('ovs\n')
-
-        nm.__get__ = MagicMock(return_value='neutron')
-        with patch_open() as (_o, _f):
-            neutron._save_flag_file()
-            _o.assert_called_with('/etc/nova/neutron_plugin.conf', 'wb')
-            _f.write.assert_called_with('ovs\n')
-
     @patch.object(context.NeutronContext, 'neutron_security_groups')
     @patch.object(context, 'unit_private_ip')
     @patch.object(context, 'neutron_plugin_attribute')
@@ -2308,7 +2301,6 @@ class ContextTests(unittest.TestCase):
         )
 
     @patch.object(context.NeutronContext, 'neutron_ctxt')
-    @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'ovs_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
@@ -2316,7 +2308,6 @@ class ContextTests(unittest.TestCase):
     def test_neutron_main_context_generation(self, mock_network_manager,
                                              mock_ensure_packages,
                                              mock_plugin, mock_ovs_ctxt,
-                                             mock_save_flag_file,
                                              mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
@@ -2347,7 +2338,6 @@ class ContextTests(unittest.TestCase):
         )
 
     @patch.object(context.NeutronContext, 'neutron_ctxt')
-    @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'nvp_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
@@ -2357,7 +2347,6 @@ class ContextTests(unittest.TestCase):
                                                       mock_ensure_packages,
                                                       mock_plugin,
                                                       mock_nvp_ctxt,
-                                                      mock_save_flag_file,
                                                       mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',
@@ -2389,7 +2378,6 @@ class ContextTests(unittest.TestCase):
         )
 
     @patch.object(context.NeutronContext, 'neutron_ctxt')
-    @patch.object(context.NeutronContext, '_save_flag_file')
     @patch.object(context.NeutronContext, 'calico_ctxt')
     @patch.object(context.NeutronContext, 'plugin')
     @patch.object(context.NeutronContext, '_ensure_packages')
@@ -2397,7 +2385,6 @@ class ContextTests(unittest.TestCase):
     def test_neutron_main_context_gen_calico(self, mock_network_manager,
                                              mock_ensure_packages,
                                              mock_plugin, mock_ovs_ctxt,
-                                             mock_save_flag_file,
                                              mock_neutron_ctxt):
 
         mock_neutron_ctxt.return_value = {'network_manager': 'neutron',

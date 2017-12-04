@@ -71,14 +71,14 @@ class HATests(unittest.TestCase):
     def test_update_dns_ha_resource_params_all(self,
                                                assert_charm_supports_dns_ha):
         EXPECTED_RESOURCES = {'res_test_admin_hostname': 'ocf:maas:dns',
-                              'res_test_internal_hostname': 'ocf:maas:dns',
+                              'res_test_int_hostname': 'ocf:maas:dns',
                               'res_test_public_hostname': 'ocf:maas:dns',
                               'res_test_haproxy': 'lsb:haproxy'}
         EXPECTED_RESOURCE_PARAMS = {
             'res_test_admin_hostname': ('params fqdn="test.admin.maas" '
                                         'ip_address="10.0.0.1" '),
-            'res_test_internal_hostname': ('params fqdn="test.internal.maas" '
-                                           'ip_address="10.0.0.1" '),
+            'res_test_int_hostname': ('params fqdn="test.internal.maas" '
+                                      'ip_address="10.0.0.1" '),
             'res_test_public_hostname': ('params fqdn="test.public.maas" '
                                          'ip_address="10.0.0.1" '),
             'res_test_haproxy': 'op monitor interval="5s"'}
@@ -99,7 +99,7 @@ class HATests(unittest.TestCase):
         self.relation_set.assert_called_with(
             groups={'grp_test_hostnames':
                     ('res_test_admin_hostname '
-                     'res_test_internal_hostname '
+                     'res_test_int_hostname '
                      'res_test_public_hostname')},
             relation_id='ha:1')
 

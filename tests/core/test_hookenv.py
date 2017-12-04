@@ -132,11 +132,11 @@ class ConfigTest(TestCase):
         # it gets copied into our current dictionary. If this is not
         # a deep copy, then mappings and lists will be shared instances
         # and changes will not be detected.
-        c = hookenv.Config(dict(l=[]))
+        c = hookenv.Config(dict(ll=[]))
         c.save()
         c = hookenv.Config()
-        c['l'].append(42)
-        self.assertTrue(c.changed('l'), 'load_previous() did not deepcopy')
+        c['ll'].append(42)
+        self.assertTrue(c.changed('ll'), 'load_previous() did not deepcopy')
 
     def test_getitem(self):
         c = hookenv.Config(dict(foo='bar'))
@@ -1105,10 +1105,12 @@ class HelpersTest(TestCase):
         hookenv.open_port(443, "TCP")
         hookenv.open_port(80)
         hookenv.open_port(100, "UDP")
+        hookenv.open_port(0, "ICMP")
         calls = [
             call(['open-port', '443/TCP']),
             call(['open-port', '80/TCP']),
             call(['open-port', '100/UDP']),
+            call(['open-port', 'ICMP']),
         ]
         check_call_.assert_has_calls(calls)
 
@@ -1117,10 +1119,12 @@ class HelpersTest(TestCase):
         hookenv.close_port(443, "TCP")
         hookenv.close_port(80)
         hookenv.close_port(100, "UDP")
+        hookenv.close_port(0, "ICMP")
         calls = [
             call(['close-port', '443/TCP']),
             call(['close-port', '80/TCP']),
             call(['close-port', '100/UDP']),
+            call(['close-port', 'ICMP']),
         ]
         check_call_.assert_has_calls(calls)
 
@@ -1661,7 +1665,7 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_network_get_primary(self, check_output):
-        '''Ensure that network-get is called correctly and output is returned'''
+        """Ensure that network-get is called correctly and output is returned"""
         check_output.return_value = b'192.168.22.1'
         ip = hookenv.network_get_primary_address('mybinding')
         check_output.assert_called_with(
@@ -1670,10 +1674,52 @@ class HooksTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_network_get_primary_unsupported(self, check_output):
-        '''Ensure that NotImplementedError is thrown when run on Juju < 2.0'''
+        """Ensure that NotImplementedError is thrown when run on Juju < 2.0"""
         check_output.side_effect = OSError(2, 'network-get')
         self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
                           'mybinding')
+
+    @patch('subprocess.check_output')
+    def test_network_get_primary_required(self, check_output):
+        """Ensure that NotImplementedError is thrown when run on Juju < 2.1"""
+        check_output.side_effect = CalledProcessError(
+            2, 'network_get',
+            output='--primary-address is currently required'.encode('UTF-8'))
+        self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
+
+    @patch('subprocess.check_output')
+    def test_network_get(self, check_output):
+        """Ensure that network-get is called correctly"""
+        check_output.return_value = b'192l.l168.22.1'
+        hookenv.network_get('mybinding')
+        check_output.assert_called_with(
+            ['network-get', 'mybinding', '--format', 'yaml'], stderr=-2)
+
+    @patch('subprocess.check_output')
+    def test_network_get_relation_bound(self, check_output):
+        """Ensure that network-get supports relation context"""
+        check_output.return_value = b'192l.l168.22.1'
+        hookenv.network_get('mybinding', 'db')
+        check_output.assert_called_with(
+            ['network-get', 'mybinding', '--format', 'yaml', '-r', 'db'],
+            stderr=-2)
+
+    @patch('subprocess.check_output')
+    def test_network_get_parses_yaml(self, check_output):
+        """network-get returns loaded YAML output."""
+        check_output.return_value = b"""
+bind-addresses:
+- macaddress: ""
+  interfacename: ""
+  addresses:
+    - address: 10.136.107.33
+      cidr: ""
+ingress-addresses:
+- 10.136.107.33
+        """
+        ip = hookenv.network_get('mybinding')
+        self.assertEqual(len(ip['bind-addresses']), 1)
+        self.assertEqual(ip['ingress-addresses'], ['10.136.107.33'])
 
     @patch('subprocess.check_call')
     def test_add_metric(self, check_call_):
@@ -1702,3 +1748,37 @@ class HooksTest(TestCase):
         }
         self.assertEqual(hookenv.meter_status(), 'GREEN')
         self.assertEqual(hookenv.meter_info(), 'all good')
+
+    @patch.object(hookenv, 'related_units')
+    @patch.object(hookenv, 'relation_ids')
+    def test_iter_units_for_relation_name(self, relation_ids, related_units):
+        relation_ids.return_value = ['rel:1']
+        related_units.return_value = ['unit/0', 'unit/1', 'unit/2']
+        expected = [('rel:1', 'unit/0'),
+                    ('rel:1', 'unit/1'),
+                    ('rel:1', 'unit/2')]
+        related_units_data = [
+            (u.rid, u.unit)
+            for u in hookenv.iter_units_for_relation_name('rel')]
+        self.assertEqual(expected, related_units_data)
+
+    @patch.object(hookenv, 'relation_get')
+    def test_ingress_address(self, relation_get):
+        """Ensure ingress_address returns the ingress-address when available
+        and returns the private-address when not.
+        """
+        _with_ingress = {'egress-subnets': '10.5.0.23/32',
+                         'ingress-address': '10.5.0.23',
+                         'private-address': '172.16.5.10'}
+
+        _without_ingress = {'private-address': '172.16.5.10'}
+
+        # Return the ingress-address
+        relation_get.return_value = _with_ingress
+        self.assertEqual(hookenv.ingress_address(rid='test:1', unit='unit/1'),
+                         '10.5.0.23')
+        relation_get.assert_called_with(rid='test:1', unit='unit/1')
+        # Return the private-address
+        relation_get.return_value = _without_ingress
+        self.assertEqual(hookenv.ingress_address(rid='test:1'),
+                         '172.16.5.10')

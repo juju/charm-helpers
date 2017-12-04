@@ -69,6 +69,7 @@ from charmhelpers.core.host import (
     adduser,
     add_user_to_group,
     pwgen,
+    remove_password_expiry,
 )
 
 from charmhelpers.core.hookenv import (
@@ -177,6 +178,8 @@ def ensure_user(user, group=None):
     adduser(user, pwgen())
     if group:
         add_user_to_group(user, group)
+    # Remove password expiry (Bug #1686085)
+    remove_password_expiry(user)
 
 
 def ssh_authorized_peers(peer_interface, user, group=None,
@@ -280,7 +283,7 @@ def sync_path_to_host(path, host, user, verbose=False, cmd=None, gid=None,
     try:
         log('Syncing local path %s to %s@%s:%s' % (path, user, host, path))
         run_as_user(user, cmd, gid)
-    except:
+    except Exception:
         log('Error syncing remote files')
         if fatal:
             raise

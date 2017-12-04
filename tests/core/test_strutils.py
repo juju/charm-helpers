@@ -34,6 +34,7 @@ class TestStrUtils(unittest.TestCase):
         self.assertRaises(ValueError, strutils.bool_from_string, 'foo')
 
     def test_bytes_from_string(self):
+        self.assertEqual(strutils.bytes_from_string('10'), 10)
         self.assertEqual(strutils.bytes_from_string('3K'), 3072)
         self.assertEqual(strutils.bytes_from_string('3KB'), 3072)
         self.assertEqual(strutils.bytes_from_string('3M'), 3145728)

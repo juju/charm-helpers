@@ -14,4 +14,4 @@ install:
   - pip install -r test_requirements.txt
 script:
   - nosetests -s --nologcapture --with-coverage --cover-package=charmhelpers tests/
-  - flake8 --ignore=E501 charmhelpers tests tools
+  - flake8 --ignore=E501,E741,E722 charmhelpers tests tools

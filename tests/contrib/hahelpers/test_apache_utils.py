@@ -136,7 +136,7 @@ class ApacheUtilsTests(TestCase):
             apache_utils.install_ca_cert(cert)
             _open.assert_called_once_with(
                 '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
-                'w')
+                'wb')
             _file.write.assert_called_with(cert)
         self.subprocess.check_call.assert_called_with(
             ['update-ca-certificates', '--fresh'])

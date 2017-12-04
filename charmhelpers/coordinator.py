@@ -408,8 +408,8 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         for u in self.requests:
             if u in granted:
                 continue  # In the granted set. Not wanted in the req list.
-            for l, ts in self.requests[u].items():
-                if l == lock:
+            for _lock, ts in self.requests[u].items():
+                if _lock == lock:
                     reqs.add((ts, u))
         queue = [t[1] for t in sorted(reqs)]
         if unit not in queue:

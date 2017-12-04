@@ -330,7 +330,7 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_codename_package('foo')
-            except:
+            except Exception:
                 # ignore exceptions that raise when error_out is mocked
                 # and doesn't sys.exit(1)
                 pass
@@ -360,7 +360,7 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_codename_package('cinder-common', fatal=True)
-            except:
+            except Exception:
                 pass
             e = ('Could not determine version of uninstalled package: '
                  'cinder-common')
@@ -404,7 +404,7 @@ class OpenStackHelpersTestCase(TestCase):
             cache.return_value = self._apt_cache()
             try:
                 openstack.get_os_version_package('foo')
-            except:
+            except Exception:
                 # ignore exceptions that raise when error_out is mocked
                 # and doesn't sys.exit(1)
                 pass
@@ -610,7 +610,7 @@ class OpenStackHelpersTestCase(TestCase):
         """Test configuring installation source from bad UCA source"""
         try:
             openstack.configure_installation_source('cloud:foo-bar')
-        except:
+        except Exception:
             # ignore exceptions that raise when error_out is mocked
             # and doesn't sys.exit(1)
             pass
@@ -653,7 +653,7 @@ class OpenStackHelpersTestCase(TestCase):
         rcdir = '/var/lib/juju/units/testing-foo-0/charm/scripts'
         _mkdir.assert_called_with(rcdir)
         expected_f = '/var/lib/juju/units/testing-foo-0/charm/scripts/scriptrc'
-        _open.assert_called_with(expected_f, 'wb')
+        _open.assert_called_with(expected_f, 'wt')
         _mkdir.assert_called_with(os.path.dirname(expected_f))
         _file.__enter__().write.assert_has_calls(
             list(call(line) for line in scriptrc), any_order=True)
@@ -1919,11 +1919,17 @@ class OpenStackHelpersTestCase(TestCase):
         valid_snap_channel.return_value = True
         # Expect True
         flush('snap_install_requested')
-        config.return_value = 'snap:edge-xenial-ocata'
+        config.return_value = 'snap:ocata/edge'
         self.assertTrue(openstack.snap_install_requested())
+        valid_snap_channel.assert_called_with('edge')
         flush('snap_install_requested')
-        config.return_value = 'snap:BETA-xenial-ocata'
+        config.return_value = 'snap:pike'
         self.assertTrue(openstack.snap_install_requested())
+        valid_snap_channel.assert_called_with('stable')
+        flush('snap_install_requested')
+        config.return_value = 'snap:pike/stable/jamespage'
+        self.assertTrue(openstack.snap_install_requested())
+        valid_snap_channel.assert_called_with('stable')
         # Expect False
         flush('snap_install_requested')
         config.return_value = 'cloud:xenial-ocata'
@@ -1932,9 +1938,28 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_snaps_install_info_from_origin(self):
         snaps = ['os_project']
         mode = 'jailmode'
-        src = 'snap:beta-xenial-ocata'
+
+        # snap:track/channel
+        src = 'snap:ocata/beta'
         expected = {snaps[0]: {'mode': mode,
                                'channel': '--channel=ocata/beta'}}
+        self.assertEqual(
+            expected,
+            openstack.get_snaps_install_info_from_origin(snaps, src,
+                                                         mode=mode))
+
+        # snap:track/channel/branch
+        src = 'snap:ocata/beta/jamespage'
+        expected = {snaps[0]: {'mode': mode,
+                               'channel': '--channel=ocata/beta/jamespage'}}
+        self.assertEqual(
+            expected,
+            openstack.get_snaps_install_info_from_origin(snaps, src,
+                                                         mode=mode))
+        # snap:track
+        src = 'snap:pike'
+        expected = {snaps[0]: {'mode': mode,
+                               'channel': '--channel=pike'}}
         self.assertEqual(
             expected,
             openstack.get_snaps_install_info_from_origin(snaps, src,
@@ -1944,12 +1969,22 @@ class OpenStackHelpersTestCase(TestCase):
     def test_install_os_snaps(self, mock_snap_install):
         snaps = ['os_project']
         mode = 'jailmode'
-        src = 'snap:beta-xenial-ocata'
+
+        # snap:track/channel
+        src = 'snap:ocata/beta'
         openstack.install_os_snaps(
             openstack.get_snaps_install_info_from_origin(
                 snaps, src, mode=mode))
         mock_snap_install.assert_called_with(
             'os_project', '--channel=ocata/beta', '--jailmode')
+
+        # snap:track
+        src = 'snap:pike'
+        openstack.install_os_snaps(
+            openstack.get_snaps_install_info_from_origin(
+                snaps, src, mode=mode))
+        mock_snap_install.assert_called_with(
+            'os_project', '--channel=pike', '--jailmode')
 
 
 if __name__ == '__main__':

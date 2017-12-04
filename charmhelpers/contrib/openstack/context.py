@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import glob
 import json
 import math
@@ -292,7 +293,7 @@ class PostgresqlDBContext(OSContextGenerator):
 def db_ssl(rdata, ctxt, ssl_dir):
     if 'ssl_ca' in rdata and ssl_dir:
         ca_path = os.path.join(ssl_dir, 'db-client.ca')
-        with open(ca_path, 'w') as fh:
+        with open(ca_path, 'wb') as fh:
             fh.write(b64decode(rdata['ssl_ca']))
 
         ctxt['database_ssl_ca'] = ca_path
@@ -307,12 +308,12 @@ def db_ssl(rdata, ctxt, ssl_dir):
             log("Waiting 1m for ssl client cert validity", level=INFO)
             time.sleep(60)
 
-        with open(cert_path, 'w') as fh:
+        with open(cert_path, 'wb') as fh:
             fh.write(b64decode(rdata['ssl_cert']))
 
         ctxt['database_ssl_cert'] = cert_path
         key_path = os.path.join(ssl_dir, 'db-client.key')
-        with open(key_path, 'w') as fh:
+        with open(key_path, 'wb') as fh:
             fh.write(b64decode(rdata['ssl_key']))
 
         ctxt['database_ssl_key'] = key_path
@@ -458,7 +459,7 @@ class AMQPContext(OSContextGenerator):
 
                         ca_path = os.path.join(
                             self.ssl_dir, 'rabbit-client-ca.pem')
-                        with open(ca_path, 'w') as fh:
+                        with open(ca_path, 'wb') as fh:
                             fh.write(b64decode(ctxt['rabbit_ssl_ca']))
                             ctxt['rabbit_ssl_ca'] = ca_path
 
@@ -578,11 +579,14 @@ class HAProxyContext(OSContextGenerator):
             laddr = get_address_in_network(config(cfg_opt))
             if laddr:
                 netmask = get_netmask_for_address(laddr)
-                cluster_hosts[laddr] = {'network': "{}/{}".format(laddr,
-                                                                  netmask),
-                                        'backends': {l_unit: laddr}}
+                cluster_hosts[laddr] = {
+                    'network': "{}/{}".format(laddr,
+                                              netmask),
+                    'backends': collections.OrderedDict([(l_unit,
+                                                          laddr)])
+                }
                 for rid in relation_ids('cluster'):
-                    for unit in related_units(rid):
+                    for unit in sorted(related_units(rid)):
                         _laddr = relation_get('{}-address'.format(addr_type),
                                               rid=rid, unit=unit)
                         if _laddr:
@@ -594,10 +598,13 @@ class HAProxyContext(OSContextGenerator):
         # match in the frontend
         cluster_hosts[addr] = {}
         netmask = get_netmask_for_address(addr)
-        cluster_hosts[addr] = {'network': "{}/{}".format(addr, netmask),
-                               'backends': {l_unit: addr}}
+        cluster_hosts[addr] = {
+            'network': "{}/{}".format(addr, netmask),
+            'backends': collections.OrderedDict([(l_unit,
+                                                  addr)])
+        }
         for rid in relation_ids('cluster'):
-            for unit in related_units(rid):
+            for unit in sorted(related_units(rid)):
                 _laddr = relation_get('private-address',
                                       rid=rid, unit=unit)
                 if _laddr:
@@ -627,6 +634,8 @@ class HAProxyContext(OSContextGenerator):
         else:
             ctxt['local_host'] = '127.0.0.1'
             ctxt['haproxy_host'] = '0.0.0.0'
+
+        ctxt['ipv6_enabled'] = not is_ipv6_disabled()
 
         ctxt['stat_port'] = '8888'
 
@@ -844,15 +853,6 @@ class NeutronContext(OSContextGenerator):
         for pkgs in self.packages:
             ensure_packages(pkgs)
 
-    def _save_flag_file(self):
-        if self.network_manager == 'quantum':
-            _file = '/etc/nova/quantum_plugin.conf'
-        else:
-            _file = '/etc/nova/neutron_plugin.conf'
-
-        with open(_file, 'wb') as out:
-            out.write(self.plugin + '\n')
-
     def ovs_ctxt(self):
         driver = neutron_plugin_attribute(self.plugin, 'driver',
                                           self.network_manager)
@@ -997,7 +997,6 @@ class NeutronContext(OSContextGenerator):
             flags = config_flags_parser(alchemy_flags)
             ctxt['neutron_alchemy_flags'] = flags
 
-        self._save_flag_file()
         return ctxt
 
 
@@ -1177,7 +1176,7 @@ class SubordinateConfigContext(OSContextGenerator):
                 if sub_config and sub_config != '':
                     try:
                         sub_config = json.loads(sub_config)
-                    except:
+                    except Exception:
                         log('Could not parse JSON from '
                             'subordinate_configuration setting from %s'
                             % rid, level=ERROR)
