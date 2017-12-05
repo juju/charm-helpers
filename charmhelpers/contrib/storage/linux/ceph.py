@@ -634,7 +634,7 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
         raise ValueError("create_erasure_profile should be called with k, m and one of l or c but not both.")
 
     # failure_domain changed in luminous
-    if version >= '12.0.0':
+    if version and version >= '12.0.0':
         cmd.append('crush-failure-domain=' + failure_domain)
     else:
         cmd.append('ruleset_failure_domain=' + failure_domain)
