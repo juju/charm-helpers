@@ -637,7 +637,7 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     if version and version >= '12.0.0':
         cmd.append('crush-failure-domain=' + failure_domain)
     else:
-        cmd.append('ruleset_failure_domain=' + failure_domain)
+        cmd.append('ruleset-failure-domain=' + failure_domain)
 
     # Add plugin specific information
     if locality is not None:

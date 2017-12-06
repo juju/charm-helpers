@@ -441,15 +441,26 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '0'])
         ])
 
+    @patch.object(ceph_utils, 'ceph_version')
     @patch.object(ceph_utils, 'erasure_profile_exists')
-    def test_create_erasure_profile(self, existing_profile):
+    def test_create_erasure_profile(self, existing_profile, mock_version):
         existing_profile.return_value = True
+        mock_version.return_value = '10.0.0'
         ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
                                           failure_domain='rack', data_chunks=10, coding_chunks=3)
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', '--force']
+               'ruleset-failure-domain=' + 'rack', '--force']
+        self.check_call.assert_has_calls([call(cmd)])
+
+        mock_version.return_value = '12.1.0'
+        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
+               'crush-failure-domain=' + 'rack', '--force']
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
@@ -460,7 +471,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', 'l=' + str(1)]
+               'ruleset-failure-domain=' + 'rack', 'l=' + str(1)]
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
@@ -472,7 +483,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'shec', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', 'c=' + str(1)]
+               'ruleset-failure-domain=' + 'rack', 'c=' + str(1)]
         self.check_call.assert_has_calls([call(cmd)])
 
     def test_rename_pool(self):
