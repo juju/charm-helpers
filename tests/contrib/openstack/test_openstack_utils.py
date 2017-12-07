@@ -282,12 +282,12 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_get_swift_codename_multiple_versions_liberty(self):
         with patch('subprocess.check_output') as _subp:
-            _subp.return_value = "... trusty-updates/liberty/main ..."
+            _subp.return_value = b"... trusty-updates/liberty/main ..."
             self.assertEquals(openstack.get_swift_codename('2.5.0'), 'liberty')
 
     def test_get_swift_codename_multiple_versions_mitaka(self):
         with patch('subprocess.check_output') as _subp:
-            _subp.return_value = "... trusty-updates/mitaka/main ..."
+            _subp.return_value = b"... trusty-updates/mitaka/main ..."
             self.assertEquals(openstack.get_swift_codename('2.5.0'), 'mitaka')
 
     def test_get_swift_codename_none(self):
