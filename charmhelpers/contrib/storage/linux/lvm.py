@@ -140,10 +140,6 @@ list_thin_logical_volumes = functools.partial(
     list_logical_volumes,
     select_criteria='lv_attr =~ ^V')
 
-list_regular_logical_volumes = functools.partial(
-    list_logical_volumes,
-    select_criteria='lv_attr =~ ^-')
-
 
 def extend_logical_volume_by_device(lv_name, block_device):
     '''
