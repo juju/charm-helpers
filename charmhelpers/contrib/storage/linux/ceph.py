@@ -1107,7 +1107,9 @@ class CephBrokerRq(object):
     def _ops_equal(self, other):
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in ['replicas', 'name', 'op', 'pg_num', 'weight']:
+                for key in [
+                        'replicas', 'name', 'op', 'pg_num', 'weight',
+                        'group', 'group-namespace', 'group-permission']:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:
