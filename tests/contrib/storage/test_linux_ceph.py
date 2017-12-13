@@ -1112,6 +1112,23 @@ class CephUtilsTests(TestCase):
             self.assertEqual(request_dict['ops'][0][key], expected['ops'][0][key])
             self.assertEqual(request_dict['ops'][1][key], expected['ops'][1][key])
 
+    @patch.object(ceph_utils, 'service_name')
+    @patch.object(ceph_utils, 'uuid')
+    def test_ceph_broker_rq_class_test_not_equal(self, uuid, service_name):
+        service_name.return_value = 'service_test'
+        uuid.uuid1.return_value = 'uuid'
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_pool('pool1')
+        rq1.add_op_request_access_to_group(name='test')
+        rq1.add_op_request_access_to_group(name='objects',
+                                           permission='rwx')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_pool('pool1')
+        rq2.add_op_request_access_to_group(name='test')
+        rq2.add_op_request_access_to_group(name='objects',
+                                           permission='r')
+        self.assertFalse(rq1 == rq2)
+
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
                                                    'stderr': "Success"}))
