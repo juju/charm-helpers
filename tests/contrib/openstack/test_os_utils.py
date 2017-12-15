@@ -206,23 +206,36 @@ class UtilsTests(unittest.TestCase):
 
         TEST_POLICY_FILE = "/etc/glance/policy.json"
 
-        item_to_update = {
+        items_to_update = {
             "get_image_location": "role:admin",
             "extra_policy": "extra",
         }
 
         mock_open = mock.mock_open(read_data=TEST_POLICY)
         with mock.patch(builtin_open, mock_open) as mock_file:
-            utils.update_json_file(TEST_POLICY_FILE, item_to_update)
+            utils.update_json_file(TEST_POLICY_FILE, {})
+            self.assertFalse(mock_file.called)
+
+            utils.update_json_file(TEST_POLICY_FILE, items_to_update)
             mock_file.assert_has_calls([
                 mock.call(TEST_POLICY_FILE),
                 mock.call(TEST_POLICY_FILE, 'w'),
             ], any_order=True)
 
         modified_policy = json.loads(TEST_POLICY)
-        modified_policy.update(item_to_update)
+        modified_policy.update(items_to_update)
         mock_open().write.assert_called_with(
-            json.dumps(modified_policy, indent=4))
+            json.dumps(modified_policy, indent=4, sort_keys=True))
+
+        tmp = json.loads(TEST_POLICY)
+        tmp.update(items_to_update)
+        TEST_POLICY = json.dumps(tmp)
+        mock_open = mock.mock_open(read_data=TEST_POLICY)
+        with mock.patch(builtin_open, mock_open) as mock_file:
+            utils.update_json_file(TEST_POLICY_FILE, items_to_update)
+            mock_file.assert_has_calls([
+                mock.call(TEST_POLICY_FILE),
+            ], any_order=True)
 
     def test_ordered(self):
         data = {'one': 1, 'two': 2, 'three': 3}

@@ -1107,6 +1107,9 @@ class CephUtilsTests(TestCase):
         rq.add_op_request_access_to_group(name='test')
         rq.add_op_request_access_to_group(name='objects',
                                           key_name='test')
+        rq.add_op_request_access_to_group(
+            name='others',
+            object_prefix_permissions={'rwx': ['prefix1']})
         expected = {
             'api-version': 1,
             'request-id': 'uuid',
@@ -1114,14 +1117,38 @@ class CephUtilsTests(TestCase):
                     {'op': 'create-pool', 'name': 'pool2', 'replicas': 3},
                     {'op': 'create-pool', 'name': 'pool3', 'replicas': 3, 'group': 'test'},
                     {'op': 'add-permissions-to-key', 'group': 'test', 'name': 'service_test'},
-                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'}]
+                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'},
+                    {
+                        'op': 'add-permissions-to-key',
+                        'group': 'others',
+                        'name': 'service_test',
+                        'object-prefix-permissions': {u'rwx': [u'prefix1']}}]
         }
         request_dict = json.loads(rq.request)
         for key in ['api-version', 'request-id']:
             self.assertEqual(request_dict[key], expected[key])
-        for key in ['op', 'name', 'replicas']:
-            self.assertEqual(request_dict['ops'][0][key], expected['ops'][0][key])
-            self.assertEqual(request_dict['ops'][1][key], expected['ops'][1][key])
+        for (op_no, expected_op) in enumerate(expected['ops']):
+            for key in expected_op.keys():
+                self.assertEqual(
+                    request_dict['ops'][op_no][key],
+                    expected_op[key])
+
+    @patch.object(ceph_utils, 'service_name')
+    @patch.object(ceph_utils, 'uuid')
+    def test_ceph_broker_rq_class_test_not_equal(self, uuid, service_name):
+        service_name.return_value = 'service_test'
+        uuid.uuid1.return_value = 'uuid'
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_pool('pool1')
+        rq1.add_op_request_access_to_group(name='test')
+        rq1.add_op_request_access_to_group(name='objects',
+                                           permission='rwx')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_pool('pool1')
+        rq2.add_op_request_access_to_group(name='test')
+        rq2.add_op_request_access_to_group(name='objects',
+                                           permission='r')
+        self.assertFalse(rq1 == rq2)
 
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
