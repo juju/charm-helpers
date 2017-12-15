@@ -621,15 +621,23 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     :param durability_estimator: int
     :return: None.  Can raise CalledProcessError
     """
+    version = ceph_version()
+
     # Ensure this failure_domain is allowed by Ceph
     validator(failure_domain, six.string_types,
               ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
 
     cmd = ['ceph', '--id', service, 'osd', 'erasure-code-profile', 'set', profile_name,
-           'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks),
-           'ruleset_failure_domain=' + failure_domain]
+           'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks)
+           ]
     if locality is not None and durability_estimator is not None:
         raise ValueError("create_erasure_profile should be called with k, m and one of l or c but not both.")
+
+    # failure_domain changed in luminous
+    if version and version >= '12.0.0':
+        cmd.append('crush-failure-domain=' + failure_domain)
+    else:
+        cmd.append('ruleset-failure-domain=' + failure_domain)
 
     # Add plugin specific information
     if locality is not None:
