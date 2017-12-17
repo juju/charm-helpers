@@ -113,7 +113,7 @@ def validator(value, valid_type, valid_range=None):
         assert isinstance(valid_range, list), \
             "valid_range must be a list, was given {}".format(valid_range)
         # If we're dealing with strings
-        if valid_type is six.string_types:
+        if isinstance(value, six.string_types):
             assert value in valid_range, \
                 "{} is not in the list {}".format(value, valid_range)
         # Integer, float should have a min and max
@@ -517,7 +517,8 @@ def pool_set(service, pool_name, key, value):
     :param value:
     :return: None.  Can raise CalledProcessError
     """
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, key, value]
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, key,
+           str(value).lower()]
     try:
         check_call(cmd)
     except CalledProcessError:
