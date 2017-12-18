@@ -148,7 +148,7 @@ IDENTITY_CREDENTIALS_RELATION_UNSET = {
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
     'auth_protocol': 'https',
-    'credentials_domain': 'admin_domain',
+    'domain': 'admin_domain',
     'credentials_project': 'admin',
     'credentials_project_id': '123456',
     'credentials_password': 'foo',

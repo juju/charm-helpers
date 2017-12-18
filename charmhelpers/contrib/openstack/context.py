@@ -439,7 +439,7 @@ class IdentityCredentialsContext(IdentityServiceContext):
 
                 if float(api_version) > 2:
                     ctxt.update({'admin_domain_name':
-                                 rdata.get('credentials_domain')})
+                                 rdata.get('domain')})
 
                 if self.context_complete(ctxt):
                     return ctxt
