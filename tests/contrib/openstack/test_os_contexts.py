@@ -142,6 +142,21 @@ IDENTITY_SERVICE_RELATION_UNSET = {
     'service_username': 'adam',
 }
 
+IDENTITY_CREDENTIALS_RELATION_UNSET = {
+    'credentials_port': '5000',
+    'credentials_host': 'keystonehost.local',
+    'auth_host': 'keystone-host.local',
+    'auth_port': '35357',
+    'auth_protocol': 'https',
+    'credentials_domain': 'admin_domain',
+    'credentials_project': 'admin',
+    'credentials_project_id': '123456',
+    'credentials_password': 'foo',
+    'credentials_username': 'adam',
+    'credentials_protocol': 'https',
+}
+
+
 APIIDENTITY_SERVICE_RELATION_UNSET = {
     'neutron-plugin-api:0': {
         'neutron-api/0': {
@@ -174,6 +189,11 @@ IDENTITY_SERVICE_RELATION_VERSIONED = {
     'api_version': '3',
 }
 IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
+
+IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
+    'api_version': '3',
+}
+IDENTITY_CREDENTIALS_RELATION_VERSIONED.update(IDENTITY_CREDENTIALS_RELATION_UNSET)
 
 POSTGRESQL_DB_RELATION = {
     'host': 'dbserver.local',
@@ -890,6 +910,27 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    def test_identity_credentials_context_with_data(self):
+        '''Test identity-credentials context with all required data'''
+        relation = FakeRelation(relation_data=IDENTITY_CREDENTIALS_RELATION_UNSET)
+        self.relation_get.side_effect = relation.get
+        identity_credentials = context.IdentityCredentialsContext()
+        result = identity_credentials()
+        expected = {
+            'admin_password': 'foo',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': '123456',
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https',
+            'api_version': '2.0',
+        }
+        self.assertEquals(result, expected)
+
     def test_identity_service_context_with_altname(self):
         '''Test identity context when using an explicit relation name'''
         relation = FakeRelation(
@@ -996,6 +1037,29 @@ class ContextTests(unittest.TestCase):
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https',
+            'api_version': '3',
+        }
+        self.assertEquals(result, expected)
+
+    def test_identity_credentials_context_with_data_versioned(self):
+        '''Test identity-credentials context with api version supplied from keystone'''
+        relation = FakeRelation(
+            relation_data=IDENTITY_CREDENTIALS_RELATION_VERSIONED)
+        self.relation_get.side_effect = relation.get
+        identity_credentials = context.IdentityCredentialsContext()
+        result = identity_credentials()
+        expected = {
+            'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': '123456',
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
