@@ -212,6 +212,16 @@ class CephUtilsTests(TestCase):
                           valid_type=six.string_types,
                           valid_range=["valid", "list", "of", "strings"])
 
+    def test_validator_valid_string(self):
+        ceph_utils.validator(value="foo",
+                             valid_type=six.string_types,
+                             valid_range=["foo"])
+
+    def test_validator_valid_string_type(self):
+        ceph_utils.validator(value="foo",
+                             valid_type=str,
+                             valid_range=["foo"])
+
     def test_pool_add_cache_tier(self):
         p = ceph_utils.Pool(name='test', service='admin')
         p.add_cache_tier('cacher', 'readonly')
@@ -394,11 +404,25 @@ class CephUtilsTests(TestCase):
         return_value = ceph_utils.get_erasure_profile('admin', 'unknown')
         self.assertEqual(None, return_value)
 
-    def test_pool_set(self):
+    def test_pool_set_int(self):
         self.check_call.return_value = 0
         ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 2])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', '2'])
+        ])
+
+    def test_pool_set_bool(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=True)
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 'true'])
+        ])
+
+    def test_pool_set_str(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value='two')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 'two'])
         ])
 
     def test_pool_set_fails(self):
