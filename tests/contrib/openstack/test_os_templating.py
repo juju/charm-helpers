@@ -285,3 +285,90 @@ class TemplatingTests(unittest.TestCase):
         tmpl = templating.OSConfigTemplate(config_file='/tmp/foo',
                                            contexts=_c1)
         self.assertEquals(tmpl.contexts, [_c1])
+
+
+class TemplatingStringTests(unittest.TestCase):
+    def setUp(self):
+        path = os.path.dirname(__file__)
+        self.loader = FakeLoader()
+        self.context = FakeContextGenerator()
+
+        self.addCleanup(patch.object(templating,
+                                     'apt_install').start().stop())
+        self.addCleanup(patch.object(templating, 'log').start().stop())
+
+        templating.FileSystemLoader = MockFSLoader
+        templating.ChoiceLoader = MockChoiceLoader
+
+        self.config_file = '/etc/confd/extensible.d/drop-in.conf'
+        self.config_template = 'use: {{ fake_key }}'
+        self.renderer = templating.OSConfigRenderer(templates_dir=path,
+                                                    openstack_release='folsom')
+
+    def test_render_template_from_string_full_context(self):
+        '''
+        Test rendering a specified config file with a string template
+        and a context.
+        '''
+
+        context = {'fake_key': 'fake_val'}
+        self.context.set(
+            interfaces=['fooservice'],
+            context=context
+        )
+
+        expected_output = 'use: {}'.format(context['fake_key'])
+
+        self.renderer.register(
+            config_file=self.config_file,
+            contexts=[self.context],
+            config_template=self.config_template
+        )
+
+        # should return a string given we render from an in-memory
+        # template source
+        output = self.renderer.render(self.config_file)
+
+        self.assertEquals(output, expected_output)
+
+    def test_render_template_from_string_incomplete_context(self):
+        '''
+        Test rendering a specified config file with a string template
+        and a context.
+        '''
+
+        self.context.set(
+            interfaces=['fooservice'],
+            context={}
+        )
+
+        expected_output = 'use: '
+
+        self.renderer.register(
+            config_file=self.config_file,
+            contexts=[self.context],
+            config_template=self.config_template
+        )
+
+        # should return a string given we render from an in-memory
+        # template source
+        output = self.renderer.render(self.config_file)
+
+        self.assertEquals(output, expected_output)
+
+    def test_register_string_template_with_single_context(self):
+        '''Template rendering from a provided string with a context'''
+        def _c1():
+            pass
+
+        config_file = '/etc/confdir/custom-drop-in.conf'
+        config_template = 'use: {{ key_available_in_c1 }}'
+        tmpl = templating.OSConfigTemplate(
+            config_file=config_file,
+            contexts=_c1,
+            config_template=config_template
+        )
+
+        self.assertEquals(tmpl.contexts, [_c1])
+        self.assertEquals(tmpl.config_file, config_file)
+        self.assertEquals(tmpl.config_template, config_template)
