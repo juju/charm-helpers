@@ -1779,3 +1779,25 @@ class MemcacheContext(OSContextGenerator):
                     ctxt['memcache_server_formatted'],
                     ctxt['memcache_port'])
         return ctxt
+
+
+class ExtraPolicyContext(OSContextGenerator):
+    """A context to render extra policy for a service"""
+
+    def __init__(self, policyd):
+        """
+        @param policyd: an absolute path to a policy directory which is
+        configured in policy_dirs oslo.policy option.
+        """
+        self.policyd = policyd
+
+    def __call__(self):
+        # make it if it's not there
+        mkdir(self.policyd)
+
+        ctxt = {}
+        # if a charm uses this context it should define this config option
+        extra_policy = config('extra-policy')
+        # some oslo.policy versions error out if an empty file is used
+        ctxt['extra_policy'] = extra_policy if extra_policy else '{}'
+        return ctxt
