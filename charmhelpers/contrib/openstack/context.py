@@ -97,8 +97,6 @@ from charmhelpers.contrib.network.ip import (
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
     get_host_ip,
-    git_determine_usr_bin,
-    git_determine_python_path,
     enable_memcache,
     snap_install_requested,
     CompareOpenStackReleases,
@@ -1385,8 +1383,6 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
             "public_processes": int(math.ceil(self.public_process_weight *
                                               total_processes)),
             "threads": 1,
-            "usr_bin": git_determine_usr_bin(),
-            "python_path": git_determine_python_path(),
         }
         return ctxt
 
