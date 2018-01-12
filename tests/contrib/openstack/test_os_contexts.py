@@ -2653,14 +2653,9 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch.object(context, '_calculate_workers')
-    @patch.object(context, 'git_determine_python_path')
-    @patch.object(context, 'git_determine_usr_bin')
-    def test_wsgi_worker_config_context(self, usr_bin, python_path,
+    def test_wsgi_worker_config_context(self,
                                         _calculate_workers):
         self.config.return_value = 2  # worker-multiplier=2
-        usr_bin_path = '/usr/bin'
-        usr_bin.return_value = usr_bin_path
-        python_path.return_value = None
         _calculate_workers.return_value = 8
         service_name = 'service-name'
         script = '/usr/bin/script'
@@ -2677,8 +2672,6 @@ class ContextTests(unittest.TestCase):
             "admin_processes": 2,
             "public_processes": 6,
             "threads": 1,
-            "usr_bin": usr_bin_path,
-            "python_path": None,
         }
         self.assertEqual(expect, ctxt())
 
