@@ -658,6 +658,9 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '1.9.0'
         vers_swift.return_value = '2.5.0'
         self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
+        vers_pkg.return_value = '2.5.0'
+        vers_swift.return_value = '2.10.0'
+        self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
