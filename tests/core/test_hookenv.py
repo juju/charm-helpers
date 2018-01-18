@@ -116,6 +116,7 @@ class ConfigTest(TestCase):
         with open(c.path, 'r') as f:
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar'))
+            self.assertEqual(os.stat(c.path).st_mode & 0o777, 0o600)
 
     def test_save_with_prev_dict(self):
         c = hookenv.Config(dict(foo='bar'))
@@ -126,6 +127,7 @@ class ConfigTest(TestCase):
         with open(c.path, 'r') as f:
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
+            self.assertEqual(os.stat(c.path).st_mode & 0o777, 0o600)
 
     def test_deep_change(self):
         # After loading stored data into our previous dictionary,
