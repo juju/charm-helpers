@@ -1685,8 +1685,8 @@ class HooksTest(TestCase):
     def test_network_get_primary_no_binding_found(self, check_output):
         """Ensure that NotImplementedError when no binding is found"""
         check_output.side_effect = CalledProcessError(
-                1, 'network-get',
-                output='no network config found for binding'.encode('UTF-8'))
+            1, 'network-get',
+            output='no network config found for binding'.encode('UTF-8'))
         self.assertRaises(hookenv.NoNetworkBinding,
                           hookenv.network_get_primary_address,
                           'doesnotexist')
@@ -1698,8 +1698,8 @@ class HooksTest(TestCase):
         """Ensure that CalledProcessError still thrown when not
         a missing binding"""
         check_output.side_effect = CalledProcessError(
-                1, 'network-get',
-                output='any other message'.encode('UTF-8'))
+            1, 'network-get',
+            output='any other message'.encode('UTF-8'))
         self.assertRaises(CalledProcessError,
                           hookenv.network_get_primary_address,
                           'mybinding')
