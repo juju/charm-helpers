@@ -1671,7 +1671,7 @@ class HooksTest(TestCase):
         check_output.return_value = b'192.168.22.1'
         ip = hookenv.network_get_primary_address('mybinding')
         check_output.assert_called_with(
-            ['network-get', '--primary-address', 'mybinding'])
+            ['network-get', '--primary-address', 'mybinding'], stderr=-2)
         self.assertEqual(ip, '192.168.22.1')
 
     @patch('subprocess.check_output')
@@ -1679,6 +1679,29 @@ class HooksTest(TestCase):
         """Ensure that NotImplementedError is thrown when run on Juju < 2.0"""
         check_output.side_effect = OSError(2, 'network-get')
         self.assertRaises(NotImplementedError, hookenv.network_get_primary_address,
+                          'mybinding')
+
+    @patch('subprocess.check_output')
+    def test_network_get_primary_no_binding_found(self, check_output):
+        """Ensure that NotImplementedError when no binding is found"""
+        check_output.side_effect = CalledProcessError(
+                1, 'network-get',
+                output='no network config found for binding'.encode('UTF-8'))
+        self.assertRaises(hookenv.NoNetworkBinding,
+                          hookenv.network_get_primary_address,
+                          'doesnotexist')
+        check_output.assert_called_with(
+            ['network-get', '--primary-address', 'doesnotexist'], stderr=-2)
+
+    @patch('subprocess.check_output')
+    def test_network_get_primary_other_exception(self, check_output):
+        """Ensure that CalledProcessError still thrown when not
+        a missing binding"""
+        check_output.side_effect = CalledProcessError(
+                1, 'network-get',
+                output='any other message'.encode('UTF-8'))
+        self.assertRaises(CalledProcessError,
+                          hookenv.network_get_primary_address,
                           'mybinding')
 
     @patch('subprocess.check_output')
