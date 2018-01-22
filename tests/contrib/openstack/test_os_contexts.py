@@ -601,7 +601,6 @@ TO_PATCH = [
     'https',
     'determine_api_port',
     'determine_apache_port',
-    'config',
     'is_clustered',
     'time',
     'https',
@@ -611,7 +610,7 @@ TO_PATCH = [
     'get_ipv6_addr',
     'mkdir',
     'write_file',
-    'get_host_ip',
+    'get_relation_ip',
     'charm_name',
     'sysctl_create',
     'kv',
@@ -621,6 +620,7 @@ TO_PATCH = [
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
+    'snap_install_requested',
 ]
 
 
@@ -669,13 +669,14 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = ['foo:0']
         self.related_units.return_value = ['foo/0']
         self.local_unit.return_value = 'localunit'
-        self.get_host_ip.side_effect = lambda hostname: hostname
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
         self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
         self.is_container.return_value = False
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
+        self.snap_install_requested.return_value = False
+        self.maxDiff = None
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -1634,12 +1635,14 @@ class ContextTests(unittest.TestCase):
             },
         }
         local_unit.return_value = 'peer/0'
-        unit_get.return_value = 'cluster-peer0.localnet'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = None
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
@@ -1651,12 +1654,12 @@ class ContextTests(unittest.TestCase):
             'frontends': {
                 'cluster-peer0.localnet': {
                     'network': 'cluster-peer0.localnet/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.localnet',
-                        'peer-1': 'cluster-peer1.localnet',
-                        'peer-2': 'cluster-peer2.localnet',
-                    }
-                }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
+                },
             },
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
@@ -1670,6 +1673,10 @@ class ContextTests(unittest.TestCase):
         # and /etc/default/haproxy is updated.
         self.assertEquals(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster')])
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
@@ -1686,12 +1693,14 @@ class ContextTests(unittest.TestCase):
             },
         }
         local_unit.return_value = 'peer/0'
-        unit_get.return_value = 'cluster-peer0.localnet'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.return_value = None
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
@@ -1706,11 +1715,11 @@ class ContextTests(unittest.TestCase):
             'frontends': {
                 'cluster-peer0.localnet': {
                     'network': 'cluster-peer0.localnet/255.255.0.0',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.localnet',
-                        'peer-1': 'cluster-peer1.localnet',
-                        'peer-2': 'cluster-peer2.localnet',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
                 }
             },
             'default_backend': 'cluster-peer0.localnet',
@@ -1727,6 +1736,10 @@ class ContextTests(unittest.TestCase):
         # and /etc/default/haproxy is updated.
         self.assertEquals(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', None),
+                                               call('internal', None),
+                                               call('public', None),
+                                               call('cluster')])
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
@@ -1748,17 +1761,18 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
+
         local_unit.return_value = 'peer/0'
-        unit_get.return_value = 'cluster-peer0.localnet'
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
-        self.get_address_in_network.side_effect = [
-            'cluster-peer0.admin',
-            'cluster-peer0.internal',
-            'cluster-peer0.public'
-        ]
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = ['cluster-peer0.admin',
+                                            'cluster-peer0.internal',
+                                            'cluster-peer0.public',
+                                            'cluster-peer0.localnet']
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
@@ -1813,6 +1827,83 @@ class ContextTests(unittest.TestCase):
         # and /etc/default/haproxy is updated.
         self.assertEquals(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_public_only(self, local_unit, unit_get):
+        '''Test haproxy context with with openstack-dashboard public only binding'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                    'public-address': 'cluster-peer1.public',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                    'public-address': 'cluster-peer2.public',
+                },
+            },
+        }
+
+        local_unit.return_value = 'peer/0'
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        _network_get_map = {
+            'public': 'cluster-peer0.public',
+            'cluster': 'cluster-peer0.localnet',
+        }
+        self.get_relation_ip.side_effect = (
+            lambda binding, config_opt=None:
+                _network_get_map[binding]
+        )
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = None
+        self.maxDiff = None
+        self.is_ipv6_disabled.return_value = True
+        haproxy = context.HAProxyContext(address_types=['public'])
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.public': {
+                    'network': 'cluster-peer0.public/255.255.0.0',
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.public'),
+                        ('peer-1', 'cluster-peer1.public'),
+                        ('peer-2', 'cluster-peer2.public'),
+                    ]),
+                },
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
+                }
+            },
+            'default_backend': 'cluster-peer0.localnet',
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('public', None),
+                                               call('cluster')])
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
@@ -1830,6 +1921,10 @@ class ContextTests(unittest.TestCase):
         }
 
         local_unit.return_value = 'peer/0'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -1851,11 +1946,11 @@ class ContextTests(unittest.TestCase):
                 'cluster-peer0.localnet': {
                     'network': 'cluster-peer0.localnet/'
                     'FFFF:FFFF:FFFF:FFFF:0000:0000:0000:0000',
-                    'backends': {
-                        'peer-0': 'cluster-peer0.localnet',
-                        'peer-1': 'cluster-peer1.localnet',
-                        'peer-2': 'cluster-peer2.localnet',
-                    }
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
                 }
             },
             'default_backend': 'cluster-peer0.localnet',
@@ -1872,6 +1967,10 @@ class ContextTests(unittest.TestCase):
         # and /etc/default/haproxy is updated.
         self.assertEquals(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', None),
+                                               call('internal', None),
+                                               call('public', None),
+                                               call('cluster')])
 
     def test_haproxy_context_with_missing_data(self):
         '''Test haproxy context with missing relation data'''
@@ -1893,7 +1992,9 @@ class ContextTests(unittest.TestCase):
             },
         }
         local_unit.return_value = 'peer/0'
-        unit_get.return_value = 'lonely.clusterpeer.howsad'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None, None]
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -1901,6 +2002,44 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = False
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster')])
+
+    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_net_override(self, local_unit, unit_get):
+        '''Test haproxy context with single unit'''
+        # peer relations always show at least one peer relation, even
+        # if unit is alone. should be an incomplete context.
+        cluster_relation = {
+            'cluster:0': {
+                'peer/0': {
+                    'private-address': 'lonely.clusterpeer.howsad',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None, None]
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.config.return_value = False
+        c = fake_config(HAPROXY_CONFIG)
+        c.data['os-admin-network'] = '192.168.10.0/24'
+        c.data['os-internal-network'] = '192.168.20.0/24'
+        c.data['os-public-network'] = '192.168.30.0/24'
+        self.config.side_effect = c
+        haproxy = context.HAProxyContext()
+        self.assertEquals({}, haproxy())
+        self.get_relation_ip.assert_has_calls([call('admin', '192.168.10.0/24'),
+                                               call('internal', '192.168.20.0/24'),
+                                               call('public', '192.168.30.0/24'),
+                                               call('cluster')])
 
     @patch('charmhelpers.contrib.openstack.context.unit_get')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
@@ -1916,7 +2055,10 @@ class ContextTests(unittest.TestCase):
             },
         }
         local_unit.return_value = 'peer/0'
-        unit_get.return_value = 'lonely.clusterpeer.howsad'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'lonely.clusterpeer.howsad']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -1930,9 +2072,8 @@ class ContextTests(unittest.TestCase):
         ex = {
             'frontends': {
                 'lonely.clusterpeer.howsad': {
-                    'backends': {
-                        'peer-0': 'lonely.clusterpeer.howsad'
-                    },
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'lonely.clusterpeer.howsad')]),
                     'network': 'lonely.clusterpeer.howsad/255.255.0.0'
                 },
             },
@@ -1947,6 +2088,10 @@ class ContextTests(unittest.TestCase):
         # and /etc/default/haproxy is updated.
         self.assertEquals(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster')])
 
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''
