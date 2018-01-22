@@ -555,7 +555,9 @@ class HAProxyContext(OSContextGenerator):
     """
     interfaces = ['cluster']
 
-    def __init__(self, singlenode_mode=False):
+    def __init__(self, singlenode_mode=False,
+                 address_types=ADDRESS_TYPES):
+        self.address_types = address_types
         self.singlenode_mode = singlenode_mode
 
     def __call__(self):
@@ -569,7 +571,7 @@ class HAProxyContext(OSContextGenerator):
 
         # NOTE(jamespage): build out map of configured network endpoints
         # and associated backends
-        for addr_type in ADDRESS_TYPES:
+        for addr_type in self.address_types:
             cfg_opt = 'os-{}-network'.format(addr_type)
             # NOTE(thedac) For some reason the ADDRESS_MAP uses 'int' rather
             # than 'internal'
