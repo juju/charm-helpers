@@ -3475,3 +3475,10 @@ class ContextTests(unittest.TestCase):
         ctxt = context.MemcacheContext()
         self.assertFalse(ctxt()['use_memcache'])
         self.assertEqual(ctxt(), {'use_memcache': False})
+
+    @patch('charmhelpers.contrib.openstack.context.mkdir')
+    def test_ensure_dir_ctx(self, mkdir):
+        dirname = '/etc/keystone/policy.d'
+        ctxt = context.EnsureDirContext(dirname)
+        ctxt()
+        mkdir.assert_called_with(dirname)

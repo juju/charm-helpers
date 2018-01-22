@@ -1786,3 +1786,30 @@ class MemcacheContext(OSContextGenerator):
                     ctxt['memcache_server_formatted'],
                     ctxt['memcache_port'])
         return ctxt
+
+
+class EnsureDirContext(OSContextGenerator):
+    '''
+    Serves as a generic context to create a directory as a side-effect.
+
+    Useful for software that supports drop-in files (.d) in conjunction
+    with config option-based templates. Examples include:
+        * OpenStack oslo.policy drop-in files;
+        * systemd drop-in config files;
+        * other software that supports overriding defaults with .d files
+
+    Another use-case is when a subordinate generates a configuration for
+    primary to render in a separate directory.
+
+    Some software requires a user to create a target directory to be
+    scanned for drop-in files with a specific format. This is why this
+    context is needed to do that before rendering a template.
+   '''
+
+    def __init__(self, dirname):
+        '''Used merely to ensure that a given directory exists.'''
+        self.dirname = dirname
+
+    def __call__(self):
+        mkdir(self.dirname)
+        return {}
