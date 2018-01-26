@@ -60,14 +60,14 @@ class BzrUrlFetchHandler(BaseFetchHandler):
     def install(self, source, dest=None, revno=None):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
-        if dest:
-            dest_dir = os.path.join(dest, branch_name)
-        else:
-            dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
-                                    branch_name)
 
-        if dest and not os.path.exists(dest):
+        if not dest:
+            dest = os.path.join(os.environ.get('CHARM_DIR'), "fetched")
+
+        if not os.path.exists(dest):
             mkdir(dest, perms=0o755)
+
+        dest_dir = os.path.join(dest, branch_name)
 
         try:
             self.branch(source, dest_dir, revno)
