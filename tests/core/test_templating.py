@@ -61,6 +61,28 @@ class TestTemplating(unittest.TestCase):
     @mock.patch.object(templating.host.os, 'fchown')
     @mock.patch.object(templating.host, 'mkdir')
     @mock.patch.object(templating.host, 'log')
+    def test_render_from_string(self, log, mkdir, fchown):
+        with tempfile.NamedTemporaryFile() as fn:
+            context = {
+                'foo': 'bar'
+            }
+
+            config_template = '{{ foo }}'
+            templating.render('somefile.txt', fn.name,
+                              context, templates_dir=TEMPLATES_DIR,
+                              config_template=config_template)
+            contents = open(fn.name).read()
+            self.assertRegexpMatches(contents, 'bar')
+
+            self.assertEqual(fchown.call_count, 1)
+            # Not called, because the target directory exists. Calling
+            # it would make the target directory world readable and
+            # expose your secrets (!).
+            self.assertEqual(mkdir.call_count, 0)
+
+    @mock.patch.object(templating.host.os, 'fchown')
+    @mock.patch.object(templating.host, 'mkdir')
+    @mock.patch.object(templating.host, 'log')
     def test_render_loader(self, log, mkdir, fchown):
         with tempfile.NamedTemporaryFile() as fn1:
             context = {
