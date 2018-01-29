@@ -36,7 +36,7 @@ SETUP = {
         'Jinja2',
         'six',
     ],
-    'packages': find_packages(),
+    'packages': find_packages(exclude=('tests.*', 'tools.*')),
     'scripts': [
         "bin/chlp",
         "bin/contrib/charmsupport/charmsupport",
