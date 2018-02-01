@@ -7,7 +7,7 @@
 #
 try:
     from StringIO import StringIO
-except:
+except Exception:
     from io import StringIO
 
 import os
@@ -65,6 +65,7 @@ class StorageTest(unittest.TestCase):
             with kv.hook_scope('xyz'):
                 kv.set('x', 1)
             kv.close()
+            self.assertEqual(os.stat(fh.name).st_mode & 0o777, 0o600)
 
             kv = Storage(fh.name)
             with kv.hook_scope('abc'):

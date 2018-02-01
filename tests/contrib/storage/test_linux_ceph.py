@@ -36,7 +36,7 @@ bar
 baz
 """
 # Vastly abbreviated output from ceph osd dump --format=json
-OSD_DUMP = """
+OSD_DUMP = b"""
 {
     "pools": [
         {
@@ -85,7 +85,7 @@ OSD_DUMP = """
 }
 """
 
-MONMAP_DUMP = """{
+MONMAP_DUMP = b"""{
     "name": "ip-172-31-13-119", "rank": 0, "state": "leader",
     "election_epoch": 18, "quorum": [0, 1, 2],
     "outside_quorum": [],
@@ -211,6 +211,16 @@ class CephUtilsTests(TestCase):
                           value="foo",
                           valid_type=six.string_types,
                           valid_range=["valid", "list", "of", "strings"])
+
+    def test_validator_valid_string(self):
+        ceph_utils.validator(value="foo",
+                             valid_type=six.string_types,
+                             valid_range=["foo"])
+
+    def test_validator_valid_string_type(self):
+        ceph_utils.validator(value="foo",
+                             valid_type=str,
+                             valid_range=["foo"])
 
     def test_pool_add_cache_tier(self):
         p = ceph_utils.Pool(name='test', service='admin')
@@ -394,11 +404,25 @@ class CephUtilsTests(TestCase):
         return_value = ceph_utils.get_erasure_profile('admin', 'unknown')
         self.assertEqual(None, return_value)
 
-    def test_pool_set(self):
+    def test_pool_set_int(self):
         self.check_call.return_value = 0
         ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 2])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', '2'])
+        ])
+
+    def test_pool_set_bool(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=True)
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 'true'])
+        ])
+
+    def test_pool_set_str(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value='two')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 'two'])
         ])
 
     def test_pool_set_fails(self):
@@ -441,15 +465,26 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '0'])
         ])
 
+    @patch.object(ceph_utils, 'ceph_version')
     @patch.object(ceph_utils, 'erasure_profile_exists')
-    def test_create_erasure_profile(self, existing_profile):
+    def test_create_erasure_profile(self, existing_profile, mock_version):
         existing_profile.return_value = True
+        mock_version.return_value = '10.0.0'
         ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
                                           failure_domain='rack', data_chunks=10, coding_chunks=3)
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', '--force']
+               'ruleset-failure-domain=' + 'rack', '--force']
+        self.check_call.assert_has_calls([call(cmd)])
+
+        mock_version.return_value = '12.1.0'
+        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
+               'crush-failure-domain=' + 'rack', '--force']
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
@@ -460,7 +495,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', 'l=' + str(1)]
+               'ruleset-failure-domain=' + 'rack', 'l=' + str(1)]
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
@@ -472,7 +507,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'shec', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', 'c=' + str(1)]
+               'ruleset-failure-domain=' + 'rack', 'c=' + str(1)]
         self.check_call.assert_has_calls([call(cmd)])
 
     def test_rename_pool(self):
@@ -550,7 +585,10 @@ class CephUtilsTests(TestCase):
             '010d57d581604d411b315dd64112bff832ab92c7323fa06077134b50',
             '8e0a9705c1aeafa1ce250cc9f1bb443fc6e5150e5edcbeb6eeb82e3c',
             'c3f8d36ba098c23ee920cb08cfb9beda6b639f8433637c190bdd56ec']
-        monmap.return_value = json.loads(MONMAP_DUMP)
+        _monmap_dump = MONMAP_DUMP
+        if six.PY3:
+            _monmap_dump = _monmap_dump.decode('UTF-8')
+        monmap.return_value = json.loads(_monmap_dump)
         hashed_mon_list = ceph_utils.hash_monitor_names(service='admin')
         self.assertEqual(expected=expected_hash_list, observed=hashed_mon_list)
 
@@ -1093,6 +1131,9 @@ class CephUtilsTests(TestCase):
         rq.add_op_request_access_to_group(name='test')
         rq.add_op_request_access_to_group(name='objects',
                                           key_name='test')
+        rq.add_op_request_access_to_group(
+            name='others',
+            object_prefix_permissions={'rwx': ['prefix1']})
         expected = {
             'api-version': 1,
             'request-id': 'uuid',
@@ -1100,14 +1141,38 @@ class CephUtilsTests(TestCase):
                     {'op': 'create-pool', 'name': 'pool2', 'replicas': 3},
                     {'op': 'create-pool', 'name': 'pool3', 'replicas': 3, 'group': 'test'},
                     {'op': 'add-permissions-to-key', 'group': 'test', 'name': 'service_test'},
-                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'}]
+                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'},
+                    {
+                        'op': 'add-permissions-to-key',
+                        'group': 'others',
+                        'name': 'service_test',
+                        'object-prefix-permissions': {u'rwx': [u'prefix1']}}]
         }
         request_dict = json.loads(rq.request)
         for key in ['api-version', 'request-id']:
             self.assertEqual(request_dict[key], expected[key])
-        for key in ['op', 'name', 'replicas']:
-            self.assertEqual(request_dict['ops'][0][key], expected['ops'][0][key])
-            self.assertEqual(request_dict['ops'][1][key], expected['ops'][1][key])
+        for (op_no, expected_op) in enumerate(expected['ops']):
+            for key in expected_op.keys():
+                self.assertEqual(
+                    request_dict['ops'][op_no][key],
+                    expected_op[key])
+
+    @patch.object(ceph_utils, 'service_name')
+    @patch.object(ceph_utils, 'uuid')
+    def test_ceph_broker_rq_class_test_not_equal(self, uuid, service_name):
+        service_name.return_value = 'service_test'
+        uuid.uuid1.return_value = 'uuid'
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_pool('pool1')
+        rq1.add_op_request_access_to_group(name='test')
+        rq1.add_op_request_access_to_group(name='objects',
+                                           permission='rwx')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_pool('pool1')
+        rq2.add_op_request_access_to_group(name='test')
+        rq2.add_op_request_access_to_group(name='objects',
+                                           permission='r')
+        self.assertFalse(rq1 == rq2)
 
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,

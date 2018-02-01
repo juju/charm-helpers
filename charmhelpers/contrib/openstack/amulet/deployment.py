@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import os
 import re
 import sys
 import six
@@ -185,7 +186,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             self.d.configure(service, config)
 
     def _auto_wait_for_status(self, message=None, exclude_services=None,
-                              include_only=None, timeout=1800):
+                              include_only=None, timeout=None):
         """Wait for all units to have a specific extended status, except
         for any defined as excluded.  Unless specified via message, any
         status containing any case of 'ready' will be considered a match.
@@ -215,7 +216,10 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         :param timeout: Maximum time in seconds to wait for status match
         :returns: None.  Raises if timeout is hit.
         """
-        self.log.info('Waiting for extended status on units...')
+        if not timeout:
+            timeout = int(os.environ.get('AMULET_SETUP_TIMEOUT', 1800))
+        self.log.info('Waiting for extended status on units for {}s...'
+                      ''.format(timeout))
 
         all_services = self.d.services.keys()
 
@@ -250,7 +254,14 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.log.debug('Waiting up to {}s for extended status on services: '
                        '{}'.format(timeout, services))
         service_messages = {service: message for service in services}
+
+        # Check for idleness
+        self.d.sentry.wait(timeout=timeout)
+        # Check for error states and bail early
+        self.d.sentry.wait_for_status(self.d.juju_env, services, timeout=timeout)
+        # Check for ready messages
         self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
+
         self.log.info('OK')
 
     def _get_openstack_release(self):
@@ -263,7 +274,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         (self.trusty_icehouse, self.trusty_kilo, self.trusty_liberty,
          self.trusty_mitaka, self.xenial_mitaka, self.xenial_newton,
          self.yakkety_newton, self.xenial_ocata, self.zesty_ocata,
-         self.xenial_pike, self.artful_pike) = range(11)
+         self.xenial_pike, self.artful_pike, self.xenial_queens,
+         self.bionic_queens,) = range(13)
 
         releases = {
             ('trusty', None): self.trusty_icehouse,
@@ -274,9 +286,11 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('xenial', 'cloud:xenial-newton'): self.xenial_newton,
             ('xenial', 'cloud:xenial-ocata'): self.xenial_ocata,
             ('xenial', 'cloud:xenial-pike'): self.xenial_pike,
+            ('xenial', 'cloud:xenial-queens'): self.xenial_queens,
             ('yakkety', None): self.yakkety_newton,
             ('zesty', None): self.zesty_ocata,
             ('artful', None): self.artful_pike,
+            ('bionic', None): self.bionic_queens,
         }
         return releases[(self.series, self.openstack)]
 
@@ -291,6 +305,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('yakkety', 'newton'),
             ('zesty', 'ocata'),
             ('artful', 'pike'),
+            ('bionic', 'queens'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]
@@ -303,20 +318,27 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         test scenario, based on OpenStack release and whether ceph radosgw
         is flagged as present or not."""
 
-        if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo or later
-            pools = [
-                'rbd',
-                'cinder',
-                'glance'
-            ]
-        else:
-            # Juno or earlier
+        if self._get_openstack_release() == self.trusty_icehouse:
+            # Icehouse
             pools = [
                 'data',
                 'metadata',
                 'rbd',
-                'cinder',
+                'cinder-ceph',
+                'glance'
+            ]
+        elif (self.trusty_kilo <= self._get_openstack_release() <=
+              self.zesty_ocata):
+            # Kilo through Ocata
+            pools = [
+                'rbd',
+                'cinder-ceph',
+                'glance'
+            ]
+        else:
+            # Pike and later
+            pools = [
+                'cinder-ceph',
                 'glance'
             ]
 

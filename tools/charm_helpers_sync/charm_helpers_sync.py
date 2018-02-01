@@ -42,7 +42,13 @@ def parse_config(conf_file):
 def clone_helpers(work_dir, repo):
     dest = os.path.join(work_dir, 'charm-helpers')
     logging.info('Cloning out %s to %s.' % (repo, dest))
-    cmd = ['git', 'clone', '--depth=1', repo, dest]
+    branch = None
+    if '@' in repo:
+        repo, branch = repo.split('@', 1)
+    cmd = ['git', 'clone', '--depth=1']
+    if branch is not None:
+        cmd += ['--branch', branch]
+    cmd += [repo, dest]
     subprocess.check_call(cmd)
     return dest
 

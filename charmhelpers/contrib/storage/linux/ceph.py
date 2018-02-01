@@ -113,7 +113,7 @@ def validator(value, valid_type, valid_range=None):
         assert isinstance(valid_range, list), \
             "valid_range must be a list, was given {}".format(valid_range)
         # If we're dealing with strings
-        if valid_type is six.string_types:
+        if isinstance(value, six.string_types):
             assert value in valid_range, \
                 "{} is not in the list {}".format(value, valid_range)
         # Integer, float should have a min and max
@@ -370,18 +370,19 @@ def get_mon_map(service):
       Also raises CalledProcessError if our ceph command fails
     """
     try:
-        mon_status = check_output(
-            ['ceph', '--id', service,
-             'mon_status', '--format=json'])
+        mon_status = check_output(['ceph', '--id', service,
+                                   'mon_status', '--format=json'])
+        if six.PY3:
+            mon_status = mon_status.decode('UTF-8')
         try:
             return json.loads(mon_status)
         except ValueError as v:
-            log("Unable to parse mon_status json: {}. Error: {}".format(
-                mon_status, v.message))
+            log("Unable to parse mon_status json: {}. Error: {}"
+                .format(mon_status, str(v)))
             raise
     except CalledProcessError as e:
-        log("mon_status command failed with message: {}".format(
-            e.message))
+        log("mon_status command failed with message: {}"
+            .format(str(e)))
         raise
 
 
@@ -457,7 +458,7 @@ def monitor_key_get(service, key):
     try:
         output = check_output(
             ['ceph', '--id', service,
-             'config-key', 'get', str(key)])
+             'config-key', 'get', str(key)]).decode('UTF-8')
         return output
     except CalledProcessError as e:
         log("Monitor config-key get failed with message: {}".format(
@@ -500,6 +501,8 @@ def get_erasure_profile(service, name):
         out = check_output(['ceph', '--id', service,
                             'osd', 'erasure-code-profile', 'get',
                             name, '--format=json'])
+        if six.PY3:
+            out = out.decode('UTF-8')
         return json.loads(out)
     except (CalledProcessError, OSError, ValueError):
         return None
@@ -514,7 +517,8 @@ def pool_set(service, pool_name, key, value):
     :param value:
     :return: None.  Can raise CalledProcessError
     """
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, key, value]
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, key,
+           str(value).lower()]
     try:
         check_call(cmd)
     except CalledProcessError:
@@ -618,15 +622,23 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     :param durability_estimator: int
     :return: None.  Can raise CalledProcessError
     """
+    version = ceph_version()
+
     # Ensure this failure_domain is allowed by Ceph
     validator(failure_domain, six.string_types,
               ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
 
     cmd = ['ceph', '--id', service, 'osd', 'erasure-code-profile', 'set', profile_name,
-           'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks),
-           'ruleset_failure_domain=' + failure_domain]
+           'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks)
+           ]
     if locality is not None and durability_estimator is not None:
         raise ValueError("create_erasure_profile should be called with k, m and one of l or c but not both.")
+
+    # failure_domain changed in luminous
+    if version and version >= '12.0.0':
+        cmd.append('crush-failure-domain=' + failure_domain)
+    else:
+        cmd.append('ruleset-failure-domain=' + failure_domain)
 
     # Add plugin specific information
     if locality is not None:
@@ -686,7 +698,10 @@ def get_cache_mode(service, pool_name):
     """
     validator(value=service, valid_type=six.string_types)
     validator(value=pool_name, valid_type=six.string_types)
-    out = check_output(['ceph', '--id', service, 'osd', 'dump', '--format=json'])
+    out = check_output(['ceph', '--id', service,
+                        'osd', 'dump', '--format=json'])
+    if six.PY3:
+        out = out.decode('UTF-8')
     try:
         osd_json = json.loads(out)
         for pool in osd_json['pools']:
@@ -700,8 +715,9 @@ def get_cache_mode(service, pool_name):
 def pool_exists(service, name):
     """Check to see if a RADOS pool already exists."""
     try:
-        out = check_output(['rados', '--id', service,
-                            'lspools']).decode('UTF-8')
+        out = check_output(['rados', '--id', service, 'lspools'])
+        if six.PY3:
+            out = out.decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -714,9 +730,12 @@ def get_osds(service):
     """
     version = ceph_version()
     if version and version >= '0.56':
-        return json.loads(check_output(['ceph', '--id', service,
-                                        'osd', 'ls',
-                                        '--format=json']).decode('UTF-8'))
+        out = check_output(['ceph', '--id', service,
+                            'osd', 'ls',
+                            '--format=json'])
+        if six.PY3:
+            out = out.decode('UTF-8')
+        return json.loads(out)
 
     return None
 
@@ -734,7 +753,9 @@ def rbd_exists(service, pool, rbd_img):
     """Check to see if a RADOS block device exists."""
     try:
         out = check_output(['rbd', 'list', '--id',
-                            service, '--pool', pool]).decode('UTF-8')
+                            service, '--pool', pool])
+        if six.PY3:
+            out = out.decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -859,7 +880,9 @@ def configure(service, key, auth, use_syslog):
 def image_mapped(name):
     """Determine whether a RADOS block device is mapped locally."""
     try:
-        out = check_output(['rbd', 'showmapped']).decode('UTF-8')
+        out = check_output(['rbd', 'showmapped'])
+        if six.PY3:
+            out = out.decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -1018,7 +1041,9 @@ def ceph_version():
     """Retrieve the local version of ceph."""
     if os.path.exists('/usr/bin/ceph'):
         cmd = ['ceph', '-v']
-        output = check_output(cmd).decode('US-ASCII')
+        output = check_output(cmd)
+        if six.PY3:
+            output = output.decode('UTF-8')
         output = output.split()
         if len(output) > 3:
             return output[2]
@@ -1048,14 +1073,24 @@ class CephBrokerRq(object):
         self.ops = []
 
     def add_op_request_access_to_group(self, name, namespace=None,
-                                       permission=None, key_name=None):
+                                       permission=None, key_name=None,
+                                       object_prefix_permissions=None):
         """
         Adds the requested permissions to the current service's Ceph key,
-        allowing the key to access only the specified pools
+        allowing the key to access only the specified pools or
+        object prefixes. object_prefix_permissions should be a dictionary
+        keyed on the permission with the corresponding value being a list
+        of prefixes to apply that permission to.
+            {
+                'rwx': ['prefix1', 'prefix2'],
+                'class-read': ['prefix3']}
         """
-        self.ops.append({'op': 'add-permissions-to-key', 'group': name,
-                         'namespace': namespace, 'name': key_name or service_name(),
-                         'group-permission': permission})
+        self.ops.append({
+            'op': 'add-permissions-to-key', 'group': name,
+            'namespace': namespace,
+            'name': key_name or service_name(),
+            'group-permission': permission,
+            'object-prefix-permissions': object_prefix_permissions})
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
                            weight=None, group=None, namespace=None):
@@ -1091,7 +1126,10 @@ class CephBrokerRq(object):
     def _ops_equal(self, other):
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in ['replicas', 'name', 'op', 'pg_num', 'weight']:
+                for key in [
+                        'replicas', 'name', 'op', 'pg_num', 'weight',
+                        'group', 'group-namespace', 'group-permission',
+                        'object-prefix-permissions']:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:

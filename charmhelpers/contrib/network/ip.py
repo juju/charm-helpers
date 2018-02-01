@@ -27,6 +27,7 @@ from charmhelpers.core.hookenv import (
     network_get_primary_address,
     unit_get,
     WARNING,
+    NoNetworkBinding,
 )
 
 from charmhelpers.core.host import (
@@ -490,7 +491,7 @@ def get_host_ip(hostname, fallback=None):
     if not ip_addr:
         try:
             ip_addr = socket.gethostbyname(hostname)
-        except:
+        except Exception:
             log("Failed to resolve hostname '%s'" % (hostname),
                 level=WARNING)
             return fallback
@@ -518,7 +519,7 @@ def get_hostname(address, fqdn=True):
         if not result:
             try:
                 result = socket.gethostbyaddr(address)[0]
-            except:
+            except Exception:
                 return None
     else:
         result = address
@@ -577,6 +578,9 @@ def get_relation_ip(interface, cidr_network=None):
         address = network_get_primary_address(interface)
     except NotImplementedError:
         # If network-get is not available
+        address = get_host_ip(unit_get('private-address'))
+    except NoNetworkBinding:
+        log("No network binding for {}".format(interface), WARNING)
         address = get_host_ip(unit_get('private-address'))
 
     if config('prefer-ipv6'):
