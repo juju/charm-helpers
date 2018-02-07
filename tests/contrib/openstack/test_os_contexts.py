@@ -3330,20 +3330,14 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
 
-    @patch.object(context, 'os_release')
-    def test_internal_endpoint_context(self, mock_os_release):
-        mock_os_release.return_value = 'ocata'
+    def test_internal_endpoint_context(self):
         config = {'use-internal-endpoints': False}
         self.config.side_effect = fake_config(config)
-        ctxt = context.InternalEndpointContext('cinder-common')
-        c = ctxt()
-        self.assertFalse(c['use_internal_endpoints'])
-        self.assertEqual(c['volume_api_version'], '2')
-        mock_os_release.return_value = 'pike'
-        config['use-internal-endpoints'] = True
-        c = ctxt()
-        self.assertTrue(c['use_internal_endpoints'])
-        self.assertEqual(c['volume_api_version'], '3')
+        ctxt = context.InternalEndpointContext()
+        self.assertFalse(ctxt()['use_internal_endpoints'])
+        config = {'use-internal-endpoints': True}
+        self.config.side_effect = fake_config(config)
+        self.assertTrue(ctxt()['use_internal_endpoints'])
 
     def test_apparmor_context_call_not_valid(self):
         ''' Tests for the apparmor context'''
