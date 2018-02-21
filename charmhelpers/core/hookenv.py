@@ -1241,7 +1241,7 @@ def egress_subnets(rid=None, unit=None):
     :return: list of subnets in CIDR format. eg. ['192.168.1.0/24', '2001::F00F/128']
     """
     def _to_range(addr):
-        if re.search(r'^(?:\d{1,3}\.){3}\d{1,3}$', addr, re.A) is not None:
+        if re.search(r'^(?:\d{1,3}\.){3}\d{1,3}$', addr) is not None:
             addr += '/32'
         elif ':' in addr and '/' not in addr:  # IPv6
             addr += '/128'
