@@ -27,6 +27,7 @@ import glob
 import os
 import json
 import yaml
+import re
 import subprocess
 import sys
 import errno
@@ -1220,3 +1221,37 @@ def ingress_address(rid=None, unit=None):
     settings = relation_get(rid=rid, unit=unit)
     return (settings.get('ingress-address') or
             settings.get('private-address'))
+
+
+def egress_subnets(rid=None, unit=None):
+    """
+    Retrieve the egress-subnets from a relation. This function is to
+    be used on the providing sude of the relation, and provides the
+    ranges of addresses that client connections may come from.
+
+    Returns a stable list of subnets in CIDR format.
+    eg. ['192.168.1.0/24', '2001::F00F/128']
+
+    If egress-subnets is not available, falls back to using the published
+    ingress-address, or finally private-address.
+
+    :param rid: string relation id
+    :param unit: string unit name
+    :side effect: calls relation_get
+    :return: list of subnets in CIDR format. eg. ['192.168.1.0/24', '2001::F00F/128']
+    """
+    def _to_range(addr):
+        if re.search(r'^(?:\d{1,3}\.){3}\d{1,3}$', addr, re.A) is not None:
+            addr += '/32'
+        elif ':' in addr and '/' not in addr:  # IPv6
+            addr += '/128'
+        return addr
+
+    settings = relation_get(rid=rid, unit=unit)
+    if 'egress-subnets' in settings:
+        return [n.strip() for n in settings['egress-subnets'].split(',') if n.strip()]
+    if 'ingress-address' in settings:
+        return [_to_range(settings['ingress-address'])]
+    if 'private-address' in settings:
+        return [_to_range(settings['private-address'])]
+    return []  # Should never happen
