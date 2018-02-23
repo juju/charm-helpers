@@ -1205,9 +1205,23 @@ def iter_units_for_relation_name(relation_name):
 
 def ingress_address(rid=None, unit=None):
     """
-    Retrieve the ingress-address from a relation when available. Otherwise,
-    return the private-address. This function is to be used on the consuming
-    side of the relation.
+    Retrieve the ingress-address from a relation when available.
+    Otherwise, return the private-address.
+
+    When used on the consuming side of the relation (unit is a remote
+    unit), the ingress-address is the IP address that this unit needs
+    to use to reach the provided service on the remote unit.
+
+    When used on the providing side of the relation (unit == local_unit()),
+    the ingress-address is the IP address that is advertised to remote
+    units on this relation. Remote units need to use this address to
+    reach the local provided service on this unit.
+
+    Note that charms may document some other method to use in
+    preference to the ingress_address(), such as an address provided
+    on a different relation attribute or a service discovery mechanism.
+    This allows charms to redirect inbound connections to their peers
+    or different applications such as load balancers.
 
     Usage:
     addresses = [ingress_address(rid=u.rid, unit=u.unit)
@@ -1225,9 +1239,12 @@ def ingress_address(rid=None, unit=None):
 
 def egress_subnets(rid=None, unit=None):
     """
-    Retrieve the egress-subnets from a relation. This function is to
-    be used on the providing sude of the relation, and provides the
-    ranges of addresses that client connections may come from.
+    Retrieve the egress-subnets from a relation.
+
+    This function is to be used on the providing side of the
+    relation, and provides the ranges of addresses that client
+    connections may come from. The result is uninteresting on
+    the consuming side of a relation (unit == local_unit()).
 
     Returns a stable list of subnets in CIDR format.
     eg. ['192.168.1.0/24', '2001::F00F/128']
