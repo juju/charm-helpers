@@ -50,6 +50,12 @@ ERROR = logging.ERROR
 
 NOVA_CLIENT_VERSION = "2"
 
+OPENSTACK_RELEASES_PAIRS = [
+     'trusty_icehouse', 'trusty_kilo', 'trusty_liberty',
+     'trusty_mitaka', 'xenial_mitaka', 'xenial_newton',
+     'yakkety_newton', 'xenial_ocata', 'zesty_ocata',
+     'xenial_pike', 'artful_pike', 'xenial_queens',
+     'bionic_queens']
 
 class OpenStackAmuletUtils(AmuletUtils):
     """OpenStack amulet utilities.
@@ -76,8 +82,8 @@ class OpenStackAmuletUtils(AmuletUtils):
 
            """
         validation_function = self.validate_v2_endpoint_data
-        # 11 => xenial_queens
-        if openstack_release and openstack_release >= 11:
+        xenial_queens = OPENSTACK_RELEASES_PAIRS.index('xenial_queens')
+        if openstack_release and openstack_release >= xenial_queens:
                 validation_function = self.validate_v3_endpoint_data
                 expected = {
                     'id': expected['id'],
@@ -241,8 +247,8 @@ class OpenStackAmuletUtils(AmuletUtils):
 
            """
         validation_function = self.validate_v2_svc_catalog_endpoint_data
-        # 11 => xenial_queens
-        if openstack_release and openstack_release >= 11:
+        xenial_queens = OPENSTACK_RELEASES_PAIRS.index('xenial_queens')
+        if openstack_release and openstack_release >= xenial_queens:
             validation_function = self.validate_v3_svc_catalog_endpoint_data
             expected = self.convert_svc_catalog_endpoint_data_to_v3(expected)
         return validation_function(expected, actual)
