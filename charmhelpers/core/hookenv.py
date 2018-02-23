@@ -1044,7 +1044,6 @@ def juju_version():
                                    universal_newlines=True).strip()
 
 
-@cached
 def has_juju_version(minimum_version):
     """Return True if the Juju version is at least the provided version"""
     return LooseVersion(juju_version()) >= LooseVersion(minimum_version)
@@ -1104,6 +1103,8 @@ def _run_atexit():
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def network_get_primary_address(binding):
     '''
+    Deprecated since Juju 2.3; use network_get()
+
     Retrieve the primary network address for a named binding
 
     :param binding: string. The name of a relation of extra-binding
@@ -1124,7 +1125,6 @@ def network_get_primary_address(binding):
     return response
 
 
-@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def network_get(endpoint, relation_id=None):
     """
     Retrieve the network details for a relation endpoint
@@ -1132,24 +1132,20 @@ def network_get(endpoint, relation_id=None):
     :param endpoint: string. The name of a relation endpoint
     :param relation_id: int. The ID of the relation for the current context.
     :return: dict. The loaded YAML output of the network-get query.
-    :raise: NotImplementedError if run on Juju < 2.1
+    :raise: NotImplementedError if request not supported by the Juju version.
     """
+    if not has_juju_version('2.2'):
+        raise NotImplementedError(juju_version())  # earlier versions require --primary-address
+    if relation_id and not has_juju_version('2.3'):
+        raise NotImplementedError  # 2.3 added the -r option
+
     cmd = ['network-get', endpoint, '--format', 'yaml']
     if relation_id:
         cmd.append('-r')
         cmd.append(relation_id)
-    try:
-        response = subprocess.check_output(
-            cmd,
-            stderr=subprocess.STDOUT).decode('UTF-8').strip()
-    except CalledProcessError as e:
-        # Early versions of Juju 2.0.x required the --primary-address argument.
-        # We catch that condition here and raise NotImplementedError since
-        # the requested semantics are not available - the caller can then
-        # use the network_get_primary_address() method instead.
-        if '--primary-address is currently required' in e.output.decode('UTF-8'):
-            raise NotImplementedError
-        raise
+    response = subprocess.check_output(
+        cmd,
+        stderr=subprocess.STDOUT).decode('UTF-8').strip()
     return yaml.safe_load(response)
 
 
