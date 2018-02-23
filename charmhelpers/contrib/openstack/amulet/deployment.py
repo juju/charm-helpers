@@ -275,7 +275,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            """
         # Must be ordered by OpenStack release (not by Ubuntu release):
         for i, os_pair in enumerate(OPENSTACK_RELEASES_PAIRS):
-            setattr(self, b, i)
+            setattr(self, os_pair, i)
 
         releases = {
             ('trusty', None): self.trusty_icehouse,
