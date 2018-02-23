@@ -312,9 +312,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         """
         self.log.debug('Validating v3 service catalog endpoint data...')
         self.log.debug('actual: {}'.format(repr(actual)))
-        self.log.debug('expected: {}'.format(repr(expected,)))
         for k, v in six.iteritems(expected):
-            self.log.debug('    {} {}'.format(k, v))
             if k in actual:
                 l_expected = sorted(v, key=lambda x: x['interface'])
                 l_actual = sorted(actual[k], key=lambda x: x['interface'])
@@ -329,7 +327,6 @@ class OpenStackAmuletUtils(AmuletUtils):
                     if ret:
                         return self.endpoint_error(k, ret)
             else:
-                self.log.debug('    {} not in {}'.format(k, actual))
                 return "endpoint {} does not exist".format(k)
         return ret
 
