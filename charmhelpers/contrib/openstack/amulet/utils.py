@@ -63,7 +63,34 @@ class OpenStackAmuletUtils(AmuletUtils):
         super(OpenStackAmuletUtils, self).__init__(log_level)
 
     def validate_endpoint_data(self, endpoints, admin_port, internal_port,
-                               public_port, expected):
+                               public_port, expected, openstack_release=None):
+        """Validate endpoint data. Pick the correct validator based on
+           OpenStack release. Expected data should be in the v2 format:
+           {
+               'id': id,
+               'region': region,
+               'adminurl': adminurl,
+               'internalurl': internalurl,
+               'publicurl': publicurl,
+               'service_id': service_id}
+
+           """
+        validation_function = self.validate_v2_endpoint_data
+        # 11 => xenial_queens
+        if openstack_release and openstack_release >= 11:
+                validation_function = self.validate_v3_endpoint_data
+                expected = {
+                    'id': expected['id'],
+                    'region': expected['region'],
+                    'region_id': 'RegionOne',
+                    'url': self.valid_url,
+                    'interface': self.not_null,
+                    'service_id': expected['service_id']}
+        return validation_function(endpoints, admin_port, internal_port,
+                                   public_port, expected)
+
+    def validate_v2_endpoint_data(self, endpoints, admin_port, internal_port,
+                                  public_port, expected):
         """Validate endpoint data.
 
            Validate actual endpoint data vs expected endpoint data. The ports
@@ -141,7 +168,86 @@ class OpenStackAmuletUtils(AmuletUtils):
         if len(found) != expected_num_eps:
             return 'Unexpected number of endpoints found'
 
-    def validate_svc_catalog_endpoint_data(self, expected, actual):
+    def convert_svc_catalog_endpoint_data_to_v3(self, ep_data):
+        """Convert v2 endpoint data into v3.
+
+           {
+               'service_name1': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+               'service_name2': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+           }
+          """
+        self.log.warn("Endpoint ID and Region ID validation is limited to not "
+                      "null checks after v2 to v3 conversion")
+        for svc in ep_data.keys():
+            assert len(ep_data[svc]) == 1, "Unknown data format"
+            svc_ep_data = ep_data[svc][0]
+            ep_data[svc] = [
+                {
+                    'url': svc_ep_data['adminURL'],
+                    'interface': 'admin',
+                    'region': svc_ep_data['region'],
+                    'region_id': self.not_null,
+                    'id': self.not_null},
+                {
+                    'url': svc_ep_data['publicURL'],
+                    'interface': 'public',
+                    'region': svc_ep_data['region'],
+                    'region_id': self.not_null,
+                    'id': self.not_null},
+                {
+                    'url': svc_ep_data['internalURL'],
+                    'interface': 'internal',
+                    'region': svc_ep_data['region'],
+                    'region_id': self.not_null,
+                    'id': self.not_null}]
+        return ep_data
+
+    def validate_svc_catalog_endpoint_data(self, expected, actual,
+                                           openstack_release=None):
+        """Validate service catalog endpoint data. Pick the correct validator
+           for the OpenStack version. Expected data should be in the v2 format:
+           {
+               'service_name1': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+               'service_name2': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+           }
+
+           """
+        validation_function = self.validate_v2_svc_catalog_endpoint_data
+        # 11 => xenial_queens
+        if openstack_release and openstack_release >= 11:
+            validation_function = self.validate_v3_svc_catalog_endpoint_data
+            expected = self.convert_svc_catalog_endpoint_data_to_v3(expected)
+        return validation_function(expected, actual)
+
+    def validate_v2_svc_catalog_endpoint_data(self, expected, actual):
         """Validate service catalog endpoint data.
 
            Validate a list of actual service catalog endpoints vs a list of
@@ -206,7 +312,9 @@ class OpenStackAmuletUtils(AmuletUtils):
         """
         self.log.debug('Validating v3 service catalog endpoint data...')
         self.log.debug('actual: {}'.format(repr(actual)))
+        self.log.debug('expected: {}'.format(repr(expected,)))
         for k, v in six.iteritems(expected):
+            self.log.debug('    {} {}'.format(k, v))
             if k in actual:
                 l_expected = sorted(v, key=lambda x: x['interface'])
                 l_actual = sorted(actual[k], key=lambda x: x['interface'])
@@ -221,6 +329,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                     if ret:
                         return self.endpoint_error(k, ret)
             else:
+                self.log.debug('    {} not in {}'.format(k, actual))
                 return "endpoint {} does not exist".format(k)
         return ret
 
