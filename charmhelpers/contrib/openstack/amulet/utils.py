@@ -367,13 +367,36 @@ class OpenStackAmuletUtils(AmuletUtils):
                               project_domain_name=None, project_name=None):
         """Authenticate with Keystone"""
         self.log.debug('Authenticating with keystone...')
-        port = 5000
-        if admin_port:
-            port = 35357
-        base_ep = "http://{}:{}".format(keystone_ip.strip().decode('utf-8'),
-                                        port)
-        if not api_version or api_version == 2:
-            ep = base_ep + "/v2.0"
+        if not api_version:
+            api_version = 2
+        sess, auth = self.get_keystone_session(
+            keystone_ip=keystone_ip,
+            username=username,
+            password=password,
+            api_version=api_version,
+            admin_port=admin_port,
+            user_domain_name=user_domain_name,
+            domain_name=domain_name,
+            project_domain_name=project_domain_name,
+            project_name=project_name
+        )
+        if api_version == 2:
+            client = keystone_client.Client(session=sess)
+        else:
+            client = keystone_client_v3.Client(session=sess)
+        # This populates the client.service_catalog
+        client.auth_ref = auth.get_access(sess)
+        return client
+
+    def get_keystone_session(self, keystone_ip, username, password,
+                             api_version=False, admin_port=False,
+                             user_domain_name=None, domain_name=None,
+                             project_domain_name=None, project_name=None):
+        """Return a keystone session object"""
+        ep = self.get_keystone_endpoint(keystone_ip,
+                                        api_version=api_version,
+                                        admin_port=admin_port)
+        if api_version == 2:
             auth = v2.Password(
                 username=username,
                 password=password,
@@ -381,12 +404,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                 auth_url=ep
             )
             sess = keystone_session.Session(auth=auth)
-            client = keystone_client.Client(session=sess)
-            # This populates the client.service_catalog
-            client.auth_ref = auth.get_access(sess)
-            return client
         else:
-            ep = base_ep + "/v3"
             auth = v3.Password(
                 user_domain_name=user_domain_name,
                 username=username,
@@ -397,10 +415,57 @@ class OpenStackAmuletUtils(AmuletUtils):
                 auth_url=ep
             )
             sess = keystone_session.Session(auth=auth)
-            client = keystone_client_v3.Client(session=sess)
-            # This populates the client.service_catalog
-            client.auth_ref = auth.get_access(sess)
-            return client
+        return (sess, auth)
+
+    def get_keystone_endpoint(self, keystone_ip, api_version=None,
+                              admin_port=False):
+        """Return keystone endpoint"""
+        port = 5000
+        if admin_port:
+            port = 35357
+        base_ep = "http://{}:{}".format(keystone_ip.strip().decode('utf-8'),
+                                        port)
+        if api_version == 2:
+            ep = base_ep + "/v2.0"
+        else:
+            ep = base_ep + "/v3"
+        return ep
+
+    def get_default_keystone_session(self, keystone_sentry,
+                                     openstack_release=None):
+        """Return a keystone session object and client object assuming standard
+           default settings
+
+           Example call in amulet tests:
+               self.keystone_session, self.keystone = u.get_default_keystone_session(
+                   self.keystone_sentry,
+                   openstack_release=self._get_openstack_release())
+
+           The session can then be used to auth other clients:
+               neutronclient.Client(session=session)
+               aodh_client.Client(session=session)
+               eyc
+        """
+        self.log.debug('Authenticating keystone admin...')
+        api_version = 2
+        client_class = keystone_client.Client
+        # 11 => xenial_queens
+        if openstack_release and openstack_release >= 11:
+            api_version = 3
+            client_class = keystone_client_v3.Client
+        keystone_ip = keystone_sentry.info['public-address']
+        session, auth = self.get_keystone_session(
+            keystone_ip,
+            api_version=api_version,
+            username='admin',
+            password='openstack',
+            project_name='admin',
+            user_domain_name='admin_domain',
+            project_domain_name='admin_domain')
+        client = client_class(session=session)
+        # This populates the client.service_catalog
+        client.auth_ref = auth.get_access(session)
+        return session, client
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
                                     tenant=None, api_version=None,
