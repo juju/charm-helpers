@@ -50,6 +50,13 @@ ERROR = logging.ERROR
 
 NOVA_CLIENT_VERSION = "2"
 
+OPENSTACK_RELEASES_PAIRS = [
+    'trusty_icehouse', 'trusty_kilo', 'trusty_liberty',
+    'trusty_mitaka', 'xenial_mitaka', 'xenial_newton',
+    'yakkety_newton', 'xenial_ocata', 'zesty_ocata',
+    'xenial_pike', 'artful_pike', 'xenial_queens',
+    'bionic_queens']
+
 
 class OpenStackAmuletUtils(AmuletUtils):
     """OpenStack amulet utilities.
@@ -63,7 +70,34 @@ class OpenStackAmuletUtils(AmuletUtils):
         super(OpenStackAmuletUtils, self).__init__(log_level)
 
     def validate_endpoint_data(self, endpoints, admin_port, internal_port,
-                               public_port, expected):
+                               public_port, expected, openstack_release=None):
+        """Validate endpoint data. Pick the correct validator based on
+           OpenStack release. Expected data should be in the v2 format:
+           {
+               'id': id,
+               'region': region,
+               'adminurl': adminurl,
+               'internalurl': internalurl,
+               'publicurl': publicurl,
+               'service_id': service_id}
+
+           """
+        validation_function = self.validate_v2_endpoint_data
+        xenial_queens = OPENSTACK_RELEASES_PAIRS.index('xenial_queens')
+        if openstack_release and openstack_release >= xenial_queens:
+                validation_function = self.validate_v3_endpoint_data
+                expected = {
+                    'id': expected['id'],
+                    'region': expected['region'],
+                    'region_id': 'RegionOne',
+                    'url': self.valid_url,
+                    'interface': self.not_null,
+                    'service_id': expected['service_id']}
+        return validation_function(endpoints, admin_port, internal_port,
+                                   public_port, expected)
+
+    def validate_v2_endpoint_data(self, endpoints, admin_port, internal_port,
+                                  public_port, expected):
         """Validate endpoint data.
 
            Validate actual endpoint data vs expected endpoint data. The ports
@@ -141,7 +175,86 @@ class OpenStackAmuletUtils(AmuletUtils):
         if len(found) != expected_num_eps:
             return 'Unexpected number of endpoints found'
 
-    def validate_svc_catalog_endpoint_data(self, expected, actual):
+    def convert_svc_catalog_endpoint_data_to_v3(self, ep_data):
+        """Convert v2 endpoint data into v3.
+
+           {
+               'service_name1': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+               'service_name2': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+           }
+          """
+        self.log.warn("Endpoint ID and Region ID validation is limited to not "
+                      "null checks after v2 to v3 conversion")
+        for svc in ep_data.keys():
+            assert len(ep_data[svc]) == 1, "Unknown data format"
+            svc_ep_data = ep_data[svc][0]
+            ep_data[svc] = [
+                {
+                    'url': svc_ep_data['adminURL'],
+                    'interface': 'admin',
+                    'region': svc_ep_data['region'],
+                    'region_id': self.not_null,
+                    'id': self.not_null},
+                {
+                    'url': svc_ep_data['publicURL'],
+                    'interface': 'public',
+                    'region': svc_ep_data['region'],
+                    'region_id': self.not_null,
+                    'id': self.not_null},
+                {
+                    'url': svc_ep_data['internalURL'],
+                    'interface': 'internal',
+                    'region': svc_ep_data['region'],
+                    'region_id': self.not_null,
+                    'id': self.not_null}]
+        return ep_data
+
+    def validate_svc_catalog_endpoint_data(self, expected, actual,
+                                           openstack_release=None):
+        """Validate service catalog endpoint data. Pick the correct validator
+           for the OpenStack version. Expected data should be in the v2 format:
+           {
+               'service_name1': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+               'service_name2': [
+                   {
+                       'adminURL': adminURL,
+                       'id': id,
+                       'region': region.
+                       'publicURL': publicURL,
+                       'internalURL': internalURL
+                   }],
+           }
+
+           """
+        validation_function = self.validate_v2_svc_catalog_endpoint_data
+        xenial_queens = OPENSTACK_RELEASES_PAIRS.index('xenial_queens')
+        if openstack_release and openstack_release >= xenial_queens:
+            validation_function = self.validate_v3_svc_catalog_endpoint_data
+            expected = self.convert_svc_catalog_endpoint_data_to_v3(expected)
+        return validation_function(expected, actual)
+
+    def validate_v2_svc_catalog_endpoint_data(self, expected, actual):
         """Validate service catalog endpoint data.
 
            Validate a list of actual service catalog endpoints vs a list of
