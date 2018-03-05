@@ -463,16 +463,13 @@ class OpenStackAmuletUtils(AmuletUtils):
         deployment._auto_wait_for_status()
         self.keystone_wait_for_propagation(sentry_relation_pairs, api_version)
 
-    def authenticate_cinder_admin(self, keystone_sentry, username,
-                                  password, tenant, api_version=2):
+    def authenticate_cinder_admin(self, keystone, api_version=2):
         """Authenticates admin user with cinder."""
-        # NOTE(beisner): cinder python client doesn't accept tokens.
-        keystone_ip = keystone_sentry.info['public-address']
-        ept = "http://{}:5000/v2.0".format(keystone_ip.strip().decode('utf-8'))
+        self.log.debug('Authenticating cinder admin...')
         _clients = {
             1: cinder_client.Client,
             2: cinder_clientv2.Client}
-        return _clients[api_version](username, password, tenant, ept)
+        return _clients[api_version](session=keystone.session)
 
     def authenticate_keystone(self, keystone_ip, username, password,
                               api_version=False, admin_port=False,
