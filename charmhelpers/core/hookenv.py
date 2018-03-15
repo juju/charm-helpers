@@ -430,8 +430,8 @@ def relation_set(relation_id=None, relation_settings=None, **kwargs):
 
 def relation_clear(r_id=None):
     ''' Clears any relation data already set on relation r_id '''
-    settings = relation_get(rid=r_id,
-                            unit=local_unit())
+    settings = relation_get(unit=local_unit(),
+                            rid=r_id)
     for setting in settings:
         if setting not in ['public-address', 'private-address']:
             settings[setting] = None
@@ -640,8 +640,8 @@ def is_relation_made(relation, keys='private-address'):
         for unit in related_units(r_id):
             context = {}
             for k in keys:
-                context[k] = relation_get(k, rid=r_id,
-                                          unit=unit)
+                context[k] = relation_get(k, unit=unit,
+                                          rid=r_id)
             if None not in context.values():
                 return True
     return False
@@ -1217,6 +1217,6 @@ def ingress_address(rid=None, unit=None):
     :side effect: calls relation_get
     :return: string IP address
     """
-    settings = relation_get(rid=rid, unit=unit)
+    settings = relation_get(unit=unit, rid=rid)
     return (settings.get('ingress-address') or
             settings.get('private-address'))

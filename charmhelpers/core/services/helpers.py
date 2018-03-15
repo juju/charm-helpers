@@ -116,7 +116,7 @@ class RelationContext(dict):
         ns = self.setdefault(self.name, [])
         for rid in sorted(hookenv.relation_ids(self.name)):
             for unit in sorted(hookenv.related_units(rid)):
-                reldata = hookenv.relation_get(rid=rid, unit=unit)
+                reldata = hookenv.relation_get(unit=unit, rid=rid)
                 if self._is_ready(reldata):
                     ns.append(reldata)
 
