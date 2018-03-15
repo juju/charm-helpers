@@ -67,7 +67,7 @@ def cached(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         global cache
-        key = str((func, args, kwargs))
+        key = json.dumps((str(func), args, kwargs), sort_keys=True)
         try:
             return cache[key]
         except KeyError:
