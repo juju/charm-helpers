@@ -192,6 +192,7 @@ IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
 
 IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
     'api_version': '3',
+    'service_domain_id': '567890',
 }
 IDENTITY_CREDENTIALS_RELATION_VERSIONED.update(IDENTITY_CREDENTIALS_RELATION_UNSET)
 
@@ -900,6 +901,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -948,6 +950,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -971,6 +974,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -994,6 +998,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1015,6 +1020,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1038,6 +1044,7 @@ class ContextTests(unittest.TestCase):
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1084,6 +1091,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': '[2001:db8:1::1]',
             'auth_port': '35357',
@@ -3330,20 +3338,38 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
 
+    def test_internal_endpoint_context(self):
+        config = {'use-internal-endpoints': False}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.InternalEndpointContext()
+        self.assertFalse(ctxt()['use_internal_endpoints'])
+        config = {'use-internal-endpoints': True}
+        self.config.side_effect = fake_config(config)
+        self.assertTrue(ctxt()['use_internal_endpoints'])
+
     @patch.object(context, 'os_release')
-    def test_internal_endpoint_context(self, mock_os_release):
+    def test_volume_api_context(self, mock_os_release):
         mock_os_release.return_value = 'ocata'
         config = {'use-internal-endpoints': False}
         self.config.side_effect = fake_config(config)
-        ctxt = context.InternalEndpointContext('cinder-common')
+        ctxt = context.VolumeAPIContext('cinder-common')
         c = ctxt()
-        self.assertFalse(c['use_internal_endpoints'])
         self.assertEqual(c['volume_api_version'], '2')
+        self.assertEqual(c['volume_catalog_info'],
+                         'volumev2:cinderv2:publicURL')
+
         mock_os_release.return_value = 'pike'
         config['use-internal-endpoints'] = True
+        self.config.side_effect = fake_config(config)
+        ctxt = context.VolumeAPIContext('cinder-common')
         c = ctxt()
-        self.assertTrue(c['use_internal_endpoints'])
         self.assertEqual(c['volume_api_version'], '3')
+        self.assertEqual(c['volume_catalog_info'],
+                         'volumev3:cinderv3:internalURL')
+
+    def test_volume_api_context_no_pkg(self):
+        self.assertRaises(ValueError, context.VolumeAPIContext, "")
+        self.assertRaises(ValueError, context.VolumeAPIContext, None)
 
     def test_apparmor_context_call_not_valid(self):
         ''' Tests for the apparmor context'''
