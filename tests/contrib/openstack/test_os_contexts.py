@@ -192,6 +192,7 @@ IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
 
 IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
     'api_version': '3',
+    'service_domain_id': '567890',
 }
 IDENTITY_CREDENTIALS_RELATION_VERSIONED.update(IDENTITY_CREDENTIALS_RELATION_UNSET)
 
@@ -900,6 +901,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -948,6 +950,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -971,6 +974,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -994,6 +998,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1015,6 +1020,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1038,6 +1044,7 @@ class ContextTests(unittest.TestCase):
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1084,6 +1091,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': '[2001:db8:1::1]',
             'auth_port': '35357',

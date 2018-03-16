@@ -3,5 +3,5 @@ include Makefile
 include VERSION
 include MANIFEST.in
 include scripts/*
-include README.md
+include README.rst
 recursive-include debian *
