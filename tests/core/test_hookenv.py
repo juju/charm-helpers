@@ -1807,3 +1807,26 @@ ingress-addresses:
         relation_get.return_value = _without_ingress
         self.assertEqual(hookenv.ingress_address(rid='test:1'),
                          '172.16.5.10')
+
+    @patch.object(hookenv, 'relation_get')
+    def test_egress_subnets(self, relation_get):
+        """Ensure egress_subnets returns the decoded egress-subnets when available
+        and falls back correctly when not.
+        """
+        d = {'egress-subnets': '10.5.0.23/32,2001::F00F/64',
+             'ingress-address': '10.5.0.23',
+             'private-address': '2001::D0:F00D'}
+
+        # Return the egress-subnets
+        relation_get.return_value = d
+        self.assertEqual(hookenv.egress_subnets(rid='test:1', unit='unit/1'),
+                         ['10.5.0.23/32', '2001::F00F/64'])
+        relation_get.assert_called_with(rid='test:1', unit='unit/1')
+
+        # Return the ingress-address
+        del d['egress-subnets']
+        self.assertEqual(hookenv.egress_subnets(), ['10.5.0.23/32'])
+
+        # Return the private-address
+        del d['ingress-address']
+        self.assertEqual(hookenv.egress_subnets(), ['2001::D0:F00D/128'])
