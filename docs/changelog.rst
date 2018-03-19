@@ -1,6 +1,16 @@
 Changelog
 ---------
 
+0.18.7
+^^^^^^
+Monday Mar 19 2018
+
+* Fix network get (#118)
+* Fix JSON serializable error using default (#136)
+* Add egress_subnets helper to access egress-subnets on a relation (#116)
+* Allow Service Manager applications to handle the ICMP protocol (#108)
+* Minor fix for changelog format in docs (#134)
+
 0.18.6
 ^^^^^^
 Thursday Mar 15 2018
