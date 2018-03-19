@@ -1491,9 +1491,10 @@ class HooksTest(TestCase):
 
         juju_version.return_value = '1.24-beta5.1-trusty-amd64'
         self.assertTrue(hookenv.has_juju_version('1.23'))
-        self.assertFalse(hookenv.has_juju_version('1.24'))
+        self.assertTrue(hookenv.has_juju_version('1.24'))  # Better if this was false!
         self.assertTrue(hookenv.has_juju_version('1.24-beta5'))
         self.assertTrue(hookenv.has_juju_version('1.24-beta5.1'))
+        self.assertFalse(hookenv.has_juju_version('1.25'))
         self.assertTrue(hookenv.has_juju_version('1.18-backport6'))
 
     @patch.object(hookenv, 'relation_to_role_and_interface')
@@ -1711,34 +1712,45 @@ class HooksTest(TestCase):
                           hookenv.network_get_primary_address,
                           'mybinding')
 
+    @patch('charmhelpers.core.hookenv.juju_version')
     @patch('subprocess.check_output')
-    def test_network_get_primary_required(self, check_output):
-        """Ensure that NotImplementedError is thrown when run on Juju < 2.1"""
-        check_output.side_effect = CalledProcessError(
-            2, 'network_get',
-            output='--primary-address is currently required'.encode('UTF-8'))
-        self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
-
-    @patch('subprocess.check_output')
-    def test_network_get(self, check_output):
+    def test_network_get(self, check_output, juju_version):
         """Ensure that network-get is called correctly"""
-        check_output.return_value = b'192l.l168.22.1'
-        hookenv.network_get('mybinding')
+        juju_version.return_value = '2.2.0'
+        check_output.return_value = b'result'
+        hookenv.network_get('endpoint')
         check_output.assert_called_with(
-            ['network-get', 'mybinding', '--format', 'yaml'], stderr=-2)
+            ['network-get', 'endpoint', '--format', 'yaml'], stderr=-2)
 
+    @patch('charmhelpers.core.hookenv.juju_version')
     @patch('subprocess.check_output')
-    def test_network_get_relation_bound(self, check_output):
-        """Ensure that network-get supports relation context"""
-        check_output.return_value = b'192l.l168.22.1'
-        hookenv.network_get('mybinding', 'db')
+    def test_network_get_primary_required(self, check_output, juju_version):
+        """Ensure that NotImplementedError is thrown with Juju < 2.2.0"""
+        check_output.return_value = b'result'
+
+        juju_version.return_value = '2.1.4'
+        self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
+        juju_version.return_value = '2.2.0'
+        self.assertEquals(hookenv.network_get('endpoint'), 'result')
+
+    @patch('charmhelpers.core.hookenv.juju_version')
+    @patch('subprocess.check_output')
+    def test_network_get_relation_bound(self, check_output, juju_version):
+        """Ensure that network-get supports relation context, requires Juju 2.3"""
+        juju_version.return_value = '2.3.0'
+        check_output.return_value = b'result'
+        hookenv.network_get('endpoint', 'db')
         check_output.assert_called_with(
-            ['network-get', 'mybinding', '--format', 'yaml', '-r', 'db'],
+            ['network-get', 'endpoint', '--format', 'yaml', '-r', 'db'],
             stderr=-2)
+        juju_version.return_value = '2.2.8'
+        self.assertRaises(NotImplementedError, hookenv.network_get, 'endpoint', 'db')
 
+    @patch('charmhelpers.core.hookenv.juju_version')
     @patch('subprocess.check_output')
-    def test_network_get_parses_yaml(self, check_output):
+    def test_network_get_parses_yaml(self, check_output, juju_version):
         """network-get returns loaded YAML output."""
+        juju_version.return_value = '2.3.0'
         check_output.return_value = b"""
 bind-addresses:
 - macaddress: ""
