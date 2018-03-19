@@ -1174,11 +1174,17 @@ class HelpersTest(TestCase):
         check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
 
     def test_cached_decorator(self):
+        class Unserializable(object):
+            def __str__(self):
+                return 'unserializable'
+
+        unserializable = Unserializable()
         calls = []
         values = {
             'hello': 'world',
             'foo': 'bar',
             'baz': None,
+            unserializable: 'qux',
         }
 
         @hookenv.cached
@@ -1191,7 +1197,8 @@ class HelpersTest(TestCase):
         self.assertEquals(cache_function('foo'), 'bar')
         self.assertEquals(cache_function('baz'), None)
         self.assertEquals(cache_function('baz'), None)
-        self.assertEquals(calls, ['hello', 'foo', 'baz'])
+        self.assertEquals(cache_function(unserializable), 'qux')
+        self.assertEquals(calls, ['hello', 'foo', 'baz', unserializable])
 
     def test_gets_charm_dir(self):
         with patch.dict('os.environ', {}):
