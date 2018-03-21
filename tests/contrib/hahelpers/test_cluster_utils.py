@@ -519,12 +519,13 @@ class ClusterUtilsTests(TestCase):
         self.assertTrue(cluster_utils.valid_hacluster_config())
         self.assertFalse(status_set.called)
 
+    @patch.object(cluster_utils, 'juju_is_leader')
     @patch.object(cluster_utils, 'status_set')
     @patch.object(cluster_utils.time, 'sleep')
     @patch.object(cluster_utils, 'modulo_distribution')
     @patch.object(cluster_utils, 'log')
     def test_distributed_wait(self, log, modulo_distribution, sleep,
-                              status_set):
+                              status_set, is_leader):
         conf = {
             'modulo-nodes': 7,
             'known-wait': 10,
@@ -534,6 +535,7 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
+        is_leader.return_value = False
 
         # Uses config values
         cluster_utils.distributed_wait()
@@ -542,3 +544,18 @@ class ClusterUtilsTests(TestCase):
         # Uses passed values
         cluster_utils.distributed_wait(modulo=3, wait=45)
         modulo_distribution.assert_called_with(modulo=3, wait=45)
+
+        # Non-Leader with modulo 0 should still wait
+        # (modulo + 1) * wait
+        modulo_distribution.return_value = 0
+        cluster_utils.distributed_wait(modulo=2, wait=5)
+        sleep.assert_called_with(15)
+
+        # Leader regardless of modulo should not wait
+        is_leader.return_value = True
+        cluster_utils.distributed_wait(modulo=3, wait=5)
+        sleep.assert_called_with(0)
+
+        modulo_distribution.return_value = 30
+        cluster_utils.distributed_wait(modulo=3, wait=5)
+        sleep.assert_called_with(0)
