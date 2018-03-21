@@ -40,6 +40,7 @@ import os
 import subprocess
 
 from charmhelpers.core import hookenv
+from charmhelpers.core import host
 from charmhelpers.core.kernel import modprobe, is_module_loaded
 
 __author__ = "Felipe Reyes <felipe.reyes@canonical.com>"
@@ -67,6 +68,28 @@ def is_enabled():
     m = re.findall(r'^Status: active\n', output, re.M)
 
     return len(m) >= 1
+
+
+def enable_gre_conntrack():
+    """Enable GRE conntrack support
+
+    When using UFW on systems that also have GRE tunneling, GRE traffic is
+    marked INVALID unless nf_conntrack_proto_gre is loaded.
+
+    :returns: None
+    """
+    if host.is_container():
+        hookenv.log("Not loading GRE connntrack in a container.",
+                    level="DEBUG")
+        return
+
+    GRE = 'nf_conntrack_proto_gre'
+    if not is_module_loaded(GRE):
+        try:
+            modprobe(GRE)
+        except subprocess.CalledProcessError as ex:
+            hookenv.log("Couldn't load {} module: {}".format(GRE, ex.output,
+                        level="WARN"))
 
 
 def is_ipv6_ok(soft_fail=False):
@@ -133,6 +156,8 @@ def enable(soft_fail=False):
 
     if not is_ipv6_ok(soft_fail):
         disable_ipv6()
+
+    enable_gre_conntrack()
 
     output = subprocess.check_output(['ufw', 'enable'],
                                      universal_newlines=True,

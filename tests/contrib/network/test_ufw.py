@@ -287,12 +287,13 @@ class TestUFW(unittest.TestCase):
     def test_service_unsupport_action(self, check_output):
         self.assertRaises(ufw.UFWError, ufw.service, 'ssh', 'nenene')
 
+    @mock.patch('charmhelpers.contrib.network.ufw.enable_gre_conntrack')
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('os.path.isdir')
     @mock.patch('subprocess.call')
     @mock.patch('subprocess.check_output')
-    def test_no_ipv6(self, check_output, call, isdir, log, is_enabled):
+    def test_no_ipv6(self, check_output, call, isdir, log, is_enabled, gre):
         check_output.return_value = ('Firewall is active and enabled '
                                      'on system startup\n')
         isdir.return_value = False
@@ -347,6 +348,7 @@ class TestUFW(unittest.TestCase):
 
         self.assertRaises(ufw.UFWIPv6Error, ufw.enable)
 
+    @mock.patch('charmhelpers.contrib.network.ufw.enable_gre_conntrack')
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('os.path.isdir')
@@ -357,7 +359,8 @@ class TestUFW(unittest.TestCase):
     def test_no_ip6_tables_fail_to_load_soft_fail(self, check_output,
                                                   call, is_module_loaded,
                                                   modprobe,
-                                                  isdir, log, is_enabled):
+                                                  isdir, log, is_enabled,
+                                                  gre):
         is_module_loaded.return_value = False
 
         def c(m):
@@ -375,6 +378,7 @@ class TestUFW(unittest.TestCase):
         call.assert_called_with(['sed', '-i', 's/IPV6=.*/IPV6=no/g',
                                  '/etc/default/ufw'])
         log.assert_any_call('IPv6 support in ufw disabled', level='INFO')
+        gre.assert_called_once_with()
 
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
@@ -441,3 +445,23 @@ class TestUFW(unittest.TestCase):
     @mock.patch('subprocess.check_output')
     def test_change_default_policy_wrong_direction(self, check_output, log):
         self.assertRaises(ufw.UFWError, ufw.default_policy, 'allow', 'asdf')
+
+    @mock.patch('charmhelpers.core.host.is_container')
+    @mock.patch.object(ufw, 'modprobe')
+    @mock.patch.object(ufw, 'is_module_loaded')
+    def test_enable_gre_conntrack(self, is_module_loaded, modprobe,
+                                  is_container):
+        is_module_loaded.return_value = False
+        is_container.return_value = True
+        ufw.enable_gre_conntrack()
+        modprobe.assert_not_called()
+
+        is_module_loaded.return_value = True
+        is_container.return_value = False
+        ufw.enable_gre_conntrack()
+        modprobe.assert_not_called()
+
+        is_module_loaded.return_value = False
+        is_container.return_value = False
+        ufw.enable_gre_conntrack()
+        modprobe.assert_called_with('nf_conntrack_proto_gre')
