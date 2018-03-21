@@ -386,6 +386,12 @@ def distributed_wait(modulo=None, wait=None, operation_name='operation'):
     if wait is None:
         wait = config_get('known-wait')
     calculated_wait = modulo_distribution(modulo=modulo, wait=wait)
+    if juju_is_leader():
+        # The leader should never wait
+        calculated_wait = 0
+    elif calculated_wait == 0:
+        # The non-leader who gets modulo 0 should wait
+        calculated_wait = (modulo + 1) * wait
     msg = "Waiting {} seconds for {} ...".format(calculated_wait,
                                                  operation_name)
     log(msg, DEBUG)
