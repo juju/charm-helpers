@@ -188,3 +188,25 @@ class LVMStorageUtilsTests(unittest.TestCase):
         with patch(STORAGE_LINUX_LVM + '.check_call') as check_call:
             lvm.extend_logical_volume_by_device('mylv', '/dev/foo')
             check_call.assert_called_with(['lvextend', 'mylv', '/dev/foo'])
+
+    def test_create_logical_volume_nosize(self):
+        with patch(STORAGE_LINUX_LVM + '.check_call') as check_call:
+            lvm.create_logical_volume('testlv', 'testvg')
+            check_call.assert_called_with([
+                'lvcreate',
+                '--yes',
+                '-l',
+                '100%FREE',
+                '-n', 'testlv', 'testvg'
+            ])
+
+    def test_create_logical_volume_size(self):
+        with patch(STORAGE_LINUX_LVM + '.check_call') as check_call:
+            lvm.create_logical_volume('testlv', 'testvg', '10G')
+            check_call.assert_called_with([
+                'lvcreate',
+                '--yes',
+                '-L',
+                '10G',
+                '-n', 'testlv', 'testvg'
+            ])
