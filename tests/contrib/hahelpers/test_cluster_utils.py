@@ -526,36 +526,40 @@ class ClusterUtilsTests(TestCase):
     @patch.object(cluster_utils, 'log')
     def test_distributed_wait(self, log, modulo_distribution, sleep,
                               status_set, is_leader):
-        conf = {
-            'modulo-nodes': 7,
-            'known-wait': 10,
-        }
+
+        # Leader regardless of modulo should not wait
+        is_leader.return_value = True
+        cluster_utils.distributed_wait(modulo=9, wait=23)
+        modulo_distribution.assert_not_called()
+        sleep.assert_called_with(0)
+
+        # The rest of the tests are non-leader units
+        is_leader.return_value = False
 
         def _fake_config_get(setting):
             return conf[setting]
 
+        # Uses fallback defaults
+        conf = {
+            'modulo-nodes': None,
+            'known-wait': None,
+        }
         self.config_get.side_effect = _fake_config_get
-        is_leader.return_value = False
+        cluster_utils.distributed_wait()
+        modulo_distribution.assert_called_with(modulo=3, wait=30,
+                                               non_zero_wait=True)
 
         # Uses config values
+        conf = {
+            'modulo-nodes': 7,
+            'known-wait': 10,
+        }
+        self.config_get.side_effect = _fake_config_get
         cluster_utils.distributed_wait()
-        modulo_distribution.assert_called_with(modulo=7, wait=10)
+        modulo_distribution.assert_called_with(modulo=7, wait=10,
+                                               non_zero_wait=True)
 
         # Uses passed values
-        cluster_utils.distributed_wait(modulo=3, wait=45)
-        modulo_distribution.assert_called_with(modulo=3, wait=45)
-
-        # Non-Leader with modulo 0 should still wait
-        # modulo * wait
-        modulo_distribution.return_value = 0
-        cluster_utils.distributed_wait(modulo=2, wait=5)
-        sleep.assert_called_with(10)
-
-        # Leader regardless of modulo should not wait
-        is_leader.return_value = True
-        cluster_utils.distributed_wait(modulo=3, wait=5)
-        sleep.assert_called_with(0)
-
-        modulo_distribution.return_value = 30
-        cluster_utils.distributed_wait(modulo=3, wait=5)
-        sleep.assert_called_with(0)
+        cluster_utils.distributed_wait(modulo=5, wait=45)
+        modulo_distribution.assert_called_with(modulo=5, wait=45,
+                                               non_zero_wait=True)
