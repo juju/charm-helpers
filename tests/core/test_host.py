@@ -1858,7 +1858,17 @@ class HelpersTest(TestCase):
     @patch.object(host, 'local_unit')
     def test_modulo_distribution(self, local_unit):
         local_unit.return_value = 'test/7'
+
+        # unit % modulo * wait
         self.assertEqual(host.modulo_distribution(modulo=6, wait=10), 10)
+
+        # Zero wait when unit % modulo == 0
+        self.assertEqual(host.modulo_distribution(modulo=7, wait=10), 0)
+
+        # modulo * wait when unit % modulo == 0 and non_zero_wait=True
+        self.assertEqual(host.modulo_distribution(modulo=7, wait=10,
+                                                  non_zero_wait=True),
+                         70)
 
 
 class TestHostCompator(TestCase):
