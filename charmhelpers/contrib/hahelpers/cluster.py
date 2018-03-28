@@ -391,7 +391,7 @@ def distributed_wait(modulo=None, wait=None, operation_name='operation'):
         calculated_wait = 0
     elif calculated_wait == 0:
         # The non-leader who gets modulo 0 should wait
-        calculated_wait = (modulo + 1) * wait
+        calculated_wait = modulo * wait
     msg = "Waiting {} seconds for {} ...".format(calculated_wait,
                                                  operation_name)
     log(msg, DEBUG)

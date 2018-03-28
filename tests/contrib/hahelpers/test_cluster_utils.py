@@ -546,10 +546,10 @@ class ClusterUtilsTests(TestCase):
         modulo_distribution.assert_called_with(modulo=3, wait=45)
 
         # Non-Leader with modulo 0 should still wait
-        # (modulo + 1) * wait
+        # modulo * wait
         modulo_distribution.return_value = 0
         cluster_utils.distributed_wait(modulo=2, wait=5)
-        sleep.assert_called_with(15)
+        sleep.assert_called_with(10)
 
         # Leader regardless of modulo should not wait
         is_leader.return_value = True
