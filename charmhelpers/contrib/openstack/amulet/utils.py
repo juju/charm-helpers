@@ -441,7 +441,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             if rel.get('api_version') != str(api_version):
                 raise Exception("api_version not propagated through relation"
                                 " data yet ('{}' != '{}')."
-                                "".format(rel['api_version'], api_version))
+                                "".format(rel.get('api_version'), api_version))
 
     def keystone_configure_api_version(self, sentry_relation_pairs, deployment,
                                        api_version):
