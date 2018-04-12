@@ -1,6 +1,17 @@
 Changelog
 ---------
 
+0.18.8
+^^^^^^
+Thursday Apr 12 2018
+
+* Allow s390x in fetch (#150)
+* Read in ca certificate as binary for PY3 (#146)
+* Fix keystone_wait_for_propagation test helper (#144)
+* Account for password field name change in PXC 5.7 (#99)
+* Handle non-zero unit numbered leader (#138)
+* storage: Add create_logical_volume helper (#141)
+
 0.18.7
 ^^^^^^
 Monday Mar 19 2018
