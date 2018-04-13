@@ -2250,14 +2250,14 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(apache.configure_cert.called)
 
     def test_https_context_loads_correct_apache_mods(self):
-        '''Test apache2 context also loads required apache modules'''
+        # Test apache2 context also loads required apache modules
         apache = context.ApacheSSLContext()
         apache.enable_modules()
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         self.check_call.assert_called_with(ex_cmd)
 
     def test_https_configure_cert(self):
-        '''Test apache2 properly installs certs and keys to disk'''
+        # Test apache2 properly installs certs and keys to disk
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = [b'SSL_CERT', b'SSL_KEY']
         apache = context.ApacheSSLContext()
@@ -2267,16 +2267,16 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert_test-cn',
-                      content=b'SSL_CERT'),
+                      content=b'SSL_CERT', perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key_test-cn',
-                      content=b'SSL_KEY')]
+                      content=b'SSL_KEY', perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
         self.assertEquals(decode, self.b64decode.call_args_list)
 
     def test_https_configure_cert_deprecated(self):
-        '''Test apache2 properly installs certs and keys to disk'''
+        # Test apache2 properly installs certs and keys to disk
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
         apache = context.ApacheSSLContext()
@@ -2286,9 +2286,9 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert',
-                      content='SSL_CERT'),
+                      content='SSL_CERT', perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key',
-                      content='SSL_KEY')]
+                      content='SSL_KEY', perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
