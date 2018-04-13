@@ -37,15 +37,16 @@ userinstall:
 	scripts/update-revno
 	python setup.py install --user
 
+
 .venv:
-	dpkg -l gcc python-dev python-virtualenv python-apt > /dev/null || sudo apt-get install -y gcc python-dev python-virtualenv python-apt
+	dpkg-query -W -f='$${status}' gcc python-dev python-virtualenv python-apt 2>/dev/null | grep --invert-match "not-installed" || sudo apt-get install -y python-dev python-virtualenv python-apt
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt
 	.venv/bin/pip install bzr
 
 .venv3:
-	dpkg -l gcc python3-dev python-virtualenv python3-apt > /dev/null || sudo apt-get install -y gcc python3-dev python-virtualenv python3-apt
+	dpkg-query -W -f='$${status}' gcc python3-dev python-virtualenv python3-apt 2>/dev/null | grep --invert-match "not-installed" || sudo apt-get install -y python3-dev python-virtualenv python3-apt
 	virtualenv .venv3 --python=python3 --system-site-packages
 	.venv3/bin/pip install -U pip
 	.venv3/bin/pip install -I -r test_requirements.txt
