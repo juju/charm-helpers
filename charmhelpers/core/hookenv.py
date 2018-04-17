@@ -657,12 +657,19 @@ def _port_op(op_name, port, protocol="TCP"):
     else:
         _args.append('{}/{}'.format(port, protocol))
     try:
-        subprocess.check_call(_args)
-    except subprocess.CalledProcessError:
+        subprocess.check_output(_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
         # Older Juju pre 2.3 doesn't support ICMP
         # so treat it as a no-op if it fails.
-        if not icmp:
-            raise
+        if icmp:
+            return
+        # Work around LP#1750490. We also can't use 'opened-ports' because
+        # that doesn't include ports for other units per LP#1427770.
+        if 'conflicts with existing' in str(e.output):
+            log('Port {}/{} already open, continuing'.format(port, protocol))
+            return
+        log('Error opening port {}/{}'.format(port, protocol))
+        raise
 
 
 def open_port(port, protocol="TCP"):
