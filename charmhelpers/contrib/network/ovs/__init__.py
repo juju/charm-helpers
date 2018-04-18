@@ -102,6 +102,8 @@ def add_ovsbridge_linuxbridge(name, bridge):
             log('Interface {} already exists'.format(interface), level=INFO)
             return
 
+    check_for_eni_source()
+
     with open('/etc/network/interfaces.d/{}.cfg'.format(
             linuxbridge_port), 'w') as config:
         config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port,
@@ -153,6 +155,18 @@ def get_certificate():
     else:
         log('Certificate not found', level=WARNING)
         return None
+
+
+def check_for_eni_source():
+    ''' Juju removes the source line when setting up interfaces,
+    replace if missing '''
+
+    with open('/etc/network/interfaces', 'r') as eni:
+        for line in eni:
+            if line == 'source /etc/network/interfaces.d/*':
+                return
+    with open('/etc/network/interfaces', 'a') as eni:
+        eni.write('\nsource /etc/network/interfaces.d/*')
 
 
 def full_restart():
