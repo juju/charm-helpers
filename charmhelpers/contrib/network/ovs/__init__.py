@@ -102,6 +102,10 @@ def add_ovsbridge_linuxbridge(name, bridge):
             log('Interface {} already exists'.format(interface), level=INFO)
             return
 
+    # Juju removes this line when setting up interfaces
+    with open('/etc/network/interfaces', 'a') as eni:
+        eni.write('\nsource /etc/network/interfaces.d/*')
+
     with open('/etc/network/interfaces.d/{}.cfg'.format(
             linuxbridge_port), 'w') as config:
         config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port,
