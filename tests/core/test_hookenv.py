@@ -318,15 +318,18 @@ class HelpersTest(TestCase):
             hookenv.log('foo', level)
             mock_call.assert_called_with(['juju-log', '-l', level, 'foo'])
 
+    @patch('charmhelpers.core.hookenv._cache_config', None)
+    @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
-    def test_gets_charm_config_with_scope(self, check_output):
-        config_data = 'bar'
-        check_output.return_value = json.dumps(config_data).encode('UTF-8')
+    def test_gets_charm_config_with_scope(self, check_output, charm_dir):
+        check_output.return_value = json.dumps(dict(baz='bar')).encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
 
         result = hookenv.config(scope='baz')
 
         self.assertEqual(result, 'bar')
-        check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+        check_output.assert_called_with(['config-get', '--all',
+                                         '--format=json'])
 
         # The result can be used like a string
         self.assertEqual(result[1], 'a')
@@ -334,6 +337,7 @@ class HelpersTest(TestCase):
         # ... because the result is actually a string
         self.assert_(isinstance(result, six.string_types))
 
+    @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):
         check_output.return_value = b''
@@ -341,20 +345,65 @@ class HelpersTest(TestCase):
         result = hookenv.config(scope='baz')
 
         self.assertEqual(result, None)
-        check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+        check_output.assert_called_with(['config-get', '--all',
+                                         '--format=json'])
 
+    @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
     def test_gets_config_without_scope(self, check_output, charm_dir):
-        check_output.return_value = json.dumps(dict(foo='bar')).encode('UTF-8')
-        charm_dir.side_effect = tempfile.mkdtemp
+        check_output.return_value = json.dumps(dict(baz='bar')).encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
 
         result = hookenv.config()
 
         self.assertIsInstance(result, hookenv.Config)
-        self.assertEqual(result['foo'], 'bar')
+        self.assertEqual(result['baz'], 'bar')
         check_output.assert_called_with(['config-get', '--all',
                                          '--format=json'])
+
+    @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_config_from_cache_without_scope(self,
+                                                  check_output,
+                                                  charm_dir):
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config()
+
+        self.assertEqual(result['baz'], 'bar')
+        self.assertFalse(check_output.called)
+
+    @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_config_from_cache_with_scope(self,
+                                               check_output,
+                                               charm_dir):
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config('baz')
+
+        self.assertEqual(result, 'bar')
+
+        # The result can be used like a string
+        self.assertEqual(result[1], 'a')
+
+        # ... because the result is actually a string
+        self.assert_(isinstance(result, six.string_types))
+
+        self.assertFalse(check_output.called)
+
+    @patch('charmhelpers.core.hookenv._cache_config', {'foo': 'bar'})
+    @patch('subprocess.check_output')
+    def test_gets_missing_charm_config_from_cache_with_scope(self,
+                                                             check_output):
+
+        result = hookenv.config(scope='baz')
+
+        self.assertEqual(result, None)
+        self.assertFalse(check_output.called)
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
