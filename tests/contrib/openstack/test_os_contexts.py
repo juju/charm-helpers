@@ -3505,6 +3505,13 @@ class ContextTests(unittest.TestCase):
     @patch('charmhelpers.contrib.openstack.context.mkdir')
     def test_ensure_dir_ctx(self, mkdir):
         dirname = '/etc/keystone/policy.d'
-        ctxt = context.EnsureDirContext(dirname)
+        owner = 'someuser'
+        group = 'somegroup'
+        perms = 0o555
+        force = False
+        ctxt = context.EnsureDirContext(dirname, owner=owner,
+                                        group=group, perms=perms,
+                                        force=force)
         ctxt()
-        mkdir.assert_called_with(dirname)
+        mkdir.assert_called_with(dirname, owner=owner, group=group,
+                                 perms=perms, force=force)
