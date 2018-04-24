@@ -371,6 +371,12 @@ def config(scope=None):
     global _cache_config
     config_cmd_line = ['config-get', '--all', '--format=json']
     try:
+        # JSON Decode Exception for Python3.5+
+        exc_json = json.decoder.JSONDecodeError
+    except AttributeError:
+        # JSON Decode Exception for Python2.7 through Python3.4
+        exc_json = ValueError
+    try:
         if _cache_config is None:
             config_data = json.loads(
                 subprocess.check_output(config_cmd_line).decode('UTF-8'))
@@ -378,7 +384,10 @@ def config(scope=None):
         if scope is not None:
             return _cache_config.get(scope)
         return _cache_config
-    except ValueError:
+    except (exc_json, UnicodeDecodeError) as e:
+        log('Unable to parse output from config-get: config_cmd_line="{}" '
+            'message="{}"'
+            .format(config_cmd_line, str(e)), level=ERROR)
         return None
 
 
