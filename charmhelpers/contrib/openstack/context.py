@@ -1873,10 +1873,11 @@ class EnsureDirContext(OSContextGenerator):
     context is needed to do that before rendering a template.
    '''
 
-    def __init__(self, dirname):
+    def __init__(self, dirname, **kwargs):
         '''Used merely to ensure that a given directory exists.'''
         self.dirname = dirname
+        self.kwargs = kwargs
 
     def __call__(self):
-        mkdir(self.dirname)
+        mkdir(self.dirname, **self.kwargs)
         return {}
