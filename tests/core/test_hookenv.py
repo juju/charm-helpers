@@ -362,6 +362,67 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['config-get', '--all',
                                          '--format=json'])
 
+    @patch('charmhelpers.core.hookenv.log')
+    @patch('charmhelpers.core.hookenv._cache_config', None)
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_charm_config_invalid_json_with_scope(self,
+                                                       check_output,
+                                                       charm_dir,
+                                                       log):
+        check_output.return_value = '{"invalid: "json"}'.encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config(scope='invalid')
+
+        self.assertEqual(result, None)
+        cmd_line = ['config-get', '--all', '--format=json']
+        check_output.assert_called_with(cmd_line)
+        log.assert_called_with(
+            'Unable to parse output from config-get: '
+            'config_cmd_line="{}" message="{}"'
+            .format(str(cmd_line),
+                    "Expecting ':' delimiter: line 1 column 13 (char 12)"),
+            level=hookenv.ERROR,
+        )
+
+    @patch('charmhelpers.core.hookenv.log')
+    @patch('charmhelpers.core.hookenv._cache_config', None)
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_charm_config_invalid_utf8_with_scope(self,
+                                                       check_output,
+                                                       charm_dir,
+                                                       log):
+        check_output.return_value = b'{"invalid: "json"}\x9D'
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config(scope='invalid')
+
+        self.assertEqual(result, None)
+        cmd_line = ['config-get', '--all', '--format=json']
+        check_output.assert_called_with(cmd_line)
+        try:
+            # Python3
+            log.assert_called_with(
+                'Unable to parse output from config-get: '
+                'config_cmd_line="{}" message="{}"'
+                .format(str(cmd_line),
+                        "'utf8' codec can't decode byte 0x9d in position "
+                        "18: invalid start byte"),
+                level=hookenv.ERROR,
+            )
+        except AssertionError:
+            # Python2.7
+            log.assert_called_with(
+                'Unable to parse output from config-get: '
+                'config_cmd_line="{}" message="{}"'
+                .format(str(cmd_line),
+                        "'utf-8' codec can't decode byte 0x9d in position "
+                        "18: invalid start byte"),
+                level=hookenv.ERROR,
+            )
+
     @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
     @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
