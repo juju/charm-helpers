@@ -22,6 +22,8 @@ import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.host as host
 import charmhelpers.core.templating as templating
 
+VAULTLOCKER_BACKEND = 'charm-vaultlocker'
+
 
 class VaultKVContext(context.OSContextGenerator):
     """Vault KV context for interaction with vault-kv interfaces"""
@@ -82,3 +84,15 @@ def write_vaultlocker_conf(context, priority=100):
     alternatives.install_alternative('vaultlocker.conf',
                                      '/etc/vaultlocker/vaultlocker.conf',
                                      charm_vl_path, priority)
+
+
+def vault_relation_complete(backend=None):
+    """Determine whether vault relation is complete
+
+    :param backend: Name of secrets backend requested
+    :ptype backend: string
+    :returns: whether the relation to vault is complete
+    :rtype: bool"""
+    vault_kv = VaultKVContext(secret_backend=backend or VAULTLOCKER_BACKEND)
+    vault_kv()
+    return vault_kv.complete

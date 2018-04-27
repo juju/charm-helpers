@@ -128,6 +128,7 @@ class VaultLockerTestCase(unittest.TestCase):
         context = vaultlocker.VaultKVContext('charm-test')
         self.assertEqual(context(), {})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
+        self.assertFalse(vaultlocker.vault_relation_complete())
 
     def test_context_complete(self):
         self._setup_relation(COMPLETE_RELATION)
@@ -137,6 +138,7 @@ class VaultLockerTestCase(unittest.TestCase):
                           'secret_backend': 'charm-test',
                           'vault_url': 'http://vault:8200'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
+        self.assertTrue(vaultlocker.vault_relation_complete())
 
     def test_context_complete_with_ca(self):
         self._setup_relation(COMPLETE_WITH_CA_RELATION)
@@ -147,3 +149,4 @@ class VaultLockerTestCase(unittest.TestCase):
                           'vault_url': 'http://vault:8200',
                           'vault_ca': 'test-ca-data'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
+        self.assertTrue(vaultlocker.vault_relation_complete())
