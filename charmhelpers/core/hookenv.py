@@ -290,7 +290,7 @@ class Config(dict):
         self.implicit_save = True
         self._prev_dict = None
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
-        if os.path.exists(self.path):
+        if os.path.exists(self.path) and os.stat(self.path).st_size:
             self.load_previous()
         atexit(self._implicit_save)
 
@@ -310,7 +310,11 @@ class Config(dict):
         """
         self.path = path or self.path
         with open(self.path) as f:
-            self._prev_dict = json.load(f)
+            try:
+                self._prev_dict = json.load(f)
+            except ValueError as e:
+                log('Unable to parse previous config data - {}'.format(str(e)),
+                    level=ERROR)
         for k, v in copy.deepcopy(self._prev_dict).items():
             if k not in self:
                 self[k] = v
