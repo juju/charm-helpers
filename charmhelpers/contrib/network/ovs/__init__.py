@@ -178,19 +178,19 @@ def full_restart():
 
 
 def enable_ipfix(bridge, target):
-    '''Enable IPfix on bridge to target. Returns true if config was set.
+    '''Enable IPfix on bridge to target.
     :param bridge: Bridge to monitor
     :param target: IPfix remote endpoint
     '''
     cmd = ['ovs-vsctl', 'set', 'Bridge', bridge, 'ipfix=@i', '--',
-           '--id=@i', 'create', 'IPFIX', 'targets=\{}\\'.format(target),
-           'active-timeout=60']
+           '--id=@i', 'create', 'IPFIX', 'targets=\"{}\\"'.format(target)]
     log('Enabling IPfix on {}.'.format(bridge))
-    return subprocess.check_call(cmd)
+    subprocess.check_call(cmd)
+
 
 def disable_ipfix(bridge):
-    '''Diable IPfix on target bridge. Returns true if successful
+    '''Diable IPfix on target bridge.
     :param bridge: Bridge to modify
     '''
-    cmd = ['ovs-vsctl', 'clear', 'Bridge', bridge,'netflow']
-    return subprocess.check_call(cmd)
+    cmd = ['ovs-vsctl', 'clear', 'Bridge', bridge, 'ipfix']
+    subprocess.check_call(cmd)
