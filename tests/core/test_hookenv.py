@@ -60,6 +60,26 @@ class ConfigTest(TestCase):
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c._prev_dict, None)
 
+    def test_init_empty_state_file(self):
+        d = dict(foo='bar')
+        c = hookenv.Config(d)
+
+        with open(c.path, 'w') as f:
+            f.close()
+
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c._prev_dict, None)
+
+    def test_init_invalid_state_file(self):
+        d = dict(foo='bar')
+        c = hookenv.Config(d)
+
+        with open(c.path, 'w') as f:
+            f.write('blah')
+
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c._prev_dict, None)
+
     def test_load_previous(self):
         d = dict(foo='bar')
         c = hookenv.Config()
