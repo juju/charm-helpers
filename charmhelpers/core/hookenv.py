@@ -290,7 +290,7 @@ class Config(dict):
         self.implicit_save = True
         self._prev_dict = None
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
-        if os.path.exists(self.path):
+        if os.path.exists(self.path) and os.stat(self.path).st_size:
             self.load_previous()
         atexit(self._implicit_save)
 
@@ -310,7 +310,11 @@ class Config(dict):
         """
         self.path = path or self.path
         with open(self.path) as f:
-            self._prev_dict = json.load(f)
+            try:
+                self._prev_dict = json.load(f)
+            except ValueError as e:
+                log('Unable to parse previous config data - {}'.format(str(e)),
+                    level=ERROR)
         for k, v in copy.deepcopy(self._prev_dict).items():
             if k not in self:
                 self[k] = v
@@ -371,6 +375,12 @@ def config(scope=None):
     global _cache_config
     config_cmd_line = ['config-get', '--all', '--format=json']
     try:
+        # JSON Decode Exception for Python3.5+
+        exc_json = json.decoder.JSONDecodeError
+    except AttributeError:
+        # JSON Decode Exception for Python2.7 through Python3.4
+        exc_json = ValueError
+    try:
         if _cache_config is None:
             config_data = json.loads(
                 subprocess.check_output(config_cmd_line).decode('UTF-8'))
@@ -378,7 +388,10 @@ def config(scope=None):
         if scope is not None:
             return _cache_config.get(scope)
         return _cache_config
-    except ValueError:
+    except (exc_json, UnicodeDecodeError) as e:
+        log('Unable to parse output from config-get: config_cmd_line="{}" '
+            'message="{}"'
+            .format(config_cmd_line, str(e)), level=ERROR)
         return None
 
 

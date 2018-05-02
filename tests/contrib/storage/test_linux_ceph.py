@@ -291,20 +291,43 @@ class CephUtilsTests(TestCase):
         pg_num = p.get_pgs(pool_size=3, percent_data=0.1)
         self.assertEquals(2, pg_num)
 
+    @patch.object(ceph_utils, 'ceph_version')
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_old_ceph(self, get_osds):
+    def test_replicated_pool_create_old_ceph(self, get_osds, ceph_version):
+        ceph_version.return_value = '10.2.0'
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200)]),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)]),
         ])
+        self.assertEqual(self.check_call.call_count, 2)
+
+    @patch.object(ceph_utils, 'ceph_version')
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_luminous_ceph(self, get_osds, ceph_version):
+        ceph_version.return_value = '12.2.0'
+        get_osds.return_value = None
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd',
+                  'pool', 'create', 'test', str(200)]),
+            call(['ceph', '--id', 'admin', 'osd',
+                  'pool', 'set', 'test', 'size', str(3)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown'])
+        ])
+        self.assertEqual(self.check_call.call_count, 3)
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_small_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_small_osds(self, ceph_version, get_osds):
         get_osds.return_value = range(1, 5)
+        ceph_version.return_value = '10.1.1'
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=10)
         p.create()
@@ -317,7 +340,9 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_medium_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_medium_osds(self, ceph_version, get_osds):
+        ceph_version.return_value = '10.1.1'
         get_osds.return_value = range(1, 9)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=50)
@@ -331,8 +356,10 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_large_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_large_osds(self, ceph_version, get_osds):
         get_osds.return_value = range(1, 41)
+        ceph_version.return_value = '10.1.1'
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=100)
         p.create()
@@ -346,8 +373,10 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_xlarge_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_xlarge_osds(self, ceph_version, get_osds):
         get_osds.return_value = range(1, 1001)
+        ceph_version.return_value = '10.1.1'
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=100)
         p.create()
@@ -383,7 +412,9 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_erasure_profile')
     @patch.object(ceph_utils, 'get_osds')
-    def test_erasure_pool_create(self, get_osds, erasure_profile):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_erasure_pool_create(self, ceph_version, get_osds, erasure_profile):
+        ceph_version.return_value = '12.0.0'
         get_osds.return_value = range(1, 60)
         erasure_profile.return_value = {
             'directory': '/usr/lib/x86_64-linux-gnu/ceph/erasure-code',
@@ -396,7 +427,9 @@ class CephUtilsTests(TestCase):
         p.create()
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '2048', '2048', 'erasure', 'default'])
+                  '2048', '2048', 'erasure', 'default']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown'])
         ])
 
     def test_get_erasure_profile_none(self):
