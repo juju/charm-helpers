@@ -1,6 +1,28 @@
 Changelog
 ---------
 
+0.18.9
+^^^^^^
+Wednesday May 2 2018
+
+* Adds operator.socket (#115)
+* Make get_os_codename_install_source() independent of the series where it's executed (#156)
+* setup.py: exclude tests and tools directories (#104)
+* Support python dict in sysctl_create (#15)
+* Add notification_format (#145)
+* Enable IPFIX monitoring on OVS bridges (#168)
+* Do not parse config state file if empty (#166)
+* Add misc extra bits for vaultlocker work (#165)
+* Update pool creation to set app-name (#163)
+* Add logging of any decode Exception in config() (#161)
+* Add helpers for vaultlocker (#159)
+* Add support for more arguments in EnsureDirContext (#158)
+* core/services : fix handling of ports (#155)
+* Enable proxy header parsing (#157)
+* Cache config-get data (#147)
+* add_ovsbridge_linuxbridge fails for missing `source` in e/n/i  (#153)
+* Bug/1761305/ensure apache ssl (#151)
+
 0.18.8
 ^^^^^^
 Thursday Apr 12 2018
