@@ -77,30 +77,22 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
-def add_ovsbridge_linuxbridge(name, bridge):
+def add_ovsbridge_linuxbridge(name, bridge, promisc=False):
     ''' Add linux bridge to the named openvswitch bridge
     :param name: Name of ovs bridge to be added to Linux bridge
     :param bridge: Name of Linux bridge to be added to ovs bridge
     :returns: True if veth is added between ovs bridge and linux bridge,
     False otherwise'''
-    try:
-        import netifaces
-    except ImportError:
-        if six.PY2:
-            apt_install('python-netifaces', fatal=True)
-        else:
-            apt_install('python3-netifaces', fatal=True)
-        import netifaces
 
     ovsbridge_port = "veth-" + name
     linuxbridge_port = "veth-" + bridge
     log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name),
         level=INFO)
-    interfaces = netifaces.interfaces()
-    for interface in interfaces:
-        if interface == ovsbridge_port or interface == linuxbridge_port:
-            log('Interface {} already exists'.format(interface), level=INFO)
-            return
+
+    if interface_exists(ovsbridge_port):
+        log('Interface {} already exists, skipping'.format(ovsbridge_port),
+            level=INFO)
+        return
 
     check_for_eni_source()
 
@@ -111,7 +103,8 @@ def add_ovsbridge_linuxbridge(name, bridge):
                                             bridge=bridge))
 
     subprocess.check_call(["ifup", linuxbridge_port])
-    add_bridge_port(name, linuxbridge_port)
+    add_bridge(name)
+    add_bridge_port(name, linuxbridge_port, promisc=promisc)
 
 
 def is_linuxbridge_interface(port):
@@ -167,6 +160,24 @@ def check_for_eni_source():
                 return
     with open('/etc/network/interfaces', 'a') as eni:
         eni.write('\nsource /etc/network/interfaces.d/*')
+
+
+def interface_exists(name):
+    ''' Check if named interface exists
+    :param name: string name of interface to check
+    :returns boolean: True if interface exists
+    '''
+    try:
+        import netifaces
+    except ImportError:
+        if six.PY2:
+            apt_install('python-netifaces', fatal=True)
+        else:
+            apt_install('python3-netifaces', fatal=True)
+        import netifaces
+
+    interfaces = netifaces.interfaces()
+    return name in interfaces
 
 
 def full_restart():
