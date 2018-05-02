@@ -151,6 +151,29 @@ def enable(soft_fail=False):
         return True
 
 
+def reload():
+    """
+    Reload ufw
+
+    :returns: True if ufw is successfully enabled
+    """
+    output = subprocess.check_output(['ufw', 'reload'],
+                                     universal_newlines=True,
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
+
+    m = re.findall('^Firewall reloaded\n',
+                   output, re.M)
+    hookenv.log(output, level='DEBUG')
+
+    if len(m) == 0:
+        hookenv.log("ufw couldn't be reloaded", level='WARN')
+        return False
+    else:
+        hookenv.log("ufw reloaded", level='INFO')
+        return True
+
+
 def disable():
     """
     Disable ufw

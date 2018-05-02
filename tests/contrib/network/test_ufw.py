@@ -441,3 +441,33 @@ class TestUFW(unittest.TestCase):
     @mock.patch('subprocess.check_output')
     def test_change_default_policy_wrong_direction(self, check_output, log):
         self.assertRaises(ufw.UFWError, ufw.default_policy, 'allow', 'asdf')
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    def test_reload_ok(self, modprobe, check_output, log):
+        msg = 'Firewall reloaded\n'
+        check_output.return_value = msg
+        self.assertTrue(ufw.reload())
+
+        check_output.assert_any_call(['ufw', 'reload'],
+                                     universal_newlines=True,
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
+        log.assert_any_call(msg, level='DEBUG')
+        log.assert_any_call('ufw reloaded', level='INFO')
+
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.check_output')
+    @mock.patch('charmhelpers.contrib.network.ufw.modprobe')
+    def test_reload_fail(self, modprobe, check_output, log):
+        msg = 'This did not work\n'
+        check_output.return_value = msg
+        self.assertFalse(ufw.reload())
+
+        check_output.assert_any_call(['ufw', 'reload'],
+                                     universal_newlines=True,
+                                     env={'LANG': 'en_US',
+                                          'PATH': os.environ['PATH']})
+        log.assert_any_call(msg, level='DEBUG')
+        log.assert_any_call("ufw couldn't be reloaded", level='WARN')
