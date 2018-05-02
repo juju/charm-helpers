@@ -102,6 +102,8 @@ def add_ovsbridge_linuxbridge(name, bridge):
             log('Interface {} already exists'.format(interface), level=INFO)
             return
 
+    check_for_eni_source()
+
     with open('/etc/network/interfaces.d/{}.cfg'.format(
             linuxbridge_port), 'w') as config:
         config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port,
@@ -155,9 +157,40 @@ def get_certificate():
         return None
 
 
+def check_for_eni_source():
+    ''' Juju removes the source line when setting up interfaces,
+    replace if missing '''
+
+    with open('/etc/network/interfaces', 'r') as eni:
+        for line in eni:
+            if line == 'source /etc/network/interfaces.d/*':
+                return
+    with open('/etc/network/interfaces', 'a') as eni:
+        eni.write('\nsource /etc/network/interfaces.d/*')
+
+
 def full_restart():
     ''' Full restart and reload of openvswitch '''
     if os.path.exists('/etc/init/openvswitch-force-reload-kmod.conf'):
         service('start', 'openvswitch-force-reload-kmod')
     else:
         service('force-reload-kmod', 'openvswitch-switch')
+
+
+def enable_ipfix(bridge, target):
+    '''Enable IPfix on bridge to target.
+    :param bridge: Bridge to monitor
+    :param target: IPfix remote endpoint
+    '''
+    cmd = ['ovs-vsctl', 'set', 'Bridge', bridge, 'ipfix=@i', '--',
+           '--id=@i', 'create', 'IPFIX', 'targets=\"{}\\"'.format(target)]
+    log('Enabling IPfix on {}.'.format(bridge))
+    subprocess.check_call(cmd)
+
+
+def disable_ipfix(bridge):
+    '''Diable IPfix on target bridge.
+    :param bridge: Bridge to modify
+    '''
+    cmd = ['ovs-vsctl', 'clear', 'Bridge', bridge, 'ipfix']
+    subprocess.check_call(cmd)

@@ -1,4 +1,4 @@
-from mock import patch
+from mock import patch, call
 
 from testtools import TestCase
 from tests.helpers import patch_open, FakeRelation
@@ -101,12 +101,15 @@ class ApacheUtilsTests(TestCase):
 
     def test_get_ca_cert_from_relation(self):
         self.config_get.return_value = None
-        self.relation_ids.return_value = 'identity-service:0'
+        self.relation_ids.side_effect = [['identity-service:0'],
+                                         ['identity-credentials:1']]
         self.relation_list.return_value = 'keystone/0'
         self.relation_get.side_effect = [
             'keystone_provided_ca',
         ]
         result = apache_utils.get_ca_cert()
+        self.relation_ids.assert_has_calls([call('identity-service'),
+                                            call('identity-credentials')])
         self.assertEquals('keystone_provided_ca',
                           result)
 
@@ -118,7 +121,7 @@ class ApacheUtilsTests(TestCase):
             self.assertEqual(
                 apache_utils.retrieve_ca_cert('mycertfile'),
                 cert)
-            _open.assert_called_once_with('mycertfile', 'r')
+            _open.assert_called_once_with('mycertfile', 'rb')
 
     @patch.object(apache_utils.os.path, 'isfile')
     def test_retrieve_ca_cert_no_file(self, _isfile):

@@ -1,10 +1,18 @@
-# CharmHelpers
+CharmHelpers |badge|
+--------------------
 
-## Overview
+.. |badge| image:: https://travis-ci.org/juju/charm-helpers.svg?branch=master
+    :target: https://travis-ci.org/juju/charm-helpers
+
+Overview
+========
 
 CharmHelpers provides an opinionated set of tools for building Juju charms.
 
-## Common Usage Examples
+The full documentation is available online at: https://charm-helpers.readthedocs.io/
+
+Common Usage Examples
+=====================
 
 * interaction with charm-specific Juju unit agents via hook tools;
 * processing of events and execution of decorated functions based on event names;
@@ -15,14 +23,16 @@ CharmHelpers provides an opinionated set of tools for building Juju charms.
 * retrieval of machine-specific details;
 * implementation of application-specific code reused in similar charms.
 
-## Why Python?
+Why Python?
+===========
 
 * Python is an extremely popular, easy to learn, and powerful language which is also common in automation tools;
 * An interpreted language helps with charm portability across different CPU architectures;
 * Doesn't require debugging symbols (just use pdb in-place);
 * An author or a user is able to make debugging changes without recompiling a charm.
 
-## License
+License
+=======
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

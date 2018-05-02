@@ -171,17 +171,19 @@ class MysqlTests(unittest.TestCase):
     @mock.patch.object(mysql, 'is_leader')
     @mock.patch.object(mysql, 'leader_get')
     @mock.patch.object(mysql, 'leader_set')
+    @mock.patch.object(mysql, 'CompareHostReleases')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
     @mock.patch.object(mysql.MySQLHelper, 'connect')
     def test_set_mysql_password(self, mock_connect, mock_get_passwd,
-                                mock_leader_set, mock_leader_get,
-                                mock_is_leader):
+                                mock_compare_releases, mock_leader_set,
+                                mock_leader_get, mock_is_leader):
         mock_connection = mock.MagicMock()
         mock_cursor = mock.MagicMock()
         mock_connection.cursor.return_value = mock_cursor
         mock_get_passwd.return_value = 'asdf'
         mock_is_leader.return_value = True
         mock_leader_get.return_value = '1234'
+        mock_compare_releases.return_value = 'artful'
 
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         helper.connection = mock_connection
@@ -195,8 +197,10 @@ class MysqlTests(unittest.TestCase):
         mock_leader_set.assert_has_calls(
             [mock.call(settings={'mysql.passwd': '1234'})]
         )
+        SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET password = "
+                             "PASSWORD( %s ) WHERE user = %s;")
         mock_cursor.assert_has_calls(
-            [mock.call.execute(mysql.SQL_UPDATE_PASSWD, ('1234', 'root')),
+            [mock.call.execute(SQL_UPDATE_PASSWD, ('1234', 'root')),
              mock.call.execute('FLUSH PRIVILEGES;'),
              mock.call.close(),
              mock.call.execute('select 1;'),
@@ -208,6 +212,19 @@ class MysqlTests(unittest.TestCase):
         mock_leader_set.reset_mock()
         helper.set_mysql_password(username='root', password='1234')
         mock_leader_set.assert_not_called()
+
+        mock_compare_releases.return_value = 'bionic'
+        helper.set_mysql_password(username='root', password='1234')
+        SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET "
+                             "authentication_string = "
+                             "PASSWORD( %s ) WHERE user = %s;")
+        mock_cursor.assert_has_calls(
+            [mock.call.execute(SQL_UPDATE_PASSWD, ('1234', 'root')),
+             mock.call.execute('FLUSH PRIVILEGES;'),
+             mock.call.close(),
+             mock.call.execute('select 1;'),
+             mock.call.close()]
+        )
 
     @mock.patch.object(mysql, 'leader_get')
     @mock.patch.object(mysql, 'leader_set')
