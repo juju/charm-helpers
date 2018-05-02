@@ -121,7 +121,7 @@ class ApacheUtilsTests(TestCase):
             self.assertEqual(
                 apache_utils.retrieve_ca_cert('mycertfile'),
                 cert)
-            _open.assert_called_once_with('mycertfile', 'r')
+            _open.assert_called_once_with('mycertfile', 'rb')
 
     @patch.object(apache_utils.os.path, 'isfile')
     def test_retrieve_ca_cert_no_file(self, _isfile):
