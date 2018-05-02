@@ -192,6 +192,7 @@ IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
 
 IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
     'api_version': '3',
+    'service_domain_id': '567890',
 }
 IDENTITY_CREDENTIALS_RELATION_VERSIONED.update(IDENTITY_CREDENTIALS_RELATION_UNSET)
 
@@ -900,6 +901,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -948,6 +950,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -971,6 +974,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -994,6 +998,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1015,6 +1020,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1038,6 +1044,7 @@ class ContextTests(unittest.TestCase):
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1084,6 +1091,7 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
+            'admin_domain_id': None,
             'admin_user': 'adam',
             'auth_host': '[2001:db8:1::1]',
             'auth_port': '35357',
@@ -2242,14 +2250,14 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(apache.configure_cert.called)
 
     def test_https_context_loads_correct_apache_mods(self):
-        '''Test apache2 context also loads required apache modules'''
+        # Test apache2 context also loads required apache modules
         apache = context.ApacheSSLContext()
         apache.enable_modules()
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         self.check_call.assert_called_with(ex_cmd)
 
     def test_https_configure_cert(self):
-        '''Test apache2 properly installs certs and keys to disk'''
+        # Test apache2 properly installs certs and keys to disk
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = [b'SSL_CERT', b'SSL_KEY']
         apache = context.ApacheSSLContext()
@@ -2259,16 +2267,16 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert_test-cn',
-                      content=b'SSL_CERT'),
+                      content=b'SSL_CERT', perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key_test-cn',
-                      content=b'SSL_KEY')]
+                      content=b'SSL_KEY', perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
         self.assertEquals(decode, self.b64decode.call_args_list)
 
     def test_https_configure_cert_deprecated(self):
-        '''Test apache2 properly installs certs and keys to disk'''
+        # Test apache2 properly installs certs and keys to disk
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
         apache = context.ApacheSSLContext()
@@ -2278,9 +2286,9 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert',
-                      content='SSL_CERT'),
+                      content='SSL_CERT', perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key',
-                      content='SSL_KEY')]
+                      content='SSL_KEY', perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
@@ -3330,20 +3338,38 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.assertEquals(context.NetworkServiceContext()(), data_result)
 
+    def test_internal_endpoint_context(self):
+        config = {'use-internal-endpoints': False}
+        self.config.side_effect = fake_config(config)
+        ctxt = context.InternalEndpointContext()
+        self.assertFalse(ctxt()['use_internal_endpoints'])
+        config = {'use-internal-endpoints': True}
+        self.config.side_effect = fake_config(config)
+        self.assertTrue(ctxt()['use_internal_endpoints'])
+
     @patch.object(context, 'os_release')
-    def test_internal_endpoint_context(self, mock_os_release):
+    def test_volume_api_context(self, mock_os_release):
         mock_os_release.return_value = 'ocata'
         config = {'use-internal-endpoints': False}
         self.config.side_effect = fake_config(config)
-        ctxt = context.InternalEndpointContext('cinder-common')
+        ctxt = context.VolumeAPIContext('cinder-common')
         c = ctxt()
-        self.assertFalse(c['use_internal_endpoints'])
         self.assertEqual(c['volume_api_version'], '2')
+        self.assertEqual(c['volume_catalog_info'],
+                         'volumev2:cinderv2:publicURL')
+
         mock_os_release.return_value = 'pike'
         config['use-internal-endpoints'] = True
+        self.config.side_effect = fake_config(config)
+        ctxt = context.VolumeAPIContext('cinder-common')
         c = ctxt()
-        self.assertTrue(c['use_internal_endpoints'])
         self.assertEqual(c['volume_api_version'], '3')
+        self.assertEqual(c['volume_catalog_info'],
+                         'volumev3:cinderv3:internalURL')
+
+    def test_volume_api_context_no_pkg(self):
+        self.assertRaises(ValueError, context.VolumeAPIContext, "")
+        self.assertRaises(ValueError, context.VolumeAPIContext, None)
 
     def test_apparmor_context_call_not_valid(self):
         ''' Tests for the apparmor context'''
@@ -3479,6 +3505,13 @@ class ContextTests(unittest.TestCase):
     @patch('charmhelpers.contrib.openstack.context.mkdir')
     def test_ensure_dir_ctx(self, mkdir):
         dirname = '/etc/keystone/policy.d'
-        ctxt = context.EnsureDirContext(dirname)
+        owner = 'someuser'
+        group = 'somegroup'
+        perms = 0o555
+        force = False
+        ctxt = context.EnsureDirContext(dirname, owner=owner,
+                                        group=group, perms=perms,
+                                        force=force)
         ctxt()
-        mkdir.assert_called_with(dirname)
+        mkdir.assert_called_with(dirname, owner=owner, group=group,
+                                 perms=perms, force=force)

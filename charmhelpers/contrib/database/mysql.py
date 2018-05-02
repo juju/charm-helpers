@@ -22,6 +22,8 @@ import six
 # from string import upper
 
 from charmhelpers.core.host import (
+    CompareHostReleases,
+    lsb_release,
     mkdir,
     pwgen,
     write_file
@@ -55,15 +57,6 @@ except ImportError:
     else:
         apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
     import MySQLdb
-
-
-# NOTE(freyes): Due to skip-name-resolve root@$HOSTNAME account fails when
-# using SET PASSWORD so using UPDATE against the mysql.user table is needed,
-# but changes to this table are not replicated across the cluster, so this
-# update needs to run in all the nodes.
-# More info at http://galeracluster.com/documentation-webpages/userchanges.html
-SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET password = PASSWORD( %s ) "
-                     "WHERE user = %s;")
 
 
 class MySQLSetPasswordError(Exception):
@@ -311,6 +304,21 @@ class MySQLHelper(object):
                                          'leader settings (%s)') % ex, ex)
 
         try:
+            # NOTE(freyes): Due to skip-name-resolve root@$HOSTNAME account
+            # fails when using SET PASSWORD so using UPDATE against the
+            # mysql.user table is needed, but changes to this table are not
+            # replicated across the cluster, so this update needs to run in
+            # all the nodes. More info at
+            # http://galeracluster.com/documentation-webpages/userchanges.html
+            release = CompareHostReleases(lsb_release()['DISTRIB_CODENAME'])
+            if release < 'bionic':
+                SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET password = "
+                                     "PASSWORD( %s ) WHERE user = %s;")
+            else:
+                # PXC 5.7 (introduced in Bionic) uses authentication_string
+                SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET "
+                                     "authentication_string = "
+                                     "PASSWORD( %s ) WHERE user = %s;")
             cursor.execute(SQL_UPDATE_PASSWD, (new_passwd, username))
             cursor.execute('FLUSH PRIVILEGES;')
             self.connection.commit()

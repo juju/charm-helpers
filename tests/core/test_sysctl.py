@@ -54,6 +54,25 @@ class SysctlTests(unittest.TestCase):
             "/etc/sysctl.d/test-sysctl.conf"])
 
     @patch(builtin_open)
+    def test_create_with_dict(self, mock_open):
+        """Test create sysctl method"""
+        _file = MagicMock(spec=io.FileIO)
+        mock_open.return_value = _file
+
+        create({"kernel.max_pid": 1337}, "/etc/sysctl.d/test-sysctl.conf")
+
+        _file.__enter__().write.assert_called_with("kernel.max_pid=1337\n")
+
+        self.log.assert_called_with(
+            "Updating sysctl_file: /etc/sysctl.d/test-sysctl.conf"
+            " values: {'kernel.max_pid': 1337}",
+            level='DEBUG')
+
+        self.check_call.assert_called_with([
+            "sysctl", "-p",
+            "/etc/sysctl.d/test-sysctl.conf"])
+
+    @patch(builtin_open)
     def test_create_invalid_argument(self, mock_open):
         """Test create sysctl with an invalid argument"""
         _file = MagicMock(spec=io.FileIO)

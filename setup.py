@@ -43,7 +43,7 @@ SETUP = {
         "bin/contrib/saltstack/salt-call",
     ],
     'license': "Apache 2.0 (ASL)",
-    'long_description': open('README.md').read(),
+    'long_description': open('README.rst').read(),
     'description': 'Helpers for Juju Charm development',
 }
 

@@ -111,3 +111,17 @@ class MiscStorageUtilsTests(unittest.TestCase):
             b'NAME="cciss!c0d0" MAJ:MIN="104:0" RM="0" SIZE="273.3G" RO="0" TYPE="disk" MOUNTPOINT=""\n')
         result = storage_utils.is_device_mounted('/dev/cciss/c0d0')
         self.assertFalse(result)
+
+    @patch(STORAGE_LINUX_UTILS + '.check_call')
+    def test_mkfs_xfs(self, check_call):
+        storage_utils.mkfs_xfs('/dev/sdb')
+        check_call.assert_called_with(
+            ['mkfs.xfs', '-i', 'size=1024', '/dev/sdb']
+        )
+
+    @patch(STORAGE_LINUX_UTILS + '.check_call')
+    def test_mkfs_xfs_force(self, check_call):
+        storage_utils.mkfs_xfs('/dev/sdb', force=True)
+        check_call.assert_called_with(
+            ['mkfs.xfs', '-f', '-i', 'size=1024', '/dev/sdb']
+        )
