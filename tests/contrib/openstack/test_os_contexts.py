@@ -642,6 +642,7 @@ TO_PATCH = [
     'resolve_address',
     'is_ipv6_disabled',
     'snap_install_requested',
+    'init_is_systemd',
 ]
 
 
@@ -697,6 +698,7 @@ class ContextTests(unittest.TestCase):
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
         self.snap_install_requested.return_value = False
+        self.init_is_systemd.return_value = True
         self.maxDiff = None
 
     def _patch(self, method):
@@ -1736,6 +1738,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'init_is_systemd': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -1797,6 +1800,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'init_is_systemd': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -1890,6 +1894,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'init_is_systemd': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -1965,6 +1970,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'init_is_systemd': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2030,6 +2036,7 @@ class ContextTests(unittest.TestCase):
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
+            'init_is_systemd': True,
             'ipv6_enabled': True,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2152,6 +2159,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
+            'init_is_systemd': True,
             'ipv6_enabled': False,
             'stat_port': '8888',
             'stat_password': 'testpassword',
