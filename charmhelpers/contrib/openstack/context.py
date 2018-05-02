@@ -62,6 +62,7 @@ from charmhelpers.core.host import (
     lsb_release,
     CompareHostReleases,
     is_container,
+    service_reload,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
@@ -800,6 +801,8 @@ class ApacheSSLContext(OSContextGenerator):
                    content=b64decode(cert), perms=0o640)
         write_file(path=os.path.join(ssl_dir, key_filename),
                    content=b64decode(key), perms=0o640)
+
+        service_reload('apache2')
 
     def configure_ca(self):
         ca_cert = get_ca_cert()
