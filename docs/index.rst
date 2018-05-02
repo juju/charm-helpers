@@ -20,8 +20,16 @@ for simplifying the development of `Juju Charms`_. It includes utilities for:
 
    getting-started
    example-index
-   contributing
    api/charmhelpers
+
+.. toctree::
+   :caption: Project
+   :glob:
+   :maxdepth: 3
+
+   contributing
+   changelog
+
 
 Indices and tables
 ==================

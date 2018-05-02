@@ -519,26 +519,47 @@ class ClusterUtilsTests(TestCase):
         self.assertTrue(cluster_utils.valid_hacluster_config())
         self.assertFalse(status_set.called)
 
+    @patch.object(cluster_utils, 'juju_is_leader')
     @patch.object(cluster_utils, 'status_set')
     @patch.object(cluster_utils.time, 'sleep')
     @patch.object(cluster_utils, 'modulo_distribution')
     @patch.object(cluster_utils, 'log')
     def test_distributed_wait(self, log, modulo_distribution, sleep,
-                              status_set):
-        conf = {
-            'modulo-nodes': 7,
-            'known-wait': 10,
-        }
+                              status_set, is_leader):
+
+        # Leader regardless of modulo should not wait
+        is_leader.return_value = True
+        cluster_utils.distributed_wait(modulo=9, wait=23)
+        modulo_distribution.assert_not_called()
+        sleep.assert_called_with(0)
+
+        # The rest of the tests are non-leader units
+        is_leader.return_value = False
 
         def _fake_config_get(setting):
             return conf[setting]
 
+        # Uses fallback defaults
+        conf = {
+            'modulo-nodes': None,
+            'known-wait': None,
+        }
         self.config_get.side_effect = _fake_config_get
+        cluster_utils.distributed_wait()
+        modulo_distribution.assert_called_with(modulo=3, wait=30,
+                                               non_zero_wait=True)
 
         # Uses config values
+        conf = {
+            'modulo-nodes': 7,
+            'known-wait': 10,
+        }
+        self.config_get.side_effect = _fake_config_get
         cluster_utils.distributed_wait()
-        modulo_distribution.assert_called_with(modulo=7, wait=10)
+        modulo_distribution.assert_called_with(modulo=7, wait=10,
+                                               non_zero_wait=True)
 
         # Uses passed values
-        cluster_utils.distributed_wait(modulo=3, wait=45)
-        modulo_distribution.assert_called_with(modulo=3, wait=45)
+        cluster_utils.distributed_wait(modulo=5, wait=45)
+        modulo_distribution.assert_called_with(modulo=5, wait=45,
+                                               non_zero_wait=True)

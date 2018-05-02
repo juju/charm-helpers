@@ -212,6 +212,16 @@ class CephUtilsTests(TestCase):
                           valid_type=six.string_types,
                           valid_range=["valid", "list", "of", "strings"])
 
+    def test_validator_valid_string(self):
+        ceph_utils.validator(value="foo",
+                             valid_type=six.string_types,
+                             valid_range=["foo"])
+
+    def test_validator_valid_string_type(self):
+        ceph_utils.validator(value="foo",
+                             valid_type=str,
+                             valid_range=["foo"])
+
     def test_pool_add_cache_tier(self):
         p = ceph_utils.Pool(name='test', service='admin')
         p.add_cache_tier('cacher', 'readonly')
@@ -281,20 +291,43 @@ class CephUtilsTests(TestCase):
         pg_num = p.get_pgs(pool_size=3, percent_data=0.1)
         self.assertEquals(2, pg_num)
 
+    @patch.object(ceph_utils, 'ceph_version')
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_old_ceph(self, get_osds):
+    def test_replicated_pool_create_old_ceph(self, get_osds, ceph_version):
+        ceph_version.return_value = '10.2.0'
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200)]),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)]),
         ])
+        self.assertEqual(self.check_call.call_count, 2)
+
+    @patch.object(ceph_utils, 'ceph_version')
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_luminous_ceph(self, get_osds, ceph_version):
+        ceph_version.return_value = '12.2.0'
+        get_osds.return_value = None
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
+        p.create()
+
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd',
+                  'pool', 'create', 'test', str(200)]),
+            call(['ceph', '--id', 'admin', 'osd',
+                  'pool', 'set', 'test', 'size', str(3)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown'])
+        ])
+        self.assertEqual(self.check_call.call_count, 3)
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_small_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_small_osds(self, ceph_version, get_osds):
         get_osds.return_value = range(1, 5)
+        ceph_version.return_value = '10.1.1'
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=10)
         p.create()
@@ -307,7 +340,9 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_medium_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_medium_osds(self, ceph_version, get_osds):
+        ceph_version.return_value = '10.1.1'
         get_osds.return_value = range(1, 9)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=50)
@@ -321,8 +356,10 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_large_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_large_osds(self, ceph_version, get_osds):
         get_osds.return_value = range(1, 41)
+        ceph_version.return_value = '10.1.1'
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=100)
         p.create()
@@ -336,8 +373,10 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_xlarge_osds(self, get_osds):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_replicated_pool_create_xlarge_osds(self, ceph_version, get_osds):
         get_osds.return_value = range(1, 1001)
+        ceph_version.return_value = '10.1.1'
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=100)
         p.create()
@@ -373,7 +412,9 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_erasure_profile')
     @patch.object(ceph_utils, 'get_osds')
-    def test_erasure_pool_create(self, get_osds, erasure_profile):
+    @patch.object(ceph_utils, 'ceph_version')
+    def test_erasure_pool_create(self, ceph_version, get_osds, erasure_profile):
+        ceph_version.return_value = '12.0.0'
         get_osds.return_value = range(1, 60)
         erasure_profile.return_value = {
             'directory': '/usr/lib/x86_64-linux-gnu/ceph/erasure-code',
@@ -386,7 +427,9 @@ class CephUtilsTests(TestCase):
         p.create()
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '2048', '2048', 'erasure', 'default'])
+                  '2048', '2048', 'erasure', 'default']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown'])
         ])
 
     def test_get_erasure_profile_none(self):
@@ -394,11 +437,25 @@ class CephUtilsTests(TestCase):
         return_value = ceph_utils.get_erasure_profile('admin', 'unknown')
         self.assertEqual(None, return_value)
 
-    def test_pool_set(self):
+    def test_pool_set_int(self):
         self.check_call.return_value = 0
         ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=2)
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 2])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', '2'])
+        ])
+
+    def test_pool_set_bool(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value=True)
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 'true'])
+        ])
+
+    def test_pool_set_str(self):
+        self.check_call.return_value = 0
+        ceph_utils.pool_set(service='admin', pool_name='data', key='test', value='two')
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'data', 'test', 'two'])
         ])
 
     def test_pool_set_fails(self):
@@ -441,15 +498,26 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '0'])
         ])
 
+    @patch.object(ceph_utils, 'ceph_version')
     @patch.object(ceph_utils, 'erasure_profile_exists')
-    def test_create_erasure_profile(self, existing_profile):
+    def test_create_erasure_profile(self, existing_profile, mock_version):
         existing_profile.return_value = True
+        mock_version.return_value = '10.0.0'
         ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
                                           failure_domain='rack', data_chunks=10, coding_chunks=3)
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', '--force']
+               'ruleset-failure-domain=' + 'rack', '--force']
+        self.check_call.assert_has_calls([call(cmd)])
+
+        mock_version.return_value = '12.1.0'
+        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
+               'crush-failure-domain=' + 'rack', '--force']
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
@@ -460,7 +528,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', 'l=' + str(1)]
+               'ruleset-failure-domain=' + 'rack', 'l=' + str(1)]
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
@@ -472,7 +540,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'shec', 'k=' + str(10), 'm=' + str(3),
-               'ruleset_failure_domain=' + 'rack', 'c=' + str(1)]
+               'ruleset-failure-domain=' + 'rack', 'c=' + str(1)]
         self.check_call.assert_has_calls([call(cmd)])
 
     def test_rename_pool(self):
@@ -1096,6 +1164,9 @@ class CephUtilsTests(TestCase):
         rq.add_op_request_access_to_group(name='test')
         rq.add_op_request_access_to_group(name='objects',
                                           key_name='test')
+        rq.add_op_request_access_to_group(
+            name='others',
+            object_prefix_permissions={'rwx': ['prefix1']})
         expected = {
             'api-version': 1,
             'request-id': 'uuid',
@@ -1103,14 +1174,38 @@ class CephUtilsTests(TestCase):
                     {'op': 'create-pool', 'name': 'pool2', 'replicas': 3},
                     {'op': 'create-pool', 'name': 'pool3', 'replicas': 3, 'group': 'test'},
                     {'op': 'add-permissions-to-key', 'group': 'test', 'name': 'service_test'},
-                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'}]
+                    {'op': 'add-permissions-to-key', 'group': 'objects', 'name': 'test'},
+                    {
+                        'op': 'add-permissions-to-key',
+                        'group': 'others',
+                        'name': 'service_test',
+                        'object-prefix-permissions': {u'rwx': [u'prefix1']}}]
         }
         request_dict = json.loads(rq.request)
         for key in ['api-version', 'request-id']:
             self.assertEqual(request_dict[key], expected[key])
-        for key in ['op', 'name', 'replicas']:
-            self.assertEqual(request_dict['ops'][0][key], expected['ops'][0][key])
-            self.assertEqual(request_dict['ops'][1][key], expected['ops'][1][key])
+        for (op_no, expected_op) in enumerate(expected['ops']):
+            for key in expected_op.keys():
+                self.assertEqual(
+                    request_dict['ops'][op_no][key],
+                    expected_op[key])
+
+    @patch.object(ceph_utils, 'service_name')
+    @patch.object(ceph_utils, 'uuid')
+    def test_ceph_broker_rq_class_test_not_equal(self, uuid, service_name):
+        service_name.return_value = 'service_test'
+        uuid.uuid1.return_value = 'uuid'
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_pool('pool1')
+        rq1.add_op_request_access_to_group(name='test')
+        rq1.add_op_request_access_to_group(name='objects',
+                                           permission='rwx')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_pool('pool1')
+        rq2.add_op_request_access_to_group(name='test')
+        rq2.add_op_request_access_to_group(name='objects',
+                                           permission='r')
+        self.assertFalse(rq1 == rq2)
 
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,

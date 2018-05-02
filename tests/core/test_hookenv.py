@@ -60,6 +60,26 @@ class ConfigTest(TestCase):
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c._prev_dict, None)
 
+    def test_init_empty_state_file(self):
+        d = dict(foo='bar')
+        c = hookenv.Config(d)
+
+        with open(c.path, 'w') as f:
+            f.close()
+
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c._prev_dict, None)
+
+    def test_init_invalid_state_file(self):
+        d = dict(foo='bar')
+        c = hookenv.Config(d)
+
+        with open(c.path, 'w') as f:
+            f.write('blah')
+
+        self.assertEqual(c['foo'], 'bar')
+        self.assertEqual(c._prev_dict, None)
+
     def test_load_previous(self):
         d = dict(foo='bar')
         c = hookenv.Config()
@@ -116,6 +136,7 @@ class ConfigTest(TestCase):
         with open(c.path, 'r') as f:
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar'))
+            self.assertEqual(os.stat(c.path).st_mode & 0o777, 0o600)
 
     def test_save_with_prev_dict(self):
         c = hookenv.Config(dict(foo='bar'))
@@ -126,6 +147,7 @@ class ConfigTest(TestCase):
         with open(c.path, 'r') as f:
             self.assertEqual(c, json.load(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
+            self.assertEqual(os.stat(c.path).st_mode & 0o777, 0o600)
 
     def test_deep_change(self):
         # After loading stored data into our previous dictionary,
@@ -316,15 +338,18 @@ class HelpersTest(TestCase):
             hookenv.log('foo', level)
             mock_call.assert_called_with(['juju-log', '-l', level, 'foo'])
 
+    @patch('charmhelpers.core.hookenv._cache_config', None)
+    @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
-    def test_gets_charm_config_with_scope(self, check_output):
-        config_data = 'bar'
-        check_output.return_value = json.dumps(config_data).encode('UTF-8')
+    def test_gets_charm_config_with_scope(self, check_output, charm_dir):
+        check_output.return_value = json.dumps(dict(baz='bar')).encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
 
         result = hookenv.config(scope='baz')
 
         self.assertEqual(result, 'bar')
-        check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+        check_output.assert_called_with(['config-get', '--all',
+                                         '--format=json'])
 
         # The result can be used like a string
         self.assertEqual(result[1], 'a')
@@ -332,6 +357,7 @@ class HelpersTest(TestCase):
         # ... because the result is actually a string
         self.assert_(isinstance(result, six.string_types))
 
+    @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):
         check_output.return_value = b''
@@ -339,20 +365,126 @@ class HelpersTest(TestCase):
         result = hookenv.config(scope='baz')
 
         self.assertEqual(result, None)
-        check_output.assert_called_with(['config-get', 'baz', '--format=json'])
+        check_output.assert_called_with(['config-get', '--all',
+                                         '--format=json'])
 
+    @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
     def test_gets_config_without_scope(self, check_output, charm_dir):
-        check_output.return_value = json.dumps(dict(foo='bar')).encode('UTF-8')
-        charm_dir.side_effect = tempfile.mkdtemp
+        check_output.return_value = json.dumps(dict(baz='bar')).encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
 
         result = hookenv.config()
 
         self.assertIsInstance(result, hookenv.Config)
-        self.assertEqual(result['foo'], 'bar')
+        self.assertEqual(result['baz'], 'bar')
         check_output.assert_called_with(['config-get', '--all',
                                          '--format=json'])
+
+    @patch('charmhelpers.core.hookenv.log')
+    @patch('charmhelpers.core.hookenv._cache_config', None)
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_charm_config_invalid_json_with_scope(self,
+                                                       check_output,
+                                                       charm_dir,
+                                                       log):
+        check_output.return_value = '{"invalid: "json"}'.encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config(scope='invalid')
+
+        self.assertEqual(result, None)
+        cmd_line = ['config-get', '--all', '--format=json']
+        check_output.assert_called_with(cmd_line)
+        log.assert_called_with(
+            'Unable to parse output from config-get: '
+            'config_cmd_line="{}" message="{}"'
+            .format(str(cmd_line),
+                    "Expecting ':' delimiter: line 1 column 13 (char 12)"),
+            level=hookenv.ERROR,
+        )
+
+    @patch('charmhelpers.core.hookenv.log')
+    @patch('charmhelpers.core.hookenv._cache_config', None)
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_charm_config_invalid_utf8_with_scope(self,
+                                                       check_output,
+                                                       charm_dir,
+                                                       log):
+        check_output.return_value = b'{"invalid: "json"}\x9D'
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config(scope='invalid')
+
+        self.assertEqual(result, None)
+        cmd_line = ['config-get', '--all', '--format=json']
+        check_output.assert_called_with(cmd_line)
+        try:
+            # Python3
+            log.assert_called_with(
+                'Unable to parse output from config-get: '
+                'config_cmd_line="{}" message="{}"'
+                .format(str(cmd_line),
+                        "'utf8' codec can't decode byte 0x9d in position "
+                        "18: invalid start byte"),
+                level=hookenv.ERROR,
+            )
+        except AssertionError:
+            # Python2.7
+            log.assert_called_with(
+                'Unable to parse output from config-get: '
+                'config_cmd_line="{}" message="{}"'
+                .format(str(cmd_line),
+                        "'utf-8' codec can't decode byte 0x9d in position "
+                        "18: invalid start byte"),
+                level=hookenv.ERROR,
+            )
+
+    @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_config_from_cache_without_scope(self,
+                                                  check_output,
+                                                  charm_dir):
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config()
+
+        self.assertEqual(result['baz'], 'bar')
+        self.assertFalse(check_output.called)
+
+    @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_config_from_cache_with_scope(self,
+                                               check_output,
+                                               charm_dir):
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config('baz')
+
+        self.assertEqual(result, 'bar')
+
+        # The result can be used like a string
+        self.assertEqual(result[1], 'a')
+
+        # ... because the result is actually a string
+        self.assert_(isinstance(result, six.string_types))
+
+        self.assertFalse(check_output.called)
+
+    @patch('charmhelpers.core.hookenv._cache_config', {'foo': 'bar'})
+    @patch('subprocess.check_output')
+    def test_gets_missing_charm_config_from_cache_with_scope(self,
+                                                             check_output):
+
+        result = hookenv.config(scope='baz')
+
+        self.assertEqual(result, None)
+        self.assertFalse(check_output.called)
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
@@ -1172,11 +1304,17 @@ class HelpersTest(TestCase):
         check_output_.assert_called_with(['unit-get', '--format=json', 'foo'])
 
     def test_cached_decorator(self):
+        class Unserializable(object):
+            def __str__(self):
+                return 'unserializable'
+
+        unserializable = Unserializable()
         calls = []
         values = {
             'hello': 'world',
             'foo': 'bar',
             'baz': None,
+            unserializable: 'qux',
         }
 
         @hookenv.cached
@@ -1189,7 +1327,8 @@ class HelpersTest(TestCase):
         self.assertEquals(cache_function('foo'), 'bar')
         self.assertEquals(cache_function('baz'), None)
         self.assertEquals(cache_function('baz'), None)
-        self.assertEquals(calls, ['hello', 'foo', 'baz'])
+        self.assertEquals(cache_function(unserializable), 'qux')
+        self.assertEquals(calls, ['hello', 'foo', 'baz', unserializable])
 
     def test_gets_charm_dir(self):
         with patch.dict('os.environ', {}):
@@ -1482,9 +1621,10 @@ class HooksTest(TestCase):
 
         juju_version.return_value = '1.24-beta5.1-trusty-amd64'
         self.assertTrue(hookenv.has_juju_version('1.23'))
-        self.assertFalse(hookenv.has_juju_version('1.24'))
+        self.assertTrue(hookenv.has_juju_version('1.24'))  # Better if this was false!
         self.assertTrue(hookenv.has_juju_version('1.24-beta5'))
         self.assertTrue(hookenv.has_juju_version('1.24-beta5.1'))
+        self.assertFalse(hookenv.has_juju_version('1.25'))
         self.assertTrue(hookenv.has_juju_version('1.18-backport6'))
 
     @patch.object(hookenv, 'relation_to_role_and_interface')
@@ -1669,7 +1809,7 @@ class HooksTest(TestCase):
         check_output.return_value = b'192.168.22.1'
         ip = hookenv.network_get_primary_address('mybinding')
         check_output.assert_called_with(
-            ['network-get', '--primary-address', 'mybinding'])
+            ['network-get', '--primary-address', 'mybinding'], stderr=-2)
         self.assertEqual(ip, '192.168.22.1')
 
     @patch('subprocess.check_output')
@@ -1680,33 +1820,67 @@ class HooksTest(TestCase):
                           'mybinding')
 
     @patch('subprocess.check_output')
-    def test_network_get_primary_required(self, check_output):
-        """Ensure that NotImplementedError is thrown when run on Juju < 2.1"""
+    def test_network_get_primary_no_binding_found(self, check_output):
+        """Ensure that NotImplementedError when no binding is found"""
         check_output.side_effect = CalledProcessError(
-            2, 'network_get',
-            output='--primary-address is currently required'.encode('UTF-8'))
-        self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
+            1, 'network-get',
+            output='no network config found for binding'.encode('UTF-8'))
+        self.assertRaises(hookenv.NoNetworkBinding,
+                          hookenv.network_get_primary_address,
+                          'doesnotexist')
+        check_output.assert_called_with(
+            ['network-get', '--primary-address', 'doesnotexist'], stderr=-2)
 
     @patch('subprocess.check_output')
-    def test_network_get(self, check_output):
+    def test_network_get_primary_other_exception(self, check_output):
+        """Ensure that CalledProcessError still thrown when not
+        a missing binding"""
+        check_output.side_effect = CalledProcessError(
+            1, 'network-get',
+            output='any other message'.encode('UTF-8'))
+        self.assertRaises(CalledProcessError,
+                          hookenv.network_get_primary_address,
+                          'mybinding')
+
+    @patch('charmhelpers.core.hookenv.juju_version')
+    @patch('subprocess.check_output')
+    def test_network_get(self, check_output, juju_version):
         """Ensure that network-get is called correctly"""
-        check_output.return_value = b'192l.l168.22.1'
-        hookenv.network_get('mybinding')
+        juju_version.return_value = '2.2.0'
+        check_output.return_value = b'result'
+        hookenv.network_get('endpoint')
         check_output.assert_called_with(
-            ['network-get', 'mybinding', '--format', 'yaml'], stderr=-2)
+            ['network-get', 'endpoint', '--format', 'yaml'], stderr=-2)
 
+    @patch('charmhelpers.core.hookenv.juju_version')
     @patch('subprocess.check_output')
-    def test_network_get_relation_bound(self, check_output):
-        """Ensure that network-get supports relation context"""
-        check_output.return_value = b'192l.l168.22.1'
-        hookenv.network_get('mybinding', 'db')
+    def test_network_get_primary_required(self, check_output, juju_version):
+        """Ensure that NotImplementedError is thrown with Juju < 2.2.0"""
+        check_output.return_value = b'result'
+
+        juju_version.return_value = '2.1.4'
+        self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
+        juju_version.return_value = '2.2.0'
+        self.assertEquals(hookenv.network_get('endpoint'), 'result')
+
+    @patch('charmhelpers.core.hookenv.juju_version')
+    @patch('subprocess.check_output')
+    def test_network_get_relation_bound(self, check_output, juju_version):
+        """Ensure that network-get supports relation context, requires Juju 2.3"""
+        juju_version.return_value = '2.3.0'
+        check_output.return_value = b'result'
+        hookenv.network_get('endpoint', 'db')
         check_output.assert_called_with(
-            ['network-get', 'mybinding', '--format', 'yaml', '-r', 'db'],
+            ['network-get', 'endpoint', '--format', 'yaml', '-r', 'db'],
             stderr=-2)
+        juju_version.return_value = '2.2.8'
+        self.assertRaises(NotImplementedError, hookenv.network_get, 'endpoint', 'db')
 
+    @patch('charmhelpers.core.hookenv.juju_version')
     @patch('subprocess.check_output')
-    def test_network_get_parses_yaml(self, check_output):
+    def test_network_get_parses_yaml(self, check_output, juju_version):
         """network-get returns loaded YAML output."""
+        juju_version.return_value = '2.3.0'
         check_output.return_value = b"""
 bind-addresses:
 - macaddress: ""
@@ -1782,3 +1956,26 @@ ingress-addresses:
         relation_get.return_value = _without_ingress
         self.assertEqual(hookenv.ingress_address(rid='test:1'),
                          '172.16.5.10')
+
+    @patch.object(hookenv, 'relation_get')
+    def test_egress_subnets(self, relation_get):
+        """Ensure egress_subnets returns the decoded egress-subnets when available
+        and falls back correctly when not.
+        """
+        d = {'egress-subnets': '10.5.0.23/32,2001::F00F/64',
+             'ingress-address': '10.5.0.23',
+             'private-address': '2001::D0:F00D'}
+
+        # Return the egress-subnets
+        relation_get.return_value = d
+        self.assertEqual(hookenv.egress_subnets(rid='test:1', unit='unit/1'),
+                         ['10.5.0.23/32', '2001::F00F/64'])
+        relation_get.assert_called_with(rid='test:1', unit='unit/1')
+
+        # Return the ingress-address
+        del d['egress-subnets']
+        self.assertEqual(hookenv.egress_subnets(), ['10.5.0.23/32'])
+
+        # Return the private-address
+        del d['ingress-address']
+        self.assertEqual(hookenv.egress_subnets(), ['2001::D0:F00D/128'])

@@ -123,48 +123,37 @@ class UtilsTests(unittest.TestCase):
         )
 
     @mock.patch.object(utils, 'config')
-    @mock.patch('charmhelpers.contrib.openstack.utils.'
-                'git_os_codename_install_source')
     @mock.patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
     @mock.patch('charmhelpers.contrib.openstack.utils.'
                 'get_os_codename_install_source')
     def test_os_release(self, mock_get_os_codename_install_source,
                         mock_get_os_codename_package,
-                        mock_git_os_codename_install_source,
                         mock_config):
         # Wipe the modules cached os_rel
         utils._os_rel = None
         mock_get_os_codename_install_source.return_value = None
         mock_get_os_codename_package.return_value = None
-        mock_git_os_codename_install_source.return_value = None
         mock_config.return_value = 'cloud-pocket'
         self.assertEqual(utils.os_release('my-pkg'), 'essex')
         mock_get_os_codename_install_source.assert_called_once_with(
             'cloud-pocket')
         mock_get_os_codename_package.assert_called_once_with(
             'my-pkg', fatal=False)
-        mock_git_os_codename_install_source.assert_called_once_with(
-            'cloud-pocket')
         # Next call to os_release should pickup cached version
         mock_get_os_codename_install_source.reset_mock()
         mock_get_os_codename_package.reset_mock()
-        mock_git_os_codename_install_source.reset_mock()
         self.assertEqual(utils.os_release('my-pkg'), 'essex')
         self.assertFalse(mock_get_os_codename_install_source.called)
         self.assertFalse(mock_get_os_codename_package.called)
-        self.assertFalse(mock_git_os_codename_install_source.called)
         # Call os_release and bypass cache
         mock_get_os_codename_install_source.reset_mock()
         mock_get_os_codename_package.reset_mock()
-        mock_git_os_codename_install_source.reset_mock()
         self.assertEqual(utils.os_release('my-pkg', reset_cache=True),
                          'essex')
         mock_get_os_codename_install_source.assert_called_once_with(
             'cloud-pocket')
         mock_get_os_codename_package.assert_called_once_with(
             'my-pkg', fatal=False)
-        mock_git_os_codename_install_source.assert_called_once_with(
-            'cloud-pocket')
 
     @mock.patch.object(utils, 'os_release')
     @mock.patch.object(utils, 'get_os_codename_install_source')
@@ -206,23 +195,36 @@ class UtilsTests(unittest.TestCase):
 
         TEST_POLICY_FILE = "/etc/glance/policy.json"
 
-        item_to_update = {
+        items_to_update = {
             "get_image_location": "role:admin",
             "extra_policy": "extra",
         }
 
         mock_open = mock.mock_open(read_data=TEST_POLICY)
         with mock.patch(builtin_open, mock_open) as mock_file:
-            utils.update_json_file(TEST_POLICY_FILE, item_to_update)
+            utils.update_json_file(TEST_POLICY_FILE, {})
+            self.assertFalse(mock_file.called)
+
+            utils.update_json_file(TEST_POLICY_FILE, items_to_update)
             mock_file.assert_has_calls([
                 mock.call(TEST_POLICY_FILE),
                 mock.call(TEST_POLICY_FILE, 'w'),
             ], any_order=True)
 
         modified_policy = json.loads(TEST_POLICY)
-        modified_policy.update(item_to_update)
+        modified_policy.update(items_to_update)
         mock_open().write.assert_called_with(
-            json.dumps(modified_policy, indent=4))
+            json.dumps(modified_policy, indent=4, sort_keys=True))
+
+        tmp = json.loads(TEST_POLICY)
+        tmp.update(items_to_update)
+        TEST_POLICY = json.dumps(tmp)
+        mock_open = mock.mock_open(read_data=TEST_POLICY)
+        with mock.patch(builtin_open, mock_open) as mock_file:
+            utils.update_json_file(TEST_POLICY_FILE, items_to_update)
+            mock_file.assert_has_calls([
+                mock.call(TEST_POLICY_FILE),
+            ], any_order=True)
 
     def test_ordered(self):
         data = {'one': 1, 'two': 2, 'three': 3}

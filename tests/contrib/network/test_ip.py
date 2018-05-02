@@ -821,6 +821,9 @@ class IPTest(unittest.TestCase):
         network_get_primary_address.side_effect = NotImplementedError
         self.assertEqual(DEFAULT_IP, net_ip.get_relation_ip('amqp'))
 
+        network_get_primary_address.side_effect = net_ip.NoNetworkBinding
+        self.assertEqual(DEFAULT_IP, net_ip.get_relation_ip('doesnotexist'))
+
         network_get_primary_address.side_effect = None
         self.assertEqual(AMQP_IP, net_ip.get_relation_ip('amqp'))
 

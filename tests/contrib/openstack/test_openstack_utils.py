@@ -111,17 +111,6 @@ UCA_SOURCES = [
     ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
 ]
 
-openstack_origin_git = """
-  release: master
-  repositories:
-    - {name: requirements,
-       repository: 'git://git.openstack.org/openstack/requirements',
-       branch: master}
-    - {name: keystone,
-       repository: 'git://git.openstack.org/openstack/keystone',
-       branch: master}
-"""
-
 # Mock python-dnspython resolver used by get_host_ip()
 
 
@@ -282,12 +271,12 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_get_swift_codename_multiple_versions_liberty(self):
         with patch('subprocess.check_output') as _subp:
-            _subp.return_value = "... trusty-updates/liberty/main ..."
+            _subp.return_value = b"... trusty-updates/liberty/main ..."
             self.assertEquals(openstack.get_swift_codename('2.5.0'), 'liberty')
 
     def test_get_swift_codename_multiple_versions_mitaka(self):
         with patch('subprocess.check_output') as _subp:
-            _subp.return_value = "... trusty-updates/mitaka/main ..."
+            _subp.return_value = b"... trusty-updates/mitaka/main ..."
             self.assertEquals(openstack.get_swift_codename('2.5.0'), 'mitaka')
 
     def test_get_swift_codename_none(self):
@@ -425,16 +414,10 @@ class OpenStackHelpersTestCase(TestCase):
             )
 
     @patch.object(openstack, 'get_os_codename_package')
-    @patch.object(openstack, 'git_os_codename_install_source')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_os_release_uncached(self, config, git_cn, get_cn):
+    def test_os_release_uncached(self, config, get_cn):
         openstack._os_rel = None
         get_cn.return_value = 'folsom'
-        git_cn.return_value = None
-
-        # openstack-origin-git=None
-        config.side_effect = [None]
-
         self.assertEquals('folsom', openstack.os_release('nova-common'))
 
     def test_os_release_cached(self):
@@ -675,6 +658,9 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '1.9.0'
         vers_swift.return_value = '2.5.0'
         self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
+        vers_pkg.return_value = '2.5.0'
+        vers_swift.return_value = '2.10.0'
+        self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
@@ -794,256 +780,6 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.get_matchmaker_map(),
             {}
         )
-
-    @patch.object(openstack, 'config')
-    def test_git_install_requested_none(self, config):
-        config.return_value = None
-        result = openstack.git_install_requested()
-        self.assertEquals(result, False)
-
-    @patch.object(openstack, 'config')
-    def test_git_install_requested_not_none(self, config):
-        config.return_value = openstack_origin_git
-        result = openstack.git_install_requested()
-        self.assertEquals(result, True)
-
-    def _test_key_error(self, os_origin_git, key, error_out):
-        try:
-            openstack.git_clone_and_install(os_origin_git, 'keystone')
-        except KeyError:
-            # KeyError expected because _git_ensure_key_exists() doesn't exit
-            # when mocked.
-            pass
-        error_out.assert_called_with(
-            'openstack-origin-git key \'%s\' is missing' % key)
-
-    @patch('os.path.isfile')
-    @patch('os.path.join')
-    @patch.object(openstack, 'error_out')
-    @patch.object(openstack, '_git_clone_and_install_single')
-    @patch.object(openstack, 'pip_install')
-    @patch.object(openstack, 'pip_create_virtualenv')
-    def test_git_clone_and_install_errors(self, pip_venv, pip_install,
-                                          git_install_single, error_out, join,
-                                          isfile):
-        isfile.return_value = True
-        git_missing_repos = """
-          repostories:
-             - {name: requirements,
-                repository: 'git://git.openstack.org/openstack/requirements',
-                branch: master}
-             - {name: keystone,
-                repository: 'git://git.openstack.org/openstack/keystone',
-                branch: master}
-          release: master"""
-        self._test_key_error(git_missing_repos, 'repositories', error_out)
-
-        git_missing_name = """
-          repositories:
-             - {name: requirements,
-                repository: 'git://git.openstack.org/openstack/requirements',
-                branch: master}
-             - {repository: 'git://git.openstack.org/openstack/keystone',
-                branch: master}
-          release: master"""
-        self._test_key_error(git_missing_name, 'name', error_out)
-
-        git_missing_repo = """
-          repositories:
-             - {name: requirements,
-                repoistroy: 'git://git.openstack.org/openstack/requirements',
-                branch: master}
-             - {name: keystone,
-                repository: 'git://git.openstack.org/openstack/keystone',
-                branch: master}
-          release: master"""
-        self._test_key_error(git_missing_repo, 'repository', error_out)
-
-        git_missing_branch = """
-          repositories:
-             - {name: requirements,
-                repository: 'git://git.openstack.org/openstack/requirements'}
-             - {name: keystone,
-                repository: 'git://git.openstack.org/openstack/keystone',
-                branch: master}
-          release: master"""
-        self._test_key_error(git_missing_branch, 'branch', error_out)
-
-        git_wrong_order_1 = """
-          repositories:
-             - {name: keystone,
-                repository: 'git://git.openstack.org/openstack/keystone',
-                branch: master}
-             - {name: requirements,
-                repository: 'git://git.openstack.org/openstack/requirements',
-                branch: master}
-          release: master"""
-        openstack.git_clone_and_install(git_wrong_order_1, 'keystone')
-        error_out.assert_called_with(
-            'keystone git repo must be specified last')
-
-        git_wrong_order_2 = """
-          repositories:
-             - {name: keystone,
-                repository: 'git://git.openstack.org/openstack/keystone',
-                branch: master}
-          release: master"""
-        openstack.git_clone_and_install(git_wrong_order_2, 'keystone')
-        error_out.assert_called_with(
-            'requirements git repo must be specified first')
-
-    @patch('os.path.join')
-    @patch.object(openstack, 'charm_dir')
-    @patch.object(openstack, 'error_out')
-    @patch.object(openstack, '_git_clone_and_install_single')
-    @patch.object(openstack, 'pip_install')
-    @patch.object(openstack, 'pip_create_virtualenv')
-    def test_git_clone_and_install_success(self, pip_venv, pip_install,
-                                           _git_install_single, error_out,
-                                           charm_dir, join):
-        proj = 'keystone'
-        charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
-        # the following sets the global requirements_dir
-        _git_install_single.return_value = '/mnt/openstack-git/requirements'
-        join.return_value = 'joined-path'
-
-        openstack.git_clone_and_install(openstack_origin_git, proj)
-        self.assertTrue(pip_venv.called)
-        pip_install.assert_called_with('setuptools', upgrade=True,
-                                       proxy=None,
-                                       venv='joined-path')
-        self.assertTrue(_git_install_single.call_count == 2)
-        expected = [
-            call('git://git.openstack.org/openstack/requirements',
-                 'master', '1', '/mnt/openstack-git', None,
-                 update_requirements=False),
-            call('git://git.openstack.org/openstack/keystone',
-                 'master', '1', '/mnt/openstack-git', None,
-                 update_requirements=True, constraints=None)
-        ]
-        self.assertEquals(expected, _git_install_single.call_args_list)
-        assert not error_out.called
-
-    @patch('os.path.join')
-    @patch('os.mkdir')
-    @patch('os.path.exists')
-    @patch.object(openstack, 'juju_log')
-    @patch.object(openstack, 'install_remote')
-    @patch.object(openstack, 'pip_install')
-    @patch.object(openstack, '_git_update_requirements')
-    def test_git_clone_and_install_single(self, _git_update_reqs, pip_install,
-                                          install_remote, log, path_exists,
-                                          mkdir, join):
-        repo = 'git://git.openstack.org/openstack/requirements.git'
-        branch = 'master'
-        depth = 1
-        parent_dir = '/mnt/openstack-git/'
-        http_proxy = 'http://squid-proxy-url'
-        dest_dir = '/mnt/openstack-git'
-        join.return_value = dest_dir
-        path_exists.return_value = False
-        install_remote.return_value = dest_dir
-
-        openstack._git_clone_and_install_single(
-            repo, branch, depth, parent_dir, http_proxy, False)
-        mkdir.assert_called_with(parent_dir)
-        install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
-                                          branch=branch)
-        assert not _git_update_reqs.called
-        pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
-                                       proxy='http://squid-proxy-url',
-                                       constraints=None)
-
-    @patch('os.path.join')
-    @patch('os.mkdir')
-    @patch('os.path.exists')
-    @patch.object(openstack, 'juju_log')
-    @patch.object(openstack, 'install_remote')
-    @patch.object(openstack, 'pip_install')
-    @patch.object(openstack, '_git_update_requirements')
-    def test_git_clone_and_install_single_with_update(
-            self, _git_update_reqs, pip_install, install_remote, log,
-            path_exists, mkdir, join):
-        repo = 'git://git.openstack.org/openstack/requirements.git'
-        branch = 'master'
-        depth = 1
-        parent_dir = '/mnt/openstack-git/'
-        http_proxy = 'http://squid-proxy-url'
-        dest_dir = '/mnt/openstack-git'
-        venv_dir = '/mnt/openstack-git'
-        reqs_dir = '/mnt/openstack-git/requirements-dir'
-        join.return_value = dest_dir
-        openstack.requirements_dir = reqs_dir
-        path_exists.return_value = False
-        install_remote.return_value = dest_dir
-
-        openstack._git_clone_and_install_single(
-            repo, branch, depth, parent_dir, http_proxy, True)
-        mkdir.assert_called_with(parent_dir)
-        install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
-                                          branch=branch)
-        _git_update_reqs.assert_called_with(venv_dir, dest_dir, reqs_dir)
-        pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
-                                       proxy='http://squid-proxy-url',
-                                       constraints=None)
-
-    @patch('os.path.join')
-    @patch('os.getcwd')
-    @patch('os.chdir')
-    @patch('subprocess.check_call')
-    def test_git_update_requirements(self, check_call, chdir, getcwd, join):
-        pkg_dir = '/mnt/openstack-git/repo-dir'
-        reqs_dir = '/mnt/openstack-git/reqs-dir'
-        orig_dir = '/var/lib/juju/units/testing-foo-0/charm'
-        venv_dir = '/mnt/openstack-git/venv'
-        getcwd.return_value = orig_dir
-        join.return_value = '/mnt/openstack-git/venv/python'
-
-        openstack._git_update_requirements(venv_dir, pkg_dir, reqs_dir)
-        expected = [call(reqs_dir), call(orig_dir)]
-        self.assertEquals(expected, chdir.call_args_list)
-        check_call.assert_called_with(['/mnt/openstack-git/venv/python',
-                                      'update.py', pkg_dir])
-
-    @patch('os.path.join')
-    @patch('subprocess.check_call')
-    def test_git_src_dir(self, check_call, join):
-        openstack.git_src_dir(openstack_origin_git, 'keystone')
-        join.assert_called_with('/mnt/openstack-git', 'keystone')
-
-    @patch.object(openstack, 'config')
-    def test_git_determine_usr_bin(self, config):
-        config.return_value = None
-        result = openstack.git_determine_usr_bin()
-        self.assertEquals(result, '/usr/bin')
-
-    @patch('os.path.join')
-    @patch.object(openstack, 'git_default_repos')
-    @patch.object(openstack, 'config')
-    def test_git_determine_usr_bin_git(self, config, git_default, join):
-        venv_bin = '/mnt/openstack/.venv/bin'
-        join.return_value = venv_bin
-        config.return_value = openstack_origin_git
-        git_default.return_value = openstack_origin_git
-        result = openstack.git_determine_usr_bin()
-        self.assertEquals(result, venv_bin)
-
-    @patch.object(openstack, 'config')
-    def test_git_determine_python_path(self, config):
-        config.return_value = None
-        result = openstack.git_determine_python_path()
-        self.assertEquals(result, None)
-
-    @patch('os.path.join')
-    @patch.object(openstack, 'git_default_repos')
-    @patch.object(openstack, 'config')
-    def test_git_determine_python_path_git(self, config, git_default, join):
-        venv_site = '/mnt/openstack/.venv/lib/python2.7/site-packages'
-        join.return_value = venv_site
-        config.return_value = openstack_origin_git
-        git_default.return_value = openstack_origin_git
-        result = openstack.git_determine_python_path()
-        self.assertEquals(result, venv_site)
 
     def test_incomplete_relation_data(self):
         configs = MagicMock()
@@ -1787,8 +1523,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         openstack_upgrade_available.return_value = True
 
-        # openstack-origin-git=None, action-managed-upgrade=True
-        config.side_effect = [None, True]
+        # action-managed-upgrade=True
+        config.side_effect = [True]
 
         openstack.do_action_openstack_upgrade('package-xyz',
                                               do_openstack_upgrade,
@@ -1804,30 +1540,6 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'action_fail')
     @patch.object(openstack, 'openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_openstack_upgrade_git(self, config, openstack_upgrade_available,
-                                   action_fail, action_set, log):
-        def do_openstack_upgrade(configs):
-            pass
-
-        openstack_upgrade_available.return_value = True
-
-        # openstack-origin-git=xyz
-        config.side_effect = ['openstack-origin-git: xyz']
-
-        openstack.do_action_openstack_upgrade('package-xyz',
-                                              do_openstack_upgrade,
-                                              None)
-
-        self.assertFalse(openstack_upgrade_available.called)
-        msg = ('installed from source, skipped upgrade.')
-        action_set.assert_called_with({'outcome': msg})
-        self.assertFalse(action_fail.called)
-
-    @patch.object(openstack, 'juju_log')
-    @patch.object(openstack, 'action_set')
-    @patch.object(openstack, 'action_fail')
-    @patch.object(openstack, 'openstack_upgrade_available')
-    @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_not_avail(self, config,
                                          openstack_upgrade_available,
                                          action_fail, action_set, log):
@@ -1835,9 +1547,6 @@ class OpenStackHelpersTestCase(TestCase):
             pass
 
         openstack_upgrade_available.return_value = False
-
-        # openstack-origin-git=None
-        config.side_effect = [None]
 
         openstack.do_action_openstack_upgrade('package-xyz',
                                               do_openstack_upgrade,
@@ -1861,8 +1570,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         openstack_upgrade_available.return_value = True
 
-        # openstack-origin-git=None, action-managed-upgrade=False
-        config.side_effect = [None, False]
+        # action-managed-upgrade=False
+        config.side_effect = [False]
 
         openstack.do_action_openstack_upgrade('package-xyz',
                                               do_openstack_upgrade,
@@ -1887,8 +1596,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         openstack_upgrade_available.return_value = True
 
-        # openstack-origin-git=None, action-managed-upgrade=False
-        config.side_effect = [None, True]
+        # action-managed-upgrade=False
+        config.side_effect = [True]
 
         openstack.do_action_openstack_upgrade('package-xyz',
                                               do_openstack_upgrade,
