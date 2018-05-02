@@ -175,3 +175,22 @@ def full_restart():
         service('start', 'openvswitch-force-reload-kmod')
     else:
         service('force-reload-kmod', 'openvswitch-switch')
+
+
+def enable_ipfix(bridge, target):
+    '''Enable IPfix on bridge to target.
+    :param bridge: Bridge to monitor
+    :param target: IPfix remote endpoint
+    '''
+    cmd = ['ovs-vsctl', 'set', 'Bridge', bridge, 'ipfix=@i', '--',
+           '--id=@i', 'create', 'IPFIX', 'targets=\"{}\\"'.format(target)]
+    log('Enabling IPfix on {}.'.format(bridge))
+    subprocess.check_call(cmd)
+
+
+def disable_ipfix(bridge):
+    '''Diable IPfix on target bridge.
+    :param bridge: Bridge to modify
+    '''
+    cmd = ['ovs-vsctl', 'clear', 'Bridge', bridge, 'ipfix']
+    subprocess.check_call(cmd)
