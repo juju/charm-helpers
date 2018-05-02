@@ -183,7 +183,7 @@ def enable_ipfix(bridge, target):
     :param target: IPfix remote endpoint
     '''
     cmd = ['ovs-vsctl', 'set', 'Bridge', bridge, 'ipfix=@i', '--',
-           '--id=@i', 'create', 'IPFIX', 'targets=\"{}\\"'.format(target)]
+           '--id=@i', 'create', 'IPFIX', 'targets="{}"'.format(target)]
     log('Enabling IPfix on {}.'.format(bridge))
     subprocess.check_call(cmd)
 
