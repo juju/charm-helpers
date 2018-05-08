@@ -21,6 +21,7 @@ import charmhelpers.contrib.openstack.context as context
 import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.host as host
 import charmhelpers.core.templating as templating
+import charmhelpers.core.unitdata as unitdata
 
 VAULTLOCKER_BACKEND = 'charm-vaultlocker'
 
@@ -36,30 +37,39 @@ class VaultKVContext(context.OSContextGenerator):
         )
 
     def __call__(self):
+        db = unitdata.kv()
+        last_token = db.get('last-token')
+        secret_id = db.get('secret-id')
         for relation_id in hookenv.relation_ids(self.interfaces[0]):
             for unit in hookenv.related_units(relation_id):
-                vault_url = hookenv.relation_get(
-                    'vault_url',
-                    unit=unit,
-                    rid=relation_id
-                )
-                role_id = hookenv.relation_get(
-                    '{}_role_id'.format(hookenv.local_unit()),
-                    unit=unit,
-                    rid=relation_id
-                )
+                data = hookenv.relation_get(unit=unit,
+                                            rid=relation_id)
+                vault_url = data.get('vault_url')
+                role_id = data.get('{}_role_id'.format(hookenv.local_unit()))
+                token = data.get('{}_token'.format(hookenv.local_unit()))
 
-                if vault_url and role_id:
+                if all([vault_url, role_id, token]):
+                    token = json.loads(token)
+                    vault_url = json.loads(vault_url)
+
+                    # Tokens may change when secret_id's are being
+                    # reissued - if so use token to get new secret_id
+                    if token != last_token:
+                        secret_id = retrieve_secret_id(
+                            url=vault_url,
+                            token=token
+                        )
+                        db.set('secret-id', secret_id)
+                        db.set('last-token', token)
+                        db.flush()
+
                     ctxt = {
-                        'vault_url': json.loads(vault_url),
+                        'vault_url': vault_url,
                         'role_id': json.loads(role_id),
+                        'secret_id': secret_id,
                         'secret_backend': self.secret_backend,
                     }
-                    vault_ca = hookenv.relation_get(
-                        'vault_ca',
-                        unit=unit,
-                        rid=relation_id
-                    )
+                    vault_ca = data.get('vault_ca')
                     if vault_ca:
                         ctxt['vault_ca'] = json.loads(vault_ca)
                     self.complete = True
@@ -96,3 +106,21 @@ def vault_relation_complete(backend=None):
     vault_kv = VaultKVContext(secret_backend=backend or VAULTLOCKER_BACKEND)
     vault_kv()
     return vault_kv.complete
+
+
+# TODO: contrib a high level unwrap method to hvac that works
+def retrieve_secret_id(url, token):
+    """Retrieve a response-wrapped secret_id from Vault
+
+    :param url: URL to Vault Server
+    :ptype url: str
+    :param token: One shot Token to use
+    :ptype token: str
+    :returns: secret_id to use for Vault Access
+    :rtype: str"""
+    import hvac
+    client = hvac.Client(url=url, token=token)
+    response = client._post('/v1/sys/wrapping/unwrap')
+    if response.status_code == 200:
+        data = response.json()
+        return data['data']['secret_id']
