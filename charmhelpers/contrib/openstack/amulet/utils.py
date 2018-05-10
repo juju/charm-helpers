@@ -40,6 +40,7 @@ import novaclient
 import pika
 import swiftclient
 
+from charmhelpers.core.decorators import retry_on_exception
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
@@ -423,6 +424,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Checking if tenant exists ({})...'.format(tenant))
         return tenant in [t.name for t in keystone.tenants.list()]
 
+    @retry_on_exception(num_retries=5, base_delay=1)
     def keystone_wait_for_propagation(self, sentry_relation_pairs,
                                       api_version):
         """Iterate over list of sentry and relation tuples and verify that
