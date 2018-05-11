@@ -21,6 +21,7 @@ from charmhelpers.contrib.network.ip import (
     get_hostname,
 )
 from charmhelpers.core.hookenv import (
+    network_get_primary_address,
     is_leader,
     config,
     relation_get,
@@ -89,8 +90,8 @@ class CertRequest(object):
             self.entries.append(self.hostname_entry)
         request = {}
         for entry in self.entries:
-            request[entry['cn']] = {
-                'sans': entry['addresses']}
+            sans = list(set(entry['addresses']))
+            request[entry['cn']] = {'sans': sans}
         return {'cert_requests': json.dumps(request, sort_keys=True)}
 
 
@@ -106,11 +107,13 @@ def get_certificate_request():
             net_config = config(ADDRESS_MAP[net_type]['override'])
             try:
                 net_addr = resolve_address(endpoint_type=net_type)
+                ip = network_get_primary_address(
+                    ADDRESS_MAP[net_type]['binding'])
                 if net_config:
                     req.add_entry(
                         net_type,
                         net_config,
-                        [net_addr])
+                        [net_addr, ip])
                 else:
                     # There is network address with no corresponding hostname.
                     # Add the ip to the hostname cert to allow for this.
