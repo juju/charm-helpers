@@ -90,7 +90,7 @@ class CertRequest(object):
             self.entries.append(self.hostname_entry)
         request = {}
         for entry in self.entries:
-            sans = list(set(entry['addresses']))
+            sans = sorted(list(set(entry['addresses'])))
             request[entry['cn']] = {'sans': sans}
         return {'cert_requests': json.dumps(request, sort_keys=True)}
 

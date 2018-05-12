@@ -45,13 +45,15 @@ class CertUtilsTests(unittest.TestCase):
             {'cert_requests':
                 '{"juju-unit-2": {"sans": ["10.1.2.3", "10.1.2.4"]}}'})
 
+    @mock.patch.object(cert_utils, 'network_get_primary_address')
     @mock.patch.object(cert_utils, 'resolve_address')
     @mock.patch.object(cert_utils, 'config')
     @mock.patch.object(cert_utils, 'is_leader')
     @mock.patch.object(cert_utils, 'get_hostname')
     @mock.patch.object(cert_utils, 'unit_get')
     def test_get_certificate_request(self, unit_get, get_hostname, is_leader,
-                                     config, resolve_address):
+                                     config, resolve_address,
+                                     network_get_primary_address):
         unit_get.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         is_leader.return_value = True
@@ -65,13 +67,18 @@ class CertUtilsTests(unittest.TestCase):
             'admin': '10.10.0.2',
             'public': '10.20.0.2',
         }
+        _npa = {
+            'internal': '10.80.0.2',
+            'admin': '10.70.0.2',
+            'public': '10.0.0.2',
+        }
         expect = {
-            'admin.openstack.local': {'sans': ['10.10.0.2']},
-            'internal.openstack.local': {'sans': ['10.0.0.2']},
+            'admin.openstack.local': {'sans': ['10.10.0.2', '10.70.0.2']},
+            'internal.openstack.local': {'sans': ['10.0.0.2', '10.80.0.2']},
             'juju-unit-2': {'sans': ['10.1.2.3']},
-            'public.openstack.local': {'sans': ['10.20.0.2']}}
-
+            'public.openstack.local': {'sans': ['10.0.0.2', '10.20.0.2']}}
         config.side_effect = lambda x: _config.get(x)
+        network_get_primary_address.side_effect = lambda x: _npa.get(x)
         resolve_address.side_effect = \
             lambda endpoint_type: _resolve_address[endpoint_type]
         output = json.loads(
