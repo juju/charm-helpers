@@ -52,9 +52,10 @@ class CertRequest(object):
     """Create a request for certificates to be generated
     """
 
-    def __init__(self):
+    def __init__(self, json_encode=True):
         self.entries = []
         self.hostname_entry = None
+        self.json_encode = json_encode
 
     def add_entry(self, net_type, cn, addresses):
         """Add a request to the batch
@@ -92,14 +93,17 @@ class CertRequest(object):
         for entry in self.entries:
             sans = sorted(list(set(entry['addresses'])))
             request[entry['cn']] = {'sans': sans}
-        return {'cert_requests': json.dumps(request, sort_keys=True)}
+        if self.json_encode:
+            return {'cert_requests': json.dumps(request, sort_keys=True)}
+        else:
+            return {'cert_requests': request}
 
 
-def get_certificate_request():
+def get_certificate_request(json_encode=True):
     """Generate a certificatee requests based on the network confioguration
 
     """
-    req = CertRequest()
+    req = CertRequest(json_encode=json_encode)
     req.add_hostname_cn()
     if is_leader():
         # Add os-hostname entries
