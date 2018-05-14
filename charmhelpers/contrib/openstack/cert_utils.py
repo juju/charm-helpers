@@ -21,6 +21,7 @@ from charmhelpers.contrib.network.ip import (
     get_hostname,
 )
 from charmhelpers.core.hookenv import (
+    local_unit,
     network_get_primary_address,
     is_leader,
     config,
@@ -105,26 +106,25 @@ def get_certificate_request(json_encode=True):
     """
     req = CertRequest(json_encode=json_encode)
     req.add_hostname_cn()
-    if is_leader():
-        # Add os-hostname entries
-        for net_type in [INTERNAL, ADMIN, PUBLIC]:
-            net_config = config(ADDRESS_MAP[net_type]['override'])
-            try:
-                net_addr = resolve_address(endpoint_type=net_type)
-                ip = network_get_primary_address(
-                    ADDRESS_MAP[net_type]['binding'])
-                if net_config:
-                    req.add_entry(
-                        net_type,
-                        net_config,
-                        [net_addr, ip])
-                else:
-                    # There is network address with no corresponding hostname.
-                    # Add the ip to the hostname cert to allow for this.
-                    req.add_hostname_cn_ip(net_addr)
-            except NoNetworkBinding:
-                log("Skipping request for certificate for ip in {} space, no "
-                    "local address found".format(net_type), WARNING)
+    # Add os-hostname entries
+    for net_type in [INTERNAL, ADMIN, PUBLIC]:
+        net_config = config(ADDRESS_MAP[net_type]['override'])
+        try:
+            net_addr = resolve_address(endpoint_type=net_type)
+            ip = network_get_primary_address(
+                ADDRESS_MAP[net_type]['binding'])
+            if net_config:
+                req.add_entry(
+                    net_type,
+                    net_config,
+                    [net_addr, ip])
+            else:
+                # There is network address with no corresponding hostname.
+                # Add the ip to the hostname cert to allow for this.
+                req.add_hostname_cn_ip(net_addr)
+        except NoNetworkBinding:
+            log("Skipping request for certificate for ip in {} space, no "
+                "local address found".format(net_type), WARNING)
     return req.get_request()
 
 
@@ -201,7 +201,8 @@ def process_certificates(service_name, relation_id, unit,
     data = relation_get(rid=relation_id, unit=unit)
     ssl_dir = os.path.join('/etc/apache2/ssl/', service_name)
     mkdir(path=ssl_dir)
-    certs = data.get('processed_requests')
+    name = local_unit().replace('/', '_')
+    certs = data.get('{}.processed_requests'.format(name))
     chain = data.get('chain')
     ca = data.get('ca')
     if certs:
