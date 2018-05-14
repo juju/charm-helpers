@@ -544,7 +544,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         return ep
 
     def get_default_keystone_session(self, keystone_sentry,
-                                     openstack_release=None):
+                                     openstack_release=None, api_version=2):
         """Return a keystone session object and client object assuming standard
            default settings
 
@@ -559,12 +559,11 @@ class OpenStackAmuletUtils(AmuletUtils):
                eyc
         """
         self.log.debug('Authenticating keystone admin...')
-        api_version = 2
-        client_class = keystone_client.Client
         # 11 => xenial_queens
-        if openstack_release and openstack_release >= 11:
-            api_version = 3
+        if api_version == 3 or (openstack_release and openstack_release >= 11):
             client_class = keystone_client_v3.Client
+        else:
+            client_class = keystone_client.Client
         keystone_ip = keystone_sentry.info['public-address']
         session, auth = self.get_keystone_session(
             keystone_ip,
