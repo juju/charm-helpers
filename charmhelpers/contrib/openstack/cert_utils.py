@@ -19,6 +19,8 @@ import json
 
 from charmhelpers.contrib.network.ip import (
     get_hostname,
+    resolve_network_cidr,
+    is_address_in_network,
 )
 from charmhelpers.core.hookenv import (
     local_unit,
@@ -34,6 +36,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack.ip import (
     ADMIN,
     resolve_address,
+    get_vip_in_network,
     INTERNAL,
     PUBLIC,
     ADDRESS_MAP)
@@ -72,17 +75,25 @@ class CertRequest(object):
     def add_hostname_cn(self):
         """Add a request for the hostname of the machine"""
         ip = unit_get('private-address')
+        addresses = [ip]
+        # If a vip is being used without os-hostname config or
+        # network spaces then we need to ensure the local units
+        # cert has the approriate vip in the SAN list
+        vip = get_vip_in_network(resolve_network_cidr(ip))
+        if vip:
+            addresses.append(vip)
         self.hostname_entry = {
             'cn': get_hostname(ip),
-            'addresses': [ip]}
+            'addresses': addresses}
 
-    def add_hostname_cn_ip(self, addr):
+    def add_hostname_cn_ip(self, addresses):
         """Add an address to the SAN list for the hostname request
 
-        :param addr: str Address to be added
+        :param addr: [] List of address to be added
         """
-        if addr not in self.hostname_entry['addresses']:
-            self.hostname_entry['addresses'].append(addr)
+        for addr in addresses:
+            if addr not in self.hostname_entry['addresses']:
+                self.hostname_entry['addresses'].append(addr)
 
     def get_request(self):
         """Generate request from the batched up entries
@@ -113,15 +124,19 @@ def get_certificate_request(json_encode=True):
             net_addr = resolve_address(endpoint_type=net_type)
             ip = network_get_primary_address(
                 ADDRESS_MAP[net_type]['binding'])
+            addresses = [net_addr, ip]
+            vip = get_vip_in_network(resolve_network_cidr(ip))
+            if vip:
+                addresses.append(vip)
             if net_config:
                 req.add_entry(
                     net_type,
                     net_config,
-                    [net_addr, ip])
+                    addresses)
             else:
                 # There is network address with no corresponding hostname.
                 # Add the ip to the hostname cert to allow for this.
-                req.add_hostname_cn_ip(net_addr)
+                req.add_hostname_cn_ip(addresses)
         except NoNetworkBinding:
             log("Skipping request for certificate for ip in {} space, no "
                 "local address found".format(net_type), WARNING)
