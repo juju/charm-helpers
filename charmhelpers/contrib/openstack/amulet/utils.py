@@ -562,6 +562,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         # 11 => xenial_queens
         if api_version == 3 or (openstack_release and openstack_release >= 11):
             client_class = keystone_client_v3.Client
+            api_version = 3
         else:
             client_class = keystone_client.Client
         keystone_ip = keystone_sentry.info['public-address']
