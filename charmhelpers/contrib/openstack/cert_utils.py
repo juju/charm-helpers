@@ -141,11 +141,11 @@ def get_certificate_request(json_encode=True):
     return req.get_request()
 
 
-def create_ip_cert_links(ssl_dir, custum_hostname_link=None):
+def create_ip_cert_links(ssl_dir, custom_hostname_link=None):
     """Create symlinks for SAN records
 
     :param ssl_dir: str Directory to create symlinks in
-    :param custum_hostname_link: str Additional link to be created
+    :param custom_hostname_link: str Additional link to be created
     """
     hostname = get_hostname(unit_get('private-address'))
     hostname_cert = os.path.join(
@@ -166,13 +166,13 @@ def create_ip_cert_links(ssl_dir, custum_hostname_link=None):
         except NoNetworkBinding:
             log("Skipping creating cert symlink for ip in {} space, no "
                 "local address found".format(net_type), WARNING)
-    if custum_hostname_link:
+    if custom_hostname_link:
         custom_cert = os.path.join(
             ssl_dir,
-            'cert_{}'.format(custum_hostname_link))
+            'cert_{}'.format(custom_hostname_link))
         custom_key = os.path.join(
             ssl_dir,
-            'key_{}'.format(custum_hostname_link))
+            'key_{}'.format(custom_hostname_link))
         if os.path.isfile(hostname_cert) and not os.path.isfile(custom_cert):
             os.symlink(hostname_cert, custom_cert)
             os.symlink(hostname_key, custom_key)
@@ -203,13 +203,13 @@ def install_certs(ssl_dir, certs, chain=None):
 
 
 def process_certificates(service_name, relation_id, unit,
-                         custum_hostname_link=None):
+                         custom_hostname_link=None):
     """Process the certificates supplied down the relation
 
     :param service_name: str Name of service the certifcates are for.
     :param relation_id: str Relation id providing the certs
     :param unit: str Unit providing the certs
-    :param custum_hostname_link: str Name of custom link to create
+    :param custom_hostname_link: str Name of custom link to create
     """
     data = relation_get(rid=relation_id, unit=unit)
     ssl_dir = os.path.join('/etc/apache2/ssl/', service_name)
@@ -224,4 +224,4 @@ def process_certificates(service_name, relation_id, unit,
         install_certs(ssl_dir, certs, chain)
         create_ip_cert_links(
             ssl_dir,
-            custum_hostname_link=custum_hostname_link)
+            custom_hostname_link=custom_hostname_link)

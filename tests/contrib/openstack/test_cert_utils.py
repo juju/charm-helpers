@@ -152,7 +152,7 @@ class CertUtilsTests(unittest.TestCase):
         symlink.reset_mock()
         cert_utils.create_ip_cert_links(
             '/etc/ssl',
-            custum_hostname_link='funky-name')
+            custom_hostname_link='funky-name')
         expected.extend([
             mock.call('/etc/ssl/cert_juju-unit-2', '/etc/ssl/cert_funky-name'),
             mock.call('/etc/ssl/key_juju-unit-2', '/etc/ssl/key_funky-name'),
@@ -222,7 +222,7 @@ class CertUtilsTests(unittest.TestCase):
             'myservice',
             'certificates:2',
             'vault/0',
-            custum_hostname_link='funky-name')
+            custom_hostname_link='funky-name')
         install_ca_cert.assert_called_once_with(b'ROOTCA')
         install_certs.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
@@ -231,4 +231,4 @@ class CertUtilsTests(unittest.TestCase):
             'MYCHAIN')
         create_ip_cert_links.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
-            custum_hostname_link='funky-name')
+            custom_hostname_link='funky-name')
