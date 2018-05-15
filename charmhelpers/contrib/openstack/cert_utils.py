@@ -20,12 +20,10 @@ import json
 from charmhelpers.contrib.network.ip import (
     get_hostname,
     resolve_network_cidr,
-    is_address_in_network,
 )
 from charmhelpers.core.hookenv import (
     local_unit,
     network_get_primary_address,
-    is_leader,
     config,
     relation_get,
     unit_get,

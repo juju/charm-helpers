@@ -20,9 +20,15 @@ class CertUtilsTests(unittest.TestCase):
             {'cert_requests':
                 '{"admin.openstack.local": {"sans": ["10.10.10.10"]}}'})
 
+    @mock.patch.object(cert_utils, 'resolve_network_cidr')
+    @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'get_hostname')
     @mock.patch.object(cert_utils, 'unit_get')
-    def test_CertRequest_add_hostname_cn(self, unit_get, get_hostname):
+    def test_CertRequest_add_hostname_cn(self, unit_get, get_hostname,
+                                         get_vip_in_network,
+                                         resolve_network_cidr):
+        resolve_network_cidr.side_effect = lambda x: x
+        get_vip_in_network.return_value = '10.1.2.100'
         unit_get.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         cr = cert_utils.CertRequest()
@@ -30,33 +36,41 @@ class CertUtilsTests(unittest.TestCase):
         self.assertEqual(
             cr.get_request(),
             {'cert_requests':
-                '{"juju-unit-2": {"sans": ["10.1.2.3"]}}'})
+                '{"juju-unit-2": {"sans": ["10.1.2.100", "10.1.2.3"]}}'})
 
+    @mock.patch.object(cert_utils, 'resolve_network_cidr')
+    @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'get_hostname')
     @mock.patch.object(cert_utils, 'unit_get')
-    def test_CertRequest_add_hostname_cn_ip(self, unit_get, get_hostname):
+    def test_CertRequest_add_hostname_cn_ip(self, unit_get, get_hostname,
+                                            get_vip_in_network,
+                                            resolve_network_cidr):
+        resolve_network_cidr.side_effect = lambda x: x
+        get_vip_in_network.return_value = '10.1.2.100'
         unit_get.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         cr = cert_utils.CertRequest()
         cr.add_hostname_cn()
-        cr.add_hostname_cn_ip('10.1.2.4')
+        cr.add_hostname_cn_ip(['10.1.2.4'])
         self.assertEqual(
             cr.get_request(),
             {'cert_requests':
-                '{"juju-unit-2": {"sans": ["10.1.2.3", "10.1.2.4"]}}'})
+                ('{"juju-unit-2": {"sans": ["10.1.2.100", "10.1.2.3", '
+                 '"10.1.2.4"]}}')})
 
+    @mock.patch.object(cert_utils, 'resolve_network_cidr')
+    @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'network_get_primary_address')
     @mock.patch.object(cert_utils, 'resolve_address')
     @mock.patch.object(cert_utils, 'config')
-    @mock.patch.object(cert_utils, 'is_leader')
     @mock.patch.object(cert_utils, 'get_hostname')
     @mock.patch.object(cert_utils, 'unit_get')
-    def test_get_certificate_request(self, unit_get, get_hostname, is_leader,
+    def test_get_certificate_request(self, unit_get, get_hostname,
                                      config, resolve_address,
-                                     network_get_primary_address):
+                                     network_get_primary_address,
+                                     get_vip_in_network, resolve_network_cidr):
         unit_get.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
-        is_leader.return_value = True
         _config = {
             'os-internal-hostname': 'internal.openstack.local',
             'os-admin-hostname': 'admin.openstack.local',
@@ -68,38 +82,35 @@ class CertUtilsTests(unittest.TestCase):
             'public': '10.20.0.2',
         }
         _npa = {
-            'internal': '10.80.0.2',
-            'admin': '10.70.0.2',
-            'public': '10.0.0.2',
+            'internal': '10.0.0.3',
+            'admin': '10.10.0.3',
+            'public': '10.20.0.3',
+        }
+        _vips = {
+            '10.0.0.0/16': '10.0.0.100',
+            '10.10.0.0/16': '10.10.0.100',
+            '10.20.0.0/16': '10.20.0.100',
+        }
+        _resolve_nets = {
+            '10.0.0.3': '10.0.0.0/16',
+            '10.10.0.3': '10.10.0.0/16',
+            '10.20.0.3': '10.20.0.0/16',
         }
         expect = {
-            'admin.openstack.local': {'sans': ['10.10.0.2', '10.70.0.2']},
-            'internal.openstack.local': {'sans': ['10.0.0.2', '10.80.0.2']},
+            'admin.openstack.local': {
+                'sans': ['10.10.0.100', '10.10.0.2', '10.10.0.3']},
+            'internal.openstack.local': {
+                'sans': ['10.0.0.100', '10.0.0.2', '10.0.0.3']},
             'juju-unit-2': {'sans': ['10.1.2.3']},
-            'public.openstack.local': {'sans': ['10.0.0.2', '10.20.0.2']}}
+            'public.openstack.local': {
+                'sans': ['10.20.0.100', '10.20.0.2', '10.20.0.3']}}
+        self.maxDiff = None
         config.side_effect = lambda x: _config.get(x)
+        get_vip_in_network.side_effect = lambda x: _vips.get(x)
+        resolve_network_cidr.side_effect = lambda x: _resolve_nets.get(x)
         network_get_primary_address.side_effect = lambda x: _npa.get(x)
         resolve_address.side_effect = \
             lambda endpoint_type: _resolve_address[endpoint_type]
-        output = json.loads(
-            cert_utils.get_certificate_request()['cert_requests'])
-        self.assertEqual(
-            output,
-            expect)
-
-    @mock.patch.object(cert_utils, 'resolve_address')
-    @mock.patch.object(cert_utils, 'config')
-    @mock.patch.object(cert_utils, 'is_leader')
-    @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
-    def test_get_certificate_request_not_leader(self, unit_get, get_hostname,
-                                                is_leader, config,
-                                                resolve_address):
-        unit_get.return_value = '10.1.2.3'
-        get_hostname.return_value = 'juju-unit-2'
-        is_leader.return_value = False
-        expect = {
-            'juju-unit-2': {'sans': ['10.1.2.3']}}
         output = json.loads(
             cert_utils.get_certificate_request()['cert_requests'])
         self.assertEqual(
@@ -187,19 +198,22 @@ class CertUtilsTests(unittest.TestCase):
         ]
         write_file.assert_has_calls(expected)
 
+    @mock.patch.object(cert_utils, 'local_unit')
     @mock.patch.object(cert_utils, 'create_ip_cert_links')
     @mock.patch.object(cert_utils, 'install_certs')
     @mock.patch.object(cert_utils, 'install_ca_cert')
     @mock.patch.object(cert_utils, 'mkdir')
     @mock.patch.object(cert_utils, 'relation_get')
     def test_process_certificates(self, relation_get, mkdir, install_ca_cert,
-                                  install_certs, create_ip_cert_links):
+                                  install_certs, create_ip_cert_links,
+                                  local_unit):
+        local_unit.return_value = 'keystone/2'
         certs = {
             'admin.openstack.local': {
                 'cert': 'ADMINCERT',
                 'key': 'ADMINKEY'}}
         _relation_info = {
-            'processed_requests': json.dumps(certs),
+            'keystone_2.processed_requests': json.dumps(certs),
             'chain': 'MYCHAIN',
             'ca': 'ROOTCA',
         }
