@@ -2210,6 +2210,8 @@ class ContextTests(unittest.TestCase):
         return apache, ex
 
     def test_https_context(self):
+        self.relation_ids.return_value = []
+
         apache, ex = self._https_context_setup()
 
         self.assertEquals(ex, apache())
@@ -2224,7 +2226,20 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(apache.enable_modules.called)
         self.assertTrue(apache.configure_cert.called)
 
+    def test_https_context_vault_relation(self):
+        self.relation_ids.return_value = ['certificates:2']
+        self.related_units.return_value = 'vault/0'
+
+        apache, ex = self._https_context_setup()
+
+        self.assertEquals(ex, apache())
+
+        self.assertFalse(apache.configure_cert.called)
+        self.assertFalse(apache.configure_ca.called)
+
     def test_https_context_no_canonical_names(self):
+        self.relation_ids.return_value = []
+
         apache, ex = self._https_context_setup()
         apache.canonical_names.return_value = []
 
