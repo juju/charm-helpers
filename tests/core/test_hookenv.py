@@ -1354,6 +1354,23 @@ class HelpersTest(TestCase):
         self.assertFalse(hookenv.resource_get(None))
 
     @patch('subprocess.check_output')
+    def test_goal_state_unsupported(self, check_output_):
+        check_output_.side_effect = OSError(2, 'goal-state')
+        self.assertRaises(NotImplementedError, hookenv.goal_state)
+
+    @patch('subprocess.check_output')
+    def test_goal_state(self, check_output_):
+        expect = {
+            'units': {},
+            'relations': {},
+        }
+        check_output_.return_value = json.dumps(expect).encode('UTF-8')
+        result = hookenv.goal_state()
+
+        self.assertEqual(result, expect)
+        check_output_.assert_called_with(['goal-state', '--format=json'])
+
+    @patch('subprocess.check_output')
     def test_is_leader_unsupported(self, check_output_):
         check_output_.side_effect = OSError(2, 'is-leader')
         self.assertRaises(NotImplementedError, hookenv.is_leader)
