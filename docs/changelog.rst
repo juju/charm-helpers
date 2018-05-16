@@ -1,6 +1,19 @@
 Changelog
 ---------
 
+0.18.10
+^^^^^^^
+Wednesday May 16 2018
+
+* Add support for certs relation in OpenStack charms (#173)
+* Explicitly set api_version in get_default_keystone_session (#177)
+* Allow forcing keystone preferred-api-version (#176)
+* Retry keystone_wait_for_propagation() on exception (#175)
+* Revert "Adds operator.socket (#115)" (#174)
+* vaultlocker: Use secret_id's (#171)
+* Reload UFW (#170)
+* remove escapes from enable_ipfix (#169)
+
 0.18.9
 ^^^^^^
 Wednesday May 2 2018
