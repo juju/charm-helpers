@@ -205,6 +205,13 @@ class OVSHelpersTest(unittest.TestCase):
                                        'ssl:manager'])
         self.assertTrue(self.log.call_count == 1)
 
+    @patch('subprocess.check_call')
+    def test_set_Open_vSwitch_column_value(self, check_call):
+        ovs.set_Open_vSwitch_column_value('other_config:foo=bar')
+        check_call.assert_called_with(['ovs-vsctl', 'set',
+                                       'Open_vSwitch', '.', 'other_config:foo=bar'])
+        self.assertTrue(self.log.call_count == 1)
+
     @patch('os.path.exists')
     def test_get_certificate_good_cert(self, exists):
         exists.return_value = True
