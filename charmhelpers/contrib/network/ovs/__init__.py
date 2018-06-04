@@ -134,6 +134,20 @@ def set_manager(manager):
                            'ssl:{}'.format(manager)])
 
 
+def set_Open_vSwitch_column_value(column_value):
+    """
+    Calls ovs-vsctl and sets the 'column_value' in the Open_vSwitch table.
+
+    :param column_value:
+            See http://www.openvswitch.org//ovs-vswitchd.conf.db.5.pdf for
+            details of the relevant values.
+    :type str
+    :raises CalledProcessException: possibly ovsdb-server is not running
+    """
+    log('Setting {} in the Open_vSwitch table'.format(column_value))
+    subprocess.check_call(['ovs-vsctl', 'set', 'Open_vSwitch', '.', column_value])
+
+
 CERT_PATH = '/etc/openvswitch/ovsclient-cert.pem'
 
 
