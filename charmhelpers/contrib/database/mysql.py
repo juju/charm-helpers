@@ -164,12 +164,20 @@ class MySQLHelper(object):
             cursor.close()
 
     def select(self, sql):
-        """Execute arbitrary SQL select query against the database
-         and return the results."""
+        """
+        Execute arbitrary SQL select query against the database
+        and return the results.
+      
+        :param sql: SQL select query to execute
+        :type sql: string
+        :returns: SQL select query result 
+        :rtype: list of lists
+        :raises: MySQLdb.Error
+         """
         cursor = self.connection.cursor()
         try:
             cursor.execute(sql)
-            results = [i[0] for i in cursor.fetchall()]
+            results = [list(i) for i in cursor.fetchall()]
         finally:
             cursor.close()
         return results
