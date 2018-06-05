@@ -163,6 +163,17 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
+    def select(self, sql):
+        """Execute arbitrary SQL select query against the database
+         and return the results."""
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(sql)
+            results = [i[0] for i in cursor.fetchall()]
+        finally:
+            cursor.close()
+        return results
+
     def migrate_passwords_to_leader_storage(self, excludes=None):
         """Migrate any passwords storage on disk to leader storage."""
         if not is_leader():
