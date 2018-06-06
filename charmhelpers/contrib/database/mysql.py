@@ -163,6 +163,25 @@ class MySQLHelper(object):
         finally:
             cursor.close()
 
+    def select(self, sql):
+        """
+        Execute arbitrary SQL select query against the database
+        and return the results.
+
+        :param sql: SQL select query to execute
+        :type sql: string
+        :returns: SQL select query result
+        :rtype: list of lists
+        :raises: MySQLdb.Error
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(sql)
+            results = [list(i) for i in cursor.fetchall()]
+        finally:
+            cursor.close()
+        return results
+
     def migrate_passwords_to_leader_storage(self, excludes=None):
         """Migrate any passwords storage on disk to leader storage."""
         if not is_leader():
