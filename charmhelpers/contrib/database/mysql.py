@@ -167,7 +167,7 @@ class MySQLHelper(object):
         """
         Execute arbitrary SQL select query against the database
         and return the results.
-      
+
         :param sql: SQL select query to execute
         :type sql: string
         :returns: SQL select query result
