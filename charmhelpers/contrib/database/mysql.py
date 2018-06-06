@@ -173,7 +173,7 @@ class MySQLHelper(object):
         :returns: SQL select query result 
         :rtype: list of lists
         :raises: MySQLdb.Error
-         """
+        """
         cursor = self.connection.cursor()
         try:
             cursor.execute(sql)
