@@ -170,7 +170,7 @@ class MySQLHelper(object):
       
         :param sql: SQL select query to execute
         :type sql: string
-        :returns: SQL select query result 
+        :returns: SQL select query result
         :rtype: list of lists
         :raises: MySQLdb.Error
         """
