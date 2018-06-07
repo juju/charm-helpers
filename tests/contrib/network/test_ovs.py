@@ -1,10 +1,11 @@
-from mock import patch, call
+import subprocess
+import unittest
 
+from mock import patch, call, MagicMock
+
+import charmhelpers.contrib.network.ovs as ovs
 
 from tests.helpers import patch_open
-
-import unittest
-import charmhelpers.contrib.network.ovs as ovs
 
 
 GOOD_CERT = '''Certificate:
@@ -109,6 +110,7 @@ BAD_CERT = ''' NO MARKERS '''
 TO_PATCH = [
     "apt_install",
     "log",
+    "hashlib",
 ]
 
 
@@ -179,12 +181,52 @@ class OVSHelpersTest(unittest.TestCase):
         ])
         self.assertTrue(self.log.call_count == 1)
 
+    @patch.object(ovs, 'port_to_br')
+    @patch.object(ovs, 'add_bridge_port')
     @patch('subprocess.check_call')
-    def test_add_ovsbridge_linuxbridge(self, check_call):
+    def test_add_ovsbridge_linuxbridge(self, check_call,
+                                       add_bridge_port,
+                                       port_to_br):
+        port_to_br.return_value = None
         with patch_open() as (mock_open, mock_file):
             ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
 
-        self.assertTrue(self.log.call_count == 2)
+        check_call.assert_called_with(['ifup', 'veth-br-eno1'])
+        add_bridge_port.assert_called_with(
+            'br-ex',
+            'veth-br-eno1'
+        )
+
+    @patch.object(ovs, 'port_to_br')
+    @patch.object(ovs, 'add_bridge_port')
+    @patch('subprocess.check_call')
+    def test_add_ovsbridge_linuxbridge_already_direct_wired(self,
+                                                            check_call,
+                                                            add_bridge_port,
+                                                            port_to_br):
+        port_to_br.return_value = 'br-ex'
+        ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+        check_call.assert_not_called()
+        add_bridge_port.assert_not_called()
+
+    @patch.object(ovs, 'port_to_br')
+    @patch.object(ovs, 'add_bridge_port')
+    @patch('subprocess.check_call')
+    def test_add_ovsbridge_linuxbridge_longname(self, check_call,
+                                                add_bridge_port,
+                                                port_to_br):
+        port_to_br.return_value = None
+        mock_hasher = MagicMock()
+        mock_hasher.hexdigest.return_value = '12345678901234578910'
+        self.hashlib.sha256.return_value = mock_hasher
+        with patch_open() as (mock_open, mock_file):
+            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-reallylongname')
+
+        check_call.assert_called_with(['ifup', 'cvb12345678-10'])
+        add_bridge_port.assert_called_with(
+            'br-ex',
+            'cvb12345678-10'
+        )
 
     @patch('os.path.exists')
     def test_is_linuxbridge_interface_false(self, exists):
@@ -247,3 +289,14 @@ class OVSHelpersTest(unittest.TestCase):
         exists.return_value = True
         ovs.full_restart()
         service.assert_called_with('start', 'openvswitch-force-reload-kmod')
+
+    @patch('subprocess.check_output')
+    def test_port_to_br(self, check_output):
+        check_output.return_value = b'br-ex'
+        self.assertEqual(ovs.port_to_br('br-lb'),
+                         'br-ex')
+
+    @patch('subprocess.check_output')
+    def test_port_to_br_not_found(self, check_output):
+        check_output.side_effect = subprocess.CalledProcessError(1, 'not found')
+        self.assertEqual(ovs.port_to_br('br-lb'), None)
