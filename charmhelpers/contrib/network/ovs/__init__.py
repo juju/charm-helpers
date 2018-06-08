@@ -13,6 +13,7 @@
 # limitations under the License.
 
 ''' Helpers for interacting with OpenvSwitch '''
+import hashlib
 import subprocess
 import os
 import six
@@ -38,6 +39,8 @@ iface {linuxbridge_port} inet manual
     up ip link set {linuxbridge_port} up
     down ip link del {linuxbridge_port}
 """
+
+MAX_KERNEL_INTERFACE_NAME_LEN = 15
 
 
 def add_bridge(name, datapath_type=None):
@@ -92,15 +95,38 @@ def add_ovsbridge_linuxbridge(name, bridge):
             apt_install('python3-netifaces', fatal=True)
         import netifaces
 
+    # NOTE(jamespage):
+    # Older code supported addition of a linuxbridge directly
+    # to an OVS bridge; ensure we don't break uses on upgrade
+    existing_ovs_bridge = port_to_br(bridge)
+    if existing_ovs_bridge is not None:
+        log('Linuxbridge {} is already directly in use'
+            ' by OVS bridge {}'.format(bridge, existing_ovs_bridge),
+            level=INFO)
+        return
+
+    # NOTE(jamespage):
+    # preserve existing naming because interfaces may already exist.
     ovsbridge_port = "veth-" + name
     linuxbridge_port = "veth-" + bridge
-    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name),
-        level=INFO)
+    if (len(ovsbridge_port) > MAX_KERNEL_INTERFACE_NAME_LEN or
+            len(linuxbridge_port) > MAX_KERNEL_INTERFACE_NAME_LEN):
+        # NOTE(jamespage):
+        # use parts of hashed bridgename (openstack style) when
+        # a bridge name exceeds 15 chars
+        hashed_bridge = hashlib.sha256(bridge.encode('UTF-8')).hexdigest()
+        base = '{}-{}'.format(hashed_bridge[:8], hashed_bridge[-2:])
+        ovsbridge_port = "cvo{}".format(base)
+        linuxbridge_port = "cvb{}".format(base)
+
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         if interface == ovsbridge_port or interface == linuxbridge_port:
             log('Interface {} already exists'.format(interface), level=INFO)
             return
+
+    log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name),
+        level=INFO)
 
     check_for_eni_source()
 
@@ -132,6 +158,20 @@ def set_manager(manager):
     log('Setting manager for local ovs to {}'.format(manager))
     subprocess.check_call(['ovs-vsctl', 'set-manager',
                            'ssl:{}'.format(manager)])
+
+
+def set_Open_vSwitch_column_value(column_value):
+    """
+    Calls ovs-vsctl and sets the 'column_value' in the Open_vSwitch table.
+
+    :param column_value:
+            See http://www.openvswitch.org//ovs-vswitchd.conf.db.5.pdf for
+            details of the relevant values.
+    :type str
+    :raises CalledProcessException: possibly ovsdb-server is not running
+    """
+    log('Setting {} in the Open_vSwitch table'.format(column_value))
+    subprocess.check_call(['ovs-vsctl', 'set', 'Open_vSwitch', '.', column_value])
 
 
 CERT_PATH = '/etc/openvswitch/ovsclient-cert.pem'
@@ -194,3 +234,16 @@ def disable_ipfix(bridge):
     '''
     cmd = ['ovs-vsctl', 'clear', 'Bridge', bridge, 'ipfix']
     subprocess.check_call(cmd)
+
+
+def port_to_br(port):
+    '''Determine the bridge that contains a port
+    :param port: Name of port to check for
+    :returns str: OVS bridge containing port or None if not found
+    '''
+    try:
+        return subprocess.check_output(
+            ['ovs-vsctl', 'port-to-br', port]
+        ).decode('UTF-8').strip()
+    except subprocess.CalledProcessError:
+        return None

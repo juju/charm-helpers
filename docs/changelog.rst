@@ -1,6 +1,14 @@
 Changelog
 ---------
 
+0.19.0
+^^^^^^
+Tuesday June 5 2018
+
+* Add set_Open_vSwitch_column_value (#182)
+* update deployment to use Amulet supported storage (#183)
+* Support the goal-state command (#180)
+
 0.18.11
 ^^^^^^^
 Wednesday May 16 2018
