@@ -134,7 +134,7 @@ def install_ansible_support(from_ppa=True, ppa_location='ppa:rquillo/ansible'):
         charmhelpers.fetch.apt_update(fatal=True)
     charmhelpers.fetch.apt_install('ansible')
     with open(ansible_hosts_path, 'w+') as hosts_file:
-        hosts_file.write('localhost ansible_connection=local')
+        hosts_file.write('localhost ansible_connection=local ansible_remote_tmp=/root/.ansible/tmp')
 
 
 def apply_playbook(playbook, tags=None, extra_vars=None):

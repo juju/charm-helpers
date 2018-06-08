@@ -62,7 +62,8 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
         with open(self.ansible_hosts_path) as hosts_file:
             self.assertEqual(hosts_file.read(),
-                             'localhost ansible_connection=local')
+                             'localhost ansible_connection=local '
+                             'ansible_remote_tmp=/root/.ansible/tmp')
 
 
 class ApplyPlaybookTestCases(unittest.TestCase):
