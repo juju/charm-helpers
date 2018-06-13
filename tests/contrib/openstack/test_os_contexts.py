@@ -91,6 +91,12 @@ SHARED_DB_RELATION = {
     'password': 'foo'
 }
 
+SHARED_DB_RELATION_ALT_RID = {
+    'mysql-alt:0': {
+        'mysql-alt/0': {
+            'db_host': 'dbserver-alt.local',
+            'password': 'flump'}}}
+
 SHARED_DB_RELATION_SSL = {
     'db_host': 'dbserver.local',
     'password': 'foo',
@@ -221,6 +227,15 @@ AMQP_RELATION = {
     'private-address': 'rabbithost',
     'password': 'foobar',
     'vip': '10.0.0.1',
+}
+
+AMQP_RELATION_ALT_RID = {
+    'amqp-alt:0': {
+        'rabbitmq-alt/0': {
+            'private-address': 'rabbitalthost1',
+            'password': 'flump',
+        },
+    }
 }
 
 AMQP_RELATION_WITH_SSL = {
@@ -759,6 +774,24 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    def test_shared_db_context_explicit_relation_id(self):
+        '''Test shared-db context setting the relation_id'''
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_ALT_RID)
+        self.related_units.return_value = ['mysql-alt/0']
+        self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = ''
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
+        shared_db = context.SharedDBContext(relation_id='mysql-alt:0')
+        result = shared_db()
+        expected = {
+            'database_host': 'dbserver-alt.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'flump',
+            'database_type': 'mysql',
+        }
+        self.assertEquals(result, expected)
+
     @patch('os.path.exists')
     @patch(open_builtin)
     def test_db_ssl(self, _open, osexists):
@@ -1126,6 +1159,23 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+        }
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_explicit_relation_id(self):
+        '''Test amqp context setting the relation_id'''
+        relation = FakeRelation(relation_data=AMQP_RELATION_ALT_RID)
+        self.relation_get.side_effect = relation.get
+        self.related_units.return_value = ['rabbitmq-alt/0']
+        self.config.return_value = AMQP_CONFIG
+        amqp = context.AMQPContext(relation_id='amqp-alt:0')
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbitalthost1',
+            'rabbitmq_password': 'flump',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:flump@rabbitalthost1:5672/foo'
         }
         self.assertEquals(result, expected)
 
