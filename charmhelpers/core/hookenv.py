@@ -1004,6 +1004,22 @@ def goal_state():
     return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
 
 
+def goal_state_filter_self_relations():
+    """Juju goal state values with own application units filtered out from
+    relations data.
+
+    :returns: Juju goal-state data
+    :rtype: dict
+    """
+    _goal_state = goal_state()
+    for rel in _goal_state.get('relations', []):
+        app = application_name()
+        if app in _goal_state['relations'][rel]:
+            del _goal_state['relations'][rel][app]
+
+    return _goal_state
+
+
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def is_leader():
     """Does the current unit hold the juju leadership

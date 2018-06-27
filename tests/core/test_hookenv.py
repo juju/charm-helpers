@@ -1371,6 +1371,34 @@ class HelpersTest(TestCase):
         self.assertEqual(result, expect)
         check_output_.assert_called_with(['goal-state', '--format=json'])
 
+    @patch('charmhelpers.core.hookenv.goal_state')
+    @patch('charmhelpers.core.hookenv.application_name')
+    def test_goal_state_filter_self_relations(self, application_name_,
+                                              goal_state_):
+        application_name_.return_value = 'keystone'
+        goal_state_.return_value = {
+            'units': {'keystone/0': {}, 'keystone/1': {}},
+            'relations': {
+                'identity-service': {
+                    'glance': {},
+                    'keystone': {},
+                },
+            },
+        }
+        expect = {
+            'units': {'keystone/0': {}, 'keystone/1': {}},
+            'relations': {
+                'identity-service': {
+                    'glance': {},
+                },
+            },
+        }
+        result = hookenv.goal_state_filter_self_relations()
+
+        self.assertEqual(result, expect)
+        application_name_.assert_called_with()
+        goal_state_.assert_called_with()
+
     @patch('subprocess.check_output')
     def test_is_leader_unsupported(self, check_output_):
         check_output_.side_effect = OSError(2, 'is-leader')
