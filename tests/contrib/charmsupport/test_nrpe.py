@@ -12,9 +12,11 @@ from charmhelpers.core import host
 class NRPEBaseTestCase(TestCase):
     patches = {
         'config': {'object': nrpe},
+        'copy2': {'object': nrpe.shutil},
         'log': {'object': nrpe},
         'getpwnam': {'object': nrpe.pwd},
         'getgrnam': {'object': nrpe.grp},
+        'glob': {'object': nrpe.glob},
         'mkdir': {'object': os},
         'chown': {'object': os},
         'chmod': {'object': os},
@@ -361,3 +363,32 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.assertEqual(bill.checks[3].check_cmd, expect_cmds['haproxy'])
         self.assertEqual(bill.checks[4].shortname, 'snap.test.test')
         self.assertEqual(bill.checks[4].check_cmd, expect_cmds['snap.test.test'])
+
+    def test_copy_nrpe_checks(self):
+        file_presence = {
+            'filea': True,
+            'fileb': False}
+        self.patched['exists'].return_value = True
+        self.patched['glob'].return_value = ['filea', 'fileb']
+        self.patched['isfile'].side_effect = lambda x: file_presence[x]
+        nrpe.copy_nrpe_checks()
+        self.patched['glob'].assert_called_once_with(
+            ('/usr/lib/test_charm_dir/hooks/charmhelpers/contrib/openstack/'
+             'files/check_*'))
+        self.patched['copy2'].assert_called_once_with(
+            'filea',
+            '/usr/local/lib/nagios/plugins/filea')
+
+    def test_copy_nrpe_checks_nrpe_files_dir(self):
+        file_presence = {
+            'filea': True,
+            'fileb': False}
+        self.patched['exists'].return_value = True
+        self.patched['glob'].return_value = ['filea', 'fileb']
+        self.patched['isfile'].side_effect = lambda x: file_presence[x]
+        nrpe.copy_nrpe_checks(nrpe_files_dir='/other/dir')
+        self.patched['glob'].assert_called_once_with(
+            '/other/dir/check_*')
+        self.patched['copy2'].assert_called_once_with(
+            'filea',
+            '/usr/local/lib/nagios/plugins/filea')
