@@ -1855,6 +1855,27 @@ class HelpersTest(TestCase):
         handle.write.assert_called_once_with(
             'PRUNEPATHS="/tmp /srv/node /tmp/test"')
 
+    @patch.object(host, 'os')
+    def test_prunepaths_no_updatedb_conf_file(self, mock_os):
+        mock_os.path.exists.return_value = False
+        _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
+        with patch('charmhelpers.core.host.open', _open, create=True):
+            host.add_to_updatedb_prunepath("/tmp/test")
+        handle = _open()
+
+        self.assertTrue(handle.call_count == 0)
+
+    @patch.object(host, 'os')
+    def test_prunepaths_updatedb_conf_file_isdir(self, mock_os):
+        mock_os.path.exists.return_value = True
+        mock_os.path.isdir.return_value = True
+        _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
+        with patch('charmhelpers.core.host.open', _open, create=True):
+            host.add_to_updatedb_prunepath("/tmp/test")
+        handle = _open()
+
+        self.assertTrue(handle.call_count == 0)
+
     @patch.object(host, 'local_unit')
     def test_modulo_distribution(self, local_unit):
         local_unit.return_value = 'test/7'
