@@ -535,12 +535,14 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
     # lets see if we can grab the file and compare the context, to avoid doing
     # a write.
     existing_content = None
-    existing_uid, existing_gid = None, None
+    existing_uid, existing_gid, existing_perms = None, None, None
     try:
         with open(path, 'rb') as target:
             existing_content = target.read()
         stat = os.stat(path)
-        existing_uid, existing_gid = stat.st_uid, stat.st_gid
+        existing_uid, existing_gid, existing_perms = (
+            stat.st_uid, stat.st_gid, stat.st_mode
+        )
     except:
         pass
     if content != existing_content:
@@ -554,7 +556,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
             target.write(content)
         return
     # the contents were the same, but we might still need to change the
-    # ownership.
+    # ownership or permissions.
     if existing_uid != uid:
         log("Changing uid on already existing content: {} -> {}"
             .format(existing_uid, uid), level=DEBUG)
@@ -563,6 +565,10 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
         log("Changing gid on already existing content: {} -> {}"
             .format(existing_gid, gid), level=DEBUG)
         os.chown(path, -1, gid)
+    if existing_perms != perms:
+        log("Changing permissions on existing content: {} -> {}"
+            .format(existing_perms, perms), level=DEBUG)
+        os.chown(path, perms)
 
 
 def fstab_remove(mp):
