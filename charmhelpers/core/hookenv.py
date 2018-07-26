@@ -201,9 +201,33 @@ def remote_unit():
     return os.environ.get('JUJU_REMOTE_UNIT', None)
 
 
-def service_name():
-    """The name service group this unit belongs to"""
+def application_name():
+    """
+    The name of the deployed application this unit belongs to.
+    """
     return local_unit().split('/')[0]
+
+
+def service_name():
+    """
+    .. deprecated:: 0.19.1
+       Alias for :func:`application_name`.
+    """
+    return application_name()
+
+
+def model_name():
+    """
+    Name of the model that this unit is deployed in.
+    """
+    return os.environ['JUJU_MODEL_NAME']
+
+
+def model_uuid():
+    """
+    UUID of the model that this unit is deployed in.
+    """
+    return os.environ['JUJU_MODEL_UUID']
 
 
 def principal_unit():
