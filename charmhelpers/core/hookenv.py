@@ -1321,3 +1321,33 @@ def egress_subnets(rid=None, unit=None):
     if 'private-address' in settings:
         return [_to_range(settings['private-address'])]
     return []  # Should never happen
+
+
+def unit_doomed(unit=None):
+    """Determines if the unit is being removed from the model
+
+    Requires Juju 2.4.1.
+
+    :param unit: string unit name, defaults to local_unit
+    :side effect: calls goal_state
+    :side effect: calls local_unit
+    :side effect: calls has_juju_version
+    :return: True if the unit is being removed, already gone, or never existed
+    """
+    if not has_juju_version("2.4.1"):
+        # We cannot risk blindly returning False for 'we don't know',
+        # because that could cause data loss; if call sites don't
+        # need an accurate answer, they likely don't need this helper
+        # at all.
+        # goal-state existed in 2.4.0, but did not handle removals
+        # correctly until 2.4.1.
+        raise NotImplementedError("is_doomed")
+    if unit is None:
+        unit = local_unit()
+    gs = goal_state()
+    units = gs.get('units', {})
+    if unit not in units:
+        return True
+    # I don't think 'dead' units ever show up in the goal-state, but
+    # check anyway in addition to 'dying'.
+    return units[unit]['status'] in ('dying', 'dead')

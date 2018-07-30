@@ -1996,3 +1996,36 @@ ingress-addresses:
         # Return the private-address
         del d['ingress-address']
         self.assertEqual(hookenv.egress_subnets(), ['2001::D0:F00D/128'])
+
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.core.hookenv.goal_state')
+    @patch('charmhelpers.core.hookenv.has_juju_version')
+    def test_unit_doomed(self, has_juju_version, goal_state, local_unit):
+        # We need to test for a minimum patch level, or we risk
+        # data loss by returning bogus results with Juju 2.4.0
+        has_juju_version.return_value = False
+        self.assertRaises(NotImplementedError, hookenv.unit_doomed)
+        has_juju_version.assertCalledOnceWith("2.4.1")
+        has_juju_version.return_value = True
+
+        goal_state.return_value = json.loads('''
+                                             {
+                                                "units": {
+                                                    "postgresql/0": {
+                                                        "status": "dying",
+                                                        "since": "2018-07-30 10:01:06Z"
+                                                    },
+                                                    "postgresql/1": {
+                                                        "status": "active",
+                                                        "since": "2018-07-30 10:22:39Z"
+                                                    }
+                                                },
+                                                "relations": {}
+                                             }
+                                             ''')
+        self.assertTrue(hookenv.unit_doomed('postgresql/0'))   # unit removed, status "dying"
+        self.assertFalse(hookenv.unit_doomed('postgresql/1'))  # unit exists, status "active", maybe other states
+        self.assertTrue(hookenv.unit_doomed('postgresql/2'))   # unit does not exist
+
+        local_unit.return_value = 'postgresql/0'
+        self.assertTrue(hookenv.unit_doomed())
