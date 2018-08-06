@@ -1329,10 +1329,22 @@ class OpenStackHelpersTestCase(TestCase):
         kv.set.assert_called_once_with('unit-paused', True)
 
     @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
+    def test_set_unit_upgrading(self, hook_data):
+        kv = self._unit_paused_helper(hook_data)
+        openstack.set_unit_upgrading()
+        kv.set.assert_called_once_with('unit-upgrading', True)
+
+    @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
     def test_clear_unit_paused(self, hook_data):
         kv = self._unit_paused_helper(hook_data)
         openstack.clear_unit_paused()
         kv.set.assert_called_once_with('unit-paused', False)
+
+    @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
+    def test_clear_unit_upgrading(self, hook_data):
+        kv = self._unit_paused_helper(hook_data)
+        openstack.clear_unit_upgrading()
+        kv.set.assert_called_once_with('unit-upgrading', False)
 
     @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
     def test_is_unit_paused_set(self, hook_data):
@@ -1343,6 +1355,17 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(r, True)
         kv.get.return_value = False
         r = openstack.is_unit_paused_set()
+        self.assertEquals(r, False)
+
+    @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
+    def test_is_unit_upgrading_set(self, hook_data):
+        kv = self._unit_paused_helper(hook_data)
+        kv.get.return_value = True
+        r = openstack.is_unit_upgrading_set()
+        kv.get.assert_called_once_with('unit-upgrading')
+        self.assertEquals(r, True)
+        kv.get.return_value = False
+        r = openstack.is_unit_upgrading_set()
         self.assertEquals(r, False)
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
