@@ -2893,6 +2893,33 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEqual(expect, ctxt())
 
+    @patch.object(context, '_calculate_workers')
+    def test_wsgi_worker_config_context_user_and_group(self,
+                                                       _calculate_workers):
+        self.config.return_value = 1
+        _calculate_workers.return_value = 1
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        user = 'nova'
+        group = 'nobody'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               user=user,
+                                               group=group,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": user,
+            "group": group,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 1,
+            "admin_processes": 1,
+            "public_processes": 1,
+            "threads": 1,
+        }
+        self.assertEqual(expect, ctxt())
+
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
         self.assertEquals(context.ZeroMQContext()(), {})
