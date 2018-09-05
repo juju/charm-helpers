@@ -248,6 +248,14 @@ def apt_purge(packages, fatal=False):
     _run_apt_command(cmd, fatal)
 
 
+def apt_autoremove(purge=True, fatal=False):
+    """Purge one or more packages."""
+    cmd = ['apt-get', '--assume-yes', 'autoremove']
+    if purge:
+        cmd.append('--purge')
+    _run_apt_command(cmd, fatal)
+
+
 def apt_mark(packages, mark, fatal=False):
     """Flag one or more packages using apt-mark."""
     log("Marking {} as {}".format(packages, mark))
