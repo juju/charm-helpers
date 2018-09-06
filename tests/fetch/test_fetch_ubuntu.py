@@ -710,3 +710,19 @@ class AptTests(TestCase):
         self.assertEqual(fetch.get_upstream_version('vim'), '7.3.547')
         self.assertEqual(fetch.get_upstream_version('emacs'), None)
         self.assertEqual(fetch.get_upstream_version('unknown'), None)
+
+    @patch('charmhelpers.fetch.ubuntu._run_apt_command')
+    def test_apt_autoremove_fatal(self, run_apt_command):
+        fetch.apt_autoremove(purge=True, fatal=True)
+        run_apt_command.assert_called_with(
+            ['apt-get', '--assume-yes', 'autoremove', '--purge'],
+            True
+        )
+
+    @patch('charmhelpers.fetch.ubuntu._run_apt_command')
+    def test_apt_autoremove_nonfatal(self, run_apt_command):
+        fetch.apt_autoremove(purge=False, fatal=False)
+        run_apt_command.assert_called_with(
+            ['apt-get', '--assume-yes', 'autoremove'],
+            False
+        )
