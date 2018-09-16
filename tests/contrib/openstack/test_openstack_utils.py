@@ -9,6 +9,7 @@ from mock import MagicMock, patch, call
 
 from charmhelpers.fetch import ubuntu as fetch
 from charmhelpers.core.hookenv import flush
+
 import charmhelpers.contrib.openstack.utils as openstack
 
 import six
@@ -549,6 +550,9 @@ class OpenStackHelpersTestCase(TestCase):
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
+    @patch('charmhelpers.fetch.ubuntu.log', lambda *args, **kwargs: None)
+    @patch('charmhelpers.contrib.openstack.utils.juju_log',
+           lambda *args, **kwargs: None)
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_configure_bad_install_source(self, _error):
         openstack.configure_installation_source('foo')
@@ -607,6 +611,7 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.import_key('random-string')
         fetch_import_key.assert_called_once_with('random-string')
 
+    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
     @patch.object(openstack, 'fetch_import_key')
     @patch.object(openstack, 'sys')
     def test_import_key_calls_sys_exit_on_error(self, mock_sys,
