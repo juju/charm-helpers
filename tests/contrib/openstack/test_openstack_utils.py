@@ -1754,6 +1754,7 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.series_upgrade_complete(fake_resume_helper, fake_configs)
         clear_unit_upgrading.assert_called_once()
         clear_unit_paused.assert_called_once()
+        fake_configs.write_all.assert_called_once()
         fake_resume_helper.assert_called_once_with(fake_configs)
 
 
