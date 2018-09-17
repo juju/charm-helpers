@@ -59,6 +59,8 @@ class MysqlTests(unittest.TestCase):
         helper.grant_exists.assert_has_calls(calls, any_order=True)
         self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2']))
 
+    @mock.patch('charmhelpers.contrib.network.ip.log',
+                lambda *args, **kwargs: None)
     @mock.patch('charmhelpers.contrib.network.ip.ns_query')
     @mock.patch('charmhelpers.contrib.network.ip.socket')
     @mock.patch.object(mysql, 'unit_get')
@@ -168,6 +170,7 @@ class MysqlTests(unittest.TestCase):
         helper.set_mysql_root_password(password='1234')
         mock_set_passwd.assert_called_with('root', '1234')
 
+    @mock.patch.object(mysql, 'log', lambda *args, **kwargs: None)
     @mock.patch.object(mysql, 'is_leader')
     @mock.patch.object(mysql, 'leader_get')
     @mock.patch.object(mysql, 'leader_set')
@@ -320,6 +323,7 @@ class MysqlTests(unittest.TestCase):
                                  'userA.passwd': '2',
                                  'mysql-userA.passwd': '3'})
 
+    @mock.patch.object(mysql, 'log', lambda *args, **kwargs: None)
     @mock.patch.object(mysql, 'is_leader')
     @mock.patch.object(mysql, 'leader_set')
     def test_migrate_passwords_to_leader_storage_not_leader(self, mock_leader_set,

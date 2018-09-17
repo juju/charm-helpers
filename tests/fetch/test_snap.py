@@ -13,6 +13,8 @@
 # limitations under the License.
 from mock import patch
 from unittest import TestCase
+import charmhelpers.fetch.snap as fetch_snap
+
 __author__ = 'Joseph Borg <joseph.borg@canonical.com>'
 
 TEST_ENV = {'foo': 'bar'}
@@ -22,6 +24,7 @@ class SnapTest(TestCase):
     """
     Test and install and removal of a snap.
     """
+    @patch.object(fetch_snap, 'log', lambda *args, **kwargs: None)
     @patch('subprocess.check_call')
     @patch('os.environ', TEST_ENV)
     def testSnapInstall(self, check_call):
@@ -31,11 +34,11 @@ class SnapTest(TestCase):
         :param check_call: Mock object
         :return: None
         """
-        from charmhelpers.fetch.snap import snap_install
         check_call.return_value = 0
-        snap_install(['hello-world', 'htop'], '--classic', '--stable')
+        fetch_snap.snap_install(['hello-world', 'htop'], '--classic', '--stable')
         check_call.assert_called_with(['snap', 'install', '--classic', '--stable', 'hello-world', 'htop'], env=TEST_ENV)
 
+    @patch.object(fetch_snap, 'log', lambda *args, **kwargs: None)
     @patch('subprocess.check_call')
     @patch('os.environ', TEST_ENV)
     def testSnapRefresh(self, check_call):
@@ -45,11 +48,11 @@ class SnapTest(TestCase):
         :param check_call: Mock object
         :return: None
         """
-        from charmhelpers.fetch.snap import snap_refresh
         check_call.return_value = 0
-        snap_refresh(['hello-world', 'htop'], '--classic', '--stable')
+        fetch_snap.snap_refresh(['hello-world', 'htop'], '--classic', '--stable')
         check_call.assert_called_with(['snap', 'refresh', '--classic', '--stable', 'hello-world', 'htop'], env=TEST_ENV)
 
+    @patch.object(fetch_snap, 'log', lambda *args, **kwargs: None)
     @patch('subprocess.check_call')
     @patch('os.environ', TEST_ENV)
     def testSnapRemove(self, check_call):
@@ -59,9 +62,8 @@ class SnapTest(TestCase):
         :param check_call: Mock object
         :return: None
         """
-        from charmhelpers.fetch.snap import snap_remove
         check_call.return_value = 0
-        snap_remove(['hello-world', 'htop'])
+        fetch_snap.snap_remove(['hello-world', 'htop'])
         check_call.assert_called_with(['snap', 'remove', 'hello-world', 'htop'], env=TEST_ENV)
 
     def test_valid_snap_channel(self):
@@ -69,14 +71,9 @@ class SnapTest(TestCase):
 
         :return: None
         """
-
-        from charmhelpers.fetch.snap import (
-            valid_snap_channel,
-            InvalidSnapChannel,
-        )
         # Valid
-        self.assertTrue(valid_snap_channel('edge'))
+        self.assertTrue(fetch_snap.valid_snap_channel('edge'))
 
         # Invalid
-        with self.assertRaises(InvalidSnapChannel):
-            valid_snap_channel('DOESNOTEXIST')
+        with self.assertRaises(fetch_snap.InvalidSnapChannel):
+            fetch_snap.valid_snap_channel('DOESNOTEXIST')

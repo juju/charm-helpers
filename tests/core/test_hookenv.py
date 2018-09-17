@@ -357,6 +357,7 @@ class HelpersTest(TestCase):
         # ... because the result is actually a string
         self.assert_(isinstance(result, six.string_types))
 
+    @patch('charmhelpers.core.hookenv.log', lambda *args, **kwargs: None)
     @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('subprocess.check_output')
     def test_gets_missing_charm_config_with_scope(self, check_output):
