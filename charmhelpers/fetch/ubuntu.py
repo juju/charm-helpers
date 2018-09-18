@@ -189,6 +189,18 @@ def filter_installed_packages(packages):
     return _pkgs
 
 
+def filter_missing_packages(packages):
+    """Return a list of packages that are installed.
+
+    :param packages: list of packages to evaluate.
+    :returns list: Packages that are installed.
+    """
+    return list(
+        set(packages) -
+        set(filter_installed_packages(packages))
+    )
+
+
 def apt_cache(in_memory=True, progress=None):
     """Build and return an apt cache."""
     from apt import apt_pkg

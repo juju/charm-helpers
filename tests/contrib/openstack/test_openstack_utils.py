@@ -9,6 +9,7 @@ from mock import MagicMock, patch, call
 
 from charmhelpers.fetch import ubuntu as fetch
 from charmhelpers.core.hookenv import flush
+
 import charmhelpers.contrib.openstack.utils as openstack
 
 import six
@@ -549,6 +550,9 @@ class OpenStackHelpersTestCase(TestCase):
             mock_file.write.assert_called_with(result)
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
+    @patch('charmhelpers.fetch.ubuntu.log', lambda *args, **kwargs: None)
+    @patch('charmhelpers.contrib.openstack.utils.juju_log',
+           lambda *args, **kwargs: None)
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_configure_bad_install_source(self, _error):
         openstack.configure_installation_source('foo')
@@ -607,6 +611,7 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.import_key('random-string')
         fetch_import_key.assert_called_once_with('random-string')
 
+    @patch.object(openstack, 'juju_log', lambda *args, **kwargs: None)
     @patch.object(openstack, 'fetch_import_key')
     @patch.object(openstack, 'sys')
     def test_import_key_calls_sys_exit_on_error(self, mock_sys,
@@ -1717,6 +1722,40 @@ class OpenStackHelpersTestCase(TestCase):
                 snaps, src, mode=mode))
         mock_snap_install.assert_called_with(
             'os_project', '--channel=pike', '--jailmode')
+
+    @patch.object(openstack, 'set_unit_upgrading')
+    @patch.object(openstack, 'is_unit_paused_set')
+    def test_series_upgrade_prepare(
+            self, is_unit_paused_set, set_unit_upgrading):
+        is_unit_paused_set.return_value = False
+        fake_pause_helper = MagicMock()
+        fake_configs = MagicMock()
+        openstack.series_upgrade_prepare(fake_pause_helper, fake_configs)
+        set_unit_upgrading.assert_called_once()
+        fake_pause_helper.assert_called_once_with(fake_configs)
+
+    @patch.object(openstack, 'set_unit_upgrading')
+    @patch.object(openstack, 'is_unit_paused_set')
+    def test_series_upgrade_prepare_no_pause(
+            self, is_unit_paused_set, set_unit_upgrading):
+        is_unit_paused_set.return_value = True
+        fake_pause_helper = MagicMock()
+        fake_configs = MagicMock()
+        openstack.series_upgrade_prepare(fake_pause_helper, fake_configs)
+        set_unit_upgrading.assert_called_once()
+        fake_pause_helper.assert_not_called()
+
+    @patch.object(openstack, 'clear_unit_upgrading')
+    @patch.object(openstack, 'clear_unit_paused')
+    def test_series_upgrade_complete(
+            self, clear_unit_paused, clear_unit_upgrading):
+        fake_resume_helper = MagicMock()
+        fake_configs = MagicMock()
+        openstack.series_upgrade_complete(fake_resume_helper, fake_configs)
+        clear_unit_upgrading.assert_called_once()
+        clear_unit_paused.assert_called_once()
+        fake_configs.write_all.assert_called_once()
+        fake_resume_helper.assert_called_once_with(fake_configs)
 
 
 if __name__ == '__main__':

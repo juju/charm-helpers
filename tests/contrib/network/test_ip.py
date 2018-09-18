@@ -794,6 +794,7 @@ class IPTest(unittest.TestCase):
         self.assertEqual(net_ip.port_has_listener('ip-address', 70), True)
         subprocess_call.assert_called_with(['nc', '-z', 'ip-address', '70'])
 
+    @patch.object(net_ip, 'log', lambda *args, **kwargs: None)
     @patch.object(net_ip, 'config')
     @patch.object(net_ip, 'network_get_primary_address')
     @patch.object(net_ip, 'get_address_in_network')
