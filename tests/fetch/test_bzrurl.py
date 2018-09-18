@@ -62,31 +62,31 @@ class BzrUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
-    @patch('charmhelpers.fetch.bzrurl.check_call')
-    def test_branch(self, check_call):
+    @patch('charmhelpers.fetch.bzrurl.check_output')
+    def test_branch(self, check_output):
         dest_path = "/destination/path"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()
             self.fh.branch(url, dest_path)
 
-            check_call.assert_called_with(['bzr', 'branch', url, dest_path])
+            check_output.assert_called_with(['bzr', 'branch', url, dest_path], stderr=-2)
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
                 self.assertRaises(UnhandledSource, self.fh.branch,
                                   url, dest_path)
 
-    @patch('charmhelpers.fetch.bzrurl.check_call')
-    def test_branch_revno(self, check_call):
+    @patch('charmhelpers.fetch.bzrurl.check_output')
+    def test_branch_revno(self, check_output):
         dest_path = "/destination/path"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()
             self.fh.branch(url, dest_path, revno=42)
 
-            check_call.assert_called_with(['bzr', 'branch', '-r', '42',
-                                           url, dest_path])
+            check_output.assert_called_with(['bzr', 'branch', '-r', '42',
+                                             url, dest_path], stderr=-2)
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
@@ -98,7 +98,7 @@ class BzrUrlFetchHandlerTest(TestCase):
         dst = None
         try:
             src = tempfile.mkdtemp()
-            subprocess.check_call(['bzr', 'init', src])
+            subprocess.check_output(['bzr', 'init', src], stderr=subprocess.STDOUT)
             dst = tempfile.mkdtemp()
             os.rmdir(dst)
             self.fh.branch(src, dst)

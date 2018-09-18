@@ -57,6 +57,7 @@ class ProfileTestCase(TestCase):
         self.assertEqual(1, len(audits))
         self.assertTrue(isinstance(audits[0], profile.TemplatedFile))
 
+    @patch.object(profile.utils, 'log', lambda *args, **kwargs: None)
     def test_ProfileContext(self):
         ctxt = profile.ProfileContext()
         self.assertEqual(ctxt(), {

@@ -63,6 +63,7 @@ class BcacheTestCase(TestCase):
         assert len(bcachedirs) == 1
         assert next(iter(bcachedirs)).cachepath.endswith('/fs/bcache/abcde')
 
+    @patch('charmhelpers.contrib.storage.linux.bcache.log', lambda *args, **kwargs: None)
     @patch('charmhelpers.contrib.storage.linux.bcache.os.listdir')
     def test_get_bcache_fs_nobcache(self, mock_listdir):
         mock_listdir.side_effect = OSError(

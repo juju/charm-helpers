@@ -2696,6 +2696,8 @@ class ContextTests(unittest.TestCase):
             neutron()
         )
 
+    @patch('charmhelpers.contrib.openstack.utils.juju_log',
+           lambda *args, **kwargs: None)
     @patch.object(context, 'config')
     def test_os_configflag_context(self, config):
         flags = context.OSConfigFlagContext()

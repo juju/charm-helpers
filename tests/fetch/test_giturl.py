@@ -49,8 +49,8 @@ class GitUrlFetchHandlerTest(TestCase):
             result = self.fh.can_handle(url)
             self.assertNotEqual(result, True, url)
 
-    @patch.object(giturl, 'check_call')
-    def test_clone(self, check_call):
+    @patch.object(giturl, 'check_output')
+    def test_clone(self, check_output):
         dest_path = "/destination/path"
         branch = "master"
         for url in self.valid_urls:
@@ -58,8 +58,8 @@ class GitUrlFetchHandlerTest(TestCase):
             self.fh.load_plugins = MagicMock()
             self.fh.clone(url, dest_path, branch, None)
 
-            check_call.assert_called_with(
-                ['git', 'clone', url, dest_path, '--branch', branch])
+            check_output.assert_called_with(
+                ['git', 'clone', url, dest_path, '--branch', branch], stderr=-2)
 
         for url in self.invalid_urls:
             with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
@@ -73,13 +73,13 @@ class GitUrlFetchHandlerTest(TestCase):
         try:
             src = tempfile.mkdtemp()
             with chdir(src):
-                subprocess.check_call(['git', 'init'])
-                subprocess.check_call(['git', 'config', 'user.name', 'Joe'])
-                subprocess.check_call(
+                subprocess.check_output(['git', 'init'])
+                subprocess.check_output(['git', 'config', 'user.name', 'Joe'])
+                subprocess.check_output(
                     ['git', 'config', 'user.email', 'joe@test.com'])
-                subprocess.check_call(['touch', 'foo'])
-                subprocess.check_call(['git', 'add', 'foo'])
-                subprocess.check_call(['git', 'commit', '-m', 'test'])
+                subprocess.check_output(['touch', 'foo'])
+                subprocess.check_output(['git', 'add', 'foo'])
+                subprocess.check_output(['git', 'commit', '-m', 'test'])
             dst = tempfile.mkdtemp()
             os.rmdir(dst)
             self.fh.clone(src, dst)
