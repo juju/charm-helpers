@@ -84,6 +84,7 @@ module = "charmhelpers.fetch.%s" % __platform__
 fetch = importlib.import_module(module)
 
 filter_installed_packages = fetch.filter_installed_packages
+filter_missing_packages = fetch.filter_missing_packages
 install = fetch.apt_install
 upgrade = fetch.apt_upgrade
 update = _fetch_update = fetch.apt_update
