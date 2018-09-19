@@ -119,3 +119,4 @@ docs/_build
 .venv
 .venv3
 .bzr
+.unit-state.db

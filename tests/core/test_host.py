@@ -1891,6 +1891,38 @@ class HelpersTest(TestCase):
                                                   non_zero_wait=True),
                          70)
 
+    @patch.object(host, 'charm_name')
+    @patch.object(host, 'write_file')
+    @patch.object(subprocess, 'check_call')
+    @patch.object(host, 'file_hash')
+    @patch('hashlib.md5')
+    def test_install_ca_cert_new_cert(self, md5, file_hash, check_call,
+                                      write_file, charm_name):
+        file_hash.return_value = 'old_hash'
+        charm_name.return_value = 'charm-name'
+
+        md5().hexdigest.return_value = 'old_hash'
+        host.install_ca_cert('cert_data')
+        assert not check_call.called
+
+        md5().hexdigest.return_value = 'new_hash'
+        host.install_ca_cert(None)
+        assert not check_call.called
+        host.install_ca_cert('')
+        assert not check_call.called
+
+        host.install_ca_cert('cert_data', 'name')
+        write_file.assert_called_with(
+            '/usr/local/share/ca-certificates/name.crt',
+            b'cert_data')
+        check_call.assert_called_with(['update-ca-certificates', '--fresh'])
+
+        host.install_ca_cert('cert_data')
+        write_file.assert_called_with(
+            '/usr/local/share/ca-certificates/juju-charm-name.crt',
+            b'cert_data')
+        check_call.assert_called_with(['update-ca-certificates', '--fresh'])
+
 
 class TestHostCompator(TestCase):
 
