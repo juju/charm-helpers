@@ -57,7 +57,7 @@ class ApacheUtilsTests(TestCase):
             'relation_get',
             'relation_ids',
             'relation_list',
-            'subprocess',
+            'host',
         ]]
 
     def _patch(self, method):
@@ -131,24 +131,3 @@ class ApacheUtilsTests(TestCase):
                 apache_utils.retrieve_ca_cert('mycertfile'),
                 None)
             self.assertFalse(_open.called)
-
-    @patch.object(apache_utils, 'retrieve_ca_cert')
-    def test_install_ca_cert_new_cert(self, _retrieve_ca_cert):
-        _retrieve_ca_cert.return_value = None
-        with patch_open() as (_open, _file):
-            apache_utils.install_ca_cert(cert)
-            _open.assert_called_once_with(
-                '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
-                'wb')
-            _file.write.assert_called_with(cert)
-        self.subprocess.check_call.assert_called_with(
-            ['update-ca-certificates', '--fresh'])
-
-    @patch.object(apache_utils, 'retrieve_ca_cert')
-    def test_install_ca_cert_old_cert(self, _retrieve_ca_cert):
-        _retrieve_ca_cert.return_value = cert
-        with patch_open() as (_open, _file):
-            apache_utils.install_ca_cert(cert)
-            self.assertFalse(_open.called)
-            self.assertFalse(_file.called)
-        self.assertFalse(self.subprocess.check_call.called)
