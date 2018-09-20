@@ -1891,13 +1891,14 @@ class HelpersTest(TestCase):
                                                   non_zero_wait=True),
                          70)
 
+    @patch.object(host, 'log')
     @patch.object(host, 'charm_name')
     @patch.object(host, 'write_file')
     @patch.object(subprocess, 'check_call')
     @patch.object(host, 'file_hash')
     @patch('hashlib.md5')
     def test_install_ca_cert_new_cert(self, md5, file_hash, check_call,
-                                      write_file, charm_name):
+                                      write_file, charm_name, log):
         file_hash.return_value = 'old_hash'
         charm_name.return_value = 'charm-name'
 
