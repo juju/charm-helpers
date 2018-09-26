@@ -618,12 +618,12 @@ class OpenStackAmuletUtils(AmuletUtils):
         return self.authenticate_keystone(keystone_ip, user, password,
                                           project_name=tenant)
 
-    def authenticate_glance_admin(self, keystone):
+    def authenticate_glance_admin(self, keystone, force_v1_client=False):
         """Authenticates admin user with glance."""
         self.log.debug('Authenticating glance admin...')
         ep = keystone.service_catalog.url_for(service_type='image',
                                               interface='adminURL')
-        if keystone.session:
+        if not force_v1_client and keystone.session:
             return glance_clientv2.Client("2", session=keystone.session)
         else:
             return glance_client.Client(ep, token=keystone.auth_token)
@@ -703,7 +703,6 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Creating glance image ({}) from '
                        '{}...'.format(image_name, image_url))
 
-        hypervisor_type = hypervisor_type or 'qemu'
         # Download image
         http_proxy = os.getenv('AMULET_HTTP_PROXY')
         self.log.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
@@ -720,8 +719,9 @@ class OpenStackAmuletUtils(AmuletUtils):
         # Create glance image
         glance_properties = {
             'architecture': architecture,
-            'hypervisor_type': hypervisor_type
         }
+        if hypervisor_type:
+            glance_properties['hypervisor_type'] = hypervisor_type
         # Create glance image
         if float(glance.version) < 2.0:
             with open(abs_file_name) as f:
