@@ -3609,3 +3609,15 @@ class ContextTests(unittest.TestCase):
         ctxt()
         mkdir.assert_called_with(dirname, owner=owner, group=group,
                                  perms=perms, force=force)
+
+    @patch.object(context, 'os_release')
+    def test_VersionsContext(self, os_release):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
+        os_release.return_value = 'essex'
+        self.assertEqual(
+            context.VersionsContext()(),
+            {
+                'openstack_release': 'essex',
+                'operating_system_release': 'xenial'})
+        os_release.assert_called_once_with('python-keystone', base='icehouse')
+        self.lsb_release.assert_called_once_with()
