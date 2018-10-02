@@ -22,7 +22,7 @@ from mock import patch
 from charmhelpers.contrib.hardening.apache.checks import config
 
 TEST_TMPDIR = None
-APACHE_VERSION_STR = """Server version: Apache/2.4.7 (Ubuntu)
+APACHE_VERSION_STR = b"""Server version: Apache/2.4.7 (Ubuntu)
 Server built:   Jan 14 2016 17:45:23
 """
 

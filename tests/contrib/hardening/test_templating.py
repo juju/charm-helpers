@@ -238,7 +238,7 @@ class TemplatingTestCase(TestCase):
     def test_apache_conf_and_check(self, mock_write, mock_ensure_permissions,
                                    mock_subprocess):
         mock_subprocess.call.return_value = 0
-        apache_version = """Server version: Apache/2.4.7 (Ubuntu)
+        apache_version = b"""Server version: Apache/2.4.7 (Ubuntu)
         Server built:   Jan 14 2016 17:45:23
         """
         mock_subprocess.check_output.return_value = apache_version
