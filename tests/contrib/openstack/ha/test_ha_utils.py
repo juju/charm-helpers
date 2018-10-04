@@ -138,11 +138,21 @@ class HATests(unittest.TestCase):
         self.assertRaises(ha.DNSHAException,
                           lambda: ha.assert_charm_supports_dns_ha())
 
-    def tests_expect_ha(self):
+    @patch.object(ha, 'expected_related_units')
+    def tests_expect_ha(self, expected_related_units):
+        expected_related_units.return_value = (x for x in [])
         self.conf = {'vip': None,
                      'dns-ha': None}
         self.assertFalse(ha.expect_ha())
 
+        expected_related_units.return_value = (x for x in ['hacluster-unit/0',
+                                                           'hacluster-unit/1',
+                                                           'hacluster-unit/2'])
+        self.conf = {'vip': None,
+                     'dns-ha': None}
+        self.assertTrue(ha.expect_ha())
+
+        expected_related_units.side_effect = NotImplementedError
         self.conf = {'vip': '10.0.0.1',
                      'dns-ha': None}
         self.assertTrue(ha.expect_ha())
