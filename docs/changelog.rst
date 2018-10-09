@@ -1,6 +1,55 @@
 Changelog
 ---------
 
+0.19.3
+^^^^^^
+Tuesday October 9 2018
+
+* Adding "log" support to Neutron API context (#228)
+* Enable the apache audit checks to also be PY3 compatible (#227)
+* Ensure auth_uri/auth_url include v3 API version (#225)
+* Add OpenStack context that provides versions (#224)
+* Allow glance image hypervisor type to be unset (#223)
+* Allow cirros image virt type to be set (#222)
+* Refactor install_ca_cert to core.host (#220)
+* Generalized glance_create_image (#221)
+* Remove unnecessary charm relation option (#219)
+* CompareHostReleases needs cosmic series support (#216)
+* fetch: add helper to determine installed packages (#215)
+* Quieten down unit tests (#214)
+* Write all configs on series upgrade complete (#213)
+* Add helpers for common series upgrade tasks (#212)
+* Adding new parameters into Neutron ctxt to make NSG logging configurable (#211)
+* Fix docs rendering on RTD (#210)
+
+0.19.2
+^^^^^^
+Monday September 10 2018
+
+* Add helper for apt autoremove (#209)
+* ensure max lenght of message in log func (#208)
+* Add 2.19.0 to rocky swift versions (#207)
+* Fix get_ceph_pools for mimic (#206)
+* Use glance client v2 (#205)
+* Support multiple WSGI vhosts in Openstack (#201)
+* Series Upgrade Helpers (#200)
+* Add functions for managing ssh assets in OpenStack (#197)
+* Add unit_doomed call to inform about removed units (#199)
+* Rename service_name, add helpers for model name and UUID (#196)
+
+0.19.1
+^^^^^^
+Wednesday July 11 2018
+
+* Retry importing key on failure. (#194)
+* Allow a src directory passed to copy_nrpe_checks (#193)
+* Don't update updatedb.conf file if not available (#191)
+* Add remaining series support for rocky (#190)
+* Support multi amqp or shared-db relations in ctxts (#188)
+* LP: #1748433 Ansible version changed from 2.0 to 2.5 and there is sev… (#181)
+* ovs: long interface names and existing wiring (#186)
+* Add "select" function to "MySQLHelper" class (#185)
+
 0.19.0
 ^^^^^^
 Tuesday June 5 2018
