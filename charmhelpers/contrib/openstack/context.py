@@ -1534,10 +1534,15 @@ class NeutronAPIContext(OSContextGenerator):
                 if 'l2-population' in rdata:
                     ctxt.update(self.get_neutron_options(rdata))
 
+        extension_drivers = []
+
         if ctxt['enable_qos']:
-            ctxt['extension_drivers'] = 'qos'
-        else:
-            ctxt['extension_drivers'] = ''
+            extension_drivers.append('qos')
+
+        if ctxt['enable_nsg_logging']:
+            extension_drivers.append('log')
+
+        ctxt['extension_drivers'] = ','.join(extension_drivers)
 
         return ctxt
 
