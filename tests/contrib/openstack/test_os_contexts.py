@@ -3317,7 +3317,7 @@ class ContextTests(unittest.TestCase):
         expected_keys = [
             'l2_population', 'enable_dvr', 'enable_l3ha',
             'overlay_network_type', 'network_device_mtu',
-            'enable_qos'
+            'enable_qos', 'enable_nsg_logging'
         ]
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
@@ -3325,6 +3325,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(api_ctxt['polling_interval'], 2)
         self.assertEquals(api_ctxt['rpc_response_timeout'], 60)
         self.assertEquals(api_ctxt['report_interval'], 30)
+        self.assertEquals(api_ctxt['enable_nsg_logging'], False)
 
     def setup_neutron_api_context_relation(self, cfg):
         self.relation_ids.return_value = ['neutron-plugin-api:1']
@@ -3355,6 +3356,28 @@ class ContextTests(unittest.TestCase):
         api_ctxt = context.NeutronAPIContext()()
         self.assertFalse(api_ctxt['enable_qos'])
         self.assertEquals(api_ctxt['extension_drivers'], '')
+
+    def test_neutronapicontext_extension_drivers_log_off(self):
+        self.setup_neutron_api_context_relation({
+            'enable-nsg-logging': 'False',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['extension_drivers'], '')
+
+    def test_neutronapicontext_extension_drivers_log_on(self):
+        self.setup_neutron_api_context_relation({
+            'enable-nsg-logging': 'True',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['extension_drivers'], 'log')
+
+    def test_neutronapicontext_extension_drivers_log_qos_on(self):
+        self.setup_neutron_api_context_relation({
+            'enable-qos': 'True',
+            'enable-nsg-logging': 'True',
+            'l2-population': 'True'})
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['extension_drivers'], 'qos,log')
 
     def test_neutronapicontext_string_converted(self):
         self.setup_neutron_api_context_relation({
