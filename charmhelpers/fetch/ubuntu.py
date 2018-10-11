@@ -454,6 +454,9 @@ def _add_apt_repository(spec):
 
     :param spec: the parameter to pass to add_apt_repository
     """
+    if '{series}' in spec:
+        series = lsb_release()['DISTRIB_CODENAME']
+        spec = spec.replace('{series}', series)
     _run_with_retries(['add-apt-repository', '--yes', spec])
 
 
