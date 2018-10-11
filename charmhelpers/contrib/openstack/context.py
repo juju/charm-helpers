@@ -1389,11 +1389,12 @@ class WorkerConfigContext(OSContextGenerator):
 class WSGIWorkerConfigContext(WorkerConfigContext):
 
     def __init__(self, name=None, script=None, admin_script=None,
-                 public_script=None, process_weight=1.00,
+                 public_script=None, user=None, group=None,
+                 process_weight=1.00,
                  admin_process_weight=0.25, public_process_weight=0.75):
         self.service_name = name
-        self.user = name
-        self.group = name
+        self.user = user or name
+        self.group = group or name
         self.script = script
         self.admin_script = admin_script
         self.public_script = public_script
@@ -1518,6 +1519,10 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-qos',
                 'default': False,
             },
+            'enable_nsg_logging': {
+                'rel_key': 'enable-nsg-logging',
+                'default': False,
+            },
         }
         ctxt = self.get_neutron_options({})
         for rid in relation_ids('neutron-plugin-api'):
@@ -1529,10 +1534,15 @@ class NeutronAPIContext(OSContextGenerator):
                 if 'l2-population' in rdata:
                     ctxt.update(self.get_neutron_options(rdata))
 
+        extension_drivers = []
+
         if ctxt['enable_qos']:
-            ctxt['extension_drivers'] = 'qos'
-        else:
-            ctxt['extension_drivers'] = ''
+            extension_drivers.append('qos')
+
+        if ctxt['enable_nsg_logging']:
+            extension_drivers.append('log')
+
+        ctxt['extension_drivers'] = ','.join(extension_drivers)
 
         return ctxt
 
@@ -1892,7 +1902,7 @@ class EnsureDirContext(OSContextGenerator):
     Some software requires a user to create a target directory to be
     scanned for drop-in files with a specific format. This is why this
     context is needed to do that before rendering a template.
-   '''
+    '''
 
     def __init__(self, dirname, **kwargs):
         '''Used merely to ensure that a given directory exists.'''
@@ -1902,3 +1912,23 @@ class EnsureDirContext(OSContextGenerator):
     def __call__(self):
         mkdir(self.dirname, **self.kwargs)
         return {}
+
+
+class VersionsContext(OSContextGenerator):
+    """Context to return the openstack and operating system versions.
+
+    """
+    def __init__(self, pkg='python-keystone'):
+        """Initialise context.
+
+        :param pkg: Package to extrapolate openstack version from.
+        :type pkg: str
+        """
+        self.pkg = pkg
+
+    def __call__(self):
+        ostack = os_release(self.pkg, base='icehouse')
+        osystem = lsb_release()['DISTRIB_CODENAME'].lower()
+        return {
+            'openstack_release': ostack,
+            'operating_system_release': osystem}

@@ -189,6 +189,18 @@ def filter_installed_packages(packages):
     return _pkgs
 
 
+def filter_missing_packages(packages):
+    """Return a list of packages that are installed.
+
+    :param packages: list of packages to evaluate.
+    :returns list: Packages that are installed.
+    """
+    return list(
+        set(packages) -
+        set(filter_installed_packages(packages))
+    )
+
+
 def apt_cache(in_memory=True, progress=None):
     """Build and return an apt cache."""
     from apt import apt_pkg
@@ -245,6 +257,14 @@ def apt_purge(packages, fatal=False):
     else:
         cmd.extend(packages)
     log("Purging {}".format(packages))
+    _run_apt_command(cmd, fatal)
+
+
+def apt_autoremove(purge=True, fatal=False):
+    """Purge one or more packages."""
+    cmd = ['apt-get', '--assume-yes', 'autoremove']
+    if purge:
+        cmd.append('--purge')
     _run_apt_command(cmd, fatal)
 
 
@@ -434,6 +454,9 @@ def _add_apt_repository(spec):
 
     :param spec: the parameter to pass to add_apt_repository
     """
+    if '{series}' in spec:
+        series = lsb_release()['DISTRIB_CODENAME']
+        spec = spec.replace('{series}', series)
     _run_with_retries(['add-apt-repository', '--yes', spec])
 
 

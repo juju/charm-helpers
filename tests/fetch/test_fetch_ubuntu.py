@@ -121,6 +121,12 @@ class FetchTest(TestCase):
         log.assert_called_with('Package joe has no installation candidate.',
                                level='WARNING')
 
+    @patch('charmhelpers.fetch.ubuntu.filter_installed_packages')
+    def test_filter_missing_packages(self, filter_installed_packages):
+        filter_installed_packages.return_value = ['pkga']
+        self.assertEqual(['pkgb'],
+                         fetch.filter_missing_packages(['pkga', 'pkgb']))
+
     @patch.object(fetch, 'log', lambda *args, **kwargs: None)
     def test_import_apt_key_radix(self):
         """Ensure shell out apt-key during key import"""
@@ -710,3 +716,19 @@ class AptTests(TestCase):
         self.assertEqual(fetch.get_upstream_version('vim'), '7.3.547')
         self.assertEqual(fetch.get_upstream_version('emacs'), None)
         self.assertEqual(fetch.get_upstream_version('unknown'), None)
+
+    @patch('charmhelpers.fetch.ubuntu._run_apt_command')
+    def test_apt_autoremove_fatal(self, run_apt_command):
+        fetch.apt_autoremove(purge=True, fatal=True)
+        run_apt_command.assert_called_with(
+            ['apt-get', '--assume-yes', 'autoremove', '--purge'],
+            True
+        )
+
+    @patch('charmhelpers.fetch.ubuntu._run_apt_command')
+    def test_apt_autoremove_nonfatal(self, run_apt_command):
+        fetch.apt_autoremove(purge=False, fatal=False)
+        run_apt_command.assert_called_with(
+            ['apt-get', '--assume-yes', 'autoremove'],
+            False
+        )

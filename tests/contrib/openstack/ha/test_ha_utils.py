@@ -46,6 +46,7 @@ class HATests(unittest.TestCase):
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
 
+    @patch.object(ha, 'log', lambda *args, **kwargs: None)
     @patch.object(ha, 'assert_charm_supports_dns_ha')
     def test_update_dns_ha_resource_params_none(self,
                                                 assert_charm_supports_dns_ha):
@@ -61,6 +62,7 @@ class HATests(unittest.TestCase):
                 resources=self.resources,
                 resource_params=self.resource_params)
 
+    @patch.object(ha, 'log', lambda *args, **kwargs: None)
     @patch.object(ha, 'assert_charm_supports_dns_ha')
     def test_update_dns_ha_resource_params_one(self,
                                                assert_charm_supports_dns_ha):
@@ -88,6 +90,7 @@ class HATests(unittest.TestCase):
             groups={'grp_test_hostnames': 'res_test_public_hostname'},
             relation_id='ha:1')
 
+    @patch.object(ha, 'log', lambda *args, **kwargs: None)
     @patch.object(ha, 'assert_charm_supports_dns_ha')
     def test_update_dns_ha_resource_params_all(self,
                                                assert_charm_supports_dns_ha):
@@ -242,9 +245,11 @@ class HATests(unittest.TestCase):
         self.assertEqual(ha.generate_ha_relation_data('testservice'),
                          expected)
 
+    @patch.object(ha, 'log')
     @patch.object(ha, 'assert_charm_supports_dns_ha')
     def test_generate_ha_relation_data_dns_ha(self,
-                                              assert_charm_supports_dns_ha):
+                                              assert_charm_supports_dns_ha,
+                                              log):
         self.get_hacluster_config.return_value = {
             'vip': '10.5.100.1 ffff::1 ffaa::1'
         }

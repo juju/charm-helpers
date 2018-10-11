@@ -186,7 +186,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('queens',
         ['2.16.0', '2.17.0']),
     ('rocky',
-        ['2.18.0']),
+        ['2.18.0', '2.19.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -831,12 +831,25 @@ def _ows_check_if_paused(services=None, ports=None):
     """Check if the unit is supposed to be paused, and if so check that the
     services/ports (if passed) are actually stopped/not being listened to.
 
-    if the unit isn't supposed to be paused, just return None, None
+    If the unit isn't supposed to be paused, just return None, None
+
+    If the unit is performing a series upgrade, return a message indicating
+    this.
 
     @param services: OPTIONAL services spec or list of service names.
     @param ports: OPTIONAL list of port numbers.
     @returns state, message or None, None
     """
+    if is_unit_upgrading_set():
+        state, message = check_actually_paused(services=services,
+                                               ports=ports)
+        if state is None:
+            # we're paused okay, so set maintenance and return
+            state = "blocked"
+            message = ("Ready for do-release-upgrade and reboot. "
+                       "Set complete when finished.")
+        return state, message
+
     if is_unit_paused_set():
         state, message = check_actually_paused(services=services,
                                                ports=ports)
@@ -1339,7 +1352,7 @@ def pause_unit(assess_status_func, services=None, ports=None,
         message = assess_status_func()
         if message:
             messages.append(message)
-    if messages:
+    if messages and not is_unit_upgrading_set():
         raise Exception("Couldn't pause: {}".format("; ".join(messages)))
 
 
@@ -1689,3 +1702,62 @@ def install_os_snaps(snaps, refresh=False):
             snap_install(snap,
                          _ensure_flag(snaps[snap]['channel']),
                          _ensure_flag(snaps[snap]['mode']))
+
+
+def set_unit_upgrading():
+    """Set the unit to a upgrading state in the local kv() store.
+    """
+    with unitdata.HookData()() as t:
+        kv = t[0]
+        kv.set('unit-upgrading', True)
+
+
+def clear_unit_upgrading():
+    """Clear the unit from a upgrading state in the local kv() store
+    """
+    with unitdata.HookData()() as t:
+        kv = t[0]
+        kv.set('unit-upgrading', False)
+
+
+def is_unit_upgrading_set():
+    """Return the state of the kv().get('unit-upgrading').
+
+    To help with units that don't have HookData() (testing)
+    if it excepts, return False
+    """
+    try:
+        with unitdata.HookData()() as t:
+            kv = t[0]
+            # transform something truth-y into a Boolean.
+            return not(not(kv.get('unit-upgrading')))
+    except Exception:
+        return False
+
+
+def series_upgrade_prepare(pause_unit_helper=None, configs=None):
+    """ Run common series upgrade prepare tasks.
+
+    :param pause_unit_helper: function: Function to pause unit
+    :param configs: OSConfigRenderer object: Configurations
+    :returns None:
+    """
+    set_unit_upgrading()
+    if pause_unit_helper and configs:
+        if not is_unit_paused_set():
+            pause_unit_helper(configs)
+
+
+def series_upgrade_complete(resume_unit_helper=None, configs=None):
+    """ Run common series upgrade complete tasks.
+
+    :param resume_unit_helper: function: Function to resume unit
+    :param configs: OSConfigRenderer object: Configurations
+    :returns None:
+    """
+    clear_unit_paused()
+    clear_unit_upgrading()
+    if configs:
+        configs.write_all()
+        if resume_unit_helper:
+            resume_unit_helper(configs)

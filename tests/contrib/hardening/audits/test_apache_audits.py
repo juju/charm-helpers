@@ -78,9 +78,9 @@ class DisabledModuleAuditsTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_get_loaded_modules(self, mock_check_output):
-        mock_check_output.return_value = ('Loaded Modules:\n'
-                                          ' foo_module (static)\n'
-                                          ' bar_module (shared)\n')
+        mock_check_output.return_value = (b'Loaded Modules:\n'
+                                          b' foo_module (static)\n'
+                                          b' bar_module (shared)\n')
         audit = apache.DisabledModuleAudit('bar')
         result = audit._get_loaded_modules()
         self.assertEqual(['foo', 'bar'], result)
