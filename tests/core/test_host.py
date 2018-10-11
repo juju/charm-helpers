@@ -1157,6 +1157,29 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')
+    def test_only_changes_incorrect_ownership(self, os_, log):
+        uid = 0
+        gid = 0
+        path = '/some/path/{baz}'
+        fmtstr = b'what is {juju}'
+        perms = 0o444
+        fileno = 'some-fileno'
+
+        os_.stat.return_value.st_uid = uid
+        os_.stat.return_value.st_gid = gid
+        os_.stat.return_value.st_mode = perms
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.fileno.return_value = fileno
+            mock_file.read.return_value = fmtstr
+
+            host.write_file(path, fmtstr)
+
+            self.assertEqual(mock_open.call_count, 1)  # Called to read
+            self.assertEqual(os_.chown.call_count, 0)
+
+    @patch.object(host, 'log')
+    @patch.object(host, 'os')
     def test_writes_binary_contents(self, os_, log):
         path = '/some/path/{baz}'
         fmtstr = six.u('what is {juju}\N{TRADE MARK SIGN}').encode('UTF-8')
