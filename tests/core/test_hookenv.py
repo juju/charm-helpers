@@ -3,6 +3,7 @@ import json
 from subprocess import CalledProcessError
 import shutil
 import tempfile
+import types
 from mock import call, MagicMock, mock_open, patch, sentinel
 from testtools import TestCase
 import yaml
@@ -642,6 +643,117 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-list', '--format=json',
                                          '-r', relid])
         self.assertFalse(relation_id.called)
+
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.core.hookenv.goal_state')
+    @patch('charmhelpers.core.hookenv.has_juju_version')
+    def test_gets_expected_peer_units(self, has_juju_version, goal_state,
+                                      local_unit):
+        has_juju_version.return_value = True
+        goal_state.return_value = {
+            'units': {
+                'keystone/0': {
+                    'status': 'active',
+                    'since': '2018-09-27 11:38:28Z',
+                },
+                'keystone/1': {
+                    'status': 'active',
+                    'since': '2018-09-27 11:39:23Z',
+                },
+            },
+        }
+        local_unit.return_value = 'keystone/0'
+
+        result = hookenv.expected_peer_units()
+
+        self.assertIsInstance(result, types.GeneratorType)
+        self.assertEqual(sorted(result), ['keystone/1'])
+        has_juju_version.assertCalledOnceWith("2.4.0")
+        local_unit.assertCalledOnceWith()
+
+    @patch('charmhelpers.core.hookenv.has_juju_version')
+    def test_gets_expected_peer_units_wrong_version(self, has_juju_version):
+        has_juju_version.return_value = False
+
+        def x():
+            # local helper function to make testtools.TestCase.assertRaises
+            # work with generator
+            list(hookenv.expected_peer_units())
+
+        self.assertRaises(NotImplementedError, x)
+        has_juju_version.assertCalledOnceWith("2.4.0")
+
+    @patch('charmhelpers.core.hookenv.goal_state')
+    @patch('charmhelpers.core.hookenv.relation_type')
+    @patch('charmhelpers.core.hookenv.has_juju_version')
+    def test_gets_expected_related_units(self, has_juju_version, relation_type,
+                                         goal_state):
+        has_juju_version.return_value = True
+        relation_type.return_value = 'identity-service'
+        goal_state.return_value = {
+            'relations': {
+                'identity-service': {
+                    'glance': {
+                        'status': 'joined',
+                        'since': '2018-09-27 11:37:16Z'
+                    },
+                    'glance/0': {
+                        'status': 'active',
+                        'since': '2018-09-27 11:27:19Z'
+                    },
+                    'glance/1': {
+                        'status': 'active',
+                        'since': '2018-09-27 11:27:34Z'
+                    },
+                },
+            },
+        }
+
+        result = hookenv.expected_related_units()
+
+        self.assertIsInstance(result, types.GeneratorType)
+        self.assertEqual(sorted(result), ['glance/0', 'glance/1'])
+
+    @patch('charmhelpers.core.hookenv.goal_state')
+    @patch('charmhelpers.core.hookenv.has_juju_version')
+    def test_gets_expected_related_units_for_type(self, has_juju_version,
+                                                  goal_state):
+        has_juju_version.return_value = True
+        goal_state.return_value = {
+            'relations': {
+                'identity-service': {
+                    'glance': {
+                        'status': 'joined',
+                        'since': '2018-09-27 11:37:16Z'
+                    },
+                    'glance/0': {
+                        'status': 'active',
+                        'since': '2018-09-27 11:27:19Z'
+                    },
+                    'glance/1': {
+                        'status': 'active',
+                        'since': '2018-09-27 11:27:34Z'
+                    },
+                },
+            },
+        }
+
+        result = hookenv.expected_related_units('identity-service')
+
+        self.assertIsInstance(result, types.GeneratorType)
+        self.assertEqual(sorted(result), ['glance/0', 'glance/1'])
+
+    @patch('charmhelpers.core.hookenv.has_juju_version')
+    def test_gets_expected_related_units_wrong_version(self, has_juju_version):
+        has_juju_version.return_value = False
+
+        def x():
+            # local helper function to make testtools.TestCase.assertRaises
+            # work with generator
+            list(hookenv.expected_related_units())
+
+        self.assertRaises(NotImplementedError, x)
+        has_juju_version.assertCalledOnceWith("2.4.4")
 
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_remote_unit(self, os_):
