@@ -1152,8 +1152,8 @@ class HelpersTest(TestCase):
             os_.chown.assert_has_calls([
                 call(path, uid, -1),
                 call(path, -1, gid),
-                call(path, perms),
             ])
+            os_.chmod.assert_called_with(path, perms)
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')

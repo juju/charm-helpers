@@ -568,7 +568,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
     if existing_perms != perms:
         log("Changing permissions on existing content: {} -> {}"
             .format(existing_perms, perms), level=DEBUG)
-        os.chown(path, perms)
+        os.chmod(path, perms)
 
 
 def fstab_remove(mp):
