@@ -69,7 +69,7 @@ IP_LINE_ETH1 = b"""
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """
 
-IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
+IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
 IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN + IP_LINE_ETH100
 

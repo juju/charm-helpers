@@ -70,9 +70,9 @@ ftest: lint
 
 lint: .venv .venv3
 	@echo Checking for Python syntax...
-	@.venv/bin/flake8 --ignore=E501 $(PROJECT) $(TESTS) tools/ \
+	@.venv/bin/flake8 --ignore=E501,W504 $(PROJECT) $(TESTS) tools/ \
 	    && echo Py2 OK
-	@.venv3/bin/flake8 --ignore=E501 $(PROJECT) $(TESTS) tools/ \
+	@.venv3/bin/flake8 --ignore=E501,W504 $(PROJECT) $(TESTS) tools/ \
 	    && echo Py3 OK
 
 docs:
