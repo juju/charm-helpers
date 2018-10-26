@@ -40,7 +40,7 @@ from charmhelpers.osplatform import get_platform
 
 __platform__ = get_platform()
 if __platform__ == "ubuntu":
-    from charmhelpers.core.host_factory.ubuntu import (
+    from charmhelpers.core.host_factory.ubuntu import (  # NOQA:F401
         service_available,
         add_new_group,
         lsb_release,
@@ -48,7 +48,7 @@ if __platform__ == "ubuntu":
         CompareHostReleases,
     )  # flake8: noqa -- ignore F401 for this import
 elif __platform__ == "centos":
-    from charmhelpers.core.host_factory.centos import (
+    from charmhelpers.core.host_factory.centos import (  # NOQA:F401
         service_available,
         add_new_group,
         lsb_release,
@@ -57,6 +57,7 @@ elif __platform__ == "centos":
     )  # flake8: noqa -- ignore F401 for this import
 
 UPDATEDB_PATH = '/etc/updatedb.conf'
+
 
 def service_start(service_name, **kwargs):
     """Start a system service.
@@ -287,8 +288,8 @@ def service_running(service_name, **kwargs):
                 for key, value in six.iteritems(kwargs):
                     parameter = '%s=%s' % (key, value)
                     cmd.append(parameter)
-                output = subprocess.check_output(cmd,
-                    stderr=subprocess.STDOUT).decode('UTF-8')
+                output = subprocess.check_output(
+                    cmd, stderr=subprocess.STDOUT).decode('UTF-8')
             except subprocess.CalledProcessError:
                 return False
             else:
@@ -442,7 +443,7 @@ def add_user_to_group(username, group):
 
 
 def chage(username, lastday=None, expiredate=None, inactive=None,
-           mindays=None, maxdays=None, root=None, warndays=None):
+          mindays=None, maxdays=None, root=None, warndays=None):
     """Change user password expiry information
 
     :param str username: User to update
@@ -482,7 +483,9 @@ def chage(username, lastday=None, expiredate=None, inactive=None,
     cmd.append(username)
     subprocess.check_call(cmd)
 
+
 remove_password_expiry = functools.partial(chage, expiredate='-1', inactive='-1', mindays='0', maxdays='-1')
+
 
 def rsync(from_path, to_path, flags='-r', options=None, timeout=None):
     """Replicate the contents of a path"""
@@ -543,7 +546,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
         existing_uid, existing_gid, existing_perms = (
             stat.st_uid, stat.st_gid, stat.st_mode
         )
-    except:
+    except Exception:
         pass
     if content != existing_content:
         log("Writing file {} {}:{} {:o}".format(path, owner, group, perms),
@@ -833,7 +836,7 @@ def list_nics(nic_type=None):
         ip_output = subprocess.check_output(cmd).decode('UTF-8').split('\n')
         ip_output = (line.strip() for line in ip_output if line)
 
-        key = re.compile('^[0-9]+:\s+(.+):')
+        key = re.compile(r'^[0-9]+:\s+(.+):')
         for line in ip_output:
             matched = re.search(key, line)
             if matched:

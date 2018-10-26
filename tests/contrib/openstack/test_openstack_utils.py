@@ -1539,6 +1539,27 @@ class OpenStackHelpersTestCase(TestCase):
         test_func()
         self.assertEquals(restart_on_change_helper.call_count, 1)
 
+    @patch.object(openstack, 'restart_on_change_helper')
+    @patch.object(openstack, 'is_unit_paused_set')
+    def test_pausable_restart_on_change_with_callable(
+            self, is_unit_paused_set, restart_on_change_helper):
+        mock_test = MagicMock()
+        mock_test.called_set = False
+
+        def _restart_map():
+            mock_test.called_set = True
+            return {"a": "b"}
+
+        @openstack.pausable_restart_on_change(_restart_map)
+        def test_func():
+            pass
+
+        self.assertFalse(mock_test.called_set)
+        is_unit_paused_set.return_value = False
+        test_func()
+        self.assertEquals(restart_on_change_helper.call_count, 1)
+        self.assertTrue(mock_test.called_set)
+
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
