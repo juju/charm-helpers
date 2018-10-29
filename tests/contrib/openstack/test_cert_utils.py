@@ -232,3 +232,59 @@ class CertUtilsTests(unittest.TestCase):
         create_ip_cert_links.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
             custom_hostname_link='funky-name')
+
+    @mock.patch.object(cert_utils, 'local_unit')
+    @mock.patch.object(cert_utils, 'related_units')
+    @mock.patch.object(cert_utils, 'relation_ids')
+    @mock.patch.object(cert_utils, 'relation_get')
+    def test_get_requests_for_local_unit(self, relation_get, relation_ids,
+                                         related_units, local_unit):
+        local_unit.return_value = 'rabbitmq-server/2'
+        relation_ids.return_value = ['certificates:12']
+        related_units.return_value = ['vault/0']
+        certs = {
+            'juju-cd4bb3-5.lxd': {
+                'cert': 'BASECERT',
+                'key': 'BASEKEY'},
+            'juju-cd4bb3-5.internal': {
+                'cert': 'INTERNALCERT',
+                'key': 'INTERNALKEY'}}
+        _relation_info = {
+            'rabbitmq-server_2.processed_requests': json.dumps(certs),
+            'chain': 'MYCHAIN',
+            'ca': 'ROOTCA',
+        }
+        relation_get.return_value = _relation_info
+        self.assertEqual(
+            cert_utils.get_requests_for_local_unit(),
+            [{
+                'ca': 'ROOTCA',
+                'certs': {
+                    'juju-cd4bb3-5.lxd': {
+                        'cert': 'BASECERT',
+                        'key': 'BASEKEY'},
+                    'juju-cd4bb3-5.internal': {
+                        'cert': 'INTERNALCERT',
+                        'key': 'INTERNALKEY'}},
+                'chain': 'MYCHAIN'}]
+        )
+
+    @mock.patch.object(cert_utils, 'get_requests_for_local_unit')
+    def test_get_bundle_for_cn(self, get_requests_for_local_unit):
+        get_requests_for_local_unit.return_value = [{
+            'ca': 'ROOTCA',
+            'certs': {
+                'juju-cd4bb3-5.lxd': {
+                    'cert': 'BASECERT',
+                    'key': 'BASEKEY'},
+                'juju-cd4bb3-5.internal': {
+                    'cert': 'INTERNALCERT',
+                    'key': 'INTERNALKEY'}},
+            'chain': 'MYCHAIN'}]
+        self.assertEqual(
+            cert_utils.get_bundle_for_cn('juju-cd4bb3-5.internal'),
+            {
+                'ca': 'ROOTCA',
+                'cert': 'INTERNALCERT',
+                'chain': 'MYCHAIN',
+                'key': 'INTERNALKEY'})
