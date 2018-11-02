@@ -294,7 +294,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('bionic', 'cloud:bionic-rocky'): self.bionic_rocky,
             ('cosmic', None): self.cosmic_rocky,
         }
-        return releases[(self.series, self.openstack)]
+        # Strip cloud archive pockets from origin, ie. /proposed /staging
+        return releases[(self.series, self.openstack.split('/')[0])]
 
     def _get_openstack_release_string(self):
         """Get openstack release string.
