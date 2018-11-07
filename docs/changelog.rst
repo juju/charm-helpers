@@ -1,6 +1,18 @@
 Changelog
 ---------
 
+0.19.4
+^^^^^^
+Wednesday November 7 2018
+
+* Consistently render haproxy.conf (#237) (#238)
+* Add helpers for extracting certs from relation. (#235)
+* Make the harden and pausable_restart_on_change lazy (#234)
+* core/host: fix changing permissions in write_file (#233)
+* Add helpers to get expected peer and related units from goal-state (#226)
+* Render perms (#231)
+* Add {series} support to _add_apt_repository (#230)
+
 0.19.3
 ^^^^^^
 Tuesday October 9 2018
