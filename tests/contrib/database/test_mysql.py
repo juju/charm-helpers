@@ -11,6 +11,13 @@ sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
 
 
+from charmhelpers.fetch import (
+    apt_install,
+    apt_update,
+    filter_installed_packages,
+)
+
+
 try:
     import MySQLdb
 except ImportError:
