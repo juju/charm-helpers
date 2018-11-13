@@ -5,10 +5,7 @@ import unittest
 import sys
 import shutil
 import tempfile
-
-
-sys.modules['MySQLdb'] = mock.Mock()
-from charmhelpers.contrib.database import mysql  # noqa
+import six
 
 
 from charmhelpers.fetch import (
@@ -16,6 +13,10 @@ from charmhelpers.fetch import (
     apt_update,
     filter_installed_packages,
 )
+
+
+sys.modules['MySQLdb'] = mock.Mock()
+from charmhelpers.contrib.database import mysql  # noqa
 
 
 try:
