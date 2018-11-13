@@ -30,13 +30,15 @@ class MysqlTests(unittest.TestCase):
     def test_connect_host_defined(self, mock_connect):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         helper.connect(user='user', password='password', host='1.1.1.1')
-        mock_connect.assert_called_with('user', '1.1.1.1', 'password')
+        mock_connect.assert_called_with(passwd='password', host='1.1.1.1',
+                                        user='user')
 
     @mock.patch.object(MySQLdb, 'connect')
     def test_connect_host_not_defined(self, mock_connect):
-        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper = mysql.MySQLHelper('foo', 'bar')
         helper.connect(user='user', password='password')
-        mock_connect.assert_called_with('user', 'localhost', 'password')
+        mock_connect.assert_called_with(passwd='password', host='localhost',
+                                        user='user')
 
     @mock.patch.object(mysql.MySQLHelper, 'normalize_address')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
