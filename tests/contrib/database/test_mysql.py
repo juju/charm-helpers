@@ -11,9 +11,32 @@ sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
 
 
+try:
+    import MySQLdb
+except ImportError:
+    apt_update(fatal=True)
+    if six.PY2:
+        apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
+    else:
+        apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
+    import MySQLdb
+
+
 class MysqlTests(unittest.TestCase):
     def setUp(self):
         super(MysqlTests, self).setUp()
+
+    @mock.patch.object(MySQLdb, 'connect')
+    def test_connect_host_defined(self, mock_connect):
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper.connect(user='user', password='password', host='1.1.1.1')
+        mock_connect.assert_called_with('user', '1.1.1.1', 'password')
+
+    @mock.patch.object(MySQLdb, 'connect')
+    def test_connect_host_not_defined(self, mock_connect):
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper.connect(user='user', password='password')
+        mock_connect.assert_called_with('user', 'localhost', 'password')
 
     @mock.patch.object(mysql.MySQLHelper, 'normalize_address')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
