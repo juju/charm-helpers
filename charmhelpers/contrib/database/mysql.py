@@ -79,7 +79,7 @@ class MySQLHelper(object):
         self.connection = None
 
     def connect(self, user='root', password=None, host=None):
-        if not host:
+        if host is None:
             host = self.host
         log("Opening db connection for %s@%s" % (user, host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=host,
