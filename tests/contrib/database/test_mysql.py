@@ -5,29 +5,10 @@ import unittest
 import sys
 import shutil
 import tempfile
-import six
-
-
-from charmhelpers.fetch import (
-    apt_install,
-    apt_update,
-    filter_installed_packages,
-)
 
 
 sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
-
-
-try:
-    import MySQLdb
-except ImportError:
-    apt_update(fatal=True)
-    if six.PY2:
-        apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
-    else:
-        apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
-    import MySQLdb
 
 
 class MysqlTests(unittest.TestCase):
