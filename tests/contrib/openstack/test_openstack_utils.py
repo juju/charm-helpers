@@ -189,6 +189,9 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_codename_install_source(
             'distro-proposed'),
             'essex')
+        self.assertEquals(openstack.get_os_codename_install_source(
+            'proposed'),
+            'essex')
 
         # various cloud archive pockets
         src = 'cloud:precise-grizzly'
