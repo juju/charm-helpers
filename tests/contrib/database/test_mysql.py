@@ -5,44 +5,30 @@ import unittest
 import sys
 import shutil
 import tempfile
-import six
-import charmhelpers.fetch as fetch
 
 
 sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
 
 
-try:
-    import MySQLdb
-except ImportError:
-    fetch.apt_update(fatal=True)
-    if six.PY2:
-        fetch.apt_install(fetch.filter_installed_packages(['python-mysqldb']),
-                          fatal=True)
-    else:
-        fetch.apt_install(fetch.filter_installed_packages(['python3-mysqldb']),
-                          fatal=True)
-    import MySQLdb
-
-
 class MysqlTests(unittest.TestCase):
     def setUp(self):
         super(MysqlTests, self).setUp()
 
-    @mock.patch.object(MySQLdb, 'connect')
-    def test_connect_host_defined(self, mock_connect):
+    def test_connect_host_defined(self):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
-        helper.connect(user='user', password='password', host='1.1.1.1')
-        mock_connect.assert_called_with(passwd='password', host='1.1.1.1',
-                                        user='user')
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', host='1.1.1.1')
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='1.1.1.1', user='user')
 
     @mock.patch.object(MySQLdb, 'connect')
     def test_connect_host_not_defined(self, mock_connect):
         helper = mysql.MySQLHelper('foo', 'bar')
-        helper.connect(user='user', password='password')
-        mock_connect.assert_called_with(passwd='password', host='localhost',
-                                        user='user')
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password')
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user')
 
     @mock.patch.object(mysql.MySQLHelper, 'normalize_address')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
