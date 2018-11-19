@@ -22,7 +22,6 @@ class MysqlTests(unittest.TestCase):
         mysql.MySQLdb.connect.assert_called_with(
             passwd='password', host='1.1.1.1', user='user')
 
-    @mock.patch.object(MySQLdb, 'connect')
     def test_connect_host_not_defined(self, mock_connect):
         helper = mysql.MySQLHelper('foo', 'bar')
         with mock.patch.object(mysql, 'log'):
