@@ -4,7 +4,7 @@ from mock import patch
 
 import charmhelpers.contrib.storage.linux.loopback as loopback
 
-LOOPBACK_DEVICES = """
+LOOPBACK_DEVICES = b"""
 /dev/loop0: [0805]:2244465 (/tmp/foo.img)
 /dev/loop1: [0805]:2244466 (/tmp/bar.img)
 /dev/loop2: [0805]:2244467 (/tmp/baz.img)
