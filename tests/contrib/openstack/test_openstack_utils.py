@@ -1428,6 +1428,12 @@ class OpenStackHelpersTestCase(TestCase):
             (False, ['it failed']))
         bespoke_func.assert_called_once_with()
 
+    def test_manage_payload_services_wrong_action(self):
+        self.assertRaises(
+            RuntimeError,
+            openstack.manage_payload_services,
+            'mangle')
+
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
     @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
     def test_pause_unit_okay(self, set_unit_paused, service_pause):

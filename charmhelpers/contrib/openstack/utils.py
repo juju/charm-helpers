@@ -1308,12 +1308,12 @@ def is_unit_paused_set():
 def manage_payload_services(action, services=None, charm_func=None):
     """Run an action against all services.
 
-    An optional charm_func() can be called that can either raise an
-    Exception or return non None, None to indicate that the function
-    didn't execute cleanly.
+    An optional charm_func() can be called. It should raise an Exception to
+    indicate that the function failed. If it was succesfull it should return
+    None or an optional message.
 
     The signature for charm_func is:
-    charm_func() -> message: string
+    charm_func() -> message: str
 
     charm_func() is executed after any services are stopped, if supplied.
 
@@ -1323,17 +1323,26 @@ def manage_payload_services(action, services=None, charm_func=None):
       - A dictionary (optionally OrderedDict) {service_name: {'service': ..}}
       - An array of [{'service': service_name, ...}, ...]
 
-    @param action: Action to run: pause, resume, start or stop
-    @param services: OPTIONAL see above
-    @param charm_func: function to run for custom charm pausing.
-    @returns Bool, [] Whether succesfull, Status messages
-    @raises Exception(message) on an error for action_fail().
+    :param action: Action to run: pause, resume, start or stop.
+    :type action: str
+    :param services: See above
+    :type services: See above
+    :param charm_func: function to run for custom charm pausing.
+    :type charm_func: f()
+    :returns: Status boolean and list of messages
+    :rtype: (bool, [])
+    :raises: RuntimeError
     """
     actions = {
         'pause': service_pause,
         'resume': service_resume,
         'start': service_start,
         'stop': service_stop}
+    action = action.lower()
+    if action not in actions.keys():
+        raise RuntimeError(
+            "action: {} must be on of: {}".format(action,
+                                                  ', '.join(actions.keys())))
     services = _extract_services_list_helper(services)
     messages = []
     success = True
@@ -1342,7 +1351,8 @@ def manage_payload_services(action, services=None, charm_func=None):
             rc = actions[action](service)
             if not rc:
                 success = False
-                messages.append("{} didn't {} cleanly.".format(service, action))
+                messages.append("{} didn't {} cleanly.".format(service,
+                                                               action))
     if charm_func:
         try:
             message = charm_func()
