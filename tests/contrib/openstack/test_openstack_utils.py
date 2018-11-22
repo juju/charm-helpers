@@ -1376,6 +1376,58 @@ class OpenStackHelpersTestCase(TestCase):
         r = openstack.is_unit_upgrading_set()
         self.assertEquals(r, False)
 
+    @patch('charmhelpers.contrib.openstack.utils.service_stop')
+    def test_manage_payload_services_ok(self, service_stop):
+        services = ['service1', 'service2']
+        service_stop.side_effect = [True, True]
+        self.assertEqual(
+            openstack.manage_payload_services('stop', services=services),
+            (True, []))
+
+    @patch('charmhelpers.contrib.openstack.utils.service_stop')
+    def test_manage_payload_services_fails(self, service_stop):
+        services = ['service1', 'service2']
+        service_stop.side_effect = [True, False]
+        self.assertEqual(
+            openstack.manage_payload_services('stop', services=services),
+            (False, ["service2 didn't stop cleanly."]))
+
+    @patch('charmhelpers.contrib.openstack.utils.service_stop')
+    def test_manage_payload_services_charm_func(self, service_stop):
+        bespoke_func = MagicMock()
+        bespoke_func.return_value = None
+        services = ['service1', 'service2']
+        service_stop.side_effect = [True, True]
+        self.assertEqual(
+            openstack.manage_payload_services('stop', services=services,
+                                              charm_func=bespoke_func),
+            (True, []))
+        bespoke_func.assert_called_once_with()
+
+    @patch('charmhelpers.contrib.openstack.utils.service_stop')
+    def test_manage_payload_services_charm_func_msg(self, service_stop):
+        bespoke_func = MagicMock()
+        bespoke_func.return_value = 'it worked'
+        services = ['service1', 'service2']
+        service_stop.side_effect = [True, True]
+        self.assertEqual(
+            openstack.manage_payload_services('stop', services=services,
+                                              charm_func=bespoke_func),
+            (True, ['it worked']))
+        bespoke_func.assert_called_once_with()
+
+    @patch('charmhelpers.contrib.openstack.utils.service_stop')
+    def test_manage_payload_services_charm_func_fails(self, service_stop):
+        bespoke_func = MagicMock()
+        bespoke_func.side_effect = Exception('it failed')
+        services = ['service1', 'service2']
+        service_stop.side_effect = [True, True]
+        self.assertEqual(
+            openstack.manage_payload_services('stop', services=services,
+                                              charm_func=bespoke_func),
+            (False, ['it failed']))
+        bespoke_func.assert_called_once_with()
+
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
     @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
     def test_pause_unit_okay(self, set_unit_paused, service_pause):
@@ -1400,11 +1452,11 @@ class OpenStackHelpersTestCase(TestCase):
             raise Exception("pause_unit should have raised Exception")
         except Exception as e:
             self.assertEquals(e.args[0],
-                              "Couldn't pause: service2 didn't stop cleanly.")
+                              "Couldn't pause: service2 didn't pause cleanly.")
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
     @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
-    def test_pausee_unit_service_charm_func(
+    def test_pause_unit_service_charm_func(
             self, set_unit_paused, service_pause):
         services = ['service1', 'service2']
         service_pause.return_value = True
@@ -1466,7 +1518,7 @@ class OpenStackHelpersTestCase(TestCase):
             raise Exception("resume_unit should have raised Exception")
         except Exception as e:
             self.assertEquals(
-                e.args[0], "Couldn't resume: service2 didn't start cleanly.")
+                e.args[0], "Couldn't resume: service2 didn't resume cleanly.")
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')

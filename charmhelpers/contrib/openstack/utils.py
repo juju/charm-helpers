@@ -73,6 +73,8 @@ from charmhelpers.core.host import (
     service_running,
     service_pause,
     service_resume,
+    service_stop,
+    service_start,
     restart_on_change_helper,
 )
 from charmhelpers.fetch import (
@@ -1303,6 +1305,55 @@ def is_unit_paused_set():
         return False
 
 
+def manage_payload_services(action, services=None, charm_func=None):
+    """Run an action against all services.
+
+    An optional charm_func() can be called that can either raise an
+    Exception or return non None, None to indicate that the function
+    didn't execute cleanly.
+
+    The signature for charm_func is:
+    charm_func() -> message: string
+
+    charm_func() is executed after any services are stopped, if supplied.
+
+    The services object can either be:
+      - None : no services were passed (an empty dict is returned)
+      - a list of strings
+      - A dictionary (optionally OrderedDict) {service_name: {'service': ..}}
+      - An array of [{'service': service_name, ...}, ...]
+
+    @param action: Action to run: pause, resume, start or stop
+    @param services: OPTIONAL see above
+    @param charm_func: function to run for custom charm pausing.
+    @returns Bool, [] Whether succesfull, Status messages
+    @raises Exception(message) on an error for action_fail().
+    """
+    actions = {
+        'pause': service_pause,
+        'resume': service_resume,
+        'start': service_start,
+        'stop': service_stop}
+    services = _extract_services_list_helper(services)
+    messages = []
+    success = True
+    if services:
+        for service in services.keys():
+            rc = actions[action](service)
+            if not rc:
+                success = False
+                messages.append("{} didn't {} cleanly.".format(service, action))
+    if charm_func:
+        try:
+            message = charm_func()
+            if message:
+                messages.append(message)
+        except Exception as e:
+            success = False
+            messages.append(str(e))
+    return success, messages
+
+
 def pause_unit(assess_status_func, services=None, ports=None,
                charm_func=None):
     """Pause a unit by stopping the services and setting 'unit-paused'
@@ -1333,20 +1384,10 @@ def pause_unit(assess_status_func, services=None, ports=None,
     @returns None
     @raises Exception(message) on an error for action_fail().
     """
-    services = _extract_services_list_helper(services)
-    messages = []
-    if services:
-        for service in services.keys():
-            stopped = service_pause(service)
-            if not stopped:
-                messages.append("{} didn't stop cleanly.".format(service))
-    if charm_func:
-        try:
-            message = charm_func()
-            if message:
-                messages.append(message)
-        except Exception as e:
-            message.append(str(e))
+    _, messages = manage_payload_services(
+        'pause',
+        services=services,
+        charm_func=charm_func)
     set_unit_paused()
     if assess_status_func:
         message = assess_status_func()
@@ -1385,20 +1426,10 @@ def resume_unit(assess_status_func, services=None, ports=None,
     @returns None
     @raises Exception(message) on an error for action_fail().
     """
-    services = _extract_services_list_helper(services)
-    messages = []
-    if services:
-        for service in services.keys():
-            started = service_resume(service)
-            if not started:
-                messages.append("{} didn't start cleanly.".format(service))
-    if charm_func:
-        try:
-            message = charm_func()
-            if message:
-                messages.append(message)
-        except Exception as e:
-            message.append(str(e))
+    _, messages = manage_payload_services(
+        'resume',
+        services=services,
+        charm_func=charm_func)
     clear_unit_paused()
     if assess_status_func:
         message = assess_status_func()
