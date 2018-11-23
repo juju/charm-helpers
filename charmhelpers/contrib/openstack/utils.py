@@ -1341,8 +1341,8 @@ def manage_payload_services(action, services=None, charm_func=None):
     action = action.lower()
     if action not in actions.keys():
         raise RuntimeError(
-            "action: {} must be on of: {}".format(action,
-                                                  ', '.join(actions.keys())))
+            "action: {} must be one of: {}".format(action,
+                                                   ', '.join(actions.keys())))
     services = _extract_services_list_helper(services)
     messages = []
     success = True
