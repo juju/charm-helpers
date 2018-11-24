@@ -19,10 +19,10 @@ import re
 import six
 import time
 import subprocess
-from tempfile import NamedTemporaryFile
 
 from charmhelpers.core.host import (
-    lsb_release
+    lsb_release,
+    CompareHostReleases,
 )
 from charmhelpers.core.hookenv import (
     log,
@@ -309,6 +309,7 @@ def import_key(key):
 
     :param keyid: The key in ASCII armor format,
                   including BEGIN and END markers.
+    :type keyid: (bytes, str)
     :raises: GPGKeyError if the key could not be imported
     """
     key = key.strip()
@@ -319,35 +320,127 @@ def import_key(key):
         log("PGP key found (looks like ASCII Armor format)", level=DEBUG)
         if ('-----BEGIN PGP PUBLIC KEY BLOCK-----' in key and
                 '-----END PGP PUBLIC KEY BLOCK-----' in key):
-            log("Importing ASCII Armor PGP key", level=DEBUG)
-            with NamedTemporaryFile() as keyfile:
-                with open(keyfile.name, 'w') as fd:
-                    fd.write(key)
-                    fd.write("\n")
-                cmd = ['apt-key', 'add', keyfile.name]
-                try:
-                    subprocess.check_call(cmd)
-                except subprocess.CalledProcessError:
-                    error = "Error importing PGP key '{}'".format(key)
-                    log(error)
-                    raise GPGKeyError(error)
+            log("Writing provided PGP key in the binary format", level=DEBUG)
+            if six.PY3:
+                key_bytes = key.encode('utf-8')
+            else:
+                key_bytes = key
+            key_name = _get_keyid_by_gpg_key(key_bytes)
+            key_gpg = _dearmor_gpg_key(key_bytes)
+            _write_apt_gpg_keyfile(key_name=key_name, key_material=key_gpg)
         else:
             raise GPGKeyError("ASCII armor markers missing from GPG key")
     else:
-        # We should only send things obviously not a keyid offsite
-        # via this unsecured protocol, as it may be a secret or part
-        # of one.
         log("PGP key found (looks like Radix64 format)", level=WARNING)
-        log("INSECURLY importing PGP key from keyserver; "
+        log("SECURELY importing PGP key from keyserver; "
             "full key not provided.", level=WARNING)
-        cmd = ['apt-key', 'adv', '--keyserver',
-               'hkp://keyserver.ubuntu.com:80', '--recv-keys', key]
-        try:
-            _run_with_retries(cmd)
-        except subprocess.CalledProcessError:
-            error = "Error importing PGP key '{}'".format(key)
-            log(error)
-            raise GPGKeyError(error)
+        # as of bionic add-apt-repository uses curl with an HTTPS keyserver URL
+        # to retrieve GPG keys. `apt-key adv` command is deprecated as is
+        # apt-key in general as noted in its manpage. See lp:1433761 for more
+        # history. Instead, /etc/apt/trusted.gpg.d is used directly to drop
+        # gpg
+        key_asc = _get_key_by_keyid(key)
+        # write the key in GPG format so that apt-key list shows it
+        key_gpg = _dearmor_gpg_key(key_asc)
+        _write_apt_gpg_keyfile(key_name=key, key_material=key_gpg)
+
+
+def _get_keyid_by_gpg_key(key_material):
+    """
+    Gets a GPG key fingerprint (40-digit, 160-bit) by the ASCII armor-encoded
+    or binary GPG key material. Can be used, for example, to generate file
+    names for keys passed via charm options.
+
+    :param key_material: ASCII armor-encoded or binary GPG key material
+    :type key_material: bytes
+    """
+    # trusty, xenial and bionic handling differs due to gpg 1.x to 2.x change
+    release = lsb_release()['DISTRIB_CODENAME'].lower()
+    is_gpgv2_distro = CompareHostReleases(release) >= "bionic"
+    if is_gpgv2_distro:
+        ps = subprocess.Popen(['gpg', '--import-options', 'show-only'],
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              stdin=subprocess.PIPE)
+    else:
+        ps = subprocess.Popen(['gpg', '--with-fingerprint'],
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              stdin=subprocess.PIPE)
+    out, err = ps.communicate(input=key_material)
+    # python 2 vs python3 handling
+    if isinstance(out, bytes):
+        out = out.decode('utf-8')
+    if isinstance(err, bytes):
+        err = err.decode('utf-8')
+    if 'gpg: no valid OpenPGP data found.' in err:
+        raise GPGKeyError('Invalid GPG key material provided')
+    if is_gpgv2_distro:
+        # ... \n      35F77D63B5CEC106C577ED856E85A86E4652B4E6\nuid ...
+        keyid = re.search(r'([0-9A-F]{40})', out).group(0)
+        return keyid
+    else:
+        # Key fingerprint = 35F7 7D63 B5CE C106 C577  ED85 6E85 A86E 4652 B4E6
+        keyid = ''.join(re.search(r'([0-9A-F]{4}\s+){10}',
+                        out).group(0).split())
+        return keyid
+
+
+def _get_key_by_keyid(keyid):
+    """
+    Get a key via HTTPS from the Ubuntu keyserver. Different key ID formats are
+    supported by SKS keyservers (the longer ones are more secure, see "dead
+    beef attack" and https://evil32.com/). Since HTTPS is used, if SSLBump-like
+    HTTPS proxies are in place, they will impersonate keyserver.ubuntu.com and
+    generate a certificate with keyserver.ubuntu.com in the CN field or in
+    SubjAltName fields of a certificate. If such proxy behavior is expected
+    it is necessary to add the CA certificate chain containing the
+    intermediate CA of the SSLBump proxy to every machine that this code runs
+    on via ca-certs cloud-init directive (via cloudinit-userdata model-config)
+    or via other means (such as through a custom charm option). Also note that
+    DNS resolution for the hostname in a URL is done at a proxy server - not
+    at the client side.
+
+    8-digit (32 bit) key ID
+    https://keyserver.ubuntu.com/pks/lookup?search=0x4652B4E6
+    16-digit (64 bit) key ID
+    https://keyserver.ubuntu.com/pks/lookup?search=0x6E85A86E4652B4E6
+    40-digit key ID:
+    https://keyserver.ubuntu.com/pks/lookup?search=0x35F77D63B5CEC106C577ED856E85A86E4652B4E6
+    """
+    # options=mr - machine-readable output (disables html wrappers)
+    keyserver_url = ('https://keyserver.ubuntu.com'
+                     '/pks/lookup?op=get&options=mr&exact=on&search=0x{}')
+    curl_cmd = ['curl', keyserver_url.format(keyid)]
+    # use proxy server settings in order to retrieve the key
+    return subprocess.check_output(curl_cmd,
+                                   env=_env_proxy_settings(['https']))
+
+
+def _dearmor_gpg_key(key_asc):
+    """
+    Converts a GPG key in the ASCII armor format to the binary format.
+    """
+    ps = subprocess.Popen(['gpg', '--dearmor'],
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+                          stdin=subprocess.PIPE)
+    out, err = ps.communicate(input=key_asc)
+    if 'gpg: no valid OpenPGP data found.' in err.decode('utf-8'):
+        raise GPGKeyError('Invalid GPG key material. Check your network setup'
+                          ' (MTU, routing, DNS) and/or proxy server settings'
+                          ' as well as destination keyserver status.')
+    else:
+        return out
+
+
+def _write_apt_gpg_keyfile(key_name, key_material):
+    """
+    Writes GPG key material into a file at a provided path.
+    """
+    with open('/etc/apt/trusted.gpg.d/{}.gpg'.format(key_name),
+              'wb') as keyf:
+        keyf.write(key_material)
 
 
 def add_source(source, key=None, fail_invalid=False):
@@ -465,7 +558,55 @@ def _add_apt_repository(spec):
     if '{series}' in spec:
         series = lsb_release()['DISTRIB_CODENAME']
         spec = spec.replace('{series}', series)
-    _run_with_retries(['add-apt-repository', '--yes', spec])
+    # software-properties package for bionic properly reacts to proxy settings
+    # passed as environment variables (See lp:1433761). This is not the case
+    # LTS and non-LTS releases below bionic.
+    _run_with_retries(['add-apt-repository', '--yes', spec],
+                      cmd_env=_env_proxy_settings(['https']))
+
+
+def _env_proxy_settings(selected_settings=None):
+    """
+    Get charm proxy settings from environment variables that correspond to
+    juju-http-proxy, juju-https-proxy and juju-no-proxy (available as of 2.4.2,
+    see lp:1782236) in a format suitable for passing to an application that
+    reacts to proxy settings passed as environment variables. Some applications
+    support lowercase or uppercase notation (e.g. curl), some support only
+    lowercase (e.g. wget), there are also subjectively rare cases of only
+    uppercase notation support. no_proxy CIDR and wildcard support also varies
+    between runtimes and applications as there is no enforced standard.
+
+    Some applications may connect to multiple destinations and expose config
+    options that would affect only proxy settings for a specific destination
+    these should be handled in charms in an application-specific manner.
+
+    :param selected_settings: format only a subset of possible settings
+    """
+    SUPPORTED_SETTINGS = {
+        'http': 'HTTP_PROXY',
+        'https': 'HTTPS_PROXY',
+        'no_proxy': 'NO_PROXY',
+        'ftp': 'FTP_PROXY'
+    }
+    if not selected_settings:
+        selected_settings = SUPPORTED_SETTINGS
+
+    selected_vars = [v for k, v in SUPPORTED_SETTINGS.items()
+                     if k in selected_settings]
+    proxy_settings = {}
+    for var in selected_vars:
+        var_val = os.getenv(var)
+        if var_val:
+            proxy_settings[var] = var_val
+            proxy_settings[var.lower()] = var_val
+        # Now handle juju-prefixed environment variables. The legacy vs new
+        # environment variable usage is mutually exclusive
+        charm_var_val = os.getenv('JUJU_CHARM_{}'.format(var))
+        if charm_var_val:
+            proxy_settings[var] = charm_var_val
+            # add a lowercase version as well
+            proxy_settings[var.lower()] = charm_var_val
+    return proxy_settings if proxy_settings else None
 
 
 def _add_cloud_pocket(pocket):
