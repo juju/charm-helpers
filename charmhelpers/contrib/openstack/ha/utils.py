@@ -124,13 +124,29 @@ def expect_ha():
     return len(ha_related_units) > 0 or config('vip') or config('dns-ha')
 
 
-def generate_ha_relation_data(service):
+def generate_ha_relation_data(service, extra_settings=None):
     """ Generate relation data for ha relation
 
     Based on configuration options and unit interfaces, generate a json
     encoded dict of relation data items for the hacluster relation,
     providing configuration for DNS HA or VIP's + haproxy clone sets.
 
+    Example of supplying additional settings::
+
+        COLO_CONSOLEAUTH = 'inf: res_nova_consoleauth grp_nova_vips'
+        AGENT_CONSOLEAUTH = 'ocf:openstack:nova-consoleauth'
+        AGENT_CA_PARAMS = 'op monitor interval="5s"'
+
+        ha_console_settings = {
+            'colocations': {'vip_consoleauth': COLO_CONSOLEAUTH},
+            'init_services': {'res_nova_consoleauth': 'nova-consoleauth'},
+            'resources': {'res_nova_consoleauth': AGENT_CONSOLEAUTH},
+            'resource_params': {'res_nova_consoleauth': AGENT_CA_PARAMS})
+        generate_ha_relation_data('nova', extra_settings=ha_console_settings)
+
+
+    @param service: Name of the service being configured
+    @param extra_settings: Dict of additional resource data
     @returns dict: json encoded data for use with relation_set
     """
     _haproxy_res = 'res_{}_haproxy'.format(service)
@@ -148,6 +164,13 @@ def generate_ha_relation_data(service):
             'cl_{}_haproxy'.format(service): _haproxy_res
         },
     }
+
+    if extra_settings:
+        for k, v in extra_settings.items():
+            if _relation_data.get(k):
+                _relation_data[k].update(v)
+            else:
+                _relation_data[k] = v
 
     if config('dns-ha'):
         update_hacluster_dns_ha(service, _relation_data)
