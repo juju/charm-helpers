@@ -217,7 +217,12 @@ class HATests(unittest.TestCase):
         self.get_hacluster_config.return_value = {
             'vip': '10.5.100.1 ffff::1 ffaa::1'
         }
+        extra_settings = {
+            'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
+            'init_services': {'res_nova_cauth': 'nova-cauth'},
+        }
         expected = {
+            'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
             'groups': {
                 'grp_testservice_vips': ('res_testservice_eth1_vip '
                                          'res_testservice_eth1_vip_ipv6addr '
@@ -245,15 +250,18 @@ class HATests(unittest.TestCase):
                 'cl_testservice_haproxy': 'res_testservice_haproxy',
             },
             'init_services': {
-                'res_testservice_haproxy': 'haproxy'
+                'res_testservice_haproxy': 'haproxy',
+                'res_nova_cauth': 'nova-cauth'
             },
         }
         expected = {
             'json_{}'.format(k): json.dumps(v, **ha.JSON_ENCODE_OPTIONS)
             for k, v in expected.items() if v
         }
-        self.assertEqual(ha.generate_ha_relation_data('testservice'),
-                         expected)
+        self.assertEqual(
+            ha.generate_ha_relation_data('testservice',
+                                         extra_settings=extra_settings),
+            expected)
 
     @patch.object(ha, 'log')
     @patch.object(ha, 'assert_charm_supports_dns_ha')
