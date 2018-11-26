@@ -25,6 +25,7 @@ class NRPEBaseTestCase(TestCase):
         'remove': {'object': os},
         'open': {'object': nrpe, 'create': True},
         'isfile': {'object': os.path},
+        'isdir': {'object': os.path},
         'call': {'object': subprocess},
         'relation_ids': {'object': nrpe},
         'relation_set': {'object': nrpe},
@@ -370,10 +371,27 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
             'fileb': False}
         self.patched['exists'].return_value = True
         self.patched['glob'].return_value = ['filea', 'fileb']
+        self.patched['isdir'].side_effect = [False, True]
         self.patched['isfile'].side_effect = lambda x: file_presence[x]
         nrpe.copy_nrpe_checks()
         self.patched['glob'].assert_called_once_with(
             ('/usr/lib/test_charm_dir/hooks/charmhelpers/contrib/openstack/'
+             'files/check_*'))
+        self.patched['copy2'].assert_called_once_with(
+            'filea',
+            '/usr/local/lib/nagios/plugins/filea')
+
+    def test_copy_nrpe_checks_other_root(self):
+        file_presence = {
+            'filea': True,
+            'fileb': False}
+        self.patched['exists'].return_value = True
+        self.patched['glob'].return_value = ['filea', 'fileb']
+        self.patched['isdir'].side_effect = [True, False]
+        self.patched['isfile'].side_effect = lambda x: file_presence[x]
+        nrpe.copy_nrpe_checks()
+        self.patched['glob'].assert_called_once_with(
+            ('/usr/lib/test_charm_dir/charmhelpers/contrib/openstack/'
              'files/check_*'))
         self.patched['copy2'].assert_called_once_with(
             'filea',
