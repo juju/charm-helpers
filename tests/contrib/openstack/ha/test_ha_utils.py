@@ -167,16 +167,62 @@ class HATests(unittest.TestCase):
         }
         test_data = {'resources': {}, 'resource_params': {}}
         expected = {
+            'delete_resources': ['res_testservice_eth1_vip'],
             'groups': {
-                'grp_testservice_vips': 'res_testservice_eth1_vip'
+                'grp_testservice_vips': 'res_testservice_242d562_vip'
             },
             'resource_params': {
-                'res_testservice_eth1_vip': ('params ip="10.5.100.1"'
-                                             ' cidr_netmask="255.255.255.0"'
-                                             ' nic="eth1"')
+                'res_testservice_242d562_vip': 'params ip="10.5.100.1"'
             },
             'resources': {
-                'res_testservice_eth1_vip': 'ocf:heartbeat:IPaddr2'
+                'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
+            }
+        }
+        ha.update_hacluster_vip('testservice', test_data)
+        self.assertEqual(test_data, expected)
+
+    def test_update_hacluster_vip_single_vip_fallback(self):
+        self.get_hacluster_config.return_value = {
+            'vip': '10.5.100.1'
+        }
+        test_data = {'resources': {}, 'resource_params': {}}
+        expected = {
+            'delete_resources': ['res_testservice_eth1_vip'],
+            'groups': {
+                'grp_testservice_vips': 'res_testservice_242d562_vip'
+            },
+            'resource_params': {
+                'res_testservice_242d562_vip': 'params ip="10.5.100.1"'
+            },
+            'resources': {
+                'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
+            }
+        }
+        ha.update_hacluster_vip('testservice', test_data)
+        self.assertEqual(test_data, expected)
+
+    def test_update_hacluster_config_vip(self):
+        self.get_iface_for_address.side_effect = lambda x: None
+        self.get_netmask_for_address.side_effect = lambda x: None
+        self.conf = {'vip_iface': 'eth1',
+                     'vip_cidr': '255.255.255.0'}
+        self.get_hacluster_config.return_value = {
+            'vip': '10.5.100.1'
+        }
+        test_data = {'resources': {}, 'resource_params': {}}
+        expected = {
+            'delete_resources': ['res_testservice_eth1_vip'],
+            'groups': {
+                'grp_testservice_vips': 'res_testservice_242d562_vip'
+            },
+            'resource_params': {
+                'res_testservice_242d562_vip': ('params ip="10.5.100.1" '
+                                                'cidr_netmask="255.255.255.0" '
+                                                'nic="eth1"')
+
+            },
+            'resources': {
+                'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
             }
         }
         ha.update_hacluster_vip('testservice', test_data)
@@ -189,25 +235,22 @@ class HATests(unittest.TestCase):
         test_data = {'resources': {}, 'resource_params': {}}
         expected = {
             'groups': {
-                'grp_testservice_vips': ('res_testservice_eth1_vip '
-                                         'res_testservice_eth1_vip_ipv6addr '
-                                         'res_testservice_eth2_vip')
+                'grp_testservice_vips': ('res_testservice_242d562_vip '
+                                         'res_testservice_856d56f_vip '
+                                         'res_testservice_f563c5d_vip')
             },
+            'delete_resources': ['res_testservice_eth1_vip',
+                                 'res_testservice_eth1_vip_ipv6addr',
+                                 'res_testservice_eth2_vip'],
             'resource_params': {
-                'res_testservice_eth1_vip': ('params ip="10.5.100.1"'
-                                             ' cidr_netmask="255.255.255.0"'
-                                             ' nic="eth1"'),
-                'res_testservice_eth1_vip_ipv6addr': ('params ipv6addr="ffff::1"'
-                                                      ' cidr_netmask="64"'
-                                                      ' nic="eth1"'),
-                'res_testservice_eth2_vip': ('params ipv6addr="ffaa::1"'
-                                             ' cidr_netmask="32"'
-                                             ' nic="eth2"'),
+                'res_testservice_242d562_vip': 'params ip="10.5.100.1"',
+                'res_testservice_856d56f_vip': 'params ipv6addr="ffff::1"',
+                'res_testservice_f563c5d_vip': 'params ipv6addr="ffaa::1"',
             },
             'resources': {
-                'res_testservice_eth1_vip': 'ocf:heartbeat:IPaddr2',
-                'res_testservice_eth1_vip_ipv6addr': 'ocf:heartbeat:IPv6addr',
-                'res_testservice_eth2_vip': 'ocf:heartbeat:IPv6addr',
+                'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
+                'res_testservice_856d56f_vip': 'ocf:heartbeat:IPv6addr',
+                'res_testservice_f563c5d_vip': 'ocf:heartbeat:IPv6addr',
             }
         }
         ha.update_hacluster_vip('testservice', test_data)
@@ -224,26 +267,20 @@ class HATests(unittest.TestCase):
         expected = {
             'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
             'groups': {
-                'grp_testservice_vips': ('res_testservice_eth1_vip '
-                                         'res_testservice_eth1_vip_ipv6addr '
-                                         'res_testservice_eth2_vip')
+                'grp_testservice_vips': ('res_testservice_242d562_vip '
+                                         'res_testservice_856d56f_vip '
+                                         'res_testservice_f563c5d_vip')
             },
             'resource_params': {
-                'res_testservice_eth1_vip': ('params ip="10.5.100.1"'
-                                             ' cidr_netmask="255.255.255.0"'
-                                             ' nic="eth1"'),
-                'res_testservice_eth1_vip_ipv6addr': ('params ipv6addr="ffff::1"'
-                                                      ' cidr_netmask="64"'
-                                                      ' nic="eth1"'),
-                'res_testservice_eth2_vip': ('params ipv6addr="ffaa::1"'
-                                             ' cidr_netmask="32"'
-                                             ' nic="eth2"'),
+                'res_testservice_242d562_vip': 'params ip="10.5.100.1"',
+                'res_testservice_856d56f_vip': 'params ipv6addr="ffff::1"',
+                'res_testservice_f563c5d_vip': 'params ipv6addr="ffaa::1"',
                 'res_testservice_haproxy': 'op monitor interval="5s"',
             },
             'resources': {
-                'res_testservice_eth1_vip': 'ocf:heartbeat:IPaddr2',
-                'res_testservice_eth1_vip_ipv6addr': 'ocf:heartbeat:IPv6addr',
-                'res_testservice_eth2_vip': 'ocf:heartbeat:IPv6addr',
+                'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
+                'res_testservice_856d56f_vip': 'ocf:heartbeat:IPv6addr',
+                'res_testservice_f563c5d_vip': 'ocf:heartbeat:IPv6addr',
                 'res_testservice_haproxy': 'lsb:haproxy',
             },
             'clones': {
@@ -253,6 +290,9 @@ class HATests(unittest.TestCase):
                 'res_testservice_haproxy': 'haproxy',
                 'res_nova_cauth': 'nova-cauth'
             },
+            'delete_resources': ["res_testservice_eth1_vip",
+                                 "res_testservice_eth1_vip_ipv6addr",
+                                 "res_testservice_eth2_vip"],
         }
         expected = {
             'json_{}'.format(k): json.dumps(v, **ha.JSON_ENCODE_OPTIONS)
