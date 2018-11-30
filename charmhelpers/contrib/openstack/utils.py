@@ -700,7 +700,7 @@ def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
     mm_map = {}
     if os.path.isfile(mm_file):
         with open(mm_file, 'r') as f:
-            mm_map = json.load(f)
+            mm_map = json.loads(f)
     return mm_map
 
 
@@ -1674,7 +1674,7 @@ def update_json_file(filename, items):
         return
 
     with open(filename) as fd:
-        policy = json.load(fd)
+        policy = json.loads(fd)
 
     # Compare before and after and if nothing has changed don't write the file
     # since that could cause unnecessary service restarts.

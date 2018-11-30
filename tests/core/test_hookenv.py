@@ -135,7 +135,7 @@ class ConfigTest(TestCase):
         c.save()
 
         with open(c.path, 'r') as f:
-            self.assertEqual(c, json.load(f))
+            self.assertEqual(c, json.loads(f))
             self.assertEqual(c, dict(foo='bar'))
             self.assertEqual(os.stat(c.path).st_mode & 0o777, 0o600)
 
@@ -146,7 +146,7 @@ class ConfigTest(TestCase):
         c.save()
 
         with open(c.path, 'r') as f:
-            self.assertEqual(c, json.load(f))
+            self.assertEqual(c, json.loads(f))
             self.assertEqual(c, dict(foo='bar', a='b'))
             self.assertEqual(os.stat(c.path).st_mode & 0o777, 0o600)
 

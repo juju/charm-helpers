@@ -542,7 +542,7 @@ class BaseCoordinator(with_metaclass(Singleton, object)):
         fn = self._local_state_filename()
         if os.path.exists(fn):
             with open(fn, 'r') as f:
-                return json.load(f)
+                return json.loads(f)
         return {}
 
     def _save_local_state(self, state):

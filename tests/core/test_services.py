@@ -329,7 +329,7 @@ class TestServiceManager(unittest.TestCase):
         self.assertEqual(manager._ready, set())
         assert not mopen.called
 
-    @mock.patch('json.load')
+    @mock.patch('json.loads')
     @mock.patch('os.path.exists')
     @mock.patch.object(services.base, 'open', create=True)
     def test_load_ready_file(self, mopen, exists, jload):
@@ -595,7 +595,7 @@ class TestRequiredConfig(unittest.TestCase):
         }
         self._pyaml = mock.patch.object(services.helpers, 'yaml')
         self.myaml = self._pyaml.start()
-        self.myaml.load.side_effect = lambda fp: self.options
+        self.myaml.safe_load.side_effect = lambda fp: self.options
         self._pconfig = mock.patch.object(hookenv, 'config')
         self.mconfig = self._pconfig.start()
         self.mconfig.side_effect = lambda: self.config
@@ -695,12 +695,12 @@ class TestStoredContext(unittest.TestCase):
     @mock.patch('os.path.exists')
     def test_read_context(self, exists, yaml):
         exists.return_value = True
-        yaml.load.return_value = {'key': 'other'}
+        yaml.safe_load.return_value = {'key': 'other'}
         mopen = mock.mock_open()
         with mock.patch.object(services.helpers, 'open', mopen, create=True):
             context = services.helpers.StoredContext('foo.yaml', {'key': 'val'})
         mopen.assert_called_once_with('charm_dir/foo.yaml', 'r')
-        yaml.load.assert_called_once_with(mopen.return_value)
+        yaml.safe_load.assert_called_once_with(mopen.return_value)
         self.assertEqual(context, {'key': 'other'})
 
     @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
@@ -708,12 +708,12 @@ class TestStoredContext(unittest.TestCase):
     @mock.patch('os.path.exists')
     def test_read_context_abs(self, exists, yaml):
         exists.return_value = True
-        yaml.load.return_value = {'key': 'other'}
+        yaml.safe_load.return_value = {'key': 'other'}
         mopen = mock.mock_open()
         with mock.patch.object(services.helpers, 'open', mopen, create=True):
             context = services.helpers.StoredContext('/foo.yaml', {'key': 'val'})
         mopen.assert_called_once_with('/foo.yaml', 'r')
-        yaml.load.assert_called_once_with(mopen.return_value)
+        yaml.safe_load.assert_called_once_with(mopen.return_value)
         self.assertEqual(context, {'key': 'other'})
 
     @mock.patch.object(hookenv, 'charm_dir', lambda: 'charm_dir')
@@ -721,7 +721,7 @@ class TestStoredContext(unittest.TestCase):
     @mock.patch('os.path.exists')
     def test_read_context_empty(self, exists, yaml):
         exists.return_value = True
-        yaml.load.return_value = None
+        yaml.safe_load.return_value = None
         mopen = mock.mock_open()
         with mock.patch.object(services.helpers, 'open', mopen, create=True):
             self.assertRaises(OSError, services.helpers.StoredContext, '/foo.yaml', {})

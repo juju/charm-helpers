@@ -217,7 +217,7 @@ class HelperSyncTests(unittest.TestCase):
     @patch('os.path.isdir')
     def test_sync_helpers_from_config(self, isdir, _sync):
         '''It correctly syncs a list of included helpers'''
-        include = yaml.load(INCLUDE)['include']
+        include = yaml.safe_load(INCLUDE)['include']
         isdir.return_value = True
         sync.sync_helpers(include=include,
                           src='/tmp/charm-helpers',

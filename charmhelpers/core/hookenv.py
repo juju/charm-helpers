@@ -336,7 +336,7 @@ class Config(dict):
         self.path = path or self.path
         with open(self.path) as f:
             try:
-                self._prev_dict = json.load(f)
+                self._prev_dict = json.loads(f)
             except ValueError as e:
                 log('Unable to parse previous config data - {}'.format(str(e)),
                     level=ERROR)

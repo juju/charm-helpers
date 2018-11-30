@@ -500,7 +500,7 @@ class TestCoordinator(unittest.TestCase):
             with patch.object(c, '_local_state_filename') as fn:
                 fn.return_value = f.name
                 c._save_local_state('some data')
-                self.assertEqual(json.load(f), 'some data')
+                self.assertEqual(json.loads(f), 'some data')
 
     def test_release_granted(self):
         c = coordinator.BaseCoordinator()

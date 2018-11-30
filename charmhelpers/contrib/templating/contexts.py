@@ -107,7 +107,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     )
 
     # Don't use non-standard tags for unicode which will not
-    # work when salt uses yaml.load_safe.
+    # work when salt uses yaml.safe_load.
     yaml.add_representer(six.text_type,
                          lambda dumper, value: dumper.represent_scalar(
                              six.u('tag:yaml.org,2002:str'), value))
@@ -118,7 +118,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
 
     if os.path.exists(yaml_path):
         with open(yaml_path, "r") as existing_vars_file:
-            existing_vars = yaml.load(existing_vars_file.read())
+            existing_vars = yaml.safe_load(existing_vars_file.read())
     else:
         with open(yaml_path, "w+"):
             pass

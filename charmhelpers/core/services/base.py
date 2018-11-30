@@ -251,7 +251,7 @@ class ServiceManager(object):
             return
         if os.path.exists(self._ready_file):
             with open(self._ready_file) as fp:
-                self._ready = set(json.load(fp))
+                self._ready = set(json.loads(fp))
         else:
             self._ready = set()
 
