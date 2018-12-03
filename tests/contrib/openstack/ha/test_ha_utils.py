@@ -263,13 +263,16 @@ class HATests(unittest.TestCase):
         extra_settings = {
             'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
             'init_services': {'res_nova_cauth': 'nova-cauth'},
+            'delete_resources': ['res_ceilometer_polling'],
+            'groups': {'grp_testservice_wombles': 'res_testservice_orinoco'},
         }
         expected = {
             'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
             'groups': {
                 'grp_testservice_vips': ('res_testservice_242d562_vip '
                                          'res_testservice_856d56f_vip '
-                                         'res_testservice_f563c5d_vip')
+                                         'res_testservice_f563c5d_vip'),
+                'grp_testservice_wombles': 'res_testservice_orinoco'
             },
             'resource_params': {
                 'res_testservice_242d562_vip': 'params ip="10.5.100.1"',
@@ -290,7 +293,8 @@ class HATests(unittest.TestCase):
                 'res_testservice_haproxy': 'haproxy',
                 'res_nova_cauth': 'nova-cauth'
             },
-            'delete_resources': ["res_testservice_eth1_vip",
+            'delete_resources': ["res_ceilometer_polling",
+                                 "res_testservice_eth1_vip",
                                  "res_testservice_eth1_vip_ipv6addr",
                                  "res_testservice_eth2_vip"],
         }

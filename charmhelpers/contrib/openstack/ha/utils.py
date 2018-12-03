@@ -314,9 +314,17 @@ def update_hacluster_vip(service, relation_data):
             vip_group.append(vip_key)
 
     if vips_to_delete:
-        relation_data['delete_resources'] = vips_to_delete
+        try:
+            relation_data['delete_resources'].extend(vips_to_delete)
+        except KeyError:
+            relation_data['delete_resources'] = vips_to_delete
+
 
     if len(vip_group) >= 1:
-        relation_data['groups'] = {
-            'grp_{}_vips'.format(service): ' '.join(vip_group)
-        }
+        key = 'grp_{}_vips'.format(service)
+        try:
+            relation_data['groups'][key] = ' '.join(vip_group)
+        except KeyError:
+            relation_data['groups'] = {
+                'grp_{}_vips'.format(service): ' '.join(vip_group)
+            }
