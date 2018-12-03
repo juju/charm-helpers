@@ -325,5 +325,5 @@ def update_hacluster_vip(service, relation_data):
             relation_data['groups'][key] = ' '.join(vip_group)
         except KeyError:
             relation_data['groups'] = {
-                'grp_{}_vips'.format(service): ' '.join(vip_group)
+                key: ' '.join(vip_group)
             }
