@@ -319,7 +319,6 @@ def update_hacluster_vip(service, relation_data):
         except KeyError:
             relation_data['delete_resources'] = vips_to_delete
 
-
     if len(vip_group) >= 1:
         key = 'grp_{}_vips'.format(service)
         try:
