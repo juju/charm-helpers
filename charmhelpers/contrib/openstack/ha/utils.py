@@ -63,6 +63,9 @@ JSON_ENCODE_OPTIONS = dict(
     separators=(',', ':'),
 )
 
+VIP_GROUP_NAME = 'grp_{service}_vips'
+DNSHA_GROUP_NAME = 'grp_{service}_hostnames'
+
 
 class DNSHAException(Exception):
     """Raised when an error occurs setting up DNS HA
@@ -239,7 +242,7 @@ def update_hacluster_dns_ha(service, relation_data,
             'Informing the ha relation'.format(' '.join(hostname_group)),
             DEBUG)
         relation_data['groups'] = {
-            'grp_{}_hostnames'.format(service): ' '.join(hostname_group)
+            DNSHA_GROUP_NAME.format(service=service): ' '.join(hostname_group)
         }
     else:
         msg = 'DNS HA: Hostname group has no members.'
@@ -320,7 +323,7 @@ def update_hacluster_vip(service, relation_data):
             relation_data['delete_resources'] = vips_to_delete
 
     if len(vip_group) >= 1:
-        key = 'grp_{}_vips'.format(service)
+        key = VIP_GROUP_NAME.format(service=service)
         try:
             relation_data['groups'][key] = ' '.join(vip_group)
         except KeyError:
