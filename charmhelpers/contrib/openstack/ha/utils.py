@@ -250,6 +250,27 @@ def update_hacluster_dns_ha(service, relation_data,
         raise DNSHAException(msg)
 
 
+def get_vip_settings(vip):
+    """Calculate which nic is on the correct network for the given vip.
+
+    If nic or netmask discovery fail then fallback to using charm supplied
+    config. If fallback is used this is indicated via the fallback variable.
+
+    @param vip: VIP to lookup nic and cidr for.
+    @returns (str, str, bool): eg (iface, netmask, fallback)
+    """
+    iface = get_iface_for_address(vip)
+    netmask = get_netmask_for_address(vip)
+    fallback = False
+    if iface is None:
+        iface = config('vip_iface')
+        fallback = True
+    if netmask is None:
+        netmask = config('vip_cidr')
+        fallback = True
+    return iface, netmask, fallback
+
+
 def update_hacluster_vip(service, relation_data):
     """ Configure VIP resources based on provided configuration
 
@@ -267,16 +288,7 @@ def update_hacluster_vip(service, relation_data):
             res_vip = 'ocf:heartbeat:IPaddr2'
             vip_params = 'ip'
 
-        iface = get_iface_for_address(vip)
-        netmask = get_netmask_for_address(vip)
-
-        fallback_params = False
-        if iface is None:
-            iface = config('vip_iface')
-            fallback_params = True
-        if netmask is None:
-            netmask = config('vip_cidr')
-            fallback_params = True
+        iface, netmask, fallback = get_vip_settings(vip)
 
         vip_monitoring = 'op monitor depth="0" timeout="20s" interval="10s"'
         if iface is not None:
@@ -297,7 +309,7 @@ def update_hacluster_vip(service, relation_data):
             # NOTE(jamespage):
             # Use option provided vip params if these where used
             # instead of auto-detected values
-            if fallback_params:
+            if fallback:
                 relation_data['resource_params'][vip_key] = (
                     'params {ip}="{vip}" cidr_netmask="{netmask}" '
                     'nic="{iface}" {vip_monitoring}'.format(
