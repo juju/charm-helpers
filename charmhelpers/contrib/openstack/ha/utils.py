@@ -278,6 +278,7 @@ def update_hacluster_vip(service, relation_data):
             netmask = config('vip_cidr')
             fallback_params = True
 
+        vip_monitoring = 'op monitor depth="0" timeout="20s" interval="10s"'
         if iface is not None:
             # NOTE(jamespage): Delete old VIP resources
             # Old style naming encoding iface in name
@@ -299,11 +300,12 @@ def update_hacluster_vip(service, relation_data):
             if fallback_params:
                 relation_data['resource_params'][vip_key] = (
                     'params {ip}="{vip}" cidr_netmask="{netmask}" '
-                    'nic="{iface}"'.format(ip=vip_params,
-                                           vip=vip,
-                                           iface=iface,
-                                           netmask=netmask)
-                )
+                    'nic="{iface}" {vip_monitoring}'.format(
+                        ip=vip_params,
+                        vip=vip,
+                        iface=iface,
+                        netmask=netmask,
+                        vip_monitoring=vip_monitoring))
             else:
                 # NOTE(jamespage):
                 # let heartbeat figure out which interface and
@@ -311,8 +313,10 @@ def update_hacluster_vip(service, relation_data):
                 # when network interface naming is not
                 # consistent across units.
                 relation_data['resource_params'][vip_key] = (
-                    'params {ip}="{vip}"'.format(ip=vip_params,
-                                                 vip=vip))
+                    'params {ip}="{vip}" {vip_monitoring}'.format(
+                        ip=vip_params,
+                        vip=vip,
+                        vip_monitoring=vip_monitoring))
 
             vip_group.append(vip_key)
 
