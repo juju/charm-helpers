@@ -161,6 +161,18 @@ class HATests(unittest.TestCase):
                      'dns-ha': True}
         self.assertTrue(ha.expect_ha())
 
+    def test_get_vip_settings(self):
+        self.assertEqual(
+            ha.get_vip_settings('10.5.100.1'),
+            ('eth1', '255.255.255.0', False))
+
+    def test_get_vip_settings_fallback(self):
+        self.conf = {'vip_iface': 'eth3',
+                     'vip_cidr': '255.255.0.0'}
+        self.assertEqual(
+            ha.get_vip_settings('192.168.100.1'),
+            ('eth3', '255.255.0.0', True))
+
     def test_update_hacluster_vip_single_vip(self):
         self.get_hacluster_config.return_value = {
             'vip': '10.5.100.1'
