@@ -161,6 +161,18 @@ class HATests(unittest.TestCase):
                      'dns-ha': True}
         self.assertTrue(ha.expect_ha())
 
+    def test_get_vip_settings(self):
+        self.assertEqual(
+            ha.get_vip_settings('10.5.100.1'),
+            ('eth1', '255.255.255.0', False))
+
+    def test_get_vip_settings_fallback(self):
+        self.conf = {'vip_iface': 'eth3',
+                     'vip_cidr': '255.255.0.0'}
+        self.assertEqual(
+            ha.get_vip_settings('192.168.100.1'),
+            ('eth3', '255.255.0.0', True))
+
     def test_update_hacluster_vip_single_vip(self):
         self.get_hacluster_config.return_value = {
             'vip': '10.5.100.1'
@@ -172,7 +184,9 @@ class HATests(unittest.TestCase):
                 'grp_testservice_vips': 'res_testservice_242d562_vip'
             },
             'resource_params': {
-                'res_testservice_242d562_vip': 'params ip="10.5.100.1"'
+                'res_testservice_242d562_vip':
+                    ('params ip="10.5.100.1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"')
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
@@ -192,7 +206,9 @@ class HATests(unittest.TestCase):
                 'grp_testservice_vips': 'res_testservice_242d562_vip'
             },
             'resource_params': {
-                'res_testservice_242d562_vip': 'params ip="10.5.100.1"'
+                'res_testservice_242d562_vip':
+                    ('params ip="10.5.100.1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"')
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
@@ -216,9 +232,10 @@ class HATests(unittest.TestCase):
                 'grp_testservice_vips': 'res_testservice_242d562_vip'
             },
             'resource_params': {
-                'res_testservice_242d562_vip': ('params ip="10.5.100.1" '
-                                                'cidr_netmask="255.255.255.0" '
-                                                'nic="eth1"')
+                'res_testservice_242d562_vip': (
+                    'params ip="10.5.100.1" cidr_netmask="255.255.255.0" '
+                    'nic="eth1" op monitor depth="0" timeout="20s" '
+                    'interval="10s"')
 
             },
             'resources': {
@@ -243,9 +260,15 @@ class HATests(unittest.TestCase):
                                  'res_testservice_eth1_vip_ipv6addr',
                                  'res_testservice_eth2_vip'],
             'resource_params': {
-                'res_testservice_242d562_vip': 'params ip="10.5.100.1"',
-                'res_testservice_856d56f_vip': 'params ipv6addr="ffff::1"',
-                'res_testservice_f563c5d_vip': 'params ipv6addr="ffaa::1"',
+                'res_testservice_242d562_vip':
+                    ('params ip="10.5.100.1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+                'res_testservice_856d56f_vip':
+                    ('params ipv6addr="ffff::1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+                'res_testservice_f563c5d_vip':
+                    ('params ipv6addr="ffaa::1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
@@ -275,9 +298,15 @@ class HATests(unittest.TestCase):
                 'grp_testservice_wombles': 'res_testservice_orinoco'
             },
             'resource_params': {
-                'res_testservice_242d562_vip': 'params ip="10.5.100.1"',
-                'res_testservice_856d56f_vip': 'params ipv6addr="ffff::1"',
-                'res_testservice_f563c5d_vip': 'params ipv6addr="ffaa::1"',
+                'res_testservice_242d562_vip':
+                    ('params ip="10.5.100.1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+                'res_testservice_856d56f_vip':
+                    ('params ipv6addr="ffff::1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+                'res_testservice_f563c5d_vip':
+                    ('params ipv6addr="ffaa::1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
                 'res_testservice_haproxy': 'op monitor interval="5s"',
             },
             'resources': {
@@ -330,12 +359,12 @@ class HATests(unittest.TestCase):
                                               ' res_testservice_public_hostname')
             },
             'resource_params': {
-                'res_testservice_admin_hostname': ('params fqdn="test.admin.maas"'
-                                                   ' ip_address="10.0.0.1"'),
-                'res_testservice_int_hostname': ('params fqdn="test.internal.maas"'
-                                                 ' ip_address="10.0.0.1"'),
-                'res_testservice_public_hostname': ('params fqdn="test.public.maas"'
-                                                    ' ip_address="10.0.0.1"'),
+                'res_testservice_admin_hostname':
+                    'params fqdn="test.admin.maas" ip_address="10.0.0.1"',
+                'res_testservice_int_hostname':
+                    'params fqdn="test.internal.maas" ip_address="10.0.0.1"',
+                'res_testservice_public_hostname':
+                    'params fqdn="test.public.maas" ip_address="10.0.0.1"',
                 'res_testservice_haproxy': 'op monitor interval="5s"',
             },
             'resources': {
