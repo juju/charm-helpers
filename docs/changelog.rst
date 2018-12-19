@@ -1,6 +1,25 @@
 Changelog
 ---------
 
+0.19.5
+^^^^^^
+Wednesday December 19 2018
+
+* Spelling (#258)
+* Dedicated VIP/CIDR fallback settings method. (#259)
+* Add monitoring to vip resources in OpenStack (#257)
+* Expose resource group names (#256)
+* Add openstack series support for stein (#255)
+* Charms can specify additional delete & group info (#253)
+* Refactor vip resource creation for iface'less use (#250)
+* Update copy_nrpe_checks() for optional c-h directory (#247)
+* Extra config when generating Openstack HA settings (#249)
+* Extract common code to pause/resume services (#245)
+* Fix loopback devices helper for PY3 (#244)
+* Add "host" option to "connect" method (#240)
+* Add "proposed" to get_os_codename_install_source function (#242)
+* Update amulet helper origin list for ceilometer-agent (#239)
+
 0.19.4
 ^^^^^^
 Wednesday November 7 2018
