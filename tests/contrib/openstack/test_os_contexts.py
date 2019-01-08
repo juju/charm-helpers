@@ -656,7 +656,6 @@ TO_PATCH = [
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
-    'snap_install_requested',
 ]
 
 
@@ -711,7 +710,6 @@ class ContextTests(unittest.TestCase):
         self.is_container.return_value = False
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
-        self.snap_install_requested.return_value = False
         self.maxDiff = None
 
     def _patch(self, method):
@@ -737,7 +735,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'foo',
-            'database_type': 'mysql',
+            'database_type': 'mysql+pymysql',
         }
         self.assertEquals(result, expected)
 
@@ -770,7 +768,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'foo',
-            'database_type': 'mysql',
+            'database_type': 'mysql+pymysql',
         }
         self.assertEquals(result, expected)
 
@@ -788,7 +786,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'flump',
-            'database_type': 'mysql',
+            'database_type': 'mysql+pymysql',
         }
         self.assertEquals(result, expected)
 
@@ -859,7 +857,7 @@ class ContextTests(unittest.TestCase):
                      'database_user': 'quantum',
                      'database_password': 'bar2',
                      'database_host': 'bar',
-                     'database_type': 'mysql'})
+                     'database_type': 'mysql+pymysql'})
 
     @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
     def test_shared_db_context_with_ipv6(self, format_ipv6_addr):
@@ -878,7 +876,7 @@ class ContextTests(unittest.TestCase):
                      'database_user': 'quantum',
                      'database_password': 'bar2',
                      'database_host': '[2001:db8:1::1]',
-                     'database_type': 'mysql'})
+                     'database_type': 'mysql+pymysql'})
 
     def test_postgresql_db_context_with_data(self):
         '''Test postgresql-db context with all required data'''
