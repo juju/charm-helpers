@@ -190,7 +190,6 @@ class NRPECheckTestCase(NRPEBaseTestCase):
     def test_invalid_shortname(self):
         cases = [
             'invalid:name',
-            '@invalid',
             '',
         ]
         for shortname in cases:
@@ -204,6 +203,7 @@ class NRPECheckTestCase(NRPEBaseTestCase):
             'dashes-ok',
             'UPPER_case_allowed',
             '5',
+            '@valid',
         ]
         for shortname in cases:
             check = nrpe.Check(shortname, 'description', '/some/command')
