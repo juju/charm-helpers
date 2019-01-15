@@ -1,4 +1,4 @@
-from mock import patch, call
+from mock import patch, call, mock_open
 
 import six
 from shutil import rmtree
@@ -631,20 +631,41 @@ class CephUtilsTests(TestCase):
         self.assertEqual("writeback", cache_mode)
 
     @patch('os.path.exists')
-    def test_create_keyring(self, _exists):
+    def test_add_key(self, _exists):
         """It creates a new ceph keyring"""
         _exists.return_value = False
-        ceph_utils.create_keyring('cinder', 'cephkey')
+        ceph_utils.add_key('cinder', 'cephkey')
         _cmd = ['ceph-authtool', '/etc/ceph/ceph.client.cinder.keyring',
                 '--create-keyring', '--name=client.cinder',
                 '--add-key=cephkey']
         self.check_call.assert_called_with(_cmd)
 
     @patch('os.path.exists')
-    def test_create_keyring_already_exists(self, _exists):
-        """It creates a new ceph keyring"""
+    def test_add_key_already_exists(self, _exists):
+        """It should insert the key into the existing keyring"""
         _exists.return_value = True
-        ceph_utils.create_keyring('cinder', 'cephkey')
+        try:
+            with patch("__builtin__.open", mock_open(read_data="foo")):
+                ceph_utils.add_key('cinder', 'cephkey')
+        except ImportError:  # Python3
+            with patch("builtins.open", mock_open(read_data="foo")):
+                ceph_utils.add_key('cinder', 'cephkey')
+        self.assertTrue(self.log.called)
+        _cmd = ['ceph-authtool', '/etc/ceph/ceph.client.cinder.keyring',
+                '--create-keyring', '--name=client.cinder',
+                '--add-key=cephkey']
+        self.check_call.assert_called_with(_cmd)
+
+    @patch('os.path.exists')
+    def test_add_key_already_exists_and_key_exists(self, _exists):
+        """Nothing should happen, apart from a log message"""
+        _exists.return_value = True
+        try:
+            with patch("__builtin__.open", mock_open(read_data="cephkey")):
+                ceph_utils.add_key('cinder', 'cephkey')
+        except ImportError:  # Python3
+            with patch("builtins.open", mock_open(read_data="cephkey")):
+                ceph_utils.add_key('cinder', 'cephkey')
         self.assertTrue(self.log.called)
         self.check_call.assert_not_called()
 
@@ -836,7 +857,7 @@ class CephUtilsTests(TestCase):
         self.assertEquals(ceph_utils.get_ceph_nodes(), [])
 
     def test_configure(self):
-        self._patch('create_keyring')
+        self._patch('add_key')
         self._patch('create_key_file')
         self._patch('get_ceph_nodes')
         self._patch('modprobe')
@@ -853,7 +874,7 @@ class CephUtilsTests(TestCase):
             _file.write.assert_called_with(_conf)
             _open.assert_called_with('/etc/ceph/ceph.conf', 'w')
         self.modprobe.assert_called_with('rbd')
-        self.create_keyring.assert_called_with('cinder', 'key')
+        self.add_key.assert_called_with('cinder', 'key')
         self.create_key_file.assert_called_with('cinder', 'key')
 
     def test_image_mapped(self):
@@ -1093,7 +1114,7 @@ class CephUtilsTests(TestCase):
         self.assertEquals(False, ceph_utils.ensure_ceph_keyring(service='foo'))
 
     @patch.object(ceph_utils, '_keyring_path')
-    @patch.object(ceph_utils, 'create_keyring')
+    @patch.object(ceph_utils, 'add_key')
     @patch.object(ceph_utils, 'relation_ids')
     def test_ensure_ceph_keyring_no_relation_but_key(self, rids,
                                                      create, _path):
@@ -1104,7 +1125,7 @@ class CephUtilsTests(TestCase):
         _path.assert_called_with('foo')
 
     @patch.object(ceph_utils, '_keyring_path')
-    @patch.object(ceph_utils, 'create_keyring')
+    @patch.object(ceph_utils, 'add_key')
     @patch.object(ceph_utils, 'relation_ids')
     @patch.object(ceph_utils, 'related_units')
     @patch.object(ceph_utils, 'relation_get')
