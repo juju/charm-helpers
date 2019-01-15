@@ -1,6 +1,16 @@
 Changelog
 ---------
 
+0.19.6
+^^^^^^
+Tuesday January 15 2019
+
+* Use default sqlalchemy driver prior to stein (#264)
+* nrpe: Allow services with '@' in name (#263)
+* Fix a couple of docstring typos (#262)
+* Use pymysql driver for mysql sqlalchemy dialect (#261)
+* Separate certificates with lineseparator in bundles (#260)
+
 0.19.5
 ^^^^^^
 Wednesday December 19 2018
