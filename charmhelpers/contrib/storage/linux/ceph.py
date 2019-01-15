@@ -857,11 +857,14 @@ def _keyring_path(service):
 
 
 def create_keyring(service, key):
-    """Create a new Ceph keyring containing key."""
+    """Create or update a Ceph keyring containing key."""
     keyring = _keyring_path(service)
     if os.path.exists(keyring):
-        log('Ceph keyring exists at %s.' % keyring, level=WARNING)
-        return
+        log('Ceph keyring exists at %s and has not changed.' % keyring, level=WARNING)
+        if not key in open(keyring).read():
+            log('Updating existing keyring.' % keyring, level=WARNING)
+        else:
+            return
 
     cmd = ['ceph-authtool', keyring, '--create-keyring',
            '--name=client.{}'.format(service), '--add-key={}'.format(key)]
