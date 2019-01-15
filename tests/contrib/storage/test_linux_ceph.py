@@ -1,4 +1,4 @@
-from mock import patch, call
+from mock import patch, call, mock_open
 
 import six
 from shutil import rmtree
@@ -642,9 +642,22 @@ class CephUtilsTests(TestCase):
 
     @patch('os.path.exists')
     def test_create_keyring_already_exists(self, _exists):
-        """It creates a new ceph keyring"""
+        """It should insert the key into the existing keyring"""
         _exists.return_value = True
-        ceph_utils.create_keyring('cinder', 'cephkey')
+        with patch("__builtin__.open", mock_open(read_data="foo")) as _:
+            ceph_utils.create_keyring('cinder', 'cephkey')
+        self.assertTrue(self.log.called)
+        _cmd = ['ceph-authtool', '/etc/ceph/ceph.client.cinder.keyring',
+                '--create-keyring', '--name=client.cinder',
+                '--add-key=cephkey']
+        self.check_call.assert_called_with(_cmd)
+
+    @patch('os.path.exists')
+    def test_create_keyring_already_exists_and_key_exists(self, _exists):
+        """Nothing should happen, apart from a log message"""
+        _exists.return_value = True
+        with patch("__builtin__.open", mock_open(read_data="cephkey")) as _:
+            ceph_utils.create_keyring('cinder', 'cephkey')
         self.assertTrue(self.log.called)
         self.check_call.assert_not_called()
 
