@@ -856,8 +856,14 @@ def _keyring_path(service):
     return KEYRING.format(service)
 
 
-def create_keyring(service, key):
-    """Create or update a Ceph keyring containing key."""
+def insert_key(service, key):
+    """
+    Add a key to a keyring.
+
+    Creates the keyring if it doesn't already exist.
+
+    Logs and returns if the key is already in the keyring.
+    """
     keyring = _keyring_path(service)
     if os.path.exists(keyring):
         with open(keyring) as ring:
@@ -872,6 +878,11 @@ def create_keyring(service, key):
            '--name=client.{}'.format(service), '--add-key={}'.format(key)]
     check_call(cmd)
     log('Created new ceph keyring at %s.' % keyring, level=DEBUG)
+
+
+def create_keyring(service, key):
+    """Deprecated. Please use the more accurately named 'insert_key'"""
+    return insert_key(service, key)
 
 
 def delete_keyring(service):
@@ -910,7 +921,7 @@ def get_ceph_nodes(relation='ceph'):
 
 def configure(service, key, auth, use_syslog):
     """Perform basic configuration of Ceph."""
-    create_keyring(service, key)
+    insert_key(service, key)
     create_key_file(service, key)
     hosts = get_ceph_nodes()
     with open('/etc/ceph/ceph.conf', 'w') as ceph_conf:
@@ -1073,7 +1084,7 @@ def ensure_ceph_keyring(service, user=None, group=None,
     if not key:
         return False
 
-    create_keyring(service=service, key=key)
+    insert_key(service=service, key=key)
     keyring = _keyring_path(service)
     if user and group:
         check_call(['chown', '%s.%s' % (user, group), keyring])
