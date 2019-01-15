@@ -644,8 +644,12 @@ class CephUtilsTests(TestCase):
     def test_add_key_already_exists(self, _exists):
         """It should insert the key into the existing keyring"""
         _exists.return_value = True
-        with patch("__builtin__.open", mock_open(read_data="foo")):
-            ceph_utils.add_key('cinder', 'cephkey')
+        try:
+            with patch("__builtin__.open", mock_open(read_data="foo")):
+                ceph_utils.add_key('cinder', 'cephkey')
+        except ImportError:  # Python3
+            with patch("builtins.open", mock_open(read_data="foo")):
+                ceph_utils.add_key('cinder', 'cephkey')
         self.assertTrue(self.log.called)
         _cmd = ['ceph-authtool', '/etc/ceph/ceph.client.cinder.keyring',
                 '--create-keyring', '--name=client.cinder',
@@ -656,8 +660,12 @@ class CephUtilsTests(TestCase):
     def test_add_key_already_exists_and_key_exists(self, _exists):
         """Nothing should happen, apart from a log message"""
         _exists.return_value = True
-        with patch("__builtin__.open", mock_open(read_data="cephkey")):
-            ceph_utils.add_key('cinder', 'cephkey')
+        try:
+            with patch("__builtin__.open", mock_open(read_data="cephkey")):
+                ceph_utils.add_key('cinder', 'cephkey')
+        except ImportError:  # Python3
+            with patch("builtins.open", mock_open(read_data="cephkey")):
+                ceph_utils.add_key('cinder', 'cephkey')
         self.assertTrue(self.log.called)
         self.check_call.assert_not_called()
 
