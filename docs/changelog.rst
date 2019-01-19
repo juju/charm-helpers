@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+0.19.7
+^^^^^^
+Saturday January 19 2019
+
+* Fix ceph update keyring (#266)
+
 0.19.6
 ^^^^^^
 Tuesday January 15 2019
