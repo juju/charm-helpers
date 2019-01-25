@@ -516,8 +516,7 @@ def symlink(source, destination):
 
 def mkdir(path, owner='root', group='root', perms=0o555, force=False):
     """Create a directory"""
-    log("Making dir {} {}:{} {:o}".format(path, owner, group,
-                                          perms))
+    log("Making dir {} {}:{} {:#o}".format(path, owner, group, perms))
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
     realpath = os.path.abspath(path)
@@ -551,7 +550,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
     except Exception:
         pass
     if content != existing_content:
-        log("Writing file {} {}:{} {:o}".format(path, owner, group, perms),
+        log("Writing file {} {}:{} {:#o}".format(path, owner, group, perms),
             level=DEBUG)
         with open(path, 'wb') as target:
             os.fchown(target.fileno(), uid, gid)
@@ -571,7 +570,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
             .format(existing_gid, gid), level=DEBUG)
         os.chown(path, -1, gid)
     if existing_perms != perms:
-        log("Changing permissions on existing content: {} -> {}"
+        log("Changing permissions on existing content: {:#o} -> {:#o}"
             .format(existing_perms, perms), level=DEBUG)
         os.chmod(path, perms)
 
