@@ -1760,6 +1760,11 @@ class HelpersTest(TestCase):
         hwaddr = host.get_nic_hwaddr(nic)
         self.assertEqual(hwaddr, 'e4:11:5b:ab:a7:3c')
 
+    @patch('charmhelpers.core.host_factory.ubuntu.lsb_release')
+    def test_get_distrib_codename(self, lsb_release):
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
+        self.assertEqual(host.get_distrib_codename(), 'bionic')
+
     @patch.object(osplatform, 'get_platform')
     @patch.object(apt_pkg, 'Cache')
     def test_cmp_pkgrevno_revnos_ubuntu(self, pkg_cache, platform):
