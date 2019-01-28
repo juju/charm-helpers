@@ -83,7 +83,8 @@ from charmhelpers.fetch import (
     add_source as fetch_add_source,
     SourceConfigError,
     GPGKeyError,
-    get_upstream_version
+    get_upstream_version,
+    filter_missing_packages
 )
 
 from charmhelpers.fetch.snap import (
@@ -307,6 +308,15 @@ class CompareOpenStackReleases(BasicStringComparator):
 def error_out(msg):
     juju_log("FATAL ERROR: %s" % msg, level='ERROR')
     sys.exit(1)
+
+
+def get_installed_semantic_versioned_packages():
+    '''Get a list of installed packages which have OpenStack semantic versioning
+
+    :returns List of installed packages
+    :rtype: [pkg1, pkg2, ...]
+    '''
+    return filter_missing_packages(PACKAGE_CODENAMES.keys())
 
 
 def get_os_codename_install_source(src):
