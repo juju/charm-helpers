@@ -21,7 +21,7 @@ import time
 import subprocess
 
 from charmhelpers.core.host import (
-    lsb_release,
+    get_distrib_codename,
     CompareHostReleases,
 )
 from charmhelpers.core.hookenv import (
@@ -303,13 +303,17 @@ def import_key(key):
     """Import an ASCII Armor key.
 
     A Radix64 format keyid is also supported for backwards
-    compatibility, but should never be used; the key retrieval
-    mechanism is insecure and subject to man-in-the-middle attacks
-    voiding all signature checks using that key.
+    compatibility. In this case Ubuntu keyserver will be
+    queried for a key via HTTPS by its keyid. This method
+    is less preferrable because https proxy servers may
+    require traffic decryption which is equivalent to a
+    man-in-the-middle attack (a proxy server impersonates
+    keyserver TLS certificates and has to be explicitly
+    trusted by the system).
 
-    :param keyid: The key in ASCII armor format,
-                  including BEGIN and END markers.
-    :type keyid: (bytes, str)
+    :param key: A GPG key in ASCII armor format,
+                  including BEGIN and END markers or a keyid.
+    :type key: (bytes, str)
     :raises: GPGKeyError if the key could not be imported
     """
     key = key.strip()
@@ -346,60 +350,52 @@ def import_key(key):
 
 
 def _get_keyid_by_gpg_key(key_material):
-    """
+    """Get a GPG key fingerprint by GPG key material.
     Gets a GPG key fingerprint (40-digit, 160-bit) by the ASCII armor-encoded
     or binary GPG key material. Can be used, for example, to generate file
     names for keys passed via charm options.
 
     :param key_material: ASCII armor-encoded or binary GPG key material
     :type key_material: bytes
+    :raises: GPGKeyError if invalid key material has been provided
+    :returns: A GPG key fingerprint
+    :rtype: str
     """
     # trusty, xenial and bionic handling differs due to gpg 1.x to 2.x change
-    release = lsb_release()['DISTRIB_CODENAME'].lower()
+    release = get_distrib_codename()
     is_gpgv2_distro = CompareHostReleases(release) >= "bionic"
     if is_gpgv2_distro:
-        ps = subprocess.Popen(['gpg', '--import-options', 'show-only'],
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE,
-                              stdin=subprocess.PIPE)
+        # --import is mandatory, otherwise fingerprint is not printed
+        cmd = 'gpg --with-colons --import-options show-only --import --dry-run'
     else:
-        ps = subprocess.Popen(['gpg', '--with-fingerprint'],
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE,
-                              stdin=subprocess.PIPE)
+        cmd = 'gpg --with-colons --with-fingerprint'
+    ps = subprocess.Popen(cmd.split(),
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+                          stdin=subprocess.PIPE)
     out, err = ps.communicate(input=key_material)
-    # python 2 vs python3 handling
-    if isinstance(out, bytes):
+    if six.PY3:
         out = out.decode('utf-8')
-    if isinstance(err, bytes):
         err = err.decode('utf-8')
     if 'gpg: no valid OpenPGP data found.' in err:
         raise GPGKeyError('Invalid GPG key material provided')
-    if is_gpgv2_distro:
-        # ... \n      35F77D63B5CEC106C577ED856E85A86E4652B4E6\nuid ...
-        keyid = re.search(r'([0-9A-F]{40})', out).group(0)
-        return keyid
-    else:
-        # Key fingerprint = 35F7 7D63 B5CE C106 C577  ED85 6E85 A86E 4652 B4E6
-        keyid = ''.join(re.search(r'([0-9A-F]{4}\s+){10}',
-                        out).group(0).split())
-        return keyid
+    # from gnupg2 docs: fpr :: Fingerprint (fingerprint is in field 10)
+    return re.search(r"^fpr:{9}([0-9A-F]{40}):$", out, re.MULTILINE).group(1)
 
 
 def _get_key_by_keyid(keyid):
-    """
-    Get a key via HTTPS from the Ubuntu keyserver. Different key ID formats are
-    supported by SKS keyservers (the longer ones are more secure, see "dead
-    beef attack" and https://evil32.com/). Since HTTPS is used, if SSLBump-like
-    HTTPS proxies are in place, they will impersonate keyserver.ubuntu.com and
-    generate a certificate with keyserver.ubuntu.com in the CN field or in
-    SubjAltName fields of a certificate. If such proxy behavior is expected
-    it is necessary to add the CA certificate chain containing the
-    intermediate CA of the SSLBump proxy to every machine that this code runs
-    on via ca-certs cloud-init directive (via cloudinit-userdata model-config)
-    or via other means (such as through a custom charm option). Also note that
-    DNS resolution for the hostname in a URL is done at a proxy server - not
-    at the client side.
+    """Get a key via HTTPS from the Ubuntu keyserver.
+    Different key ID formats are supported by SKS keyservers (the longer ones
+    are more secure, see "dead beef attack" and https://evil32.com/). Since
+    HTTPS is used, if SSLBump-like HTTPS proxies are in place, they will
+    impersonate keyserver.ubuntu.com and generate a certificate with
+    keyserver.ubuntu.com in the CN field or in SubjAltName fields of a
+    certificate. If such proxy behavior is expected it is necessary to add the
+    CA certificate chain containing the intermediate CA of the SSLBump proxy to
+    every machine that this code runs on via ca-certs cloud-init directive (via
+    cloudinit-userdata model-config) or via other means (such as through a
+    custom charm option). Also note that DNS resolution for the hostname in a
+    URL is done at a proxy server - not at the client side.
 
     8-digit (32 bit) key ID
     https://keyserver.ubuntu.com/pks/lookup?search=0x4652B4E6
@@ -407,6 +403,12 @@ def _get_key_by_keyid(keyid):
     https://keyserver.ubuntu.com/pks/lookup?search=0x6E85A86E4652B4E6
     40-digit key ID:
     https://keyserver.ubuntu.com/pks/lookup?search=0x35F77D63B5CEC106C577ED856E85A86E4652B4E6
+
+    :param keyid: An 8, 16 or 40 hex digit keyid to find a key for
+    :type keyid: (bytes, str)
+    :returns: A key material for the specified GPG key id
+    :rtype: (str, bytes)
+    :raises: subprocess.CalledProcessError
     """
     # options=mr - machine-readable output (disables html wrappers)
     keyserver_url = ('https://keyserver.ubuntu.com'
@@ -418,15 +420,23 @@ def _get_key_by_keyid(keyid):
 
 
 def _dearmor_gpg_key(key_asc):
-    """
-    Converts a GPG key in the ASCII armor format to the binary format.
+    """Converts a GPG key in the ASCII armor format to the binary format.
+
+    :param key_asc: A GPG key in ASCII armor format.
+    :type key_asc: (str, bytes)
+    :returns: A GPG key in binary format
+    :rtype: (str, bytes)
+    :raises: GPGKeyError
     """
     ps = subprocess.Popen(['gpg', '--dearmor'],
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
                           stdin=subprocess.PIPE)
     out, err = ps.communicate(input=key_asc)
-    if 'gpg: no valid OpenPGP data found.' in err.decode('utf-8'):
+    # no need to decode output as it is binary (invalid utf-8), only error
+    if six.PY3:
+        err = err.decode('utf-8')
+    if 'gpg: no valid OpenPGP data found.' in err:
         raise GPGKeyError('Invalid GPG key material. Check your network setup'
                           ' (MTU, routing, DNS) and/or proxy server settings'
                           ' as well as destination keyserver status.')
@@ -435,8 +445,12 @@ def _dearmor_gpg_key(key_asc):
 
 
 def _write_apt_gpg_keyfile(key_name, key_material):
-    """
-    Writes GPG key material into a file at a provided path.
+    """Writes GPG key material into a file at a provided path.
+
+    :param key_name: A key name to use for a key file (could be a fingerprint)
+    :type key_name: str
+    :param key_material: A GPG key material (binary)
+    :type key_material: (str, bytes)
     """
     with open('/etc/apt/trusted.gpg.d/{}.gpg'.format(key_name),
               'wb') as keyf:
@@ -535,13 +549,13 @@ def add_source(source, key=None, fail_invalid=False):
 def _add_proposed():
     """Add the PROPOSED_POCKET as /etc/apt/source.list.d/proposed.list
 
-    Uses lsb_release()['DISTRIB_CODENAME'] to determine the correct staza for
+    Uses get_distrib_codename to determine the correct stanza for
     the deb line.
 
     For intel architecutres PROPOSED_POCKET is used for the release, but for
     other architectures PROPOSED_PORTS_POCKET is used for the release.
     """
-    release = lsb_release()['DISTRIB_CODENAME']
+    release = get_distrib_codename()
     arch = platform.machine()
     if arch not in six.iterkeys(ARCH_TO_PROPOSED_POCKET):
         raise SourceConfigError("Arch {} not supported for (distro-)proposed"
@@ -554,9 +568,10 @@ def _add_apt_repository(spec):
     """Add the spec using add_apt_repository
 
     :param spec: the parameter to pass to add_apt_repository
+    :type spec: str
     """
     if '{series}' in spec:
-        series = lsb_release()['DISTRIB_CODENAME']
+        series = get_distrib_codename()
         spec = spec.replace('{series}', series)
     # software-properties package for bionic properly reacts to proxy settings
     # passed as environment variables (See lp:1433761). This is not the case
@@ -566,7 +581,8 @@ def _add_apt_repository(spec):
 
 
 def _env_proxy_settings(selected_settings=None):
-    """
+    """Get proxy settings from process environment variables.
+
     Get charm proxy settings from environment variables that correspond to
     juju-http-proxy, juju-https-proxy and juju-no-proxy (available as of 2.4.2,
     see lp:1782236) in a format suitable for passing to an application that
@@ -581,6 +597,8 @@ def _env_proxy_settings(selected_settings=None):
     these should be handled in charms in an application-specific manner.
 
     :param selected_settings: format only a subset of possible settings
+    :type selected_settings: dict
+    :rtype: Option(None, dict[str, str])
     """
     SUPPORTED_SETTINGS = {
         'http': 'HTTP_PROXY',
@@ -588,7 +606,7 @@ def _env_proxy_settings(selected_settings=None):
         'no_proxy': 'NO_PROXY',
         'ftp': 'FTP_PROXY'
     }
-    if not selected_settings:
+    if selected_settings is None:
         selected_settings = SUPPORTED_SETTINGS
 
     selected_vars = [v for k, v in SUPPORTED_SETTINGS.items()
@@ -604,7 +622,6 @@ def _env_proxy_settings(selected_settings=None):
         charm_var_val = os.getenv('JUJU_CHARM_{}'.format(var))
         if charm_var_val:
             proxy_settings[var] = charm_var_val
-            # add a lowercase version as well
             proxy_settings[var.lower()] = charm_var_val
     return proxy_settings if proxy_settings else None
 
@@ -675,7 +692,7 @@ def _verify_is_ubuntu_rel(release, os_release):
     :raises: SourceConfigError if the release is not the same as the ubuntu
         release.
     """
-    ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
+    ubuntu_rel = get_distrib_codename()
     if release != ubuntu_rel:
         raise SourceConfigError(
             'Invalid Cloud Archive release specified: {}-{} on this Ubuntu'

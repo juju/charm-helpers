@@ -21,6 +21,7 @@ else:
     builtin_open = 'builtins.open'
     builtin_import = 'builtins.__import__'
 
+FAKE_CODENAME = 'precise'
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
     'DISTRIB_CODENAME': 'precise',
@@ -484,13 +485,13 @@ class OpenStackHelpersTestCase(TestCase):
              'deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
              'precise-havana main'])
 
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     @patch(builtin_open)
     @patch('subprocess.check_call')
     def test_configure_install_source_distro_proposed(
             self, _spcc, _open, _lsb):
         """Test configuring installation source from deb repo url"""
-        _lsb.return_value = FAKE_RELEASE
+        _lsb.return_value = FAKE_CODENAME
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         openstack.configure_installation_source('distro-proposed')
@@ -519,11 +520,11 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(fetch, 'filter_installed_packages')
     @patch.object(fetch, 'apt_install')
-    @patch.object(fetch, 'lsb_release')
-    def test_add_source_cloud_pocket_style(self, lsb_release,
+    @patch.object(fetch, 'get_distrib_codename')
+    def test_add_source_cloud_pocket_style(self, get_distrib_codename,
                                            apt_install, filter_pkg):
         source = "cloud:precise-updates/havana"
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        get_distrib_codename.return_value = 'precise'
         result = (
             "# Ubuntu Cloud Archive\n"
             "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
@@ -535,11 +536,11 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(fetch, 'filter_installed_packages')
     @patch.object(fetch, 'apt_install')
-    @patch.object(fetch, 'lsb_release')
-    def test_add_source_cloud_os_style(self, lsb_release,
+    @patch.object(fetch, 'get_distrib_codename')
+    def test_add_source_cloud_os_style(self, get_distrib_codename,
                                        apt_install, filter_pkg):
         source = "cloud:precise-havana"
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        get_distrib_codename.return_value = 'precise'
         result = (
             "# Ubuntu Cloud Archive\n"
             "deb http://ubuntu-cloud.archive.canonical.com/ubuntu "
@@ -570,10 +571,10 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.configure_installation_source('foo')
         _error.assert_called_with("Unknown source: 'foo'")
 
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     def test_configure_install_source_uca_staging(self, _lsb):
         """Test configuring installation source from UCA staging sources"""
-        _lsb.return_value = FAKE_RELEASE
+        _lsb.return_value = FAKE_CODENAME
         # staging pockets are configured as PPAs
         with patch('subprocess.check_call') as _subp:
             src = 'cloud:precise-folsom/staging'
@@ -584,12 +585,12 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch(builtin_open)
     @patch.object(fetch, 'apt_install')
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     @patch.object(fetch, 'filter_installed_packages')
     def test_configure_install_source_uca_repos(
             self, _fip, _lsb, _install, _open):
         """Test configuring installation source from UCA sources"""
-        _lsb.return_value = FAKE_RELEASE
+        _lsb.return_value = FAKE_CODENAME
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         _fip.side_effect = lambda x: x

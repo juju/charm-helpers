@@ -18,13 +18,8 @@ if six.PY3:
 else:
     builtin_open = '__builtin__.open'
 
-# mocked return of openstack.lsb_release()
-FAKE_RELEASE = {
-    'DISTRIB_CODENAME': 'precise',
-    'DISTRIB_RELEASE': '12.04',
-    'DISTRIB_ID': 'Ubuntu',
-    'DISTRIB_DESCRIPTION': '"Ubuntu 12.04"'
-}
+# mocked return of openstack.get_distrib_codename()
+FAKE_CODENAME = 'precise'
 
 url = 'deb ' + fetch.CLOUD_ARCHIVE_URL
 UCA_SOURCES = [
@@ -413,32 +408,39 @@ class FetchTest(TestCase):
     @patch.object(fetch, '_write_apt_gpg_keyfile')
     @patch.object(fetch, '_dearmor_gpg_key')
     @patch('charmhelpers.fetch.ubuntu.log')
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     @patch('subprocess.check_call')
     @patch('subprocess.Popen')
     def test_add_source_http_and_key_gpg1(self, popen, check_call,
-                                          lsb_release, log, dearmor_gpg_key,
+                                          get_distrib_codename, log,
+                                          dearmor_gpg_key,
                                           w_keyfile):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key = PGP_KEY_ASCII_ARMOR
         key_bytes = PGP_KEY_ASCII_ARMOR.encode('utf-8')
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
+        get_distrib_codename.return_value = 'trusty'
         check_call.return_value = 0
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
-
-        popen.return_value.communicate.return_value = [b"""
-        pub  1024R/4652B4E6 2009-01-18 Launchpad PPA for Landscape
-        Key fingerprint = 35F7 7D63 B5CE C106 C577  ED85 6E85 A86E 4652 B4E6
-        """, b'']
+        if six.PY3:
+            popen.return_value.communicate.return_value = [b"""
+pub:-:1024:1:6E85A86E4652B4E6:2009-01-18:::-:Launchpad PPA for Landscape:
+fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
+            """, b'']
+        else:
+            popen.return_value.communicate.return_value = ["""
+pub:-:1024:1:6E85A86E4652B4E6:2009-01-18:::-:Launchpad PPA for Landscape:
+fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
+            """, '']
 
         dearmor_gpg_key.return_value = PGP_KEY_BIN_PGP
 
         fetch.add_source(source=source, key=key)
-        popen.assert_called_with(['gpg', '--with-fingerprint'],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 stdin=subprocess.PIPE)
+        popen.assert_called_with(
+            ['gpg', '--with-colons', '--with-fingerprint'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE)
         dearmor_gpg_key.assert_called_with(key_bytes)
         w_keyfile.assert_called_with(key_name=expected_key,
                                      key_material=PGP_KEY_BIN_PGP)
@@ -447,32 +449,42 @@ class FetchTest(TestCase):
     @patch.object(fetch, '_write_apt_gpg_keyfile')
     @patch.object(fetch, '_dearmor_gpg_key')
     @patch('charmhelpers.fetch.ubuntu.log')
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     @patch('subprocess.check_call')
     @patch('subprocess.Popen')
     def test_add_source_http_and_key_gpg2(self, popen, check_call,
-                                          lsb_release, log, dearmor_gpg_key,
+                                          get_distrib_codename, log,
+                                          dearmor_gpg_key,
                                           w_keyfile):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key = PGP_KEY_ASCII_ARMOR
         key_bytes = PGP_KEY_ASCII_ARMOR.encode('utf-8')
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
+        get_distrib_codename.return_value = 'bionic'
         check_call.return_value = 0
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
 
-        popen.return_value.communicate.return_value = ["""
-        pub   rsa1024 2009-01-18 [SC]
-              35F77D63B5CEC106C577ED856E85A86E4652B4E6
-        uid           Launchpad PPA for Landscape\n""", '']
+        if six.PY3:
+            popen.return_value.communicate.return_value = [b"""
+fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
+uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
+            """, b'']
+        else:
+            # python2 on a distro with gpg2 (unlikely, but possible)
+            popen.return_value.communicate.return_value = ["""
+fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
+uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
+            """, '']
 
         dearmor_gpg_key.return_value = PGP_KEY_BIN_PGP
 
         fetch.add_source(source=source, key=key)
-        popen.assert_called_with(['gpg', '--import-options', 'show-only'],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 stdin=subprocess.PIPE)
+        popen.assert_called_with(
+            ['gpg', '--with-colons', '--import-options', 'show-only',
+             '--import', '--dry-run'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE)
         dearmor_gpg_key.assert_called_with(key_bytes)
         w_keyfile.assert_called_with(key_name=expected_key,
                                      key_material=PGP_KEY_BIN_PGP)
@@ -486,11 +498,12 @@ class FetchTest(TestCase):
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(fetch, 'filter_installed_packages')
     @patch.object(fetch, 'apt_install')
-    @patch.object(fetch, 'lsb_release')
-    def test_add_source_cloud_pocket_style(self, lsb_release, apt_install,
+    @patch.object(fetch, 'get_distrib_codename')
+    def test_add_source_cloud_pocket_style(self, get_distrib_codename,
+                                           apt_install,
                                            filter_pkg, log):
         source = "cloud:precise-updates/havana"
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        get_distrib_codename.return_value = 'precise'
         result = ('# Ubuntu Cloud Archive\n'
                   'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
                   ' precise-updates/havana main\n')
@@ -503,11 +516,11 @@ class FetchTest(TestCase):
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(fetch, 'filter_installed_packages')
     @patch.object(fetch, 'apt_install')
-    @patch.object(fetch, 'lsb_release')
-    def test_add_source_cloud_os_style(self, lsb_release, apt_install,
+    @patch.object(fetch, 'get_distrib_codename')
+    def test_add_source_cloud_os_style(self, get_distrib_codename, apt_install,
                                        filter_pkg, log):
         source = "cloud:precise-havana"
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        get_distrib_codename.return_value = 'precise'
         result = ('# Ubuntu Cloud Archive\n'
                   'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
                   ' precise-updates/havana main\n')
@@ -531,29 +544,31 @@ class FetchTest(TestCase):
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     @patch('platform.machine')
-    def test_add_source_proposed_x86_64(self, _machine, lsb_release, log):
+    def test_add_source_proposed_x86_64(self, _machine,
+                                        get_distrib_codename, log):
         source = "proposed"
         result = ('# Proposed\n'
                   'deb http://archive.ubuntu.com/ubuntu precise-proposed'
                   ' main universe multiverse restricted\n')
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        get_distrib_codename.return_value = 'precise'
         _machine.return_value = 'x86_64'
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
 
     @patch('charmhelpers.fetch.ubuntu.log')
-    @patch.object(fetch, 'lsb_release')
+    @patch.object(fetch, 'get_distrib_codename')
     @patch('platform.machine')
-    def test_add_source_proposed_ppc64le(self, _machine, lsb_release, log):
+    def test_add_source_proposed_ppc64le(self, _machine,
+                                         get_distrib_codename, log):
         source = "proposed"
         result = (
             "# Proposed\n"
             "deb http://ports.ubuntu.com/ubuntu-ports precise-proposed main "
             "universe multiverse restricted\n")
-        lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        get_distrib_codename.return_value = 'precise'
         _machine.return_value = 'ppc64le'
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
@@ -637,10 +652,10 @@ class FetchTest(TestCase):
         except fetch.SourceConfigError as e:
             self.assertEqual(str(e), "Unknown source: 'foo'")
 
-    @patch('charmhelpers.fetch.ubuntu.lsb_release')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
     def test_configure_install_source_uca_staging(self, _lsb):
         """Test configuring installation source from UCA staging sources"""
-        _lsb.return_value = FAKE_RELEASE
+        _lsb.return_value = FAKE_CODENAME
         # staging pockets are configured as PPAs
         with patch('subprocess.check_call') as _subp:
             src = 'cloud:precise-folsom/staging'
@@ -651,12 +666,12 @@ class FetchTest(TestCase):
 
     @patch(builtin_open)
     @patch('charmhelpers.fetch.ubuntu.apt_install')
-    @patch('charmhelpers.fetch.ubuntu.lsb_release')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
     @patch('charmhelpers.fetch.ubuntu.filter_installed_packages')
     def test_configure_install_source_uca_repos(
             self, _fip, _lsb, _install, _open):
         """Test configuring installation source from UCA sources"""
-        _lsb.return_value = FAKE_RELEASE
+        _lsb.return_value = FAKE_CODENAME
         _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         _fip.side_effect = lambda x: x
