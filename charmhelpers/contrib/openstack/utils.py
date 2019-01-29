@@ -982,7 +982,9 @@ def _ows_check_charm_func(state, message, charm_func_with_configs):
     """
     if charm_func_with_configs:
         charm_state, charm_message = charm_func_with_configs()
-        if charm_state != 'active' and charm_state != 'unknown':
+        if (charm_state != 'active'
+                and charm_state != 'unknown'
+                and charm_state is not None):
             state = workload_state_compare(state, charm_state)
             if message:
                 charm_message = charm_message.replace("Incomplete relations: ",
