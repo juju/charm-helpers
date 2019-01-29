@@ -1,6 +1,18 @@
 Changelog
 ---------
 
+0.19.8
+^^^^^^
+Tuesday January 29 2019
+
+* Add get_installed_semantic_versioned_packages (#269)
+
+0.19.7
+^^^^^^
+Saturday January 19 2019
+
+* Fix ceph update keyring (#266)
+
 0.19.6
 ^^^^^^
 Tuesday January 15 2019
