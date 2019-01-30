@@ -246,9 +246,9 @@ class FetchTest(TestCase):
                              '&exact=on&search=0x{}').format(bad_keyid)]
 
         def check_output_side_effect(command, env):
-                return {
-                    ' '.join(curl_cmd): 'foobar',
-                }[' '.join(command)]
+            return {
+                ' '.join(curl_cmd): 'foobar',
+            }[' '.join(command)]
         check_output.side_effect = check_output_side_effect
 
         def dearmor_side_effect(key_asc):
@@ -354,9 +354,9 @@ class FetchTest(TestCase):
                              '&exact=on&search=0x{}').format(PGP_KEY_ID)]
 
         def check_output_side_effect(command, env):
-                return {
-                    ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
-                }[' '.join(command)]
+            return {
+                ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
+            }[' '.join(command)]
         check_output.side_effect = check_output_side_effect
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         check_call.return_value = 0  # Successful exit code
@@ -388,9 +388,9 @@ class FetchTest(TestCase):
                              '&exact=on&search=0x{}').format(PGP_KEY_ID)]
 
         def check_output_side_effect(command, env):
-                return {
-                    ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
-                }[' '.join(command)]
+            return {
+                ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
+            }[' '.join(command)]
         check_output.side_effect = check_output_side_effect
 
         check_call.return_value = 0
@@ -593,9 +593,9 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
                              '&exact=on&search=0x{}').format(PGP_KEY_ID)]
 
         def check_output_side_effect(command, env):
-                return {
-                    ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
-                }[' '.join(command)]
+            return {
+                ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
+            }[' '.join(command)]
         check_output.side_effect = check_output_side_effect
         check_call.return_value = 0
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
@@ -628,9 +628,9 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
                              '&exact=on&search=0x{}').format(PGP_KEY_ID)]
 
         def check_output_side_effect(command, env):
-                return {
-                    ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
-                }[' '.join(command)]
+            return {
+                ' '.join(curl_cmd): PGP_KEY_ASCII_ARMOR,
+            }[' '.join(command)]
         check_output.side_effect = check_output_side_effect
         check_call.return_value = 0
 
