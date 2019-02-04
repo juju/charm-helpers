@@ -5,7 +5,7 @@ import mock
 import six
 
 from unittest import TestCase
-from charmhelpers.contrib.python import packages
+from charmhelpers.fetch.python import packages
 
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 

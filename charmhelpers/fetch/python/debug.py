@@ -20,7 +20,7 @@ from __future__ import print_function
 import atexit
 import sys
 
-from charmhelpers.contrib.python.rpdb import Rpdb
+from charmhelpers.fetch.python.rpdb import Rpdb
 from charmhelpers.core.hookenv import (
     open_port,
     close_port,
