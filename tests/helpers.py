@@ -89,7 +89,7 @@ class FakeRelation(object):
             except KeyError:
                 return None
             if attribute and attribute in relation:
-                    return relation[attribute]
+                return relation[attribute]
             return relation
 
     def relation_ids(self, relation=None):

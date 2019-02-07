@@ -177,6 +177,15 @@ class OpenStackHelpersTestCase(TestCase):
         cache.__getitem__.side_effect = cache_get
         return cache
 
+    @patch.object(openstack, 'filter_missing_packages')
+    def test_get_installed_semantic_versioned_packages(self, mock_filter):
+        def _filter_missing_packages(pkgs):
+            return [x for x in pkgs if x in ['cinder-common']]
+        mock_filter.side_effect = _filter_missing_packages
+        self.assertEquals(
+            openstack.get_installed_semantic_versioned_packages(),
+            ['cinder-common'])
+
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_install_source(self, mocked_lsb):
         """Test mapping install source to OpenStack release name"""

@@ -165,11 +165,11 @@ class CertUtilsTests(unittest.TestCase):
             'admin.openstack.local': {
                 'cert': 'ADMINCERT',
                 'key': 'ADMINKEY'}}
-        cert_utils.install_certs('/etc/ssl', certs)
+        cert_utils.install_certs('/etc/ssl', certs, chain='CHAIN')
         expected = [
             mock.call(
                 path='/etc/ssl/cert_admin.openstack.local',
-                content='ADMINCERT',
+                content='ADMINCERT\nCHAIN',
                 perms=0o640),
             mock.call(
                 path='/etc/ssl/key_admin.openstack.local',
@@ -189,7 +189,7 @@ class CertUtilsTests(unittest.TestCase):
         expected = [
             mock.call(
                 path='/etc/ssl/cert_admin.openstack.local',
-                content='ADMINCERTMYCA',
+                content='ADMINCERT\nMYCA',
                 perms=0o640),
             mock.call(
                 path='/etc/ssl/key_admin.openstack.local',

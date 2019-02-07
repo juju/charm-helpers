@@ -656,7 +656,6 @@ TO_PATCH = [
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
-    'snap_install_requested',
 ]
 
 
@@ -711,7 +710,6 @@ class ContextTests(unittest.TestCase):
         self.is_container.return_value = False
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
-        self.snap_install_requested.return_value = False
         self.maxDiff = None
 
     def _patch(self, method):
@@ -724,8 +722,10 @@ class ContextTests(unittest.TestCase):
         base = context.OSContextGenerator()
         self.assertRaises(NotImplementedError, base)
 
-    def test_shared_db_context_with_data(self):
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_data(self, os_codename):
         '''Test shared-db context with all required data'''
+        os_codename.return_value = 'stein'
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
         self.get_address_in_network.return_value = ''
@@ -737,7 +737,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'foo',
-            'database_type': 'mysql',
+            'database_type': 'mysql+pymysql',
         }
         self.assertEquals(result, expected)
 
@@ -756,8 +756,11 @@ class ContextTests(unittest.TestCase):
             relation_settings={
                 'hostname': '10.5.5.1'})
 
-    def test_shared_db_context_with_data_and_access_net_match(self):
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_data_and_access_net_match(self,
+                                                              os_codename):
         """Correctly set hostname for access net returns complete context"""
+        os_codename.return_value = 'stein'
         relation = FakeRelation(
             relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
@@ -770,12 +773,14 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'foo',
-            'database_type': 'mysql',
+            'database_type': 'mysql+pymysql',
         }
         self.assertEquals(result, expected)
 
-    def test_shared_db_context_explicit_relation_id(self):
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_explicit_relation_id(self, os_codename):
         '''Test shared-db context setting the relation_id'''
+        os_codename.return_value = 'stein'
         relation = FakeRelation(relation_data=SHARED_DB_RELATION_ALT_RID)
         self.related_units.return_value = ['mysql-alt/0']
         self.relation_get.side_effect = relation.get
@@ -788,7 +793,7 @@ class ContextTests(unittest.TestCase):
             'database': 'foodb',
             'database_user': 'adam',
             'database_password': 'flump',
-            'database_type': 'mysql',
+            'database_type': 'mysql+pymysql',
         }
         self.assertEquals(result, expected)
 
@@ -822,8 +827,10 @@ class ContextTests(unittest.TestCase):
         db_ssl_ctxt = context.db_ssl(SHARED_DB_RELATION_SSL, {}, None)
         self.assertEquals(db_ssl_ctxt, {})
 
-    def test_shared_db_context_with_missing_relation(self):
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_missing_relation(self, os_codename):
         '''Test shared-db context missing relation data'''
+        os_codename.return_value = 'stein'
         incomplete_relation = copy(SHARED_DB_RELATION)
         incomplete_relation['password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
@@ -844,8 +851,29 @@ class ContextTests(unittest.TestCase):
         shared_db = context.SharedDBContext()
         self.assertRaises(context.OSContextError, shared_db)
 
-    def test_shared_db_context_with_params(self):
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_params(self, os_codename):
         '''Test shared-db context with object parameters'''
+        os_codename.return_value = 'stein'
+        shared_db = context.SharedDBContext(
+            database='quantum', user='quantum', relation_prefix='quantum')
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
+        self.relation_get.side_effect = relation.get
+        result = shared_db()
+        self.assertIn(
+            call(rid='foo:0', unit='foo/0'),
+            self.relation_get.call_args_list)
+        self.assertEquals(
+            result, {'database': 'quantum',
+                     'database_user': 'quantum',
+                     'database_password': 'bar2',
+                     'database_host': 'bar',
+                     'database_type': 'mysql+pymysql'})
+
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_params_rocky(self, os_codename):
+        '''Test shared-db context with object parameters'''
+        os_codename.return_value = 'rocky'
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
         relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
@@ -861,11 +889,13 @@ class ContextTests(unittest.TestCase):
                      'database_host': 'bar',
                      'database_type': 'mysql'})
 
+    @patch.object(context, 'get_os_codename_install_source')
     @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
-    def test_shared_db_context_with_ipv6(self, format_ipv6_addr):
+    def test_shared_db_context_with_ipv6(self, format_ipv6_addr, os_codename):
         '''Test shared-db context with ipv6'''
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
+        os_codename.return_value = 'stein'
         relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
         self.relation_get.side_effect = relation.get
         format_ipv6_addr.return_value = '[2001:db8:1::1]'
@@ -878,7 +908,7 @@ class ContextTests(unittest.TestCase):
                      'database_user': 'quantum',
                      'database_password': 'bar2',
                      'database_host': '[2001:db8:1::1]',
-                     'database_type': 'mysql'})
+                     'database_type': 'mysql+pymysql'})
 
     def test_postgresql_db_context_with_data(self):
         '''Test postgresql-db context with all required data'''

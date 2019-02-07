@@ -190,7 +190,6 @@ class NRPECheckTestCase(NRPEBaseTestCase):
     def test_invalid_shortname(self):
         cases = [
             'invalid:name',
-            '@invalid',
             '',
         ]
         for shortname in cases:
@@ -204,6 +203,7 @@ class NRPECheckTestCase(NRPEBaseTestCase):
             'dashes-ok',
             'UPPER_case_allowed',
             '5',
+            '@valid',
         ]
         for shortname in cases:
             check = nrpe.Check(shortname, 'description', '/some/command')
@@ -350,7 +350,8 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
             stderr=subprocess.STDOUT)
 
         # Test regular services and snap services with systemd
-        services = ['apache2', 'haproxy', 'snap.test.test']
+        services = ['apache2', 'haproxy', 'snap.test.test',
+                    'ceph-radosgw@hostname']
         self.patched['init_is_systemd'].return_value = True
         nrpe.add_init_service_checks(bill, services, 'testunit')
         expect_cmds = {

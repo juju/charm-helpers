@@ -1,6 +1,47 @@
 Changelog
 ---------
 
+0.19.8
+^^^^^^
+Tuesday January 29 2019
+
+* Add get_installed_semantic_versioned_packages (#269)
+
+0.19.7
+^^^^^^
+Saturday January 19 2019
+
+* Fix ceph update keyring (#266)
+
+0.19.6
+^^^^^^
+Tuesday January 15 2019
+
+* Use default sqlalchemy driver prior to stein (#264)
+* nrpe: Allow services with '@' in name (#263)
+* Fix a couple of docstring typos (#262)
+* Use pymysql driver for mysql sqlalchemy dialect (#261)
+* Separate certificates with lineseparator in bundles (#260)
+
+0.19.5
+^^^^^^
+Wednesday December 19 2018
+
+* Spelling (#258)
+* Dedicated VIP/CIDR fallback settings method. (#259)
+* Add monitoring to vip resources in OpenStack (#257)
+* Expose resource group names (#256)
+* Add openstack series support for stein (#255)
+* Charms can specify additional delete & group info (#253)
+* Refactor vip resource creation for iface'less use (#250)
+* Update copy_nrpe_checks() for optional c-h directory (#247)
+* Extra config when generating Openstack HA settings (#249)
+* Extract common code to pause/resume services (#245)
+* Fix loopback devices helper for PY3 (#244)
+* Add "host" option to "connect" method (#240)
+* Add "proposed" to get_os_codename_install_source function (#242)
+* Update amulet helper origin list for ceilometer-agent (#239)
+
 0.19.4
 ^^^^^^
 Wednesday November 7 2018

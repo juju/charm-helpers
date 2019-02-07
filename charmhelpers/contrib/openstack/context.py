@@ -97,8 +97,8 @@ from charmhelpers.contrib.network.ip import (
 )
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
+    get_os_codename_install_source,
     enable_memcache,
-    snap_install_requested,
     CompareOpenStackReleases,
     os_release,
 )
@@ -241,6 +241,8 @@ class SharedDBContext(OSContextGenerator):
         else:
             rids = relation_ids(self.interfaces[0])
 
+        rel = (get_os_codename_install_source(config('openstack-origin')) or
+               'icehouse')
         for rid in rids:
             self.related = True
             for unit in related_units(rid):
@@ -252,13 +254,10 @@ class SharedDBContext(OSContextGenerator):
                     'database': self.database,
                     'database_user': self.user,
                     'database_password': rdata.get(password_setting),
-                    'database_type': 'mysql'
+                    'database_type': 'mysql+pymysql'
                 }
-                # Note(coreycb): We can drop mysql+pymysql if we want when the
-                # following review lands, though it seems mysql+pymysql would
-                # be preferred. https://review.openstack.org/#/c/462190/
-                if snap_install_requested():
-                    ctxt['database_type'] = 'mysql+pymysql'
+                if CompareOpenStackReleases(rel) < 'stein':
+                    ctxt['database_type'] = 'mysql'
                 if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
@@ -1207,7 +1206,7 @@ class SubordinateConfigContext(OSContextGenerator):
 
     The subordinate interface allows subordinates to export their
     configuration requirements to the principle for multiple config
-    files and multiple serivces.  Ie, a subordinate that has interfaces
+    files and multiple services.  Ie, a subordinate that has interfaces
     to both glance and nova may export to following yaml blob as json::
 
         glance:
@@ -1428,11 +1427,11 @@ class ZeroMQContext(OSContextGenerator):
         ctxt = {}
         if is_relation_made('zeromq-configuration', 'host'):
             for rid in relation_ids('zeromq-configuration'):
-                    for unit in related_units(rid):
-                        ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
-                        ctxt['zmq_host'] = relation_get('host', unit, rid)
-                        ctxt['zmq_redis_address'] = relation_get(
-                            'zmq_redis_address', unit, rid)
+                for unit in related_units(rid):
+                    ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
+                    ctxt['zmq_host'] = relation_get('host', unit, rid)
+                    ctxt['zmq_redis_address'] = relation_get(
+                        'zmq_redis_address', unit, rid)
 
         return ctxt
 
