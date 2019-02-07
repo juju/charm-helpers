@@ -2,7 +2,7 @@
 # coding: utf-8
 
 from unittest import TestCase
-from charmhelpers.contrib.python import version
+from charmhelpers.fetch.python import version
 
 import sys
 

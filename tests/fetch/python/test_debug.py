@@ -3,7 +3,7 @@
 
 from unittest import TestCase
 
-from charmhelpers.contrib.python import debug
+from charmhelpers.fetch.python import debug
 
 import mock
 

@@ -28,5 +28,10 @@ charmhelpers.fetch.snap module
 
     charmhelpers.fetch.snap
 
+charmhelpers.fetch.python module
+------------------------------
 
+.. toctree::
+
+    charmhelpers.fetch.python
 
