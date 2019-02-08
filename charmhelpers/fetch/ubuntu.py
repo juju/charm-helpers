@@ -181,6 +181,11 @@ APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 CMD_RETRY_DELAY = 10  # Wait 10 seconds between command retries.
 CMD_RETRY_COUNT = 3  # Retry a failing fatal command X times.
 
+CONTAINS_CIDR = re.compile(r'.+?[0-9:]+\/[0-9]')
+CIDR_WARNING = ('Passing NO_PROXY string that includes a cidr. '
+                'This may not be compatible with software you are '
+                'running in your shell.')
+
 
 def filter_installed_packages(packages):
     """Return a list of packages that require installation."""
@@ -623,6 +628,9 @@ def _env_proxy_settings(selected_settings=None):
         if charm_var_val:
             proxy_settings[var] = charm_var_val
             proxy_settings[var.lower()] = charm_var_val
+    if 'no_proxy' in proxy_settings:
+        if re.match(CONTAINS_CIDR, proxy_settings['no_proxy']):
+            log(CIDR_WARNING, level=WARNING)
     return proxy_settings if proxy_settings else None
 
 

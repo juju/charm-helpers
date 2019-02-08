@@ -983,7 +983,8 @@ class AptTests(TestCase):
         )
 
     @patch.object(os, 'getenv')
-    def test_env_proxy_settings_juju_charm_all_selected(self, get_env):
+    @patch('charmhelpers.fetch.ubuntu.log')
+    def test_env_proxy_settings_juju_charm_all_selected(self, faux_log, get_env):
         expected_settings = {
             'HTTP_PROXY': 'http://squid.internal:3128',
             'http_proxy': 'http://squid.internal:3128',
@@ -1019,6 +1020,8 @@ class AptTests(TestCase):
                                  call("JUJU_CHARM_NO_PROXY")],
                                  any_order=True)
         self.assertEqual(expected_settings, proxy_settings)
+        # Verify that we logged a warning about the cidr in NO_PROXY.
+        faux_log.assert_called_with(fetch.CIDR_WARNING, level=fetch.WARNING)
 
     @patch.object(os, 'getenv')
     def test_env_proxy_settings_legacy_https(self, get_env):
