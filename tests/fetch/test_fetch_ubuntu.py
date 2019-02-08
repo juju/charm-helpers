@@ -2,6 +2,7 @@ import six
 import subprocess
 import io
 import os
+import re
 
 from tests.helpers import patch_open
 from testtools import TestCase
@@ -1102,3 +1103,17 @@ class AptTests(TestCase):
                                  call("JUJU_CHARM_HTTP_PROXY")],
                                  any_order=True)
         self.assertEqual(expected_settings, proxy_settings)
+
+    def test_cidr_re(self):
+        # Contains cidr
+        self.assertTrue(re.match(fetch.CONTAINS_CIDR, "192.168.1/20"))
+        self.assertTrue(re.match(fetch.CONTAINS_CIDR, "192.168.0/24"))
+        self.assertTrue(re.match(fetch.CONTAINS_CIDR,
+                                 "10.40.50.1,192.168.1/20,10.56.78.9"))
+        self.assertTrue(re.match(fetch.CONTAINS_CIDR, "192.168.22/24"))
+        self.assertTrue(re.match(fetch.CONTAINS_CIDR, "2001:db8::/32"))
+
+        # Doesn't contain cidr
+        self.assertFalse(re.match(fetch.CONTAINS_CIDR, "192.168.1"))
+        self.assertFalse(re.match(fetch.CONTAINS_CIDR, "192.168.145"))
+        self.assertFalse(re.match(fetch.CONTAINS_CIDR, "192.16.14"))
