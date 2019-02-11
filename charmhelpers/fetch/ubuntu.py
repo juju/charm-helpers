@@ -181,10 +181,9 @@ APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 CMD_RETRY_DELAY = 10  # Wait 10 seconds between command retries.
 CMD_RETRY_COUNT = 3  # Retry a failing fatal command X times.
 
-CONTAINS_CIDR = re.compile(r'.+?[0-9:]+\/[0-9]')
-CIDR_WARNING = ('Passing NO_PROXY string that includes a cidr. '
-                'This may not be compatible with software you are '
-                'running in your shell.')
+RANGE_WARNING = ('Passing NO_PROXY string that includes a cidr. '
+                 'This may not be compatible with software you are '
+                 'running in your shell.')
 
 
 def filter_installed_packages(packages):
@@ -585,6 +584,28 @@ def _add_apt_repository(spec):
                       cmd_env=_env_proxy_settings(['https']))
 
 
+def _contains_range(addresses):
+    """Determine whether a string of domains and ip addresses contains a
+    cidr or wildcard domain.
+
+    :param addresses: comma seperated list of domains and ip addresses.
+    :type addresses: str
+    """
+    # Test for cidr (e.g. 10.20.20.0/24)
+    if "/" in addresses:
+        return True
+    # Test for wildcard domains (*.foo.com or .foo.com)
+    if "*" in addresses:
+        return True
+    if addresses.startswith("."):
+        return True
+    if ",." in addresses:
+        return True
+    if " ." in addresses:
+        return True
+    return False
+
+
 def _env_proxy_settings(selected_settings=None):
     """Get proxy settings from process environment variables.
 
@@ -629,8 +650,8 @@ def _env_proxy_settings(selected_settings=None):
             proxy_settings[var] = charm_var_val
             proxy_settings[var.lower()] = charm_var_val
     if 'no_proxy' in proxy_settings:
-        if re.match(CONTAINS_CIDR, proxy_settings['no_proxy']):
-            log(CIDR_WARNING, level=WARNING)
+        if _contains_range(proxy_settings['no_proxy']):
+            log(RANGE_WARNING, level=WARNING)
     return proxy_settings if proxy_settings else None
 
 
