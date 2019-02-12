@@ -241,6 +241,38 @@ class HelperSyncTests(unittest.TestCase):
         ) for c in mods]
         self.assertEquals(ex_calls, _sync.call_args_list)
 
+    @patch('tools.charm_helpers_sync.charm_helpers_sync.sync')
+    @patch('os.path.isdir')
+    @patch('os.path.exists')
+    @patch('shutil.rmtree')
+    def test_sync_helpers_from_config_cleanup(self, _rmtree, _exists,
+                                              isdir, _sync):
+        '''It correctly syncs a list of included helpers'''
+        include = yaml.load(INCLUDE)['include']
+        isdir.return_value = True
+        _exists.return_value = True
+
+        sync.sync_helpers(include=include,
+                          src='/tmp/charm-helpers',
+
+                          dest='hooks/charmhelpers')
+        _rmtree.assert_called_with('hooks/charmhelpers')
+        mods = [
+            'core',
+            'contrib.openstack',
+            'contrib.storage',
+            'contrib.hahelpers.utils',
+            'contrib.hahelpers.ceph_utils',
+            'contrib.hahelpers.cluster_utils',
+            'contrib.hahelpers.haproxy_utils'
+        ]
+
+        ex_calls = []
+        [ex_calls.append(
+            call('/tmp/charm-helpers', 'hooks/charmhelpers', c, [])
+        ) for c in mods]
+        self.assertEquals(ex_calls, _sync.call_args_list)
+
     def test_extract_option_no_globals(self):
         '''It extracts option from an included item with no global options'''
         inc = 'contrib.openstack.templates|inc=*.template'
