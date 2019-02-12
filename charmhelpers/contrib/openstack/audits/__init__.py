@@ -24,6 +24,11 @@ import traceback
 
 from charmhelpers.fetch.ubuntu import get_upstream_version
 
+from charmhelpers.core.hookenv import (
+    action_fail,
+    action_set,
+)
+
 
 class AuditType(Enum):
     OpenStackSecurityGuide = 1
@@ -119,3 +124,17 @@ def run(config):
         traceback.print_tb(error.__traceback__)
         print()
     return results
+
+
+def action_parse_results(result):
+    """Parse the result of `run` in the context of an action."""
+    passed = True
+    for test, result in result.items():
+        if result['success']:
+            action_set({test: 'PASS'})
+        else:
+            action_set({test: 'FAIL - {}'.format(result['message'])})
+            passed = False
+    if not passed:
+        action_fail("One or more tests failed")
+    return 0 if passed else 1
