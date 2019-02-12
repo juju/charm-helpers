@@ -585,8 +585,11 @@ def _add_apt_repository(spec):
 
 
 def _contains_range(addresses):
-    """Determine whether a string of domains and ip addresses contains a
-    cidr or wildcard domain.
+    """Check for cidr or wildcard domain in a string.
+
+    Given a string comprising a comma seperated list of ip addresses
+    and domain names, determine whether the string contains IP ranges
+    or wildcard domains.
 
     :param addresses: comma seperated list of domains and ip addresses.
     :type addresses: str
