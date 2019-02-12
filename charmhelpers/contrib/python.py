@@ -13,9 +13,15 @@
 # limitations under the License.
 
 from __future__ import absolute_import
+from importlib import import_module
+
+_globals = globals()
 
 # deprecated aliases for backwards compatibility
-from charmhelpers.fetch.python import debug  # noqa
-from charmhelpers.fetch.python import packages  # noqa
-from charmhelpers.fetch.python import rpdb  # noqa
-from charmhelpers.fetch.python import version  # noqa
+for subpackage in ('debug', 'packages', 'rpdb', 'version'):
+    try:
+        full_name = 'charmhelpers.fetch.python.{}'.format(subpackage)
+        _globals[subpackage] = import_module(full_name)
+    except ImportError:
+        # not all subpackages may be present if charm-helpers-sync is used
+        pass

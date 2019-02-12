@@ -20,6 +20,7 @@
 import logging
 import optparse
 import os
+import re
 import subprocess
 import shutil
 import sys
@@ -30,6 +31,13 @@ from fnmatch import fnmatch
 import six
 
 CHARM_HELPERS_REPO = 'https://github.com/juju/charm-helpers'
+
+MIGRATIONS = {
+    r'contrib.python': {
+        'replace': r'fetch.python',
+        'additional': ['contrib.python'],
+    },
+}
 
 
 def parse_config(conf_file):
@@ -138,10 +146,19 @@ def sync_directory(src, dest, opts=None):
     ensure_init(dest)
 
 
-def sync(src, dest, module, opts=None):
+def sync(src, dest, module, opts=None, _skip_migrations=False):
 
     # Sync charmhelpers/__init__.py for bootstrap code.
     sync_pyfile(_src_path(src, '__init__'), dest)
+
+    # handle migrations to new locations
+    if not _skip_migrations:
+        for pattern, migration in MIGRATIONS.items():
+            if re.search(pattern, module):
+                if 'replace' in migration:
+                    module = re.sub(pattern, migration['replace'], module)
+                for additional in migration.get('additional', []):
+                    sync(src, dest, additional, opts, _skip_migrations=True)
 
     # Sync other __init__.py files in the path leading to module.
     m = []

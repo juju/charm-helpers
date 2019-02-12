@@ -1,5 +1,5 @@
 import unittest
-from mock import call, patch
+from mock import call, patch, Mock
 import yaml
 
 import tools.charm_helpers_sync.charm_helpers_sync as sync
@@ -22,6 +22,17 @@ include:
         - cluster_utils
         - haproxy_utils
 """
+
+
+def assert_not_any_call(self, *args, **kwargs):
+    if not self.call_args_list:
+        return
+    if call(*args, **kwargs) in self.call_args_list:
+        raise AssertionError("Unexpected call found: ""%s" % (
+            self._format_mock_call_signature(args, kwargs)))
+
+
+Mock.assert_not_any_call = assert_not_any_call
 
 
 class HelperSyncTests(unittest.TestCase):
@@ -212,6 +223,44 @@ class HelperSyncTests(unittest.TestCase):
                  'hooks/charmhelpers/contrib/openstack'),
             call('/tmp/charm-helpers/charmhelpers/contrib/openstack/utils',
                  'hooks/charmhelpers/contrib/openstack')])
+
+    @patch('tools.charm_helpers_sync.charm_helpers_sync.sync_pyfile')
+    @patch('tools.charm_helpers_sync.charm_helpers_sync._is_pyfile')
+    @patch('os.path.isdir')
+    def test_syncs_migrations(self, is_dir, is_pyfile, sync_pyfile):
+        '''It correctly syncs with migrations'''
+        is_dir.return_value = False
+        is_pyfile.return_value = True
+        sync.sync(src='/tmp/charm-helpers',
+                  dest='hooks/charmhelpers',
+                  module='contrib.python.packages')
+        try:
+            sync_pyfile.assert_any_call(
+                '/tmp/charm-helpers/charmhelpers/__init__',
+                'hooks/charmhelpers')
+            sync_pyfile.assert_any_call(
+                '/tmp/charm-helpers/charmhelpers/__init__',
+                'hooks/charmhelpers')
+            sync_pyfile.assert_any_call(
+                '/tmp/charm-helpers/charmhelpers/contrib/__init__',
+                'hooks/charmhelpers/contrib')
+            sync_pyfile.assert_any_call(
+                '/tmp/charm-helpers/charmhelpers/contrib/python',
+                'hooks/charmhelpers/contrib')
+            sync_pyfile.assert_any_call(
+                '/tmp/charm-helpers/charmhelpers/fetch/__init__',
+                'hooks/charmhelpers/fetch')
+            sync_pyfile.assert_any_call(
+                '/tmp/charm-helpers/charmhelpers/fetch/python/packages',
+                'hooks/charmhelpers/fetch/python')
+            sync_pyfile.assert_not_any_call(
+                '/tmp/charm-helpers/charmhelpers/contrib/python/packages',
+                'hooks/charmhelpers/contrib/python')
+        except AssertionError as e:
+            e.args = (e.message + ' in:\n%s' % (
+                sync_pyfile.call_args_list
+            ),)
+            raise
 
     @patch('tools.charm_helpers_sync.charm_helpers_sync.sync')
     @patch('os.path.isdir')
