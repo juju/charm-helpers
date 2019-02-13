@@ -14,6 +14,7 @@
 
 import collections
 import configparser
+import glob
 import os.path
 import subprocess
 
@@ -23,12 +24,47 @@ from charmhelpers.contrib.openstack.audits import (
     # filters
     is_audit_type,
     it_has_config,
-    since_package,
 )
 
 from charmhelpers.core.hookenv import (
     cached,
 )
+
+
+FILE_ASSERTIONS = {
+    'nova': {
+        # Explicitly mentioned in security guide
+        '/etc/nova/nova.conf': {
+            'group': 'nova',
+            'mode': '640',
+        },
+        '/etc/nova/api-paste.ini': {
+            'group': 'nova',
+            'mode': '640',
+        },
+        '/etc/nova/rootwrap.conf': {
+            'group': 'nova',
+            'mode': '640',
+        },
+        # Other
+        '/etc/nova/nova-compute.conf': {
+            'group': 'nova',
+            'mode': '640',
+        },
+        '/etc/nova/logging.conf': {
+            'group': 'nova',
+            'mode': '640',
+        },
+        '/etc/nova/nm.conf': {
+            'group': 'nova',
+            'mode': '640',
+        },
+        '/etc/nova/*': {
+            'group': 'nova',
+            'mode': '640',
+        },
+    }
+}
 
 Ownership = collections.namedtuple('Ownership', 'owner group mode')
 
@@ -63,6 +99,51 @@ def _config_ini(path):
     return dict(conf)
 
 
+def _validate_file_ownership(owner, group, file_name):
+    """
+    Validate that a specified file is owned by `owner:group`.
+
+    :param owner: Name of the owner
+    :type owner: str
+    :param group: Name of the group
+    :type group: str
+    :param file_name: Path to the file to verify
+    :type file_name: str
+    """
+    try:
+        ownership = _stat(file_name)
+    except subprocess.CalledProcessError as e:
+        print("Error reading file: {}".format(e))
+        assert False, "Specified file does not exist: {}".format(file_name)
+    assert owner == ownership.owner, \
+        "{} has an incorrect owner: {} should be {}".format(
+            file_name, ownership.owner, owner)
+    assert group == ownership.group, \
+        "{} has an incorrect group: {} should be {}".format(
+            file_name, ownership.group, group)
+    print("Validate ownership of {}: PASS".format(file_name))
+
+
+def _validate_file_mode(mode, file_name):
+    """
+    Validate that a specified file has the specified permissions.
+
+    :param mode: file mode that is desires
+    :type owner: str
+    :param file_name: Path to the file to verify
+    :type file_name: str
+    """
+    try:
+        ownership = _stat(file_name)
+    except subprocess.CalledProcessError as e:
+        print("Error reading file: {}".format(e))
+        assert False, "Specified file does not exist: {}".format(file_name)
+    assert mode == ownership.mode, \
+        "{} has an incorrect mode: {} should be {}".format(
+            file_name, ownership.mode, mode)
+    print("Validate mode of {}: PASS".format(file_name))
+
+
 @cached
 def _config_section(config, section):
     """Read the configuration file and return a section."""
@@ -75,45 +156,35 @@ def _config_section(config, section):
        it_has_config('files'))
 def validate_file_ownership(config):
     """Verify that configuration files are owned by the correct user/group."""
-    for file_name, options in config.get('files', {}).items():
-        if '*' in file_name:
-            print("Skipping {} as we don't yet handle wildcards".format(file_name))
-            continue
+    files = config.get('files', {})
+    for file_name, options in files.items():
         owner = options.get('owner', config.get('owner', 'root'))
         group = options.get('group', config.get('group', 'root'))
-
-        try:
-            ownership = _stat(file_name)
-        except subprocess.CalledProcessError as e:
-            print("Error reading file: {}".format(e))
-            assert False, "Specified file does not exist: {}".format(file_name)
-        assert owner == ownership.owner, \
-            "{} has an incorrect owner: {} should be {}".format(
-                file_name, ownership.owner, owner)
-        assert group == ownership.group, \
-            "{} has an incorrect group: {} should be {}".format(
-                file_name, ownership.group, group)
-        print("Validate ownership of {}: PASS".format(file_name))
+        if '*' in file_name:
+            for file in glob.glob(file_name):
+                if file not in files.keys():
+                    if os.path.isfile(file):
+                        _validate_file_ownership(owner, group, file)
+        else:
+            if os.path.isfile(file_name):
+                _validate_file_ownership(owner, group, file_name)
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide),
        it_has_config('files'))
 def validate_file_permissions(config):
     """Verify that permissions on configuration files are sufficiently secure."""
-    for file_name, options in config.get('files', {}).items():
-        if '*' in file_name:
-            print("Skipping {} as we don't yet handle wildcards".format(file_name))
-            continue
-        try:
-            ownership = _stat(file_name)
-        except subprocess.CalledProcessError as e:
-            print("Error reading file: {}".format(e))
-            assert False, "Specified file does not exist: {}".format(file_name)
+    files = config.get('files', {})
+    for file_name, options in files.items():
         mode = options.get('mode', config.get('permissions', '600'))
-        assert mode == ownership.mode, \
-            "{} has an incorrect mode: {} should be {}".format(
-                file_name, ownership.mode, mode)
-        print("Validate ownership of {}: PASS".format(file_name))
+        if '*' in file_name:
+            for file in glob.glob(file_name):
+                if file not in files.keys():
+                    if os.path.isfile(file):
+                        _validate_file_mode(mode, file)
+        else:
+            if os.path.isfile(file_name):
+                _validate_file_mode(mode, file_name)
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))
@@ -143,9 +214,3 @@ def validate_uses_tls_for_glance(config):
     assert not section.get('insecure') and \
         "https://" in section.get("api_servers"), \
         "TLS is not used for Glance"
-
-
-@audit(is_audit_type(AuditType.OpenStackSecurityGuide),
-       since_package('keystone', '13.0.0'))
-def validate_keystone_fernet(config):
-    pass
