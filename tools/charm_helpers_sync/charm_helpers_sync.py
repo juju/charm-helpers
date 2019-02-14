@@ -180,6 +180,9 @@ def extract_options(inc, global_options=None):
 
 
 def sync_helpers(include, src, dest, options=None):
+    if os.path.exists(dest):
+        logging.debug('Removing existing directory: %s' % dest)
+        shutil.rmtree(dest)
     if not os.path.isdir(dest):
         os.makedirs(dest)
 
