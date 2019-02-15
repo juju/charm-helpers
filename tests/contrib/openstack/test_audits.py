@@ -1,10 +1,12 @@
-from testtools import TestCase
+from testtools import TestCase, skip
 from mock import patch
+import six
 
 import charmhelpers.contrib.openstack.audits as audits
 import charmhelpers.contrib.openstack.audits.openstack_security_guide as guide
 
 
+@skip(six.PY2)
 class AuditTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits._audits', {})
@@ -132,7 +134,8 @@ class AuditsTestCase(TestCase):
         self.assertEqual(verifier({'audit_type': audits.AuditType.OpenStackSecurityGuide}), True)
 
 
-class OpenstackSecurityGuideTestcase(TestCase):
+@skip(six.PY2)
+class OpenstackSecurityGuideTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._stat')
     def test_internal_validate_file_ownership(self, _stat):
