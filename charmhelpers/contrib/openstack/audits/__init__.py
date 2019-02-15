@@ -24,10 +24,7 @@ import traceback
 
 from charmhelpers.fetch.ubuntu import get_upstream_version
 
-from charmhelpers.core.hookenv import (
-    action_fail,
-    action_set,
-)
+import charmhelpers.core.hookenv as hookenv
 
 
 class AuditType(Enum):
@@ -131,10 +128,10 @@ def action_parse_results(result):
     passed = True
     for test, result in result.items():
         if result['success']:
-            action_set({test: 'PASS'})
+            hookenv.action_set({test: 'PASS'})
         else:
-            action_set({test: 'FAIL - {}'.format(result['message'])})
+            hookenv.action_set({test: 'FAIL - {}'.format(result['message'])})
             passed = False
     if not passed:
-        action_fail("One or more tests failed")
+        hookenv.action_fail("One or more tests failed")
     return 0 if passed else 1
