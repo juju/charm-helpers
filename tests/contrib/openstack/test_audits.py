@@ -58,7 +58,7 @@ class AuditTestCase(TestCase):
 
         try:
             # Again!
-            @audits.audit(should_run)
+            @audits.audit(should_run)  # noqa
             def test(options):
                 pass
         except RuntimeError as e:
