@@ -51,7 +51,7 @@ def audit(*args):
             raise RuntimeError(
                 "Test name '{}' used more than once"
                 .format(test_name))
-        non_callables = [f for f in args if not callable(f)]
+        non_callables = [fn for fn in args if not callable(fn)]
         if non_callables:
             raise RuntimeError("Configuration includes non-callable filters: {}"
                                .format(non_callables))
