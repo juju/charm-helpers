@@ -5,6 +5,49 @@ import charmhelpers.contrib.openstack.audits as audits
 import charmhelpers.contrib.openstack.audits.openstack_security_guide as guide
 
 
+class AuditTestCase(TestCase):
+
+    @patch('charmhelpers.contrib.openstack.audits._audits', {})
+    def test_wrapper(self):
+        called = False
+        test_run = False
+
+        def should_run(audit_options):
+            nonlocal called
+            called = True
+            return True
+
+        @audits.audit(should_run)
+        def test(options):
+            nonlocal test_run
+            test_run = True
+
+        audits.run({})
+        self.assertTrue(called)
+        self.assertTrue(test_run)
+        self.assertEqual(audits._audits['test'], audits.Audit(test, (should_run,)))
+
+    @patch('charmhelpers.contrib.openstack.audits._audits', {})
+    def test_wrapper_not_run(self):
+        called = False
+        test_run = False
+
+        def should_run(audit_options):
+            nonlocal called
+            called = True
+            return False
+
+        @audits.audit(should_run)
+        def test(options):
+            nonlocal test_run
+            test_run = True
+
+        audits.run({})
+        self.assertTrue(called)
+        self.assertFalse(test_run)
+        self.assertEqual(audits._audits['test'], audits.Audit(test, (should_run,)))
+
+
 class AuditsTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits.get_upstream_version')

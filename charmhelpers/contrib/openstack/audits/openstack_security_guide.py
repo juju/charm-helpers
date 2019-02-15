@@ -188,18 +188,18 @@ def validate_file_permissions(config):
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))
-def validate_uses_keystone(config):
+def validate_uses_keystone(audit_options):
     """Validate that the service uses Keystone for authentication."""
-    section = _config_section(config, 'DEFAULT')
+    section = _config_section(audit_options, 'DEFAULT')
     assert section is not None, "Missing section 'DEFAULT'"
     assert section.get('auth_strategy') == "keystone", \
         "Application is not using Keystone"
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))
-def validate_uses_tls_for_keystone(config):
+def validate_uses_tls_for_keystone(audit_options):
     """Verify that TLS is used to communicate with Keystone."""
-    section = _config_section(config, 'keystone_authtoken')
+    section = _config_section(audit_options, 'keystone_authtoken')
     assert section is not None, "Missing section 'keystone_authtoken'"
     assert not section.get('insecure') and \
         "https://" in section.get("auth_uri"), \
@@ -207,9 +207,9 @@ def validate_uses_tls_for_keystone(config):
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))
-def validate_uses_tls_for_glance(config):
+def validate_uses_tls_for_glance(audit_options):
     """Verify that TLS is used to communicate with Glance."""
-    section = _config_section(config, 'glance')
+    section = _config_section(audit_options, 'glance')
     assert section is not None, "Missing section 'glance'"
     assert not section.get('insecure') and \
         "https://" in section.get("api_servers"), \

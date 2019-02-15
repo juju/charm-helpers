@@ -49,20 +49,21 @@ def audit(*args):
         test_name = f.__name__
         if _audits.get(test_name):
             raise RuntimeError(
-                "Test name '{}' used more than once?"
-                .format(test_name))
+                "Test name '{}' used more than once? :: {}"
+                .format(test_name, _audits.get(test_name)))
         non_callables = [f.__name__ for f in args if not callable(f)]
         if non_callables:
             raise RuntimeError("Configuration includes non-callable filters: {}"
                                .format(non_callables))
+        _audits[test_name] = Audit(func=f, filters=args)
         return f
     return wrapper
 
 
 def is_audit_type(*args):
     """This audit is included in the specified kinds of audits."""
-    def should_run(config):
-        if config.get('audit_type') in args:
+    def should_run(audit_options):
+        if audit_options.get('audit_type') in args:
             return True
         else:
             return False
@@ -71,12 +72,12 @@ def is_audit_type(*args):
 
 def since_package(pkg, pkg_version):
     """This audit should be run after the specified package version (incl)."""
-    return lambda config=None: not before_package(pkg, pkg_version)()
+    return lambda audit_options=None: not before_package(pkg, pkg_version)()
 
 
 def before_package(pkg, pkg_version):
     """This audit should be run before the specified package version (excl)."""
-    def should_run(config=None):
+    def should_run(audit_options=None):
         version = get_upstream_version(pkg)
         return version and \
             (apt_pkg.version_compare(version, pkg_version) < 0)
@@ -85,22 +86,22 @@ def before_package(pkg, pkg_version):
 
 def it_has_config(config_key):
     """This audit should be run based on specified config keys."""
-    return lambda config: config.get(config_key) is not None
+    return lambda audit_options: audit_options.get(config_key) is not None
 
 
-def run(config):
-    """Run the configured audits with the specified config.
+def run(audit_options):
+    """Run the configured audits with the specified audit_options.
 
-    :param config: Configuration for the audit
-    :type config: Config
+    :param audit_options: Configuration for the audit
+    :type audit_options: Config
     """
     errors = {}
     results = {}
     for name, audit in sorted(_audits.items()):
         result_name = name.replace('_', '-')
-        if all(p(config) for p in audit.filters):
+        if all(p(audit_options) for p in audit.filters):
             try:
-                audit.func(config)
+                audit.func(audit_options)
                 print("{}: PASS".format(name))
                 results[result_name] = {
                     'success': True,
