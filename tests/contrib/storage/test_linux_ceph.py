@@ -732,6 +732,14 @@ class CephUtilsTests(TestCase):
              'ls-osd', 'nvme', '--format=json']
         )
 
+    def test_get_osds_device_class_older(self):
+        self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
+        self.cmp_pkgrevno.return_value = -1
+        self.assertEquals(ceph_utils.get_osds('test', 'nvme'), [1, 2, 3])
+        self.check_output.assert_called_once_with(
+            ['ceph', '--id', 'test', 'osd', 'ls', '--format=json']
+        )
+
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
     def test_create_pool(self, _exists, _get_osds):

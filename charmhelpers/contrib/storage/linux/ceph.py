@@ -766,7 +766,8 @@ def get_osds(service, device_class=None):
     :param device_class: Class of storage device for OSD's
     :type device_class: str
     """
-    if device_class:
+    luminous_or_later = cmp_pkgrevno('ceph', '12.0.0') >= 0
+    if luminous_or_later and device_class:
         out = check_output(['ceph', '--id', service,
                             'osd', 'crush', 'class',
                             'ls-osd', device_class,
