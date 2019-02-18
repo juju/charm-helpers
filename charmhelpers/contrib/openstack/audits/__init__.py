@@ -22,7 +22,7 @@ import collections
 from enum import Enum
 import traceback
 
-from charmhelpers.fetch.ubuntu import get_upstream_version
+from charmhelpers.core.host import cmp_pkgrevno
 
 import charmhelpers.core.hookenv as hookenv
 
@@ -72,16 +72,12 @@ def is_audit_type(*args):
 
 def since_package(pkg, pkg_version):
     """This audit should be run after the specified package version (incl)."""
-    return lambda audit_options=None: not before_package(pkg, pkg_version)()
+    return lambda audit_options=None: cmp_pkgrevno(pkg, pkg_version) >= 0
 
 
 def before_package(pkg, pkg_version):
     """This audit should be run before the specified package version (excl)."""
-    def should_run(audit_options=None):
-        version = get_upstream_version(pkg)
-        return version and \
-            (apt_pkg.version_compare(version, pkg_version) < 0)
-    return should_run
+    return lambda audit_options=None: not since_package(pkg, pkg_version)()
 
 
 def it_has_config(config_key):
