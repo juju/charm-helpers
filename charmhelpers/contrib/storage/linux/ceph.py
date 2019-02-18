@@ -59,6 +59,7 @@ from charmhelpers.core.host import (
     service_stop,
     service_running,
     umount,
+    cmp_pkgrevno,
 )
 from charmhelpers.fetch import (
     apt_install,
@@ -178,7 +179,6 @@ class Pool(object):
         """
         # read-only is easy, writeback is much harder
         mode = get_cache_mode(self.service, cache_pool)
-        version = ceph_version()
         if mode == 'readonly':
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'cache-mode', cache_pool, 'none'])
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove', self.name, cache_pool])
@@ -186,7 +186,7 @@ class Pool(object):
         elif mode == 'writeback':
             pool_forward_cmd = ['ceph', '--id', self.service, 'osd', 'tier',
                                 'cache-mode', cache_pool, 'forward']
-            if version >= '10.1':
+            if cmp_pkgrevno('ceph', '10.1') >= 0:
                 # Jewel added a mandatory flag
                 pool_forward_cmd.append('--yes-i-really-mean-it')
 
@@ -651,8 +651,6 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     :param device_class: six.string_types
     :return: None.  Can raise CalledProcessError
     """
-    version = ceph_version()
-
     # Ensure this failure_domain is allowed by Ceph
     validator(failure_domain, six.string_types,
               ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
@@ -663,14 +661,19 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     if locality is not None and durability_estimator is not None:
         raise ValueError("create_erasure_profile should be called with k, m and one of l or c but not both.")
 
+    luminous_or_later = cmp_pkgrevno('ceph', '12.0.0') >= 0
     # failure_domain changed in luminous
-    if version and version >= '12.0.0':
+    if luminous_or_later:
         cmd.append('crush-failure-domain=' + failure_domain)
     else:
         cmd.append('ruleset-failure-domain=' + failure_domain)
 
-    if version and version >= '12.0.0' and device_class:
+    # device class new in luminous
+    if luminous_or_later and device_class:
         cmd.append('crush-device-class={}'.format(device_class))
+    else:
+        log('Skipping device class configuration (ceph < 12.0.0)',
+            level=DEBUG)
 
     # Add plugin specific information
     if locality is not None:
@@ -828,7 +831,7 @@ def set_app_name_for_pool(client, pool, name):
 
     :raises: CalledProcessError if ceph call fails
     """
-    if ceph_version() >= '12.0.0':
+    if cmp_pkgrevno('ceph', '12.0.0') >= 0:
         cmd = ['ceph', '--id', client, 'osd', 'pool',
                'application', 'enable', pool, name]
         check_call(cmd)
@@ -1106,22 +1109,6 @@ def ensure_ceph_keyring(service, user=None, group=None,
         check_call(['chown', '%s.%s' % (user, group), keyring])
 
     return True
-
-
-def ceph_version():
-    """Retrieve the local version of ceph."""
-    if os.path.exists('/usr/bin/ceph'):
-        cmd = ['ceph', '-v']
-        output = check_output(cmd)
-        if six.PY3:
-            output = output.decode('UTF-8')
-        output = output.split()
-        if len(output) > 3:
-            return output[2]
-        else:
-            return None
-    else:
-        return None
 
 
 class CephBrokerRq(object):
