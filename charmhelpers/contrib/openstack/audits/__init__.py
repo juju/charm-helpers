@@ -14,10 +14,6 @@
 
 """OpenStack Security Audit code"""
 
-import apt_pkg
-#  noqa below is because we import apt for a side-effect
-#  initializing apt_pkg.version_compare's _system
-import apt # noqa: F401,E261
 import collections
 from enum import Enum
 import traceback
