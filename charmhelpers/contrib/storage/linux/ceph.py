@@ -196,7 +196,8 @@ class Pool(object):
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove-overlay', self.name])
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove', self.name, cache_pool])
 
-    def get_pgs(self, pool_size, percent_data=DEFAULT_POOL_WEIGHT):
+    def get_pgs(self, pool_size, percent_data=DEFAULT_POOL_WEIGHT,
+                device_class=None):
         """Return the number of placement groups to use when creating the pool.
 
         Returns the number of placement groups which should be specified when
@@ -229,6 +230,9 @@ class Pool(object):
             increased. NOTE: the default is primarily to handle the scenario
             where related charms requiring pools has not been upgraded to
             include an update to indicate their relative usage of the pools.
+        :param device_class: str. class of storage to use for basis of pgs
+            calculation; ceph supports nvme, ssd and hdd by default based
+            on presence of devices of each type in the deployment.
         :return: int.  The number of pgs to use.
         """
 
@@ -243,17 +247,20 @@ class Pool(object):
 
         # If the expected-osd-count is specified, then use the max between
         # the expected-osd-count and the actual osd_count
-        osd_list = get_osds(self.service)
+        osd_list = get_osds(self.service, device_class)
         expected = config('expected-osd-count') or 0
 
         if osd_list:
-            osd_count = max(expected, len(osd_list))
+            if device_class:
+                osd_count = len(osd_list)
+            else:
+                osd_count = max(expected, len(osd_list))
 
             # Log a message to provide some insight if the calculations claim
             # to be off because someone is setting the expected count and
             # there are more OSDs in reality. Try to make a proper guess
             # based upon the cluster itself.
-            if expected and osd_count != expected:
+            if not device_class and expected and osd_count != expected:
                 log("Found more OSDs than provided expected count. "
                     "Using the actual count instead", INFO)
         elif expected:
@@ -626,7 +633,8 @@ def remove_erasure_profile(service, profile_name):
 def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure',
                            failure_domain='host',
                            data_chunks=2, coding_chunks=1,
-                           locality=None, durability_estimator=None):
+                           locality=None, durability_estimator=None,
+                           device_class=None):
     """
     Create a new erasure code profile if one does not already exist for it.  Updates
     the profile if it exists. Please see http://docs.ceph.com/docs/master/rados/operations/erasure-code-profile/
@@ -640,6 +648,7 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     :param coding_chunks: int
     :param locality: int
     :param durability_estimator: int
+    :param device_class: six.string_types
     :return: None.  Can raise CalledProcessError
     """
     version = ceph_version()
@@ -659,6 +668,9 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
         cmd.append('crush-failure-domain=' + failure_domain)
     else:
         cmd.append('ruleset-failure-domain=' + failure_domain)
+
+    if version and version >= '12.0.0' and device_class:
+        cmd.append('crush-device-class={}'.format(device_class))
 
     # Add plugin specific information
     if locality is not None:
@@ -744,20 +756,25 @@ def pool_exists(service, name):
     return name in out.split()
 
 
-def get_osds(service):
+def get_osds(service, device_class=None):
     """Return a list of all Ceph Object Storage Daemons currently in the
-    cluster.
+    cluster (optionally filtered by storage device class).
+
+    :param device_class: Class of storage device for OSD's
+    :type device_class: str
     """
-    version = ceph_version()
-    if version and version >= '0.56':
+    if device_class:
+        out = check_output(['ceph', '--id', service,
+                            'osd', 'crush', 'class',
+                            'ls-osd', device_class,
+                            '--format=json'])
+    else:
         out = check_output(['ceph', '--id', service,
                             'osd', 'ls',
                             '--format=json'])
-        if six.PY3:
-            out = out.decode('UTF-8')
-        return json.loads(out)
-
-    return None
+    if six.PY3:
+        out = out.decode('UTF-8')
+    return json.loads(out)
 
 
 def install():

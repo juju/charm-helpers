@@ -291,6 +291,10 @@ class CephUtilsTests(TestCase):
         pg_num = p.get_pgs(pool_size=3, percent_data=0.1)
         self.assertEquals(2, pg_num)
 
+        # Check device_class is passed to get_osds
+        p.get_pgs(pool_size=3, percent_data=90, device_class='nvme')
+        get_osds.assert_called_with('admin', 'nvme')
+
     @patch.object(ceph_utils, 'ceph_version')
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_old_ceph(self, get_osds, ceph_version):
@@ -389,15 +393,19 @@ class CephUtilsTests(TestCase):
                   '32768']),
         ])
 
-    def test_replicated_pool_create_failed(self):
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_failed(self, get_osds):
+        get_osds.return_value = range(1, 1001)
         self.check_call.side_effect = CalledProcessError(returncode=1,
                                                          cmd='mock',
                                                          output=None)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         self.assertRaises(CalledProcessError, p.create)
 
+    @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
-    def test_replicated_pool_skips_creation(self, pool_exists):
+    def test_replicated_pool_skips_creation(self, pool_exists, get_osds):
+        get_osds.return_value = range(1, 1001)
         pool_exists.return_value = True
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
@@ -712,22 +720,22 @@ class CephUtilsTests(TestCase):
         _mkdir.assert_called_with('/etc/ceph')
         _install.assert_called_with('ceph-common', fatal=True)
 
-    @patch.object(ceph_utils, 'ceph_version')
-    def test_get_osds(self, version):
-        version.return_value = '0.56.2'
+    def test_get_osds(self):
         self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
         self.assertEquals(ceph_utils.get_osds('test'), [1, 2, 3])
 
-    @patch.object(ceph_utils, 'ceph_version')
-    def test_get_osds_argonaut(self, version):
-        version.return_value = '0.48.3'
-        self.assertEquals(ceph_utils.get_osds('test'), None)
-
-    @patch.object(ceph_utils, 'ceph_version')
-    def test_get_osds_none(self, version):
-        version.return_value = '0.56.2'
+    def test_get_osds_none(self):
         self.check_output.return_value = json.dumps(None).encode('UTF-8')
         self.assertEquals(ceph_utils.get_osds('test'), None)
+
+    def test_get_osds_device_class(self):
+        self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
+        self.assertEquals(ceph_utils.get_osds('test', 'nvme'), [1, 2, 3])
+        self.check_output.assert_called_once_with(
+            ['ceph', '--id', 'test',
+             'osd', 'crush', 'class',
+             'ls-osd', 'nvme', '--format=json']
+        )
 
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
