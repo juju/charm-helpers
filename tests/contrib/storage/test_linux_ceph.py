@@ -1559,3 +1559,46 @@ class CephUtilsTests(TestCase):
         finally:
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
+
+    def test_add_op_create_pool(self):
+        base_op = {'app-name': None,
+                   'group': None,
+                   'group-namespace': None,
+                   'name': 'apool',
+                   'op': 'create-pool',
+                   'pg_num': None,
+                   'replicas': 3,
+                   'weight': None}
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool')
+        self.assertEqual(rq.ops, [base_op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool', replica_count=42)
+        op = base_op.copy()
+        op['replicas'] = 42
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool', pg_num=42)
+        op = base_op.copy()
+        op['pg_num'] = 42
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool', weight=42)
+        op = base_op.copy()
+        op['weight'] = 42
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool', group=51)
+        op = base_op.copy()
+        op['group'] = 51
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool', namespace='sol-iii')
+        op = base_op.copy()
+        op['group-namespace'] = 'sol-iii'
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('apool', app_name='earth')
+        op = base_op.copy()
+        op['app-name'] = 'earth'
+        self.assertEqual(rq.ops, [op])

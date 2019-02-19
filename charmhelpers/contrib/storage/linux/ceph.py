@@ -1152,7 +1152,8 @@ class CephBrokerRq(object):
             'object-prefix-permissions': object_prefix_permissions})
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
-                           weight=None, group=None, namespace=None):
+                           weight=None, group=None, namespace=None,
+                           app_name=None):
         """Adds an operation to create a pool.
 
         @param pg_num setting:  optional setting. If not provided, this value
@@ -1160,6 +1161,11 @@ class CephBrokerRq(object):
         cluster at the time of creation. Note that, if provided, this value
         will be capped at the current available maximum.
         @param weight: the percentage of data the pool makes up
+        :param app_name: (Optional) Tag pool with application name.  Note that
+                         there is certain protocols emerging upstream with
+                         regard to meaningful application names to use.
+                         Examples are ``rbd`` and ``rgw``.
+        :type app_name: str
         """
         if pg_num and weight:
             raise ValueError('pg_num and weight are mutually exclusive')
@@ -1167,7 +1173,7 @@ class CephBrokerRq(object):
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count, 'pg_num': pg_num,
                          'weight': weight, 'group': group,
-                         'group-namespace': namespace})
+                         'group-namespace': namespace, 'app-name': app_name})
 
     def set_ops(self, ops):
         """Set request ops to provided value.
