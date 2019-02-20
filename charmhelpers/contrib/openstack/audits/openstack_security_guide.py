@@ -32,38 +32,116 @@ from charmhelpers.core.hookenv import (
 
 
 FILE_ASSERTIONS = {
-    'nova': {
-        # Explicitly mentioned in security guide
-        '/etc/nova/nova.conf': {
-            'group': 'nova',
-            'mode': '640',
-        },
-        '/etc/nova/api-paste.ini': {
-            'group': 'nova',
-            'mode': '640',
-        },
-        '/etc/nova/rootwrap.conf': {
-            'group': 'nova',
-            'mode': '640',
-        },
-        # Other
-        '/etc/nova/nova-compute.conf': {
-            'group': 'nova',
-            'mode': '640',
-        },
-        '/etc/nova/logging.conf': {
-            'group': 'nova',
-            'mode': '640',
-        },
-        '/etc/nova/nm.conf': {
-            'group': 'nova',
-            'mode': '640',
-        },
-        '/etc/nova/*': {
-            'group': 'nova',
-            'mode': '640',
-        },
-    }
+    'barbican': {
+        # From security guide
+        '/etc/barbican/barbican.conf': {'group': 'barbican', 'mode': '640'},
+        '/etc/barbican/barbican-api-paste.ini':
+            {'group': 'barbican', 'mode': '640'},
+        '/etc/barbican/policy.json': {'group': 'barbican', 'mode': '640'},
+    },
+    'ceph-mon': {
+        '/var/lib/charm/ceph-mon/ceph.conf':
+            {'owner': 'root', 'group': 'root', 'mode': '644'},
+        '/etc/ceph/ceph.client.admin.keyring':
+            {'owner': 'ceph', 'group': 'ceph'},
+        '/etc/ceph/rbdmap': {'mode': '644'},
+        '/var/lib/ceph': {'owner': 'ceph', 'group': 'ceph', 'mode': '750'},
+        '/var/lib/ceph/bootstrap-*/ceph.keyring':
+            {'owner': 'ceph', 'group': 'ceph', 'mode': '600'}
+    },
+    'ceph-osd': {
+        '/var/lib/charm/ceph-osd/ceph.conf':
+            {'owner': 'ceph', 'group': 'ceph', 'mode': '644'},
+        '/var/lib/ceph': {'owner': 'ceph', 'group': 'ceph', 'mode': '750'},
+        '/var/lib/ceph/*': {'owner': 'ceph', 'group': 'ceph', 'mode': '755'},
+        '/var/lib/ceph/bootstrap-*/ceph.keyring':
+            {'owner': 'ceph', 'group': 'ceph', 'mode': '600'},
+        '/var/lib/ceph/radosgw':
+            {'owner': 'ceph', 'group': 'ceph', 'mode': '755'},
+    },
+    'cinder': {
+        # From security guide
+        '/etc/cinder/cinder.conf': {'group': 'cinder', 'mode': '640'},
+        '/etc/cinder/api-paste.conf': {'group': 'cinder', 'mode': '640'},
+        '/etc/cinder/rootwrap.conf': {'group': 'cinder', 'mode': '640'},
+    },
+    'glance': {
+        # From security guide
+        '/etc/glance/glance-api-paste.ini': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-api.conf': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-cache.conf': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-manage.conf': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-registry-paste.ini':
+            {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-registry.conf': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-scrubber.conf': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/glance-swift-store.conf':
+            {'group': 'glance', 'mode': '640'},
+        '/etc/glance/policy.json': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/schema-image.json': {'group': 'glance', 'mode': '640'},
+        '/etc/glance/schema.json': {'group': 'glance', 'mode': '640'},
+    },
+    'keystone': {
+        # From security guide
+        '/etc/keystone/keystone.conf': {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/keystone-paste.ini':
+            {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/policy.json': {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/logging.conf': {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/ssl/certs/signing_cert.pem':
+            {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/ssl/private/signing_key.pem':
+            {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/ssl/certs/ca.pem': {'group': 'keystone', 'mode': '640'},
+    },
+    'manilla': {
+        # From security guide
+        '/etc/manila/manila.conf': {'group': 'manilla', 'mode': '640'},
+        '/etc/manila/api-paste.ini': {'group': 'manilla', 'mode': '640'},
+        '/etc/manila/policy.json': {'group': 'manilla', 'mode': '640'},
+        '/etc/manila/rootwrap.conf': {'group': 'manilla', 'mode': '640'},
+    },
+    'neutron-gateway': {
+        '/etc/neutron/neutron.conf': {'group': 'neutron', 'mode': '640'},
+        '/etc/neutron/rootwrap.conf': {'mode': '640'},
+        '/etc/neutron/rootwrap.d': {'mode': '755'},
+        '/etc/neutron/*': {'group': 'neutron', 'mode': '644'},
+    },
+    'neutron-api': {
+        # From security guide
+        '/etc/neutron/neutron.conf': {'group': 'neutron', 'mode': '640'},
+        '/etc/nova/api-paste.ini': {'group': 'neutron', 'mode': '640'},
+        '/etc/neutron/rootwrap.conf': {'group': 'neutron', 'mode': '640'},
+        # Additional validations
+        '/etc/neutron/rootwrap.d': {'mode': '755'},
+        '/etc/neutron/neutron_lbaas.conf': {'mode': '644'},
+        '/etc/neutron/neutron_vpnaas.conf': {'mode': '644'},
+        '/etc/neutron/*': {'group': 'neutron', 'mode': '644'},
+    },
+    'nova-cloud-controller': {
+        # From security guide
+        '/etc/nova/api-paste.ini': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/nova.conf': {'group': 'nova', 'mode': '750'},
+        '/etc/nova/*': {'group': 'nova', 'mode': '640'},
+        # Additional validations
+        '/etc/nova/logging.conf': {'group': 'nova', 'mode': '640'},
+    },
+    'nova-compute': {
+        # From security guide
+        '/etc/nova/nova.conf': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/api-paste.ini': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/rootwrap.conf': {'group': 'nova', 'mode': '640'},
+        # Additional Validations
+        '/etc/nova/nova-compute.conf': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/logging.conf': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/nm.conf': {'mode': '644'},
+        '/etc/nova/*': {'group': 'nova', 'mode': '640'},
+    },
+    'openstack-dashboard': {
+        # From security guide
+        '/etc/openstack-dashboard/local_settings.py':
+            {'group': 'horizon', 'mode': '640'},
+    },
 }
 
 Ownership = collections.namedtuple('Ownership', 'owner group mode')
@@ -80,7 +158,8 @@ def _stat(file):
     :rtype: Ownership
     :raises subprocess.CalledProcessError: If the underlying stat fails
     """
-    out = subprocess.check_output(['stat', '-c', '%U %G %a', file]).decode('utf-8')
+    out = subprocess.check_output(
+        ['stat', '-c', '%U %G %a', file]).decode('utf-8')
     return Ownership(*out.strip().split(' '))
 
 
@@ -173,7 +252,7 @@ def validate_file_ownership(config):
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide),
        it_has_config('files'))
 def validate_file_permissions(config):
-    """Verify that permissions on configuration files are sufficiently secure."""
+    """Verify that permissions on configuration files are secure enough."""
     files = config.get('files', {})
     for file_name, options in files.items():
         mode = options.get('mode', config.get('permissions', '600'))

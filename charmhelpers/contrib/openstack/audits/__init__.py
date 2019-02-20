@@ -49,8 +49,9 @@ def audit(*args):
                 .format(test_name))
         non_callables = [fn for fn in args if not callable(fn)]
         if non_callables:
-            raise RuntimeError("Configuration includes non-callable filters: {}"
-                               .format(non_callables))
+            raise RuntimeError(
+                "Configuration includes non-callable filters: {}"
+                .format(non_callables))
         _audits[test_name] = Audit(func=f, filters=args)
         return f
     return wrapper
