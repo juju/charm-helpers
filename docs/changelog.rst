@@ -1,6 +1,19 @@
 Changelog
 ---------
 
+0.19.9
+^^^^^^
+Thursday February 21 2019
+
+* Add OpenStackSecurityGuide auditing (#274)
+* Add support for ``app_name`` in ``add_op_create_pool`` (#280)
+* Update ceph helpers for device class support (#279)
+* Remove target directory before sync (#277)
+* Fix typos (#275)
+* Move contrib.python to fetch.python (#272)
+* Allow None state from charm_func_with_configs (#270)
+* Introduce get_distrib_codename helper (#268)
+
 0.19.8
 ^^^^^^
 Tuesday January 29 2019
