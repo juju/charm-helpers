@@ -237,6 +237,10 @@ def validate_file_ownership(config):
     """Verify that configuration files are owned by the correct user/group."""
     files = config.get('files', {})
     for file_name, options in files.items():
+        for key in options.keys():
+            if key not in ["owner", "group", "mode"]:
+                raise RuntimeError(
+                    "Invalid ownership configuration: {}".format(key))
         owner = options.get('owner', config.get('owner', 'root'))
         group = options.get('group', config.get('group', 'root'))
         if '*' in file_name:
@@ -255,6 +259,10 @@ def validate_file_permissions(config):
     """Verify that permissions on configuration files are secure enough."""
     files = config.get('files', {})
     for file_name, options in files.items():
+        for key in options.keys():
+            if key not in ["owner", "group", "mode"]:
+                raise RuntimeError(
+                    "Invalid ownership configuration: {}".format(key))
         mode = options.get('mode', config.get('permissions', '600'))
         if '*' in file_name:
             for file in glob.glob(file_name):
