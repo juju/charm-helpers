@@ -1986,6 +1986,36 @@ class HelpersTest(TestCase):
             ['dpkg', '--print-architecture']
         )
 
+    @patch('charmhelpers.core.host.subprocess.call')
+    @patch.object(host, 'service_stop')
+    @patch.object(host, 'service_start')
+    def test_restart_pid_check(self,
+                               service_start,
+                               service_stop,
+                               subprocess_call):
+        subprocess_call.return_value = 1
+        host.restart_pid_check('apache2')
+        service_stop.assert_called_once_with('apache2')
+        service_start.assert_called_once_with('apache2')
+        subprocess_call.assert_called_with(
+            ['pgrep', 'apache2', '--nslist', 'pid', '--ns', str(os.getpid())]
+        )
+
+    @patch('charmhelpers.core.host.subprocess.call')
+    @patch.object(host, 'service_stop')
+    @patch.object(host, 'service_start')
+    def test_restart_pid_check_ptable_string(self,
+                                             service_start,
+                                             service_stop,
+                                             subprocess_call):
+        subprocess_call.return_value = 1
+        host.restart_pid_check('apache2', ptable_string='httpd')
+        service_stop.assert_called_once_with('apache2')
+        service_start.assert_called_once_with('apache2')
+        subprocess_call.assert_called_with(
+            ['pgrep', 'httpd', '--nslist', 'pid', '--ns', str(os.getpid())]
+        )
+
 
 class TestHostCompator(TestCase):
 

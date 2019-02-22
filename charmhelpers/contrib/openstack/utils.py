@@ -1841,3 +1841,30 @@ def series_upgrade_complete(resume_unit_helper=None, configs=None):
         configs.write_all()
         if resume_unit_helper:
             resume_unit_helper(configs)
+
+
+def run_in_apache(package, release=None):
+    """Return true if given service is run under apache2 with mod_wsgi in
+    this release.
+    Package name is important to lookup version and openstack release
+    """
+
+    if snap_install_requested():
+        return False
+
+    release = release or os_release(package)
+
+    if (package == 'keystone' and
+            CompareOpenStackReleases(release) >= 'liberty'):
+        return True
+
+    if (package == 'cinder-api' and
+            CompareOpenStackReleases(release) >= 'ocata'):
+        return True
+
+    if (package == 'ceilometer-common' and
+            CompareOpenStackReleases(release) >= 'ocata' and
+            CompareOpenStackReleases(release) < 'queens'):
+        return True
+
+    return False
