@@ -1,6 +1,7 @@
 from testtools import TestCase
 from mock import patch, call, MagicMock
 
+import charmhelpers.core as ch_core
 import charmhelpers.contrib.openstack.ip as ip
 
 TO_PATCH = [
@@ -34,7 +35,10 @@ class IPTestCase(TestCase):
             setattr(self, m, self._patch(m))
         self.test_config = TestConfig()
         self.config.side_effect = self.test_config.get
-        self.network_get_primary_address.side_effect = NotImplementedError
+        self.network_get_primary_address.side_effect = [
+            NotImplementedError,
+            ch_core.hookenv.NoNetworkBinding,
+        ]
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.ip.' + method)
