@@ -28,6 +28,7 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     WARNING,
+    env_proxy_settings,
 )
 from charmhelpers.fetch import SourceConfigError, GPGKeyError
 
@@ -180,10 +181,6 @@ CLOUD_ARCHIVE_POCKETS = {
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 CMD_RETRY_DELAY = 10  # Wait 10 seconds between command retries.
 CMD_RETRY_COUNT = 3  # Retry a failing fatal command X times.
-
-RANGE_WARNING = ('Passing NO_PROXY string that includes a cidr. '
-                 'This may not be compatible with software you are '
-                 'running in your shell.')
 
 
 def filter_installed_packages(packages):
@@ -420,7 +417,7 @@ def _get_key_by_keyid(keyid):
     curl_cmd = ['curl', keyserver_url.format(keyid)]
     # use proxy server settings in order to retrieve the key
     return subprocess.check_output(curl_cmd,
-                                   env=_env_proxy_settings(['https']))
+                                   env=env_proxy_settings(['https']))
 
 
 def _dearmor_gpg_key(key_asc):
@@ -581,81 +578,7 @@ def _add_apt_repository(spec):
     # passed as environment variables (See lp:1433761). This is not the case
     # LTS and non-LTS releases below bionic.
     _run_with_retries(['add-apt-repository', '--yes', spec],
-                      cmd_env=_env_proxy_settings(['https']))
-
-
-def _contains_range(addresses):
-    """Check for cidr or wildcard domain in a string.
-
-    Given a string comprising a comma seperated list of ip addresses
-    and domain names, determine whether the string contains IP ranges
-    or wildcard domains.
-
-    :param addresses: comma seperated list of domains and ip addresses.
-    :type addresses: str
-    """
-    # Test for cidr (e.g. 10.20.20.0/24)
-    if "/" in addresses:
-        return True
-    # Test for wildcard domains (*.foo.com or .foo.com)
-    if "*" in addresses:
-        return True
-    if addresses.startswith("."):
-        return True
-    if ",." in addresses:
-        return True
-    if " ." in addresses:
-        return True
-    return False
-
-
-def _env_proxy_settings(selected_settings=None):
-    """Get proxy settings from process environment variables.
-
-    Get charm proxy settings from environment variables that correspond to
-    juju-http-proxy, juju-https-proxy and juju-no-proxy (available as of 2.4.2,
-    see lp:1782236) in a format suitable for passing to an application that
-    reacts to proxy settings passed as environment variables. Some applications
-    support lowercase or uppercase notation (e.g. curl), some support only
-    lowercase (e.g. wget), there are also subjectively rare cases of only
-    uppercase notation support. no_proxy CIDR and wildcard support also varies
-    between runtimes and applications as there is no enforced standard.
-
-    Some applications may connect to multiple destinations and expose config
-    options that would affect only proxy settings for a specific destination
-    these should be handled in charms in an application-specific manner.
-
-    :param selected_settings: format only a subset of possible settings
-    :type selected_settings: dict
-    :rtype: Option(None, dict[str, str])
-    """
-    SUPPORTED_SETTINGS = {
-        'http': 'HTTP_PROXY',
-        'https': 'HTTPS_PROXY',
-        'no_proxy': 'NO_PROXY',
-        'ftp': 'FTP_PROXY'
-    }
-    if selected_settings is None:
-        selected_settings = SUPPORTED_SETTINGS
-
-    selected_vars = [v for k, v in SUPPORTED_SETTINGS.items()
-                     if k in selected_settings]
-    proxy_settings = {}
-    for var in selected_vars:
-        var_val = os.getenv(var)
-        if var_val:
-            proxy_settings[var] = var_val
-            proxy_settings[var.lower()] = var_val
-        # Now handle juju-prefixed environment variables. The legacy vs new
-        # environment variable usage is mutually exclusive
-        charm_var_val = os.getenv('JUJU_CHARM_{}'.format(var))
-        if charm_var_val:
-            proxy_settings[var] = charm_var_val
-            proxy_settings[var.lower()] = charm_var_val
-    if 'no_proxy' in proxy_settings:
-        if _contains_range(proxy_settings['no_proxy']):
-            log(RANGE_WARNING, level=WARNING)
-    return proxy_settings if proxy_settings else None
+                      cmd_env=env_proxy_settings(['https']))
 
 
 def _add_cloud_pocket(pocket):

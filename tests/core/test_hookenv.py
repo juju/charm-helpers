@@ -1518,6 +1518,129 @@ class HelpersTest(TestCase):
         hookenv.application_version_set('v1.2.3')
         check_call_.assert_called_with(['application-version-set', 'v1.2.3'])
 
+    @patch.object(os, 'getenv')
+    @patch.object(hookenv, 'log')
+    def test_env_proxy_settings_juju_charm_all_selected(self, faux_log,
+                                                        get_env):
+        expected_settings = {
+            'HTTP_PROXY': 'http://squid.internal:3128',
+            'http_proxy': 'http://squid.internal:3128',
+            'HTTPS_PROXY': 'https://squid.internals:3128',
+            'https_proxy': 'https://squid.internals:3128',
+            'NO_PROXY': '192.0.2.0/24,198.51.100.0/24,.bar.com',
+            'no_proxy': '192.0.2.0/24,198.51.100.0/24,.bar.com',
+            'FTP_PROXY': 'ftp://ftp.internal:21',
+            'ftp_proxy': 'ftp://ftp.internal:21',
+        }
+
+        def get_env_side_effect(var):
+            return {
+                'HTTP_PROXY': None,
+                'HTTPS_PROXY': None,
+                'NO_PROXY': None,
+                'FTP_PROXY': None,
+                'JUJU_CHARM_HTTP_PROXY': 'http://squid.internal:3128',
+                'JUJU_CHARM_HTTPS_PROXY': 'https://squid.internals:3128',
+                'JUJU_CHARM_FTP_PROXY': 'ftp://ftp.internal:21',
+                'JUJU_CHARM_NO_PROXY': '192.0.2.0/24,198.51.100.0/24,.bar.com'
+            }[var]
+        get_env.side_effect = get_env_side_effect
+
+        proxy_settings = hookenv.env_proxy_settings()
+        get_env.assert_has_calls([call("HTTP_PROXY"),
+                                 call("HTTPS_PROXY"),
+                                 call("NO_PROXY"),
+                                 call("FTP_PROXY"),
+                                 call("JUJU_CHARM_HTTP_PROXY"),
+                                 call("JUJU_CHARM_HTTPS_PROXY"),
+                                 call("JUJU_CHARM_FTP_PROXY"),
+                                 call("JUJU_CHARM_NO_PROXY")],
+                                 any_order=True)
+        self.assertEqual(expected_settings, proxy_settings)
+        # Verify that we logged a warning about the cidr in NO_PROXY.
+        faux_log.assert_called_with(hookenv.RANGE_WARNING,
+                                    level=hookenv.WARNING)
+
+    @patch.object(os, 'getenv')
+    def test_env_proxy_settings_legacy_https(self, get_env):
+        expected_settings = {
+            'HTTPS_PROXY': 'http://squid.internal:3128',
+            'https_proxy': 'http://squid.internal:3128',
+        }
+
+        def get_env_side_effect(var):
+            return {
+                'HTTPS_PROXY': 'http://squid.internal:3128',
+                'JUJU_CHARM_HTTPS_PROXY': None,
+            }[var]
+        get_env.side_effect = get_env_side_effect
+
+        proxy_settings = hookenv.env_proxy_settings(['https'])
+        get_env.assert_has_calls([call("HTTPS_PROXY"),
+                                 call("JUJU_CHARM_HTTPS_PROXY")],
+                                 any_order=True)
+        self.assertEqual(expected_settings, proxy_settings)
+
+    @patch.object(os, 'getenv')
+    def test_env_proxy_settings_juju_charm_https(self, get_env):
+        expected_settings = {
+            'HTTPS_PROXY': 'http://squid.internal:3128',
+            'https_proxy': 'http://squid.internal:3128',
+        }
+
+        def get_env_side_effect(var):
+            return {
+                'HTTPS_PROXY': None,
+                'JUJU_CHARM_HTTPS_PROXY': 'http://squid.internal:3128',
+            }[var]
+        get_env.side_effect = get_env_side_effect
+
+        proxy_settings = hookenv.env_proxy_settings(['https'])
+        get_env.assert_has_calls([call("HTTPS_PROXY"),
+                                 call("JUJU_CHARM_HTTPS_PROXY")],
+                                 any_order=True)
+        self.assertEqual(expected_settings, proxy_settings)
+
+    @patch.object(os, 'getenv')
+    def test_env_proxy_settings_legacy_http(self, get_env):
+        expected_settings = {
+            'HTTP_PROXY': 'http://squid.internal:3128',
+            'http_proxy': 'http://squid.internal:3128',
+        }
+
+        def get_env_side_effect(var):
+            return {
+                'HTTP_PROXY': 'http://squid.internal:3128',
+                'JUJU_CHARM_HTTP_PROXY': None,
+            }[var]
+        get_env.side_effect = get_env_side_effect
+
+        proxy_settings = hookenv.env_proxy_settings(['http'])
+        get_env.assert_has_calls([call("HTTP_PROXY"),
+                                 call("JUJU_CHARM_HTTP_PROXY")],
+                                 any_order=True)
+        self.assertEqual(expected_settings, proxy_settings)
+
+    @patch.object(os, 'getenv')
+    def test_env_proxy_settings_juju_charm_http(self, get_env):
+        expected_settings = {
+            'HTTP_PROXY': 'http://squid.internal:3128',
+            'http_proxy': 'http://squid.internal:3128',
+        }
+
+        def get_env_side_effect(var):
+            return {
+                'HTTP_PROXY': None,
+                'JUJU_CHARM_HTTP_PROXY': 'http://squid.internal:3128',
+            }[var]
+        get_env.side_effect = get_env_side_effect
+
+        proxy_settings = hookenv.env_proxy_settings(['http'])
+        get_env.assert_has_calls([call("HTTP_PROXY"),
+                                 call("JUJU_CHARM_HTTP_PROXY")],
+                                 any_order=True)
+        self.assertEqual(expected_settings, proxy_settings)
+
 
 class HooksTest(TestCase):
     def setUp(self):
@@ -2142,3 +2265,25 @@ ingress-addresses:
 
         local_unit.return_value = 'postgresql/0'
         self.assertTrue(hookenv.unit_doomed())
+
+    def test_contains_addr_range(self):
+        # Contains cidr
+        self.assertTrue(hookenv._contains_range("192.168.1/20"))
+        self.assertTrue(hookenv._contains_range("192.168.0/24"))
+        self.assertTrue(
+            hookenv._contains_range("10.40.50.1,192.168.1/20,10.56.78.9"))
+        self.assertTrue(hookenv._contains_range("192.168.22/24"))
+        self.assertTrue(hookenv._contains_range("2001:db8::/32"))
+        self.assertTrue(hookenv._contains_range("*.foo.com"))
+        self.assertTrue(hookenv._contains_range(".foo.com"))
+        self.assertTrue(
+            hookenv._contains_range("192.168.1.20,.foo.com"))
+        self.assertTrue(
+            hookenv._contains_range("192.168.1.20,  .foo.com"))
+        self.assertTrue(
+            hookenv._contains_range("192.168.1.20,*.foo.com"))
+
+        # Doesn't contain cidr
+        self.assertFalse(hookenv._contains_range("192.168.1"))
+        self.assertFalse(hookenv._contains_range("192.168.145"))
+        self.assertFalse(hookenv._contains_range("192.16.14"))
