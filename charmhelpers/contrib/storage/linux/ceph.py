@@ -582,21 +582,24 @@ def remove_pool_snapshot(service, pool_name, snapshot_name):
         raise
 
 
-# max_bytes should be an int or long
-def set_pool_quota(service, pool_name, max_bytes):
+def set_pool_quota(service, pool_name, max_bytes=None, max_objects=None):
     """
-    :param service: six.string_types. The Ceph user name to run the command under
-    :param pool_name: six.string_types
-    :param max_bytes: int or long
-    :return: None.  Can raise CalledProcessError
+    :param service: The Ceph user name to run the command under
+    :type service: str
+    :param pool_name: Name of pool
+    :type pool_name: str
+    :param max_bytes: Maximum bytes quota to apply
+    :type max_bytes: int
+    :param max_objects: Maximum objects quota to apply
+    :type max_objects: int
+    :raises: subprocess.CalledProcessError
     """
-    # Set a byte quota on a RADOS pool in ceph.
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set-quota', pool_name,
-           'max_bytes', str(max_bytes)]
-    try:
-        check_call(cmd)
-    except CalledProcessError:
-        raise
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set-quota', pool_name]
+    if max_bytes:
+        cmd = cmd + ['max_bytes', str(max_bytes)]
+    if max_objects:
+        cmd = cmd + ['max_objects', str(max_objects)]
+    check_call(cmd)
 
 
 def remove_pool_quota(service, pool_name):
@@ -1153,7 +1156,7 @@ class CephBrokerRq(object):
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
                            weight=None, group=None, namespace=None,
-                           app_name=None):
+                           app_name=None, max_bytes=None, max_objects=None):
         """Adds an operation to create a pool.
 
         @param pg_num setting:  optional setting. If not provided, this value
@@ -1166,6 +1169,10 @@ class CephBrokerRq(object):
                          regard to meaningful application names to use.
                          Examples are ``rbd`` and ``rgw``.
         :type app_name: str
+        :param max_bytes: Maximum bytes quota to apply
+        :type max_bytes: int
+        :param max_objects: Maximum objects quota to apply
+        :type max_objects: int
         """
         if pg_num and weight:
             raise ValueError('pg_num and weight are mutually exclusive')
@@ -1173,7 +1180,8 @@ class CephBrokerRq(object):
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count, 'pg_num': pg_num,
                          'weight': weight, 'group': group,
-                         'group-namespace': namespace, 'app-name': app_name})
+                         'group-namespace': namespace, 'app-name': app_name,
+                         'max-bytes': max_bytes, 'max-objects': max_objects})
 
     def set_ops(self, ops):
         """Set request ops to provided value.
