@@ -92,7 +92,7 @@ def run(audit_options):
     results = {}
     for name, audit in sorted(_audits.items()):
         result_name = name.replace('_', '-')
-        if result_name in audit_options['excludes']:
+        if result_name in audit_options.get('excludes', []):
             print(
                 "Skipping {} because it is"
                 "excluded in audit config"
