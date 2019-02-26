@@ -1157,13 +1157,36 @@ class CephBrokerRq(object):
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
                            weight=None, group=None, namespace=None,
                            app_name=None, max_bytes=None, max_objects=None):
-        """Adds an operation to create a pool.
+        """DEPRECATED: Use ``add_op_create_replicated_pool()`` or
+                       ``add_op_create_erasure_pool()`` instead.
+        """
+        return self.add_op_create_replicated_pool(
+            name, replica_count=replica_count, pg_num=pg_num, weight=weight,
+            group=group, namespace=namespace, app_name=app_name,
+            max_bytes=max_bytes, max_objects=max_objects)
 
-        @param pg_num setting:  optional setting. If not provided, this value
-        will be calculated by the broker based on how many OSDs are in the
-        cluster at the time of creation. Note that, if provided, this value
-        will be capped at the current available maximum.
-        @param weight: the percentage of data the pool makes up
+    def add_op_create_replicated_pool(self, name, replica_count=3, pg_num=None,
+                                      weight=None, group=None, namespace=None,
+                                      app_name=None, max_bytes=None,
+                                      max_objects=None):
+        """Adds an operation to create a replicated pool.
+
+        :param name: Name of pool to create
+        :type name: str
+        :param replica_count: Number of copies Ceph should keep of your data.
+        :type replica_count: int
+        :param pg_num: Request specific number of Placement Groups to create
+                       for pool.
+        :type pg_num: int
+        :param weight: The percentage of data that is expected to be contained
+                       in the pool from the total available space on the OSDs.
+                       Used to calculate number of Placement Groups to create
+                       for pool.
+        :type weight: float
+        :param group: Group to add pool to
+        :type group: str
+        :param namespace: Group namespace
+        :type namespace: str
         :param app_name: (Optional) Tag pool with application name.  Note that
                          there is certain protocols emerging upstream with
                          regard to meaningful application names to use.
@@ -1181,6 +1204,39 @@ class CephBrokerRq(object):
                          'replicas': replica_count, 'pg_num': pg_num,
                          'weight': weight, 'group': group,
                          'group-namespace': namespace, 'app-name': app_name,
+                         'max-bytes': max_bytes, 'max-objects': max_objects})
+
+    def add_op_create_erasure_pool(self, name, erasure_profile=None,
+                                   weight=None, group=None, app_name=None,
+                                   max_bytes=None, max_objects=None):
+        """Adds an operation to create a erasure coded pool.
+
+        :param name: Name of pool to create
+        :type name: str
+        :param erasure_profile: Name of erasure code profile to use.  If not
+                                set the ceph-mon unit handling the broker
+                                request will set its default value.
+        :type erasure_profile: str
+        :param weight: The percentage of data that is expected to be contained
+                       in the pool from the total available space on the OSDs.
+        :type weight: float
+        :param group: Group to add pool to
+        :type group: str
+        :param app_name: (Optional) Tag pool with application name.  Note that
+                         there is certain protocols emerging upstream with
+                         regard to meaningful application names to use.
+                         Examples are ``rbd`` and ``rgw``.
+        :type app_name: str
+        :param max_bytes: Maximum bytes quota to apply
+        :type max_bytes: int
+        :param max_objects: Maximum objects quota to apply
+        :type max_objects: int
+        """
+        self.ops.append({'op': 'create-pool', 'name': name,
+                         'pool-type': 'erasure',
+                         'erasure-profile': erasure_profile,
+                         'weight': weight,
+                         'group': group, 'app-name': app_name,
                          'max-bytes': max_bytes, 'max-objects': max_objects})
 
     def set_ops(self, ops):
