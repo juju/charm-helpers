@@ -95,7 +95,7 @@ def run(audit_options):
         if result_name in audit_options['excludes']:
             print(
                 "Skipping {} because it is"
-                "excluded in audit config" \
+                "excluded in audit config"
                 .format(result_name))
             continue
         if all(p(audit_options) for p in audit.filters):

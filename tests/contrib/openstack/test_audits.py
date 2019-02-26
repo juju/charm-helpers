@@ -81,7 +81,7 @@ class AuditTestCase(TestCase):
         self.assertTrue(False, "Duplicate audit should raise an exception")
 
     @patch('charmhelpers.contrib.openstack.audits._audits', {})
-    def test_non_callable_filter(self):
+    def test_exclude_config(self):
         variables = {
             'test_run': False,
         }
@@ -92,7 +92,6 @@ class AuditTestCase(TestCase):
 
         audits.run({'excludes': ['test']})
         self.assertFalse(variables['test_run'])
-        self.assertEqual(audits._audits['test'], audits.Audit(test, (should_run,)))
 
 
 class AuditsTestCase(TestCase):
