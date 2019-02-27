@@ -488,9 +488,23 @@ class CephUtilsTests(TestCase):
 
     def test_set_pool_quota(self):
         self.check_call.return_value = 0
-        ceph_utils.set_pool_quota(service='admin', pool_name='data', max_bytes=1024)
+        ceph_utils.set_pool_quota(service='admin', pool_name='data',
+                                  max_bytes=1024)
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data', 'max_bytes', '1024'])
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data',
+                  'max_bytes', '1024'])
+        ])
+        ceph_utils.set_pool_quota(service='admin', pool_name='data',
+                                  max_objects=1024)
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data',
+                  'max_objects', '1024'])
+        ])
+        ceph_utils.set_pool_quota(service='admin', pool_name='data',
+                                  max_bytes=1024, max_objects=1024)
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set-quota', 'data',
+                  'max_bytes', '1024', 'max_objects', '1024'])
         ])
 
     def test_remove_pool_quota(self):
@@ -1560,17 +1574,19 @@ class CephUtilsTests(TestCase):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
-    def test_add_op_create_pool(self):
+    def test_add_op_create_replicated_pool(self):
         base_op = {'app-name': None,
                    'group': None,
                    'group-namespace': None,
+                   'max-bytes': None,
+                   'max-objects': None,
                    'name': 'apool',
                    'op': 'create-pool',
                    'pg_num': None,
                    'replicas': 3,
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
-        rq.add_op_create_pool('apool')
+        rq.add_op_create_replicated_pool('apool')
         self.assertEqual(rq.ops, [base_op])
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('apool', replica_count=42)
@@ -1578,27 +1594,76 @@ class CephUtilsTests(TestCase):
         op['replicas'] = 42
         self.assertEqual(rq.ops, [op])
         rq = ceph_utils.CephBrokerRq()
-        rq.add_op_create_pool('apool', pg_num=42)
+        rq.add_op_create_replicated_pool('apool', pg_num=42)
         op = base_op.copy()
         op['pg_num'] = 42
         self.assertEqual(rq.ops, [op])
         rq = ceph_utils.CephBrokerRq()
-        rq.add_op_create_pool('apool', weight=42)
+        rq.add_op_create_replicated_pool('apool', weight=42)
         op = base_op.copy()
         op['weight'] = 42
         self.assertEqual(rq.ops, [op])
         rq = ceph_utils.CephBrokerRq()
-        rq.add_op_create_pool('apool', group=51)
+        rq.add_op_create_replicated_pool('apool', group=51)
         op = base_op.copy()
         op['group'] = 51
         self.assertEqual(rq.ops, [op])
         rq = ceph_utils.CephBrokerRq()
-        rq.add_op_create_pool('apool', namespace='sol-iii')
+        rq.add_op_create_replicated_pool('apool', namespace='sol-iii')
         op = base_op.copy()
         op['group-namespace'] = 'sol-iii'
         self.assertEqual(rq.ops, [op])
         rq = ceph_utils.CephBrokerRq()
-        rq.add_op_create_pool('apool', app_name='earth')
+        rq.add_op_create_replicated_pool('apool', app_name='earth')
         op = base_op.copy()
         op['app-name'] = 'earth'
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_replicated_pool('apool', max_bytes=42)
+        op = base_op.copy()
+        op['max-bytes'] = 42
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_replicated_pool('apool', max_objects=42)
+        op = base_op.copy()
+        op['max-objects'] = 42
+        self.assertEqual(rq.ops, [op])
+
+    def test_add_op_create_erasure_pool(self):
+        base_op = {'app-name': None,
+                   'erasure-profile': None,
+                   'group': None,
+                   'max-bytes': None,
+                   'max-objects': None,
+                   'name': 'apool',
+                   'op': 'create-pool',
+                   'pool-type': 'erasure',
+                   'weight': None}
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_erasure_pool('apool')
+        self.assertEqual(rq.ops, [base_op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_erasure_pool('apool', weight=42)
+        op = base_op.copy()
+        op['weight'] = 42
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_erasure_pool('apool', group=51)
+        op = base_op.copy()
+        op['group'] = 51
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_erasure_pool('apool', app_name='earth')
+        op = base_op.copy()
+        op['app-name'] = 'earth'
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_erasure_pool('apool', max_bytes=42)
+        op = base_op.copy()
+        op['max-bytes'] = 42
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_erasure_pool('apool', max_objects=42)
+        op = base_op.copy()
+        op['max-objects'] = 42
         self.assertEqual(rq.ops, [op])
