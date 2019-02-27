@@ -1,6 +1,16 @@
 Changelog
 ---------
 
+0.19.10
+^^^^^^^
+Thursday February 27 2019
+
+* Add OpenStack version filter to audits (#286)
+* Handle new juju charm proxy settings and https keyserver URLs (#248)
+* Allow an audit to be excluded via configuration (#282)
+* Add section-oslo-messaging-rabbit for Ocata+ (#283)
+* Catch NoNetworkBinding in addition to NotImplementedError (#281)
+
 0.19.9
 ^^^^^^
 Thursday February 21 2019
