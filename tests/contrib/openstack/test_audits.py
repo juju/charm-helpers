@@ -117,6 +117,48 @@ class AuditsTestCase(TestCase):
         verifier = audits.since_package('test', '13.0.0')
         self.assertEqual(verifier(), True)
 
+    @patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    def test_since_openstack_less(self, _get_os_codename_package):
+        _get_os_codename_package.return_value = "icehouse"
+
+        verifier = audits.since_openstack_release('test', 'mitaka')
+        self.assertEqual(verifier(), False)
+
+    @patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    def test_since_openstack_greater(self, _get_os_codename_package):
+        _get_os_codename_package.return_value = "rocky"
+
+        verifier = audits.since_openstack_release('test', 'queens')
+        self.assertEqual(verifier(), True)
+
+    @patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    def test_since_openstack_equal(self, _get_os_codename_package):
+        _get_os_codename_package.return_value = "mitaka"
+
+        verifier = audits.since_openstack_release('test', 'mitaka')
+        self.assertEqual(verifier(), True)
+
+    @patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    def test_before_openstack_less(self, _get_os_codename_package):
+        _get_os_codename_package.return_value = "icehouse"
+
+        verifier = audits.before_openstack_release('test', 'mitaka')
+        self.assertEqual(verifier(), True)
+
+    @patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    def test_before_openstack_greater(self, _get_os_codename_package):
+        _get_os_codename_package.return_value = "rocky"
+
+        verifier = audits.before_openstack_release('test', 'queens')
+        self.assertEqual(verifier(), False)
+
+    @patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
+    def test_before_openstack_equal(self, _get_os_codename_package):
+        _get_os_codename_package.return_value = "mitaka"
+
+        verifier = audits.before_openstack_release('test', 'mitaka')
+        self.assertEqual(verifier(), False)
+
     @patch('charmhelpers.contrib.openstack.audits.cmp_pkgrevno')
     def test_before_package_less(self, _cmp_pkgrevno):
         _cmp_pkgrevno.return_value = 1
