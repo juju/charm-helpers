@@ -78,15 +78,18 @@ def before_package(pkg, pkg_version):
 
 
 def since_openstack_release(pkg, release):
-    """This audit should be run after the specified OpenStack version (incl)."""
+    """This audit should run after the specified OpenStack version (incl)."""
     def _since_openstack_release(audit_options=None):
         _release = openstack_utils.get_os_codename_package(pkg)
         return openstack_utils.CompareOpenStackReleases(_release) >= release
     return _since_openstack_release
 
+
 def before_openstack_release(pkg, version):
-    """This audit should be run before the specified OpenStack version (excl)."""
-    return lambda audit_options=None: not since_openstack_release(pkg, version)(audit_options)
+    """This audit should run before the specified OpenStack version (excl)."""
+    return lambda audit_options=None: \
+        not since_openstack_release(pkg, version)(audit_options)
+
 
 def it_has_config(config_key):
     """This audit should be run based on specified config keys."""
