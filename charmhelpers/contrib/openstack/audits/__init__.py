@@ -39,7 +39,7 @@ def audit(*args):
     deployed system that matches the given configuration
 
     :param args: List of functions to filter tests against
-    :type args: List[Callable(dict)]
+    :type args: List[Callable[Dict]]
     """
     def wrapper(f):
         test_name = f.__name__
@@ -62,7 +62,7 @@ def is_audit_type(*args):
 
     :param *args: List of AuditTypes to include this audit in
     :type args: List[AuditType]
-    :rtype: Callable[dict]
+    :rtype: Callable[Dict]
     """
     def _is_audit_type(audit_options):
         if audit_options.get('audit_type') in args:
@@ -79,7 +79,8 @@ def since_package(pkg, pkg_version):
     :type pkg: str
     :param release: The package version
     :type release: str
-    :rtype: Callable[dict]"""
+    :rtype: Callable[Dict]
+    """
     def _since_package(audit_options=None):
         return cmp_pkgrevno(pkg, pkg_version) >= 0
 
@@ -93,7 +94,8 @@ def before_package(pkg, pkg_version):
     :type pkg: str
     :param release: The package version
     :type release: str
-    :rtype: Callable[dict]"""
+    :rtype: Callable[Dict]
+    """
     def _before_package(audit_options=None):
         return not since_package(pkg, pkg_version)()
 
@@ -107,7 +109,7 @@ def since_openstack_release(pkg, release):
     :type pkg: str
     :param release: The OpenStack release codename
     :type release: str
-    :rtype: Callable[dict]
+    :rtype: Callable[Dict]
     """
     def _since_openstack_release(audit_options=None):
         _release = openstack_utils.get_os_codename_package(pkg)
@@ -123,7 +125,7 @@ def before_openstack_release(pkg, release):
     :type pkg: str
     :param release: The OpenStack release codename
     :type release: str
-    :rtype: Callable[dict]
+    :rtype: Callable[Dict]
     """
     def _before_openstack_release(audit_options=None):
         return not since_openstack_release(pkg, release)()
@@ -136,7 +138,8 @@ def it_has_config(config_key):
 
     :param config_key: Config key to look for
     :type config_key: str
-    :rtype: Callable[dict]"""
+    :rtype: Callable[Dict]
+    """
     def _it_has_config(audit_options):
         return audit_options.get(config_key) is not None
 
@@ -192,9 +195,10 @@ def run(audit_options):
 def action_parse_results(result):
     """Parse the result of `run` in the context of an action.
 
-    :param result:
-    :type result:
-    :rtype: integer
+    :param result: The result of running the security-checklist
+        action on a unit
+    :type result: Dict[str, Dict[str, str]]
+    :rtype: int
     """
     passed = True
     for test, result in result.items():
