@@ -1,6 +1,15 @@
 Changelog
 ---------
 
+0.19.11
+^^^^^^^
+Thursday February 27 2019
+
+* Add getrange command to unitdata CLI (#273)
+* Fixing `cmp_pkgrevno` Ceph bug (#288)
+* Update swift version for stein (#287)
+* Add support for creating erasure coded pool and setting ``max_objects`` quota (#284)
+
 0.19.10
 ^^^^^^^
 Thursday February 27 2019
