@@ -1,6 +1,29 @@
 Changelog
 ---------
 
+0.19.10
+^^^^^^^
+Thursday February 27 2019
+
+* Add OpenStack version filter to audits (#286)
+* Handle new juju charm proxy settings and https keyserver URLs (#248)
+* Allow an audit to be excluded via configuration (#282)
+* Add section-oslo-messaging-rabbit for Ocata+ (#283)
+* Catch NoNetworkBinding in addition to NotImplementedError (#281)
+
+0.19.9
+^^^^^^
+Thursday February 21 2019
+
+* Add OpenStackSecurityGuide auditing (#274)
+* Add support for ``app_name`` in ``add_op_create_pool`` (#280)
+* Update ceph helpers for device class support (#279)
+* Remove target directory before sync (#277)
+* Fix typos (#275)
+* Move contrib.python to fetch.python (#272)
+* Allow None state from charm_func_with_configs (#270)
+* Introduce get_distrib_codename helper (#268)
+
 0.19.8
 ^^^^^^
 Tuesday January 29 2019

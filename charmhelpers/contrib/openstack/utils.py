@@ -194,7 +194,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('rocky',
         ['2.18.0', '2.19.0']),
     ('stein',
-        ['2.19.0']),
+        ['2.20.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -1253,7 +1253,7 @@ def remote_restart(rel_name, remote_service=None):
 
 
 def check_actually_paused(services=None, ports=None):
-    """Check that services listed in the services object and and ports
+    """Check that services listed in the services object and ports
     are actually closed (not listened to), to verify that the unit is
     properly paused.
 
