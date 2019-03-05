@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.19.12
+^^^^^^^
+Tuesday 5th March 2019
+
+* Use the same gpg command (#290)
+* Fix openstack-upgrade-available detection to work with new versions of apt.version_compare() (#292)
+
 0.19.11
 ^^^^^^^
 Thursday February 27 2019
