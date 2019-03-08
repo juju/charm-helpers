@@ -1075,6 +1075,7 @@ def install_ca_cert(ca_cert, name=None):
     write_file(cert_file, ca_cert)
     subprocess.check_call(['update-ca-certificates', '--fresh'])
 
+
 def arch():
     """
     Return the package architecture as a string.
@@ -1082,5 +1083,5 @@ def arch():
     :return: String
     """
     return subprocess.check_output(
-            ['dpkg', '--print-architecture']
-        ).rstrip().decode('UTF-8')
+        ['dpkg', '--print-architecture']
+    ).rstrip().decode('UTF-8')
