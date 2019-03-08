@@ -1074,3 +1074,13 @@ def install_ca_cert(ca_cert, name=None):
     log("Installing new CA cert at: {}".format(cert_file), level=INFO)
     write_file(cert_file, ca_cert)
     subprocess.check_call(['update-ca-certificates', '--fresh'])
+
+def arch():
+    """
+    Return the package architecture as a string.
+
+    :return: String
+    """
+    return subprocess.check_output(
+            ['dpkg', '--print-architecture']
+        ).rstrip().decode('UTF-8')
