@@ -47,6 +47,7 @@ if __platform__ == "ubuntu":
         cmp_pkgrevno,
         CompareHostReleases,
         get_distrib_codename,
+        arch
     )  # flake8: noqa -- ignore F401 for this import
 elif __platform__ == "centos":
     from charmhelpers.core.host_factory.centos import (  # NOQA:F401
@@ -1074,14 +1075,3 @@ def install_ca_cert(ca_cert, name=None):
     log("Installing new CA cert at: {}".format(cert_file), level=INFO)
     write_file(cert_file, ca_cert)
     subprocess.check_call(['update-ca-certificates', '--fresh'])
-
-
-def arch():
-    """
-    Return the package architecture as a string.
-
-    :return: String
-    """
-    return subprocess.check_output(
-        ['dpkg', '--print-architecture']
-    ).rstrip().decode('UTF-8')
