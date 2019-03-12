@@ -1979,6 +1979,13 @@ class HelpersTest(TestCase):
             b'cert_data')
         check_call.assert_called_with(['update-ca-certificates', '--fresh'])
 
+    @patch('subprocess.check_output')
+    def test_arch(self, check_output):
+        _ = host.arch()
+        check_output.assert_called_with(
+            ['dpkg', '--print-architecture']
+        )
+
 
 class TestHostCompator(TestCase):
 
