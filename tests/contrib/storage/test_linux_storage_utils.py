@@ -125,3 +125,75 @@ class MiscStorageUtilsTests(unittest.TestCase):
         check_call.assert_called_with(
             ['mkfs.xfs', '-f', '-i', 'size=1024', '/dev/sdb']
         )
+
+
+class CephLUKSDeviceTestCase(unittest.TestCase):
+
+    @patch.object(storage_utils, '_luks_uuid')
+    def test_no_luks_header(self, _luks_uuid):
+        _luks_uuid.return_value = None
+        self.assertEqual(storage_utils.is_luks_device('/dev/sdb'), False)
+
+    @patch.object(storage_utils, '_luks_uuid')
+    def test_luks_header(self, _luks_uuid):
+        _luks_uuid.return_value = '5e1e4c89-4f68-4b9a-bd93-e25eec34e80f'
+        self.assertEqual(storage_utils.is_luks_device('/dev/sdb'), True)
+
+
+class CephMappedLUKSDeviceTestCase(unittest.TestCase):
+
+    @patch.object(storage_utils.os, 'walk')
+    @patch.object(storage_utils, '_luks_uuid')
+    def test_no_luks_header_not_mapped(self, _luks_uuid, _walk):
+        _luks_uuid.return_value = None
+
+        def os_walk_side_effect(path):
+            return {
+                '/sys/class/block/sdb/holders/': iter([('', [], [])]),
+            }[path]
+        _walk.side_effect = os_walk_side_effect
+
+        self.assertEqual(storage_utils.is_mapped_luks_device('/dev/sdb'), False)
+
+    @patch.object(storage_utils.os, 'walk')
+    @patch.object(storage_utils, '_luks_uuid')
+    def test_luks_header_mapped(self, _luks_uuid, _walk):
+        _luks_uuid.return_value = 'db76d142-4782-42f2-84c6-914f9db889a0'
+
+        def os_walk_side_effect(path):
+            return {
+                '/sys/class/block/sdb/holders/': iter([('', ['dm-0'], [])]),
+            }[path]
+        _walk.side_effect = os_walk_side_effect
+
+        self.assertEqual(storage_utils.is_mapped_luks_device('/dev/sdb'), True)
+
+    @patch.object(storage_utils.os, 'walk')
+    @patch.object(storage_utils, '_luks_uuid')
+    def test_luks_header_not_mapped(self, _luks_uuid, _walk):
+        _luks_uuid.return_value = 'db76d142-4782-42f2-84c6-914f9db889a0'
+
+        def os_walk_side_effect(path):
+            return {
+                '/sys/class/block/sdb/holders/': iter([('', [], [])]),
+            }[path]
+        _walk.side_effect = os_walk_side_effect
+
+        self.assertEqual(storage_utils.is_mapped_luks_device('/dev/sdb'), False)
+
+    @patch.object(storage_utils.os, 'walk')
+    @patch.object(storage_utils, '_luks_uuid')
+    def test_no_luks_header_mapped(self, _luks_uuid, _walk):
+        """
+        This is an edge case where a device is mapped (i.e. used for something
+        else) but has no LUKS header. Should be handled by other checks.
+        """
+        _luks_uuid.return_value = None
+
+        def os_walk_side_effect(path):
+            return {
+                '/sys/class/block/sdb/holders/': iter([('', ['dm-0'], [])]),
+            }[path]
+        _walk.side_effect = os_walk_side_effect
+
+        self.assertEqual(storage_utils.is_mapped_luks_device('/dev/sdb'), False)
