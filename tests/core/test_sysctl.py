@@ -74,7 +74,6 @@ class SysctlTests(unittest.TestCase):
             "sysctl", "-p",
             "/etc/sysctl.d/test-sysctl.conf", "-e"])
 
-        
     @patch(builtin_open)
     def test_create_with_dict(self, mock_open):
         """Test create sysctl method"""
