@@ -84,19 +84,21 @@ FILE_ASSERTIONS = {
     'keystone': {
         # From security guide
         '/etc/keystone/keystone.conf':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/keystone-paste.ini':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/policy.json':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/logging.conf':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/ssl/certs/signing_cert.pem':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone',
+             'mode': '640', 'optional': True},
         '/etc/keystone/ssl/private/signing_key.pem':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '640', 'optional': True},
         '/etc/keystone/ssl/certs/ca.pem':
-            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+            {'owner': 'keystone', 'group': 'keystone',
+             'mode': '640', 'optional': True},
     },
     'manilla': {
         # From security guide
@@ -182,7 +184,7 @@ def _config_ini(path):
     return dict(conf)
 
 
-def _validate_file_ownership(owner, group, file_name):
+def _validate_file_ownership(owner, group, file_name, optional=False):
     """
     Validate that a specified file is owned by `owner:group`.
 
@@ -192,12 +194,16 @@ def _validate_file_ownership(owner, group, file_name):
     :type group: str
     :param file_name: Path to the file to verify
     :type file_name: str
+    :param optional: Is this file optional,
+                     ie: Should this test fail when it's missing
+    :type optional: bool
     """
     try:
         ownership = _stat(file_name)
     except subprocess.CalledProcessError as e:
         print("Error reading file: {}".format(e))
-        assert False, "Specified file does not exist: {}".format(file_name)
+        if not optional:
+            assert False, "Specified file does not exist: {}".format(file_name)
     assert owner == ownership.owner, \
         "{} has an incorrect owner: {} should be {}".format(
             file_name, ownership.owner, owner)
@@ -207,7 +213,7 @@ def _validate_file_ownership(owner, group, file_name):
     print("Validate ownership of {}: PASS".format(file_name))
 
 
-def _validate_file_mode(mode, file_name):
+def _validate_file_mode(mode, file_name, optional=False):
     """
     Validate that a specified file has the specified permissions.
 
@@ -215,12 +221,16 @@ def _validate_file_mode(mode, file_name):
     :type owner: str
     :param file_name: Path to the file to verify
     :type file_name: str
+    :param optional: Is this file optional,
+                     ie: Should this test fail when it's missing
+    :type optional: bool
     """
     try:
         ownership = _stat(file_name)
     except subprocess.CalledProcessError as e:
         print("Error reading file: {}".format(e))
-        assert False, "Specified file does not exist: {}".format(file_name)
+        if not optional:
+            assert False, "Specified file does not exist: {}".format(file_name)
     assert mode == ownership.mode, \
         "{} has an incorrect mode: {} should be {}".format(
             file_name, ownership.mode, mode)
@@ -247,14 +257,15 @@ def validate_file_ownership(config):
                     "Invalid ownership configuration: {}".format(key))
         owner = options.get('owner', config.get('owner', 'root'))
         group = options.get('group', config.get('group', 'root'))
+        optional = options.get('optional', config.get('optional', 'False'))
         if '*' in file_name:
             for file in glob.glob(file_name):
                 if file not in files.keys():
                     if os.path.isfile(file):
-                        _validate_file_ownership(owner, group, file)
+                        _validate_file_ownership(owner, group, file, optional)
         else:
             if os.path.isfile(file_name):
-                _validate_file_ownership(owner, group, file_name)
+                _validate_file_ownership(owner, group, file_name, optional)
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide),
@@ -268,14 +279,15 @@ def validate_file_permissions(config):
                 raise RuntimeError(
                     "Invalid ownership configuration: {}".format(key))
         mode = options.get('mode', config.get('permissions', '600'))
+        optional = options.get('optional', config.get('optional', 'False'))
         if '*' in file_name:
             for file in glob.glob(file_name):
                 if file not in files.keys():
                     if os.path.isfile(file):
-                        _validate_file_mode(mode, file)
+                        _validate_file_mode(mode, file, optional)
         else:
             if os.path.isfile(file_name):
-                _validate_file_mode(mode, file_name)
+                _validate_file_mode(mode, file_name, optional)
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))
