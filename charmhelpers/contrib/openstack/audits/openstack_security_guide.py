@@ -83,16 +83,20 @@ FILE_ASSERTIONS = {
     },
     'keystone': {
         # From security guide
-        '/etc/keystone/keystone.conf': {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/keystone.conf':
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/keystone-paste.ini':
-            {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/policy.json': {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/logging.conf': {'group': 'keystone', 'mode': '640'},
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/policy.json':
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/logging.conf':
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/ssl/certs/signing_cert.pem':
-            {'group': 'keystone', 'mode': '640'},
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
         '/etc/keystone/ssl/private/signing_key.pem':
-            {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/ssl/certs/ca.pem': {'group': 'keystone', 'mode': '640'},
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
+        '/etc/keystone/ssl/certs/ca.pem':
+            {'user': 'keystone', 'group': 'keystone', 'mode': '640'},
     },
     'manilla': {
         # From security guide
