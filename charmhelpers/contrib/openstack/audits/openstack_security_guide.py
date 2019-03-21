@@ -30,14 +30,20 @@ from charmhelpers.core.hookenv import (
     cached,
 )
 
+"""
+The Security Guide suggests a specific list of files inside the
+config directory for the service having 640 specifically, but
+by ensuring the containing directory is 750, only the owner can
+write, and only the group can read files within the directory.
 
+By  restricting access to the containing directory, we can more
+effectively ensure that there is no accidental leakage if a new
+file is added to the service without being added to the security
+guide, and to this check.
+"""
 FILE_ASSERTIONS = {
     'barbican': {
-        # From security guide
-        '/etc/barbican/barbican.conf': {'group': 'barbican', 'mode': '640'},
-        '/etc/barbican/barbican-api-paste.ini':
-            {'group': 'barbican', 'mode': '640'},
-        '/etc/barbican/policy.json': {'group': 'barbican', 'mode': '640'},
+        '/etc/barbican': {'group': 'barbican', 'mode': '750'},
     },
     'ceph-mon': {
         '/var/lib/charm/ceph-mon/ceph.conf':
@@ -60,88 +66,29 @@ FILE_ASSERTIONS = {
             {'owner': 'ceph', 'group': 'ceph', 'mode': '755'},
     },
     'cinder': {
-        # From security guide
-        '/etc/cinder/cinder.conf': {'group': 'cinder', 'mode': '640'},
-        '/etc/cinder/api-paste.conf': {'group': 'cinder', 'mode': '640'},
-        '/etc/cinder/rootwrap.conf': {'group': 'cinder', 'mode': '640'},
+        '/etc/cinder': {'group': 'cinder', 'mode': '750'},
     },
     'glance': {
-        # From security guide
-        '/etc/glance/glance-api-paste.ini': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-api.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-cache.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-manage.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-registry-paste.ini':
-            {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-registry.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-scrubber.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-swift-store.conf':
-            {'group': 'glance', 'mode': '640'},
-        '/etc/glance/policy.json': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/schema-image.json': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/schema.json': {'group': 'glance', 'mode': '640'},
+        '/etc/glance': {'group': 'glance', 'mode': '750'},
     },
     'keystone': {
-        # From security guide
-        '/etc/keystone/keystone.conf':
-            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/keystone-paste.ini':
-            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/policy.json':
-            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/logging.conf':
-            {'owner': 'keystone', 'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/ssl/certs/signing_cert.pem':
-            {'owner': 'keystone', 'group': 'keystone',
-             'mode': '640', 'optional': True},
-        '/etc/keystone/ssl/private/signing_key.pem':
-            {'owner': 'keystone', 'group': 'keystone', 'mode': '640', 'optional': True},
-        '/etc/keystone/ssl/certs/ca.pem':
-            {'owner': 'keystone', 'group': 'keystone',
-             'mode': '640', 'optional': True},
+        '/etc/keystone':
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '750'},
     },
     'manilla': {
-        # From security guide
-        '/etc/manila/manila.conf': {'group': 'manilla', 'mode': '640'},
-        '/etc/manila/api-paste.ini': {'group': 'manilla', 'mode': '640'},
-        '/etc/manila/policy.json': {'group': 'manilla', 'mode': '640'},
-        '/etc/manila/rootwrap.conf': {'group': 'manilla', 'mode': '640'},
+        '/etc/manila': {'group': 'manilla', 'mode': '750'},
     },
     'neutron-gateway': {
-        '/etc/neutron/neutron.conf': {'group': 'neutron', 'mode': '640'},
-        '/etc/neutron/rootwrap.conf': {'mode': '640'},
-        '/etc/neutron/rootwrap.d': {'mode': '755'},
-        '/etc/neutron/*': {'group': 'neutron', 'mode': '644'},
+        '/etc/neutron': {'group': 'neutron', 'mode': '750'},
     },
     'neutron-api': {
-        # From security guide
-        '/etc/neutron/neutron.conf': {'group': 'neutron', 'mode': '640'},
-        '/etc/nova/api-paste.ini': {'group': 'neutron', 'mode': '640'},
-        '/etc/neutron/rootwrap.conf': {'group': 'neutron', 'mode': '640'},
-        # Additional validations
-        '/etc/neutron/rootwrap.d': {'mode': '755'},
-        '/etc/neutron/neutron_lbaas.conf': {'mode': '644'},
-        '/etc/neutron/neutron_vpnaas.conf': {'mode': '644'},
-        '/etc/neutron/*': {'group': 'neutron', 'mode': '644'},
+        '/etc/neutron/': {'group': 'neutron', 'mode': '750'},
     },
     'nova-cloud-controller': {
-        # From security guide
-        '/etc/nova/api-paste.ini': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/nova.conf': {'group': 'nova', 'mode': '750'},
-        '/etc/nova/*': {'group': 'nova', 'mode': '640'},
-        # Additional validations
-        '/etc/nova/logging.conf': {'group': 'nova', 'mode': '640'},
+        '/etc/nova': {'group': 'nova', 'mode': '750'},
     },
     'nova-compute': {
-        # From security guide
-        '/etc/nova/nova.conf': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/api-paste.ini': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/rootwrap.conf': {'group': 'nova', 'mode': '640'},
-        # Additional Validations
-        '/etc/nova/nova-compute.conf': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/logging.conf': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/nm.conf': {'mode': '644'},
-        '/etc/nova/*': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/': {'group': 'nova', 'mode': '750'},
     },
     'openstack-dashboard': {
         # From security guide
