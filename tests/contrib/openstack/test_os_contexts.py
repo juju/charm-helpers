@@ -2362,9 +2362,11 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert_test-cn',
-                      content=b'SSL_CERT', perms=0o640),
+                      content=b'SSL_CERT', owner='root', group='root',
+                      perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key_test-cn',
-                      content=b'SSL_KEY', perms=0o640)]
+                      content=b'SSL_KEY', owner='root', group='root',
+                      perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
@@ -2381,9 +2383,11 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert',
-                      content='SSL_CERT', perms=0o640),
+                      content='SSL_CERT', owner='root', group='root',
+                      perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key',
-                      content='SSL_KEY', perms=0o640)]
+                      content='SSL_KEY', owner='root', group='root',
+                      perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
