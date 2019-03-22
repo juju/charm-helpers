@@ -170,10 +170,12 @@ class CertUtilsTests(unittest.TestCase):
             mock.call(
                 path='/etc/ssl/cert_admin.openstack.local',
                 content='ADMINCERT\nCHAIN',
+                owner='root', group='root',
                 perms=0o640),
             mock.call(
                 path='/etc/ssl/key_admin.openstack.local',
                 content='ADMINKEY',
+                owner='root', group='root',
                 perms=0o640),
         ]
         write_file.assert_has_calls(expected)
@@ -190,10 +192,12 @@ class CertUtilsTests(unittest.TestCase):
             mock.call(
                 path='/etc/ssl/cert_admin.openstack.local',
                 content='ADMINCERT\nMYCA',
+                owner='root', group='root',
                 perms=0o640),
             mock.call(
                 path='/etc/ssl/key_admin.openstack.local',
                 content='ADMINKEY',
+                owner='root', group='root',
                 perms=0o640),
         ]
         write_file.assert_has_calls(expected)
@@ -228,7 +232,7 @@ class CertUtilsTests(unittest.TestCase):
             '/etc/apache2/ssl/myservice',
             {'admin.openstack.local': {
                 'key': 'ADMINKEY', 'cert': 'ADMINCERT'}},
-            'MYCHAIN')
+            'MYCHAIN', user='root', group='root')
         create_ip_cert_links.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
             custom_hostname_link='funky-name')
