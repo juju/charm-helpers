@@ -3678,3 +3678,15 @@ class ContextTests(unittest.TestCase):
                 'operating_system_release': 'xenial'})
         os_release.assert_called_once_with('python-keystone', base='icehouse')
         self.lsb_release.assert_called_once_with()
+
+    def test_logrotate_context_unset(self):
+        logrotate = context.LogrotateContext(location='nova',
+                                             interval='weekly',
+                                             count=4)
+        ctxt = logrotate()
+        expected_ctxt = {
+            'logrotate_logs_location': 'nova',
+            'logrotate_interval': 'weekly',
+            'logrotate_count': 'rotate 4',
+        }
+        self.assertEquals(ctxt, expected_ctxt)

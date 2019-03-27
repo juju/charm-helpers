@@ -1935,3 +1935,30 @@ class VersionsContext(OSContextGenerator):
         return {
             'openstack_release': ostack,
             'operating_system_release': osystem}
+
+
+class LogrotateContext(OSContextGenerator):
+    """Common context generator for logrotate."""
+
+    def __init__(self, location, interval, count):
+        """
+        :param location: Absolute path for the logrotate config file
+        :type location: str
+        :param interval: The interval for the rotations. Valid values are
+                         'daily', 'weekly', 'monthly', 'yearly'
+        :type interval: str
+        :param count: The logrotate count option configures the 'count' times
+                      the log files are being rotated before being
+        :type count: int
+        """
+        self.location = location
+        self.interval = interval
+        self.count = 'rotate {}'.format(count)
+
+    def __call__(self):
+        ctxt = {
+            'logrotate_logs_location': self.location,
+            'logrotate_interval': self.interval,
+            'logrotate_count': self.count,
+        }
+        return ctxt
