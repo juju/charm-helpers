@@ -1188,7 +1188,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
+            'rabbitmq_port': 5672,
         }
         self.assertEquals(result, expected)
 
@@ -1205,7 +1206,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'flump',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'transport_url': 'rabbit://adam:flump@rabbitalthost1:5672/foo'
+            'transport_url': 'rabbit://adam:flump@rabbitalthost1:5672/foo',
+            'rabbitmq_port': 5672,
         }
         self.assertEquals(result, expected)
 
@@ -1223,7 +1225,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
+            'rabbitmq_port': 5672,
         }
         self.assertEquals(result, expected)
 
@@ -1244,7 +1247,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbit_ssl_ca': ssl_dir + '/rabbit-client-ca.pem',
             'rabbitmq_ha_queues': True,
-            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo',
+            'rabbitmq_port': 5671,
         }
         _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'wb')
         self.assertEquals(result, expected)
@@ -1266,7 +1270,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbit_ssl_ca': 'cert',
             'rabbitmq_ha_queues': True,
-            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo',
+            'rabbitmq_port': 5671,
         }
         self.assertEquals(result, expected)
 
@@ -1285,7 +1290,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
-            'transport_url': 'rabbit://adam:foobar@10.0.0.1:5672/foo'
+            'transport_url': 'rabbit://adam:foobar@10.0.0.1:5672/foo',
+            'rabbitmq_port': 5672,
         }
         self.assertEquals(result, expected)
 
@@ -1306,7 +1312,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': 'rabbithost1,rabbithost2',
             'transport_url': ('rabbit://adam:foobar@rabbithost1:5672'
-                              ',adam:foobar@rabbithost2:5672/foo')
+                              ',adam:foobar@rabbithost2:5672/foo'),
+            'rabbitmq_port': 5672,
         }
         self.assertEquals(result, expected)
 
@@ -1350,7 +1357,8 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'rabbitmq_hosts': '[2001:db8:1::1],[2001:db8:1::1]',
             'transport_url': ('rabbit://adam:foobar@[2001:db8:1::1]:5672'
-                              ',adam:foobar@[2001:db8:1::1]:5672/foo')
+                              ',adam:foobar@[2001:db8:1::1]:5672/foo'),
+            'rabbitmq_port': 5672,
         }
         self.assertEquals(result, expected)
 
@@ -1372,7 +1380,8 @@ class ContextTests(unittest.TestCase):
                 'rabbit_retry_backoff': '1',
                 'rabbit_retry_interval': '1'
             },
-            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
+            'rabbitmq_port': 5672,
         }
 
         self.assertEquals(result, expected)

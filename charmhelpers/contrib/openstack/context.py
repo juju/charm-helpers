@@ -489,7 +489,7 @@ class AMQPContext(OSContextGenerator):
             ha_vip_only = False
             self.related = True
             transport_hosts = None
-            rabbitmq_port = '5672'
+            rabbitmq_port = 5672
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
@@ -563,6 +563,7 @@ class AMQPContext(OSContextGenerator):
                     for host_ in transport_hosts])
                 ctxt['transport_url'] = "rabbit://{}/{}".format(
                     transport_url_hosts, vhost)
+                ctxt['rabbitmq_port'] = rabbitmq_port
 
         oslo_messaging_flags = conf.get('oslo-messaging-flags', None)
         if oslo_messaging_flags:
