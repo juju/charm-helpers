@@ -1,6 +1,20 @@
 Changelog
 ---------
 
+0.19.13
+^^^^^^^
+Tuesday 9th April 2019
+
+* stein: Add swift 2.21.0 (#307)
+* enable disco (#306)
+* Added context generator for logrotate (#303)
+* Allow specifying ownership of certificate files (#302)
+* Update Keystone expectations to meet security guide (#299)
+* Added an "ignore" option to sysctl_create (#300)
+* Catch NoNetworkBinding for VIPs in resolve_address (#298)
+* Add LUKS helpers to charmhelpers (#296)
+* Adding arch method in host (#295)
+
 0.19.12
 ^^^^^^^
 Tuesday 5th March 2019
