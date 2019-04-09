@@ -211,7 +211,7 @@ class CertUtilsTests(unittest.TestCase):
     def test_process_certificates(self, relation_get, mkdir, install_ca_cert,
                                   install_certs, create_ip_cert_links,
                                   local_unit):
-        local_unit.return_value = 'keystone/2'
+        local_unit.return_value = 'devnull/2'
         certs = {
             'admin.openstack.local': {
                 'cert': 'ADMINCERT',
@@ -222,11 +222,17 @@ class CertUtilsTests(unittest.TestCase):
             'ca': 'ROOTCA',
         }
         relation_get.return_value = _relation_info
-        cert_utils.process_certificates(
+        self.assertFalse(cert_utils.process_certificates(
             'myservice',
             'certificates:2',
             'vault/0',
-            custom_hostname_link='funky-name')
+            custom_hostname_link='funky-name'))
+        local_unit.return_value = 'keystone/2'
+        self.assertTrue(cert_utils.process_certificates(
+            'myservice',
+            'certificates:2',
+            'vault/0',
+            custom_hostname_link='funky-name'))
         install_ca_cert.assert_called_once_with(b'ROOTCA')
         install_certs.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
