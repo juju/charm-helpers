@@ -569,6 +569,10 @@ class AMQPContext(OSContextGenerator):
             ctxt['oslo_messaging_flags'] = config_flags_parser(
                 oslo_messaging_flags)
 
+        notification_format = conf.get('notification-format', None)
+        if notification_format:
+            ctxt['notification_format'] = notification_format
+
         if not self.complete:
             return {}
 

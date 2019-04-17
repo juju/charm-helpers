@@ -270,6 +270,10 @@ AMQP_OSLO_CONFIG = {
                              ",rabbit_retry_interval=1")
 }
 
+AMQP_NOTIFICATION_FORMAT = {
+    'notification-format': 'both'
+}
+
 AMQP_NOVA_CONFIG = {
     'nova-rabbit-user': 'adam',
     'nova-rabbit-vhost': 'foo',
@@ -1372,6 +1376,25 @@ class ContextTests(unittest.TestCase):
                 'rabbit_retry_backoff': '1',
                 'rabbit_retry_interval': '1'
             },
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+        }
+
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_notification_format(self):
+        """Test amqp context with notification_format option"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_NOTIFICATION_FORMAT.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_NOTIFICATION_FORMAT
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'notification_format': 'both',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
