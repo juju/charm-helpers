@@ -1,6 +1,6 @@
 {% if transport_url -%}
 [oslo_messaging_notifications]
-driver = messagingv2
+driver = {{ oslo_messaging_driver }}
 transport_url = {{ transport_url }}
 {% if notification_topics -%}
 topics = {{ notification_topics }}

@@ -267,7 +267,8 @@ AMQP_CONFIG = {
 AMQP_OSLO_CONFIG = {
     'oslo-messaging-flags': ("rabbit_max_retries=1"
                              ",rabbit_retry_backoff=1"
-                             ",rabbit_retry_interval=1")
+                             ",rabbit_retry_interval=1"),
+    'oslo-messaging-driver': 'log'
 }
 
 AMQP_NOTIFICATION_FORMAT = {
@@ -1188,6 +1189,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1205,6 +1207,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext(relation_id='amqp-alt:0')
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbitalthost1',
             'rabbitmq_password': 'flump',
             'rabbitmq_user': 'adam',
@@ -1223,6 +1226,7 @@ class ContextTests(unittest.TestCase):
             relation_prefix='nova')
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1241,6 +1245,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext(ssl_dir=ssl_dir)
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1263,6 +1268,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1284,6 +1290,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'clustered': True,
             'rabbitmq_host': relation_data['vip'],
             'rabbitmq_password': 'foobar',
@@ -1304,6 +1311,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost1',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1348,6 +1356,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': '[2001:db8:1::1]',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1376,6 +1385,7 @@ class ContextTests(unittest.TestCase):
                 'rabbit_retry_backoff': '1',
                 'rabbit_retry_interval': '1'
             },
+            'oslo_messaging_driver': 'log',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
@@ -1390,6 +1400,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
