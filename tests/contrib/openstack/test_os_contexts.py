@@ -267,7 +267,12 @@ AMQP_CONFIG = {
 AMQP_OSLO_CONFIG = {
     'oslo-messaging-flags': ("rabbit_max_retries=1"
                              ",rabbit_retry_backoff=1"
-                             ",rabbit_retry_interval=1")
+                             ",rabbit_retry_interval=1"),
+    'oslo-messaging-driver': 'log'
+}
+
+AMQP_NOTIFICATION_FORMAT = {
+    'notification-format': 'both'
 }
 
 AMQP_NOVA_CONFIG = {
@@ -1184,6 +1189,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1201,6 +1207,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext(relation_id='amqp-alt:0')
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbitalthost1',
             'rabbitmq_password': 'flump',
             'rabbitmq_user': 'adam',
@@ -1219,6 +1226,7 @@ class ContextTests(unittest.TestCase):
             relation_prefix='nova')
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1237,6 +1245,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext(ssl_dir=ssl_dir)
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1259,6 +1268,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1280,6 +1290,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'clustered': True,
             'rabbitmq_host': relation_data['vip'],
             'rabbitmq_password': 'foobar',
@@ -1300,6 +1311,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': 'rabbithost1',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1344,6 +1356,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'oslo_messaging_driver': 'messagingv2',
             'rabbitmq_host': '[2001:db8:1::1]',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1372,6 +1385,27 @@ class ContextTests(unittest.TestCase):
                 'rabbit_retry_backoff': '1',
                 'rabbit_retry_interval': '1'
             },
+            'oslo_messaging_driver': 'log',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+        }
+
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_notification_format(self):
+        """Test amqp context with notification_format option"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_NOTIFICATION_FORMAT.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_NOTIFICATION_FORMAT
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'oslo_messaging_driver': 'messagingv2',
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'notification_format': 'both',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
