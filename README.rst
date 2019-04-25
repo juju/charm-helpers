@@ -31,6 +31,11 @@ Why Python?
 * Doesn't require debugging symbols (just use pdb in-place);
 * An author or a user is able to make debugging changes without recompiling a charm.
 
+Dev/Test
+========
+
+See the HACKING.md file for information about testing and development.
+
 License
 =======
 
