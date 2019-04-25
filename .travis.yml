@@ -20,4 +20,4 @@ install:
 script:
   - tox -c tox.ini -e pep8
   - tox -c tox.ini -e py3
-  - tox -c tox.ini -e py
+  - tox -c tox.ini -e py2

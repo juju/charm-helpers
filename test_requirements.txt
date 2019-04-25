@@ -12,6 +12,7 @@ testtools==0.9.14  # Before dependent on modern 'six'
 amulet
 distro-info
 sphinx_rtd_theme
+ipaddress;python_version<'3.0'  # Py27 unit test requirement
 #
 # Specify precise versions of runtime dependencies where possible.
 netaddr==0.7.10    # trusty. precise is 0.7.5, but not in pypi.
