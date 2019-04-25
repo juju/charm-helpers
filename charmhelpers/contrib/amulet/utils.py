@@ -282,14 +282,8 @@ class AmuletUtils(object):
         :param sentry_units:  list of sentry unit pointers
         :returns:  None if successful; Failure message otherwise
         """
-        if pgrep_full is not None:
-            # /!\ DEPRECATION WARNING (beisner):
-            # No longer implemented, as pidof is now used instead of pgrep.
-            # https://bugs.launchpad.net/charm-helpers/+bug/1474030
-            self.log.warn('DEPRECATION WARNING:  pgrep_full bool is no '
-                          'longer implemented re: lp 1474030.')
-
-        pid_list = self.get_process_id_list(sentry_unit, service)
+        pid_list = self.get_process_id_list(
+            sentry_unit, service, pgrep_full=pgrep_full)
         pid = pid_list[0]
         proc_dir = '/proc/{}'.format(pid)
         self.log.debug('Pid for {} on {}: {}'.format(
@@ -537,7 +531,7 @@ class AmuletUtils(object):
         return None
 
     def get_process_id_list(self, sentry_unit, process_name,
-                            expect_success=True):
+                            expect_success=True, pgrep_full=False):
         """Get a list of process ID(s) from a single sentry juju unit
         for a single process name.
 
@@ -547,7 +541,10 @@ class AmuletUtils(object):
             raise if it is present.
         :returns: List of process IDs
         """
-        cmd = 'pidof -x "{}"'.format(process_name)
+        if pgrep_full:
+            cmd = 'pgrep -f "{}"'.format(process_name)
+        else:
+            cmd = 'pidof -x "{}"'.format(process_name)
         if not expect_success:
             cmd += " || exit 0 && exit 1"
         output, code = sentry_unit.run(cmd)
@@ -558,7 +555,8 @@ class AmuletUtils(object):
             amulet.raise_status(amulet.FAIL, msg=msg)
         return str(output).split()
 
-    def get_unit_process_ids(self, unit_processes, expect_success=True):
+    def get_unit_process_ids(
+            self, unit_processes, expect_success=True, pgrep_full=False):
         """Construct a dict containing unit sentries, process names, and
         process IDs.
 
@@ -574,7 +572,8 @@ class AmuletUtils(object):
             pid_dict[sentry_unit] = {}
             for process in process_list:
                 pids = self.get_process_id_list(
-                    sentry_unit, process, expect_success=expect_success)
+                    sentry_unit, process, expect_success=expect_success,
+                    pgrep_full=pgrep_full)
                 pid_dict[sentry_unit].update({process: pids})
         return pid_dict
 

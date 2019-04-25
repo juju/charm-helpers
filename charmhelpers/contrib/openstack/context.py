@@ -117,6 +117,7 @@ except ImportError:
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 HAPROXY_RUN_DIR = '/var/run/haproxy/'
+DEFAULT_OSLO_MESSAGING_DRIVER = "messagingv2"
 
 
 def ensure_packages(packages):
@@ -569,6 +570,15 @@ class AMQPContext(OSContextGenerator):
             ctxt['oslo_messaging_flags'] = config_flags_parser(
                 oslo_messaging_flags)
 
+        oslo_messaging_driver = conf.get(
+            'oslo-messaging-driver', DEFAULT_OSLO_MESSAGING_DRIVER)
+        if oslo_messaging_driver:
+            ctxt['oslo_messaging_driver'] = oslo_messaging_driver
+
+        notification_format = conf.get('notification-format', None)
+        if notification_format:
+            ctxt['notification_format'] = notification_format
+
         if not self.complete:
             return {}
 
@@ -792,6 +802,7 @@ class ApacheSSLContext(OSContextGenerator):
     # and service namespace accordingly.
     external_ports = []
     service_namespace = None
+    user = group = 'root'
 
     def enable_modules(self):
         cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
@@ -810,9 +821,11 @@ class ApacheSSLContext(OSContextGenerator):
                 key_filename = 'key'
 
             write_file(path=os.path.join(ssl_dir, cert_filename),
-                       content=b64decode(cert), perms=0o640)
+                       content=b64decode(cert), owner=self.user,
+                       group=self.group, perms=0o640)
             write_file(path=os.path.join(ssl_dir, key_filename),
-                       content=b64decode(key), perms=0o640)
+                       content=b64decode(key), owner=self.user,
+                       group=self.group, perms=0o640)
 
     def configure_ca(self):
         ca_cert = get_ca_cert()
@@ -1932,3 +1945,30 @@ class VersionsContext(OSContextGenerator):
         return {
             'openstack_release': ostack,
             'operating_system_release': osystem}
+
+
+class LogrotateContext(OSContextGenerator):
+    """Common context generator for logrotate."""
+
+    def __init__(self, location, interval, count):
+        """
+        :param location: Absolute path for the logrotate config file
+        :type location: str
+        :param interval: The interval for the rotations. Valid values are
+                         'daily', 'weekly', 'monthly', 'yearly'
+        :type interval: str
+        :param count: The logrotate count option configures the 'count' times
+                      the log files are being rotated before being
+        :type count: int
+        """
+        self.location = location
+        self.interval = interval
+        self.count = 'rotate {}'.format(count)
+
+    def __call__(self):
+        ctxt = {
+            'logrotate_logs_location': self.location,
+            'logrotate_interval': self.interval,
+            'logrotate_count': self.count,
+        }
+        return ctxt
