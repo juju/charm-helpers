@@ -1,6 +1,30 @@
 # Hacking on charmhelpers
 
-## Run testsuite
+## Run testsuite (tox method)
+
+CAUTION:  the charm-helpers library has some unit tests which do unsavory things
+such as making real, unmocked calls out to sudo foo, juju binaries, and perhaps
+other things.  This is not ideal for a number of reasons.  One of those reasons
+is that it pollutes the test runner (your) system.
+
+The current recommendation for testing locally is to do so in a fresh Xenial
+(16.04) lxc container.  16.04 is selected for consistency with what is available
+in the Travis CI test gates.  As of this writing, 18.04 is not available there.
+
+The fresh Xenial lxc system container will need to have the following packages
+installed in order to satisfy test runner dependencies:
+
+    sudo apt install git bzr tox libapt-pkg-dev python-dev python3-dev build-essential juju -y
+
+The tests can be executed as follows:
+
+    tox -e pep8
+    tox -e py3
+    tox -e py2
+
+See also:  .travis.yaml for what is happening in the test gate.
+
+## Run testsuite (legacy Makefile method)
 
     make test
 
