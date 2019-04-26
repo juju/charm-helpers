@@ -110,7 +110,7 @@ def is_device_mounted(device):
     return bool(re.search(r'MOUNTPOINT=".+"', out))
 
 
-def mkfs_xfs(device, force=False):
+def mkfs_xfs(device, force=False, inode_size=1024):
     """Format device with XFS filesystem.
 
     By default this should fail if the device already has a filesystem on it.
@@ -122,5 +122,5 @@ def mkfs_xfs(device, force=False):
     if force:
         cmd.append("-f")
 
-    cmd += ['-i', 'size=1024', device]
+    cmd += ['-i', "size={}".format(inode_size), device]
     check_call(cmd)
