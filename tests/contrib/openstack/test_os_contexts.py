@@ -979,6 +979,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'http',
             'api_version': '2.0',
         }
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_credentials_context_with_data(self):
@@ -1028,6 +1029,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'http',
             'api_version': '2.0',
         }
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_service_context_with_cache(self):
@@ -1054,6 +1056,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         self.assertTrue(self.mkdir.called)
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_service_context_with_data_http(self):
@@ -1076,6 +1079,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'http',
             'api_version': '2.0',
         }
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_service_context_with_data_https(self):
@@ -1098,6 +1102,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'https',
             'api_version': '2.0',
         }
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_service_context_with_data_versioned(self):
@@ -1122,6 +1127,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'https',
             'api_version': '3',
         }
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_credentials_context_with_data_versioned(self):
@@ -1169,6 +1175,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'http',
             'api_version': '2.0',
         }
+        result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
     def test_identity_service_context_with_missing_relation(self):

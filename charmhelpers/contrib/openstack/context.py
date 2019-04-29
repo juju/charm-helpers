@@ -352,9 +352,100 @@ class IdentityServiceContext(OSContextGenerator):
             return cachedir
         return None
 
+    def _get_ubuntu_pkg_name(self, python_name):
+        """
+        We assume Python3 is the main interpreter and python3-keystonemiddleware
+        is the main package for the transitional period. python-keystonemiddle is
+        here to support possible future
+        (Python 3 and python3-keystonemiddleware->python-keystonemiddleware ?)
+        and the past
+        (Python 2 and python-keystonemiddleware)
+        """
+
+        pkg = 'python3-'
+        if filter_installed_packages((pkg + python_name,)):
+            pkg = 'python-' + python_name
+
+        return pkg
+
+    def _get_keystone_authtoken_ctxt(self, ctxt, keystonemiddleware_os_rel):
+        """
+        Re-constructed from former template 'section-keystone-auth-mitaka'
+        """
+        config_items = []
+
+        if CompareOpenStackReleases(keystonemiddleware_os_rel) >= 'mitaka':
+            config_items += (
+                ('auth_type', 'password'),
+            )
+        else:
+            config_items += (
+                ('auth_plugin', 'password'),
+            )
+
+        api_version = ctxt.get('api_version')
+
+        auth_uri = "{service_protocol}://{service_host}:{service_port}" \
+                   .format(**ctxt)
+
+        auth_url = "{auth_protocol}://{auth_host}:{auth_port}" \
+                   .format(**ctxt)
+
+        if float(api_version) >= 3.0:
+            auth_uri += '/v3'
+            auth_url += '/v3'
+
+        # 'www_authenticate_uri' replaced 'auth_uri' since Stein,
+        # see keystonemiddleware upstream sources for more info
+        if CompareOpenStackReleases(keystonemiddleware_os_rel) >= 'stein':
+            config_items += (
+                ('www_authenticate_uri', auth_uri),
+            )
+        else:
+            config_items.append(
+                ('auth_uri', auth_uri),
+            )
+
+        config_items.append(
+            ('auth_url', auth_url),
+        )
+
+        if float(api_version) >= 3.0:
+            config_items += (
+                ('project_domain_name', ctxt.get('admin_domain_name', '')),
+                ('user_domain_name', ctxt.get('admin_domain_name', '')),
+            )
+        else:
+            config_items += (
+                ('project_domain_name', 'default'),
+                ('user_domain_name', 'default'),
+            )
+
+        config_items += (
+            ('project_name', ctxt.get('admin_tenant_name', '')),
+            ('username', ctxt.get('admin_user', '')),
+            ('password', ctxt.get('admin_password', '')),
+        )
+
+        if CompareOpenStackReleases(keystonemiddleware_os_rel) < 'mitaka':
+            config_items += (
+                ('project_domain_id', 'default'),
+                ('user_domain_id', 'default'),
+            )
+
+        config_items += (
+            ('signing_dir', ctxt.get('signing_dir', '')),
+        )
+
+        return collections.OrderedDict(config_items)
+
     def __call__(self):
         log('Generating template context for ' + self.rel_name, level=DEBUG)
         ctxt = {}
+
+        keystonemiddleware_os_release = os_release(
+            self._get_ubuntu_pkg_name('keystonemiddleware')
+        )
 
         cachedir = self._setup_pki_cache()
         if cachedir:
@@ -385,6 +476,12 @@ class IdentityServiceContext(OSContextGenerator):
                 if float(api_version) > 2:
                     ctxt.update({'admin_domain_name':
                                  rdata.get('service_domain')})
+
+                # we keep all veriables in ctxt for compatibility and
+                # add nested dictionary for keystone_authtoken generic
+                # templating
+                ctxt['keystone_authtoken'] = self._get_keystone_authtoken_ctxt(
+                    ctxt, keystonemiddleware_os_release)
 
                 if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
