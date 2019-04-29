@@ -187,7 +187,7 @@ define service {
         ]
         self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
-                               exists=4, open=2, listdir=1,
+                               exists=4, open=2, listdir=1, relation_get=3,
                                relation_ids=4, relation_set=3)
 
 
