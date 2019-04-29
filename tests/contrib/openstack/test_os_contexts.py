@@ -959,7 +959,9 @@ class ContextTests(unittest.TestCase):
         result = postgresql_db()
         self.assertEquals(result['database'], 'quantum')
 
-    def test_identity_service_context_with_data(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_data(self, *args):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
         self.relation_get.side_effect = relation.get
@@ -1003,7 +1005,9 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_altname(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_altname(self, *args):
         '''Test identity context when using an explicit relation name'''
         relation = FakeRelation(
             relation_data=APIIDENTITY_SERVICE_RELATION_UNSET
@@ -1032,7 +1036,9 @@ class ContextTests(unittest.TestCase):
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_cache(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_cache(self, *args):
         '''Test shared-db context with signing cache info'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
         self.relation_get.side_effect = relation.get
@@ -1059,7 +1065,9 @@ class ContextTests(unittest.TestCase):
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_data_http(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_data_http(self, *args):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
         self.relation_get.side_effect = relation.get
@@ -1082,7 +1090,9 @@ class ContextTests(unittest.TestCase):
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_data_https(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_data_https(self, *args):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
         self.relation_get.side_effect = relation.get
@@ -1105,7 +1115,9 @@ class ContextTests(unittest.TestCase):
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_data_versioned(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_data_versioned(self, *args):
         '''Test shared-db context with api version supplied from keystone'''
         relation = FakeRelation(
             relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
@@ -1153,8 +1165,10 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
     @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
-    def test_identity_service_context_with_ipv6(self, format_ipv6_addr):
+    def test_identity_service_context_with_ipv6(self, format_ipv6_addr, *args):
         '''Test identity-service context with ipv6'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
         self.relation_get.side_effect = relation.get
@@ -1178,7 +1192,9 @@ class ContextTests(unittest.TestCase):
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
 
-    def test_identity_service_context_with_missing_relation(self):
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_missing_relation(self, *args):
         '''Test shared-db context missing relation data'''
         incomplete_relation = copy(IDENTITY_SERVICE_RELATION_UNSET)
         incomplete_relation['service_password'] = None
@@ -1187,6 +1203,99 @@ class ContextTests(unittest.TestCase):
         identity_service = context.IdentityServiceContext()
         result = identity_service()
         self.assertEquals(result, {})
+
+    @patch.object(context, 'filter_installed_packages')
+    @patch.object(context, 'os_release')
+    def test_keystone_authtoken_www_authenticate_uri_before_stein_apiv2(self, mock_os_release, mock_filter_installed_packages):
+        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
+        relation_data['api_version'] = '2'
+        relation = FakeRelation(relation_data=relation_data)
+        self.relation_get.side_effect = relation.get
+
+        mock_filter_installed_packages.return_value = []
+        mock_os_release.return_value = 'rocky'
+
+        identity_service = context.IdentityServiceContext()
+
+        cfg_ctx = identity_service()
+
+        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
+
+        expected = collections.OrderedDict((
+            ('auth_type', 'password'),
+            ('auth_uri', 'http://keystonehost.local:5000'),
+            ('auth_url', 'http://keystone-host.local:35357'),
+            ('project_domain_name', 'default'),
+            ('user_domain_name', 'default'),
+            ('project_name', 'admin'),
+            ('username', 'adam'),
+            ('password', 'foo'),
+            ('signing_dir', ''),
+        ))
+
+        self.assertEquals(keystone_authtoken, expected)
+
+    @patch.object(context, 'filter_installed_packages')
+    @patch.object(context, 'os_release')
+    def test_keystone_authtoken_www_authenticate_uri_stein_apiv2(self, mock_os_release, mock_filter_installed_packages):
+        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
+        relation_data['api_version'] = '2.0'
+        relation = FakeRelation(relation_data=relation_data)
+        self.relation_get.side_effect = relation.get
+
+        mock_filter_installed_packages.return_value = []
+        mock_os_release.return_value = 'stein'
+
+        identity_service = context.IdentityServiceContext()
+
+        cfg_ctx = identity_service()
+
+        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
+
+        expected = collections.OrderedDict((
+            ('auth_type', 'password'),
+            ('www_authenticate_uri', 'http://keystonehost.local:5000'),
+            ('auth_url', 'http://keystone-host.local:35357'),
+            ('project_domain_name', 'default'),
+            ('user_domain_name', 'default'),
+            ('project_name', 'admin'),
+            ('username', 'adam'),
+            ('password', 'foo'),
+            ('signing_dir', ''),
+        ))
+
+        self.assertEquals(keystone_authtoken, expected)
+
+    @patch.object(context, 'filter_installed_packages')
+    @patch.object(context, 'os_release')
+    def test_keystone_authtoken_www_authenticate_uri_stein_apiv3(self, mock_os_release, mock_filter_installed_packages):
+        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
+        relation_data['api_version'] = '3'
+        relation = FakeRelation(relation_data=relation_data)
+        self.relation_get.side_effect = relation.get
+
+        mock_filter_installed_packages.return_value = []
+        mock_os_release.return_value = 'stein'
+
+        identity_service = context.IdentityServiceContext()
+
+        cfg_ctx = identity_service()
+
+        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
+
+        expected = collections.OrderedDict((
+            ('auth_type', 'password'),
+            ('www_authenticate_uri', 'http://keystonehost.local:5000/v3'),
+            ('auth_url', 'http://keystone-host.local:35357/v3'),
+            ('project_domain_name', 'admin_domain'),
+            ('user_domain_name', 'admin_domain'),
+            ('project_name', 'admin'),
+            ('username', 'adam'),
+            ('password', 'foo'),
+            ('signing_dir', ''),
+        ))
+
+        self.assertEquals(keystone_authtoken, expected)
 
     def test_amqp_context_with_data(self):
         '''Test amqp context with all required data'''
