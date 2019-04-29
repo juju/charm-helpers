@@ -27,6 +27,7 @@ class NRPEBaseTestCase(TestCase):
         'isfile': {'object': os.path},
         'isdir': {'object': os.path},
         'call': {'object': subprocess},
+        'relation_get': {'object': nrpe},
         'relation_ids': {'object': nrpe},
         'relation_set': {'object': nrpe},
         'relations_of_type': {'object': nrpe},
@@ -123,6 +124,11 @@ class NRPETestCase(NRPEBaseTestCase):
         self.patched['config'].return_value = {'nagios_context': 'a',
                                                'nagios_servicegroups': ''}
         self.patched['exists'].return_value = True
+        self.patched['relation_get'].return_value = {
+            'egress-subnets': '10.66.111.24/32',
+            'ingress-address': '10.66.111.24',
+            'private-address': '10.66.111.24'
+        }
 
         def _rels(rname):
             relations = {
