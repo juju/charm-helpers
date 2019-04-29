@@ -268,7 +268,7 @@ class NRPE(object):
     def add_check(self, *args, **kwargs):
         self.checks.append(Check(*args, **kwargs))
         shortname = kwargs['shortname']
-        if shortname in self.remove_check_queue:
+        if shortname in self.remove_check_queue.copy():
             del self.remove_check_queue[shortname]
 
     def remove_check(self, *args, **kwargs):
