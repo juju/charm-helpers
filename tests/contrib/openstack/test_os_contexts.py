@@ -1206,68 +1206,6 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, 'filter_installed_packages')
     @patch.object(context, 'os_release')
-    def test_keystone_authtoken_www_authenticate_uri_before_stein_apiv2(self, mock_os_release, mock_filter_installed_packages):
-        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
-        relation_data['api_version'] = '2'
-        relation = FakeRelation(relation_data=relation_data)
-        self.relation_get.side_effect = relation.get
-
-        mock_filter_installed_packages.return_value = []
-        mock_os_release.return_value = 'rocky'
-
-        identity_service = context.IdentityServiceContext()
-
-        cfg_ctx = identity_service()
-
-        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
-
-        expected = collections.OrderedDict((
-            ('auth_type', 'password'),
-            ('auth_uri', 'http://keystonehost.local:5000'),
-            ('auth_url', 'http://keystone-host.local:35357'),
-            ('project_domain_name', 'default'),
-            ('user_domain_name', 'default'),
-            ('project_name', 'admin'),
-            ('username', 'adam'),
-            ('password', 'foo'),
-            ('signing_dir', ''),
-        ))
-
-        self.assertEquals(keystone_authtoken, expected)
-
-    @patch.object(context, 'filter_installed_packages')
-    @patch.object(context, 'os_release')
-    def test_keystone_authtoken_www_authenticate_uri_stein_apiv2(self, mock_os_release, mock_filter_installed_packages):
-        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
-        relation_data['api_version'] = '2.0'
-        relation = FakeRelation(relation_data=relation_data)
-        self.relation_get.side_effect = relation.get
-
-        mock_filter_installed_packages.return_value = []
-        mock_os_release.return_value = 'stein'
-
-        identity_service = context.IdentityServiceContext()
-
-        cfg_ctx = identity_service()
-
-        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
-
-        expected = collections.OrderedDict((
-            ('auth_type', 'password'),
-            ('www_authenticate_uri', 'http://keystonehost.local:5000'),
-            ('auth_url', 'http://keystone-host.local:35357'),
-            ('project_domain_name', 'default'),
-            ('user_domain_name', 'default'),
-            ('project_name', 'admin'),
-            ('username', 'adam'),
-            ('password', 'foo'),
-            ('signing_dir', ''),
-        ))
-
-        self.assertEquals(keystone_authtoken, expected)
-
-    @patch.object(context, 'filter_installed_packages')
-    @patch.object(context, 'os_release')
     def test_keystone_authtoken_www_authenticate_uri_stein_apiv3(self, mock_os_release, mock_filter_installed_packages):
         relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
         relation_data['api_version'] = '3'

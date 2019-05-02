@@ -352,16 +352,13 @@ class IdentityServiceContext(OSContextGenerator):
             return cachedir
         return None
 
-    def _get_ubuntu_pkg_name(self, python_name):
-        """
-        We assume Python3 is the main interpreter and python3-keystonemiddleware
-        is the main package for the transitional period. python-keystonemiddle is
-        here to support possible future
-        (Python 3 and python3-keystonemiddleware->python-keystonemiddleware ?)
-        and the past
-        (Python 2 and python-keystonemiddleware)
-        """
+    def _get_pkg_name(self, python_name='keystonemiddleware'):
+        """Get corresponding distro installed package for python
+        package name.
 
+        :param python_name: nameof the python package
+        :type: string
+        """
         pkg = 'python3-'
         if filter_installed_packages((pkg + python_name,)):
             pkg = 'python-' + python_name
@@ -369,83 +366,51 @@ class IdentityServiceContext(OSContextGenerator):
         return pkg
 
     def _get_keystone_authtoken_ctxt(self, ctxt, keystonemiddleware_os_rel):
+        """Build Jinja2 context for full rendering of [keystone_authtoken]
+        section with variable names included. Re-constructed from former
+        template 'section-keystone-auth-mitaka'.
+
+        :param ctxt: Jinja2 context returned from self.__call__()
+        :type: dict
+        :param keystonemiddleware_os_rel: OpenStack release name of
+            keystonemiddleware package installed
         """
-        Re-constructed from former template 'section-keystone-auth-mitaka'
-        """
-        config_items = []
-
-        if CompareOpenStackReleases(keystonemiddleware_os_rel) >= 'mitaka':
-            config_items += (
-                ('auth_type', 'password'),
-            )
-        else:
-            config_items += (
-                ('auth_plugin', 'password'),
-            )
-
-        api_version = ctxt.get('api_version')
-
-        auth_uri = "{service_protocol}://{service_host}:{service_port}" \
-                   .format(**ctxt)
-
-        auth_url = "{auth_protocol}://{auth_host}:{auth_port}" \
-                   .format(**ctxt)
-
-        if float(api_version) >= 3.0:
-            auth_uri += '/v3'
-            auth_url += '/v3'
+        c = collections.OrderedDict((('auth_type', 'password'),))
 
         # 'www_authenticate_uri' replaced 'auth_uri' since Stein,
         # see keystonemiddleware upstream sources for more info
         if CompareOpenStackReleases(keystonemiddleware_os_rel) >= 'stein':
-            config_items += (
-                ('www_authenticate_uri', auth_uri),
-            )
+            c.update((
+                ('www_authenticate_uri', "{}://{}:{}/v3".format(
+                    ctxt.get('service_protocol', ''),
+                    ctxt.get('service_host', ''),
+                    ctxt.get('service_port', ''))),))
         else:
-            config_items.append(
-                ('auth_uri', auth_uri),
-            )
+            c.update((
+                ('auth_uri', "{}://{}:{}/v3".format(
+                    ctxt.get('service_protocol', ''),
+                    ctxt.get('service_host', ''),
+                    ctxt.get('service_port', ''))),))
 
-        config_items.append(
-            ('auth_url', auth_url),
-        )
-
-        if float(api_version) >= 3.0:
-            config_items += (
-                ('project_domain_name', ctxt.get('admin_domain_name', '')),
-                ('user_domain_name', ctxt.get('admin_domain_name', '')),
-            )
-        else:
-            config_items += (
-                ('project_domain_name', 'default'),
-                ('user_domain_name', 'default'),
-            )
-
-        config_items += (
+        c.update((
+            ('auth_url', "{}://{}:{}/v3".format(
+                ctxt.get('auth_protocol', ''),
+                ctxt.get('auth_host', ''),
+                ctxt.get('auth_port', ''))),
+            ('project_domain_name', ctxt.get('admin_domain_name', '')),
+            ('user_domain_name', ctxt.get('admin_domain_name', '')),
             ('project_name', ctxt.get('admin_tenant_name', '')),
             ('username', ctxt.get('admin_user', '')),
             ('password', ctxt.get('admin_password', '')),
-        )
+            ('signing_dir', ctxt.get('signing_dir', '')),))
 
-        if CompareOpenStackReleases(keystonemiddleware_os_rel) < 'mitaka':
-            config_items += (
-                ('project_domain_id', 'default'),
-                ('user_domain_id', 'default'),
-            )
-
-        config_items += (
-            ('signing_dir', ctxt.get('signing_dir', '')),
-        )
-
-        return collections.OrderedDict(config_items)
+        return c
 
     def __call__(self):
         log('Generating template context for ' + self.rel_name, level=DEBUG)
         ctxt = {}
 
-        keystonemiddleware_os_release = os_release(
-            self._get_ubuntu_pkg_name('keystonemiddleware')
-        )
+        keystonemiddleware_os_release = os_release(self._get_pkg_name())
 
         cachedir = self._setup_pki_cache()
         if cachedir:
