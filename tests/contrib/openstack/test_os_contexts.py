@@ -3450,7 +3450,8 @@ class ContextTests(unittest.TestCase):
         expected_keys = [
             'l2_population', 'enable_dvr', 'enable_l3ha',
             'overlay_network_type', 'network_device_mtu',
-            'enable_qos', 'enable_nsg_logging', 'global-physnet-mtu'
+            'enable_qos', 'enable_nsg_logging', 'global-physnet-mtu',
+            'physical-network-mtus'
         ]
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
@@ -3460,6 +3461,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(api_ctxt['report_interval'], 30)
         self.assertEquals(api_ctxt['enable_nsg_logging'], False)
         self.assertEquals(api_ctxt['global-physnet-mtu'], 1500)
+        self.assertIsNone(api_ctxt['physical-network-mtus'])
 
     def setup_neutron_api_context_relation(self, cfg):
         self.relation_ids.return_value = ['neutron-plugin-api:1']
