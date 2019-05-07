@@ -362,7 +362,7 @@ class IdentityServiceContext(OSContextGenerator):
         pkg_names = map(lambda x: x + python_name, ('python3-', 'python-'))
 
         for pkg in pkg_names:
-            if not filter_installed_packages(pkg):
+            if not filter_installed_packages((pkg,)):
                 return pkg
 
         return None
