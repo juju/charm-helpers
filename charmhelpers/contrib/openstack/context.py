@@ -359,11 +359,13 @@ class IdentityServiceContext(OSContextGenerator):
         :param python_name: nameof the python package
         :type: string
         """
-        pkg = 'python3-'
-        if filter_installed_packages((pkg + python_name,)):
-            pkg = 'python-' + python_name
+        pkg_names = map(lambda x: x + python_name, ('python3-', 'python-'))
 
-        return pkg
+        for pkg in pkg_names:
+            if not filter_installed_packages(pkg):
+                return pkg
+
+        return None
 
     def _get_keystone_authtoken_ctxt(self, ctxt, keystonemiddleware_os_rel):
         """Build Jinja2 context for full rendering of [keystone_authtoken]
@@ -410,7 +412,9 @@ class IdentityServiceContext(OSContextGenerator):
         log('Generating template context for ' + self.rel_name, level=DEBUG)
         ctxt = {}
 
-        keystonemiddleware_os_release = os_release(self._get_pkg_name())
+        keystonemiddleware_os_release = None
+        if self._get_pkg_name():
+            keystonemiddleware_os_release = os_release(self._get_pkg_name())
 
         cachedir = self._setup_pki_cache()
         if cachedir:
@@ -445,8 +449,10 @@ class IdentityServiceContext(OSContextGenerator):
                 # we keep all veriables in ctxt for compatibility and
                 # add nested dictionary for keystone_authtoken generic
                 # templating
-                ctxt['keystone_authtoken'] = self._get_keystone_authtoken_ctxt(
-                    ctxt, keystonemiddleware_os_release)
+                if keystonemiddleware_os_release:
+                    ctxt['keystone_authtoken'] = \
+                        self._get_keystone_authtoken_ctxt(
+                            ctxt, keystonemiddleware_os_release)
 
                 if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
