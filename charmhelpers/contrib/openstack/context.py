@@ -715,6 +715,10 @@ class HAProxyContext(OSContextGenerator):
 
         l_unit = local_unit().replace('/', '-')
         cluster_hosts = collections.OrderedDict()
+        enable_lb = True
+        for rid in relation_ids('ha'):
+            for unit in related_units(rid):
+                enable_lb = relation_get('enable_lb', rid=rid, unit=unit)
 
         # NOTE(jamespage): build out map of configured network endpoints
         # and associated backends
@@ -738,11 +742,22 @@ class HAProxyContext(OSContextGenerator):
                                                           laddr)])
                 }
                 for rid in relation_ids('cluster'):
-                    for unit in sorted(related_units(rid)):
-                        # API Charms will need to set {addr_type}-address with
-                        # get_relation_ip(addr_type)
+                    # API Charms will need to set {addr_type}-address with
+                    # get_relation_ip(addr_type)
+                    if enable_lb is True:
+                        for unit in sorted(related_units(rid)):
+                            _laddr = relation_get(
+                                '{}-address'.format(addr_type),
+                                rid=rid,
+                                unit=unit)
+                            if _laddr:
+                                _unit = unit.replace('/', '-')
+                                cluster_hosts[laddr]['backends'][_unit] = _laddr
+                    else:
+                        unit = local_unit()
                         _laddr = relation_get('{}-address'.format(addr_type),
-                                              rid=rid, unit=unit)
+                                              rid=rid,
+                                              unit=unit)
                         if _laddr:
                             _unit = unit.replace('/', '-')
                             cluster_hosts[laddr]['backends'][_unit] = _laddr
@@ -760,9 +775,17 @@ class HAProxyContext(OSContextGenerator):
                                                   addr)])
         }
         for rid in relation_ids('cluster'):
-            for unit in sorted(related_units(rid)):
-                # API Charms will need to set their private-address with
-                # get_relation_ip('cluster')
+            # API Charms will need to set their private-address with
+            # get_relation_ip('cluster')
+            if enable_lb is True:
+                for unit in sorted(related_units(rid)):
+                    _laddr = relation_get('private-address',
+                                          rid=rid, unit=unit)
+                    if _laddr:
+                        _unit = unit.replace('/', '-')
+                        cluster_hosts[addr]['backends'][_unit] = _laddr
+            else:
+                unit = local_unit()
                 _laddr = relation_get('private-address',
                                       rid=rid, unit=unit)
                 if _laddr:
