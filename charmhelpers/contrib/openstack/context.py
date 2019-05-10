@@ -1188,7 +1188,9 @@ class NeutronPortContext(OSContextGenerator):
 
         hwaddr_to_nic = {}
         hwaddr_to_ip = {}
-        for nic in list_nics():
+        extant_nics = list_nics()
+
+        for nic in extant_nics:
             # Ignore virtual interfaces (bond masters will be identified from
             # their slaves)
             if not is_phy_iface(nic):
@@ -1219,10 +1221,11 @@ class NeutronPortContext(OSContextGenerator):
                     # Entry is a MAC address for a valid interface that doesn't
                     # have an IP address assigned yet.
                     resolved.append(hwaddr_to_nic[entry])
-            else:
-                # If the passed entry is not a MAC address, assume it's a valid
-                # interface, and that the user put it there on purpose (we can
-                # trust it to be the real external network).
+            elif entry in extant_nics:
+                # If the passed entry is not a MAC address and the interface
+                # exists, assume it's a valid interface, and that the user put
+                # it there on purpose (we can trust it to be the real external
+                # network).
                 resolved.append(entry)
 
         # Ensure no duplicates
@@ -1665,13 +1668,13 @@ class DataPortContext(NeutronPortContext):
     def __call__(self):
         ports = config('data-port')
         if ports:
-            # Map of {port/mac:bridge}
+            # Map of {bridge:port/mac}
             portmap = parse_data_port_mappings(ports)
             ports = portmap.keys()
             # Resolve provided ports or mac addresses and filter out those
             # already attached to a bridge.
             resolved = self.resolve_ports(ports)
-            # FIXME: is this necessary?
+            # Rebuild port index using resolved and filtered ports.
             normalized = {get_nic_hwaddr(port): port for port in resolved
                           if port not in ports}
             normalized.update({port: port for port in resolved

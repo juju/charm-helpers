@@ -3286,13 +3286,24 @@ class ContextTests(unittest.TestCase):
         mock_config.side_effect = config
         self.assertEquals(context.ExternalPortContext()(), {})
 
+    @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.config')
-    def test_ext_port_eth(self, mock_config):
+    def test_ext_port_eth(self, mock_config, mock_list_nics):
         config = fake_config({'ext-port': 'eth1010'})
         self.config.side_effect = config
         mock_config.side_effect = config
+        mock_list_nics.return_value = ['eth1010']
         self.assertEquals(context.ExternalPortContext()(),
                           {'ext_port': 'eth1010'})
+
+    @patch('charmhelpers.contrib.openstack.context.list_nics')
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_ext_port_eth_non_existent(self, mock_config, mock_list_nics):
+        config = fake_config({'ext-port': 'eth1010'})
+        self.config.side_effect = config
+        mock_config.side_effect = config
+        mock_list_nics.return_value = []
+        self.assertEquals(context.ExternalPortContext()(), {})
 
     @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
            lambda arg: True)
