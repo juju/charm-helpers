@@ -647,6 +647,10 @@ class AMQPContext(OSContextGenerator):
         if notification_format:
             ctxt['notification_format'] = notification_format
 
+        send_notifications_to_logs = conf.get('send-notifications-to-logs', None)
+        if send_notifications_to_logs:
+            ctxt['send_notifications_to_logs'] = send_notifications_to_logs
+
         if not self.complete:
             return {}
 
