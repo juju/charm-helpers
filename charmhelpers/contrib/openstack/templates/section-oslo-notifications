@@ -2,6 +2,7 @@
 [oslo_messaging_notifications]
 driver = {{ oslo_messaging_driver }}
 transport_url = {{ transport_url }}
+driver = log
 {% if notification_topics -%}
 topics = {{ notification_topics }}
 {% endif -%}
