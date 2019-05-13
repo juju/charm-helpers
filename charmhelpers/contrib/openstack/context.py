@@ -1607,6 +1607,14 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-nsg-logging',
                 'default': False,
             },
+            'global-physnet-mtu': {
+                'rel_key': 'global-physnet-mtu',
+                'default': 1500,
+            },
+            'physical-network-mtus': {
+                'rel_key': 'physical-network-mtus',
+                'default': None,
+            },
         }
         ctxt = self.get_neutron_options({})
         for rid in relation_ids('neutron-plugin-api'):
