@@ -1607,11 +1607,11 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-nsg-logging',
                 'default': False,
             },
-            'global-physnet-mtu': {
+            'global_physnet_mtu': {
                 'rel_key': 'global-physnet-mtu',
                 'default': 1500,
             },
-            'physical-network-mtus': {
+            'physical_network_mtus': {
                 'rel_key': 'physical-network-mtus',
                 'default': None,
             },
