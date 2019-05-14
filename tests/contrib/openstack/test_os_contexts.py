@@ -3792,3 +3792,84 @@ class ContextTests(unittest.TestCase):
             'logrotate_count': 'rotate 4',
         }
         self.assertEquals(ctxt, expected_ctxt)
+
+    @patch.object(context, 'os_release')
+    def test_vendordata_static(self, os_release):
+        _vdata = '{"good": "json"}'
+        os_release.return_value = 'rocky'
+        self.config.side_effect = [_vdata, None]
+        ctxt = context.NovaVendorMetadataContext('nova-common')()
+
+        self.assertTrue(ctxt['vendor_data'])
+        self.assertEqual('StaticJSON', ctxt['vendordata_providers'])
+        self.assertNotIn('vendor_data_url', ctxt)
+
+    @patch.object(context, 'os_release')
+    def test_vendordata_dynamic(self, os_release):
+        _vdata_url = 'http://example.org/vdata'
+        os_release.return_value = 'rocky'
+
+        self.config.side_effect = [None, _vdata_url]
+        ctxt = context.NovaVendorMetadataContext('nova-common')()
+
+        self.assertEqual(_vdata_url, ctxt['vendor_data_url'])
+        self.assertEqual('DynamicJSON', ctxt['vendordata_providers'])
+        self.assertNotIn('vendor_data', ctxt)
+
+    @patch.object(context, 'os_release')
+    def test_vendordata_static_and_dynamic(self, os_release):
+        os_release.return_value = 'rocky'
+        _vdata = '{"good": "json"}'
+        _vdata_url = 'http://example.org/vdata'
+
+        self.config.side_effect = [_vdata, _vdata_url]
+        ctxt = context.NovaVendorMetadataContext('nova-common')()
+
+        self.assertTrue(ctxt['vendor_data'])
+        self.assertEqual(_vdata_url, ctxt['vendor_data_url'])
+        self.assertEqual('StaticJSON,DynamicJSON',
+                         ctxt['vendordata_providers'])
+
+    @patch('charmhelpers.contrib.openstack.context.log')
+    @patch.object(context, 'os_release')
+    def test_vendordata_static_and_dynamic_mitaka(self, os_release, log):
+        os_release.return_value = 'mitaka'
+        _vdata = '{"good": "json"}'
+        _vdata_url = 'http://example.org/vdata'
+
+        self.config.side_effect = [_vdata, _vdata_url]
+        ctxt = context.NovaVendorMetadataContext('nova-common')()
+
+        self.assertTrue(log.called)
+        self.assertTrue(ctxt['vendor_data'])
+        self.assertNotIn('vendor_data_url', ctxt)
+        self.assertNotIn('vendordata_providers', ctxt)
+
+    @patch.object(context, 'log')
+    def test_vendordata_json_valid(self, log):
+        _vdata = '{"good": "json"}'
+        self.config.side_effect = [_vdata]
+
+        ctxt = context.NovaVendorMetadataJSONContext('nova-common')()
+
+        self.assertEqual({'vendor_data_json': _vdata}, ctxt)
+        self.assertFalse(log.called)
+
+    @patch.object(context, 'log')
+    def test_vendordata_json_invalid(self, log):
+        _vdata = '{bad: json}'
+        self.config.side_effect = [_vdata]
+
+        ctxt = context.NovaVendorMetadataJSONContext('nova-common')()
+
+        self.assertEqual({'vendor_data_json': '{}'}, ctxt)
+        self.assertTrue(log.called)
+
+    @patch.object(context, 'log')
+    def test_vendordata_json_empty(self, log):
+        self.config.side_effect = [None]
+
+        ctxt = context.NovaVendorMetadataJSONContext('nova-common')()
+
+        self.assertEqual({'vendor_data_json': '{}'}, ctxt)
+        self.assertFalse(log.called)
