@@ -114,6 +114,11 @@ except ImportError:
         apt_install('python3-psutil', fatal=True)
     import psutil
 
+if six.PY3:
+    json_error = json.decoder.JSONDecodeError
+else:
+    json_error = ValueError
+
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 HAPROXY_RUN_DIR = '/var/run/haproxy/'
@@ -519,6 +524,80 @@ class IdentityCredentialsContext(IdentityServiceContext):
                     return ctxt
 
         return {}
+
+
+class NovaVendorMetadataContext(OSContextGenerator):
+    """Context used for configuring nova vendor metadata on nova.conf file."""
+
+    def __init__(self, os_release_pkg, interfaces=None):
+        """Initialize the NovaVendorMetadataContext object.
+
+        :param os_release_pkg: the package name to extract the OpenStack
+            release codename from.
+        :type os_release_pkg: str
+        :param interfaces: list of string values to be used as the Context's
+            relation interfaces.
+        :type interfaces: List[str]
+        """
+        self.os_release_pkg = os_release_pkg
+        if interfaces is not None:
+            self.interfaces = interfaces
+
+    def __call__(self):
+        cmp_os_release = CompareOpenStackReleases(
+            os_release(self.os_release_pkg))
+        ctxt = {}
+
+        vdata_providers = []
+        vdata = config('vendor-data')
+        vdata_url = config('vendor-data-url')
+
+        if vdata:
+            ctxt['vendor_data'] = True
+            # Mitaka does not support DynamicJSON
+            # so vendordata_providers is not needed
+            if cmp_os_release > 'mitaka':
+                vdata_providers.append('StaticJSON')
+
+        if vdata_url:
+            if cmp_os_release > 'mitaka':
+                ctxt['vendor_data_url'] = vdata_url
+                vdata_providers.append('DynamicJSON')
+            else:
+                log('Dynamic vendor data unsupported'
+                    ' for {}.'.format(cmp_os_release), level=ERROR)
+        if vdata_providers:
+            ctxt['vendordata_providers'] = ','.join(vdata_providers)
+
+        return ctxt
+
+
+class NovaVendorMetadataJSONContext(OSContextGenerator):
+    """Context used for writing nova vendor metadata json file."""
+
+    def __init__(self, os_release_pkg):
+        """Initialize the NovaVendorMetadataJSONContext object.
+
+        :param os_release_pkg: the package name to extract the OpenStack
+            release codename from.
+        :type os_release_pkg: str
+        """
+        self.os_release_pkg = os_release_pkg
+
+    def __call__(self):
+        ctxt = {'vendor_data_json': '{}'}
+
+        vdata = config('vendor-data')
+        if vdata:
+            try:
+                # validate the JSON. If invalid, we return empty.
+                json.loads(vdata)
+            except (TypeError, json_error) as e:
+                log('Error decoding vendor-data. {}'.format(e), level=ERROR)
+            else:
+                ctxt['vendor_data_json'] = vdata
+
+        return ctxt
 
 
 class AMQPContext(OSContextGenerator):
