@@ -275,6 +275,10 @@ AMQP_NOTIFICATION_FORMAT = {
     'notification-format': 'both'
 }
 
+AMQP_NOTIFICATIONS_LOGS = {
+    'send-notifications-to-logs': True
+}
+
 AMQP_NOVA_CONFIG = {
     'nova-rabbit-user': 'adam',
     'nova-rabbit-vhost': 'foo',
@@ -1461,6 +1465,26 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'notification_format': 'both',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+        }
+
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_notifications_to_logs(self):
+        """Test amqp context with send_notifications_to_logs"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_NOTIFICATIONS_LOGS.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_NOTIFICATIONS_LOGS
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'oslo_messaging_driver': 'messagingv2',
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
+            'send_notifications_to_logs': True,
         }
 
         self.assertEquals(result, expected)
@@ -3450,8 +3474,8 @@ class ContextTests(unittest.TestCase):
         expected_keys = [
             'l2_population', 'enable_dvr', 'enable_l3ha',
             'overlay_network_type', 'network_device_mtu',
-            'enable_qos', 'enable_nsg_logging', 'global-physnet-mtu',
-            'physical-network-mtus'
+            'enable_qos', 'enable_nsg_logging', 'global_physnet_mtu',
+            'physical_network_mtus'
         ]
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
@@ -3460,8 +3484,8 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(api_ctxt['rpc_response_timeout'], 60)
         self.assertEquals(api_ctxt['report_interval'], 30)
         self.assertEquals(api_ctxt['enable_nsg_logging'], False)
-        self.assertEquals(api_ctxt['global-physnet-mtu'], 1500)
-        self.assertIsNone(api_ctxt['physical-network-mtus'])
+        self.assertEquals(api_ctxt['global_physnet_mtu'], 1500)
+        self.assertIsNone(api_ctxt['physical_network_mtus'])
 
     def setup_neutron_api_context_relation(self, cfg):
         self.relation_ids.return_value = ['neutron-plugin-api:1']
