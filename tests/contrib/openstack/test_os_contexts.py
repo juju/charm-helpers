@@ -275,6 +275,10 @@ AMQP_NOTIFICATION_FORMAT = {
     'notification-format': 'both'
 }
 
+AMQP_NOTIFICATIONS_LOGS = {
+    'send-notifications-to-logs': True
+}
+
 AMQP_NOVA_CONFIG = {
     'nova-rabbit-user': 'adam',
     'nova-rabbit-vhost': 'foo',
@@ -1461,6 +1465,26 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'notification_format': 'both',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+        }
+
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_notifications_to_logs(self):
+        """Test amqp context with send_notifications_to_logs"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_NOTIFICATIONS_LOGS.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_NOTIFICATIONS_LOGS
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'oslo_messaging_driver': 'messagingv2',
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
+            'send_notifications_to_logs': True,
         }
 
         self.assertEquals(result, expected)
