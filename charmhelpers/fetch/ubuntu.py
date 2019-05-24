@@ -522,14 +522,16 @@ def add_source(source, key=None, fail_invalid=False):
     for r, fn in six.iteritems(_mapping):
         m = re.match(r, source)
         if m:
-            # call the assoicated function with the captured groups
-            # raises SourceConfigError on error.
-            fn(*m.groups())
             if key:
+                # Import key before adding the source which depends on it,
+                # as refreshing packages could fail otherwise.
                 try:
                     import_key(key)
                 except GPGKeyError as e:
                     raise SourceConfigError(str(e))
+            # call the associated function with the captured groups
+            # raises SourceConfigError on error.
+            fn(*m.groups())
             break
     else:
         # nothing matched.  log an error and maybe sys.exit
