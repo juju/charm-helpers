@@ -415,11 +415,22 @@ class FetchTest(TestCase):
                                           get_distrib_codename, log,
                                           dearmor_gpg_key,
                                           w_keyfile):
+
+        def check_call_side_effect(args):
+            # Make sure the gpg key has already been added before the
+            # add-apt-repository call, as the update could fail otherwise.
+            popen.assert_called_with(
+                ['gpg', '--with-colons', '--with-fingerprint'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE)
+            return 0
+
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key = PGP_KEY_ASCII_ARMOR
         key_bytes = PGP_KEY_ASCII_ARMOR.encode('utf-8')
         get_distrib_codename.return_value = 'trusty'
-        check_call.return_value = 0
+        check_call.side_effect = check_call_side_effect
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
         if six.PY3:
@@ -456,11 +467,22 @@ fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
                                           get_distrib_codename, log,
                                           dearmor_gpg_key,
                                           w_keyfile):
+
+        def check_call_side_effect(args):
+            # Make sure the gpg key has already been added before the
+            # add-apt-repository call, as the update could fail otherwise.
+            popen.assert_called_with(
+                ['gpg', '--with-colons', '--with-fingerprint'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE)
+            return 0
+
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key = PGP_KEY_ASCII_ARMOR
         key_bytes = PGP_KEY_ASCII_ARMOR.encode('utf-8')
         get_distrib_codename.return_value = 'bionic'
-        check_call.return_value = 0
+        check_call.side_effect = check_call_side_effect
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
 
