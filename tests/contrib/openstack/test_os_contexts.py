@@ -1510,6 +1510,15 @@ class ContextTests(unittest.TestCase):
         result = ceph()
         self.assertEquals(result, {})
 
+    def test_ceph_rel_with_no_units(self):
+        '''Test ceph context with missing related units'''
+        relation = FakeRelation(relation_data={})
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = []
+        ceph = context.CephContext()
+        result = ceph()
+        self.assertEquals(result, {})
+
     @patch.object(context, 'config')
     @patch('os.path.isdir')
     @patch('os.mkdir')
@@ -1538,7 +1547,6 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
-        mkdir.assert_called_with('/etc/ceph')
 
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
