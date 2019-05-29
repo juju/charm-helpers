@@ -1540,7 +1540,7 @@ class CephUtilsTests(TestCase):
                 action = 'restart_nova_compute'
                 ret = ceph_utils.is_broker_action_done(action, rid="ceph:1",
                                                        unit="ceph/0")
-                self.relation_get.assert_has_calls([call('ceph:1', 'ceph/0')])
+                self.relation_get.assert_has_calls([call(rid='ceph:1', unit='ceph/0')])
                 self.assertFalse(ret)
 
                 ceph_utils.mark_broker_action_done(action)
@@ -1567,7 +1567,7 @@ class CephUtilsTests(TestCase):
                 ceph_utils.mark_broker_action_done(action, rid="ceph:1",
                                                    unit="ceph/0")
                 key = 'unit_0_ceph_broker_action.{}'.format(action)
-                self.relation_get.assert_has_calls([call('ceph:1', 'ceph/0')])
+                self.relation_get.assert_has_calls([call(rid='ceph:1', unit='ceph/0')])
                 kvstore = Storage(db_path)
                 self.assertEqual(kvstore.get(key=key), rq_id)
         finally:
