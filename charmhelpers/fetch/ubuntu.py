@@ -173,6 +173,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'stein/proposed': 'bionic-proposed/stein',
     'bionic-stein/proposed': 'bionic-proposed/stein',
     'bionic-proposed/stein': 'bionic-proposed/stein',
+    # Train
+    'train': 'bionic-updates/train',
+    'bionic-train': 'bionic-updates/train',
+    'bionic-train/updates': 'bionic-updates/train',
+    'bionic-updates/train': 'bionic-updates/train',
+    'train/proposed': 'bionic-proposed/train',
+    'bionic-train/proposed': 'bionic-proposed/train',
+    'bionic-proposed/train': 'bionic-proposed/train',
 }
 
 
