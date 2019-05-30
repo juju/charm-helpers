@@ -805,6 +805,13 @@ class HAProxyContext(OSContextGenerator):
         l_unit = local_unit().replace('/', '-')
         cluster_hosts = collections.OrderedDict()
 
+        # NOTE(tkurek): enable haproxy load balancing by default for legacy
+        # purposes
+        if config('ha-lb-enable') is None:
+            enable_lb = True
+        else:
+            enable_lb = config('ha-lb-enable')
+
         # NOTE(jamespage): build out map of configured network endpoints
         # and associated backends
         for addr_type in self.address_types:
@@ -827,9 +834,19 @@ class HAProxyContext(OSContextGenerator):
                                                           laddr)])
                 }
                 for rid in relation_ids('cluster'):
-                    for unit in sorted(related_units(rid)):
-                        # API Charms will need to set {addr_type}-address with
-                        # get_relation_ip(addr_type)
+                    # API Charms will need to set {addr_type}-address with
+                    # get_relation_ip(addr_type)
+                    if enable_lb:
+                        for unit in sorted(related_units(rid)):
+                            _laddr = relation_get(
+                                '{}-address'.format(addr_type),
+                                rid=rid,
+                                unit=unit)
+                            if _laddr:
+                                _unit = unit.replace('/', '-')
+                                cluster_hosts[laddr]['backends'][_unit] = _laddr
+                    else:
+                        unit = local_unit()
                         _laddr = relation_get('{}-address'.format(addr_type),
                                               rid=rid, unit=unit)
                         if _laddr:
@@ -849,9 +866,17 @@ class HAProxyContext(OSContextGenerator):
                                                   addr)])
         }
         for rid in relation_ids('cluster'):
-            for unit in sorted(related_units(rid)):
-                # API Charms will need to set their private-address with
-                # get_relation_ip('cluster')
+            # API Charms will need to set their private-address with
+            # get_relation_ip('cluster')
+            if enable_lb:
+                for unit in sorted(related_units(rid)):
+                    _laddr = relation_get('private-address',
+                                          rid=rid, unit=unit)
+                    if _laddr:
+                        _unit = unit.replace('/', '-')
+                        cluster_hosts[addr]['backends'][_unit] = _laddr
+            else:
+                unit = local_unit()
                 _laddr = relation_get('private-address',
                                       rid=rid, unit=unit)
                 if _laddr:
@@ -895,7 +920,7 @@ class HAProxyContext(OSContextGenerator):
 
         for frontend in cluster_hosts:
             if (len(cluster_hosts[frontend]['backends']) > 1 or
-                    self.singlenode_mode):
+                    self.singlenode_mode or not(enable_lb)):
                 # Enable haproxy when we have enough peers.
                 log('Ensuring haproxy enabled in /etc/default/haproxy.',
                     level=DEBUG)
