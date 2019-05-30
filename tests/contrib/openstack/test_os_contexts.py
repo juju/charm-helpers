@@ -3846,7 +3846,7 @@ class ContextTests(unittest.TestCase):
 
         self.assertEqual(_vdata_url, ctxt['vendor_data_url'])
         self.assertEqual('DynamicJSON', ctxt['vendordata_providers'])
-        self.assertNotIn('vendor_data', ctxt)
+        self.assertFalse(ctxt['vendor_data'])
 
     @patch.object(context, 'os_release')
     def test_vendordata_static_and_dynamic(self, os_release):
@@ -3861,6 +3861,21 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(_vdata_url, ctxt['vendor_data_url'])
         self.assertEqual('StaticJSON,DynamicJSON',
                          ctxt['vendordata_providers'])
+
+    @patch.object(context, 'log')
+    @patch.object(context, 'os_release')
+    def test_vendordata_static_invalid_and_dynamic(self, os_release, log):
+        os_release.return_value = 'rocky'
+        _vdata = '{bad: json}'
+        _vdata_url = 'http://example.org/vdata'
+
+        self.config.side_effect = [_vdata, _vdata_url]
+        ctxt = context.NovaVendorMetadataContext('nova-common')()
+
+        self.assertFalse(ctxt['vendor_data'])
+        self.assertEqual(_vdata_url, ctxt['vendor_data_url'])
+        self.assertEqual('DynamicJSON', ctxt['vendordata_providers'])
+        self.assertTrue(log.called)
 
     @patch('charmhelpers.contrib.openstack.context.log')
     @patch.object(context, 'os_release')
