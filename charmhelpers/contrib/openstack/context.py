@@ -114,11 +114,6 @@ except ImportError:
         apt_install('python3-psutil', fatal=True)
     import psutil
 
-if six.PY3:
-    json_error = json.decoder.JSONDecodeError
-else:
-    json_error = ValueError
-
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 HAPROXY_RUN_DIR = '/var/run/haproxy/'
@@ -546,18 +541,24 @@ class NovaVendorMetadataContext(OSContextGenerator):
     def __call__(self):
         cmp_os_release = CompareOpenStackReleases(
             os_release(self.os_release_pkg))
-        ctxt = {}
+        ctxt = {'vendor_data': False}
 
         vdata_providers = []
         vdata = config('vendor-data')
         vdata_url = config('vendor-data-url')
 
         if vdata:
-            ctxt['vendor_data'] = True
-            # Mitaka does not support DynamicJSON
-            # so vendordata_providers is not needed
-            if cmp_os_release > 'mitaka':
-                vdata_providers.append('StaticJSON')
+            try:
+                # validate the JSON. If invalid, we do not set anything here
+                json.loads(vdata)
+            except (TypeError, ValueError) as e:
+                log('Error decoding vendor-data. {}'.format(e), level=ERROR)
+            else:
+                ctxt['vendor_data'] = True
+                # Mitaka does not support DynamicJSON
+                # so vendordata_providers is not needed
+                if cmp_os_release > 'mitaka':
+                    vdata_providers.append('StaticJSON')
 
         if vdata_url:
             if cmp_os_release > 'mitaka':
@@ -592,7 +593,7 @@ class NovaVendorMetadataJSONContext(OSContextGenerator):
             try:
                 # validate the JSON. If invalid, we return empty.
                 json.loads(vdata)
-            except (TypeError, json_error) as e:
+            except (TypeError, ValueError) as e:
                 log('Error decoding vendor-data. {}'.format(e), level=ERROR)
             else:
                 ctxt['vendor_data_json'] = vdata
