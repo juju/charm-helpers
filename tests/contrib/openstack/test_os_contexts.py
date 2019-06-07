@@ -3547,6 +3547,22 @@ class ContextTests(unittest.TestCase):
         api_ctxt = context.NeutronAPIContext()()
         self.assertEquals(api_ctxt['extension_drivers'], 'qos,log')
 
+    def test_neutronapicontext_firewall_group_logging_on(self):
+        self.setup_neutron_api_context_relation({
+            'enable-nfg-logging': 'True',
+            'l2-population': 'True'
+        })
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['enable_nfg_logging'], True)
+
+    def test_neutronapicontext_firewall_group_logging_off(self):
+        self.setup_neutron_api_context_relation({
+            'enable-nfg-logging': 'False',
+            'l2-population': 'True'
+        })
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['enable_nfg_logging'], False)
+
     def test_neutronapicontext_string_converted(self):
         self.setup_neutron_api_context_relation({
             'l2-population': 'True'})
