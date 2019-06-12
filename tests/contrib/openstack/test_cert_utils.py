@@ -12,21 +12,24 @@ class CertUtilsTests(unittest.TestCase):
         self.assertEqual(cr.entries, [])
         self.assertIsNone(cr.hostname_entry)
 
-    def test_CertRequest_add_entry(self):
+    @mock.patch.object(cert_utils, 'local_unit', return_value='unit/2')
+    def test_CertRequest_add_entry(self, local_unit):
         cr = cert_utils.CertRequest()
         cr.add_entry('admin', 'admin.openstack.local', ['10.10.10.10'])
         self.assertEqual(
             cr.get_request(),
             {'cert_requests':
-                '{"admin.openstack.local": {"sans": ["10.10.10.10"]}}'})
+                '{"admin.openstack.local": {"sans": ["10.10.10.10"]}}',
+             'unit_name': 'unit_2'})
 
+    @mock.patch.object(cert_utils, 'local_unit', return_value='unit/2')
     @mock.patch.object(cert_utils, 'resolve_network_cidr')
     @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'get_hostname')
     @mock.patch.object(cert_utils, 'unit_get')
     def test_CertRequest_add_hostname_cn(self, unit_get, get_hostname,
                                          get_vip_in_network,
-                                         resolve_network_cidr):
+                                         resolve_network_cidr, local_unit):
         resolve_network_cidr.side_effect = lambda x: x
         get_vip_in_network.return_value = '10.1.2.100'
         unit_get.return_value = '10.1.2.3'
@@ -36,15 +39,17 @@ class CertUtilsTests(unittest.TestCase):
         self.assertEqual(
             cr.get_request(),
             {'cert_requests':
-                '{"juju-unit-2": {"sans": ["10.1.2.100", "10.1.2.3"]}}'})
+                '{"juju-unit-2": {"sans": ["10.1.2.100", "10.1.2.3"]}}',
+             'unit_name': 'unit_2'})
 
+    @mock.patch.object(cert_utils, 'local_unit', return_value='unit/2')
     @mock.patch.object(cert_utils, 'resolve_network_cidr')
     @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'get_hostname')
     @mock.patch.object(cert_utils, 'unit_get')
     def test_CertRequest_add_hostname_cn_ip(self, unit_get, get_hostname,
                                             get_vip_in_network,
-                                            resolve_network_cidr):
+                                            resolve_network_cidr, local_unit):
         resolve_network_cidr.side_effect = lambda x: x
         get_vip_in_network.return_value = '10.1.2.100'
         unit_get.return_value = '10.1.2.3'
@@ -56,8 +61,10 @@ class CertUtilsTests(unittest.TestCase):
             cr.get_request(),
             {'cert_requests':
                 ('{"juju-unit-2": {"sans": ["10.1.2.100", "10.1.2.3", '
-                 '"10.1.2.4"]}}')})
+                 '"10.1.2.4"]}}'),
+             'unit_name': 'unit_2'})
 
+    @mock.patch.object(cert_utils, 'local_unit', return_value='unit/2')
     @mock.patch.object(cert_utils, 'resolve_network_cidr')
     @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'network_get_primary_address')
@@ -68,7 +75,8 @@ class CertUtilsTests(unittest.TestCase):
     def test_get_certificate_request(self, unit_get, get_hostname,
                                      config, resolve_address,
                                      network_get_primary_address,
-                                     get_vip_in_network, resolve_network_cidr):
+                                     get_vip_in_network, resolve_network_cidr,
+                                     local_unit):
         unit_get.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         _config = {
