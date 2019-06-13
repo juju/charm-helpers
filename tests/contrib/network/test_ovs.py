@@ -300,3 +300,39 @@ class OVSHelpersTest(unittest.TestCase):
     def test_port_to_br_not_found(self, check_output):
         check_output.side_effect = subprocess.CalledProcessError(1, 'not found')
         self.assertEqual(ovs.port_to_br('br-lb'), None)
+
+    @patch('subprocess.check_call')
+    def test_enable_ipfix_defaults(self, check_call):
+        ovs.enable_ipfix('br-int',
+                         '10.5.0.10:4739')
+        check_call.assert_called_once_with([
+            'ovs-vsctl', 'set', 'Bridge', 'br-int', 'ipfix=@i', '--',
+            '--id=@i', 'create', 'IPFIX',
+            'targets="10.5.0.10:4739"',
+            'sampling=64',
+            'cache_active_timeout=60',
+            'cache_max_flows=128',
+        ])
+
+    @patch('subprocess.check_call')
+    def test_enable_ipfix_values(self, check_call):
+        ovs.enable_ipfix('br-int',
+                         '10.5.0.10:4739',
+                         sampling=120,
+                         cache_max_flows=24,
+                         cache_active_timeout=120)
+        check_call.assert_called_once_with([
+            'ovs-vsctl', 'set', 'Bridge', 'br-int', 'ipfix=@i', '--',
+            '--id=@i', 'create', 'IPFIX',
+            'targets="10.5.0.10:4739"',
+            'sampling=120',
+            'cache_active_timeout=120',
+            'cache_max_flows=24',
+        ])
+
+    @patch('subprocess.check_call')
+    def test_disable_ipfix(self, check_call):
+        ovs.disable_ipfix('br-int')
+        check_call.assert_called_once_with(
+            ['ovs-vsctl', 'clear', 'Bridge', 'br-int', 'ipfix']
+        )
