@@ -106,9 +106,11 @@ class CertRequest(object):
             sans = sorted(list(set(entry['addresses'])))
             request[entry['cn']] = {'sans': sans}
         if self.json_encode:
-            return {'cert_requests': json.dumps(request, sort_keys=True)}
+            req = {'cert_requests': json.dumps(request, sort_keys=True)}
         else:
-            return {'cert_requests': request}
+            req = {'cert_requests': request}
+        req['unit_name'] = local_unit().replace('/', '_')
+        return req
 
 
 def get_certificate_request(json_encode=True):
