@@ -126,6 +126,13 @@ class MiscStorageUtilsTests(unittest.TestCase):
             ['mkfs.xfs', '-f', '-i', 'size=1024', '/dev/sdb']
         )
 
+    @patch(STORAGE_LINUX_UTILS + '.check_call')
+    def test_mkfs_xfs_inode_size(self, check_call):
+        storage_utils.mkfs_xfs('/dev/sdb', inode_size=512)
+        check_call.assert_called_with(
+            ['mkfs.xfs', '-i', 'size=512', '/dev/sdb']
+        )
+
 
 class CephLUKSDeviceTestCase(unittest.TestCase):
 
