@@ -1,5 +1,5 @@
 from testtools import TestCase, skipIf
-from mock import patch
+from mock import patch, MagicMock
 import six
 
 import charmhelpers.contrib.openstack.audits as audits
@@ -191,6 +191,14 @@ class AuditsTestCase(TestCase):
 
 @skipIf(six.PY2, 'Audits only support Python3')
 class OpenstackSecurityGuideTestCase(TestCase):
+
+    @patch('configparser.ConfigParser')
+    def test_internal_config_parser_is_not_strict(self, _config_parser):
+        parser = MagicMock()
+        _config_parser.return_value = parser
+        guide._config_ini('test')
+        _config_parser.assert_called_with(strict=False)
+        parser.read.assert_called_with('test')
 
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._stat')
     def test_internal_validate_file_ownership(self, _stat):

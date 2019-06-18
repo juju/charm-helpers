@@ -126,7 +126,11 @@ def _config_ini(path):
     :returns: Configuration contained in path
     :rtype: Dict
     """
-    conf = configparser.ConfigParser()
+    # When strict is enabled, duplicate options are not allowed in the
+    # parsed INI; however, Oslo allows duplicate values. This change
+    # causes us to ignore the duplicate values which is acceptable as
+    # long as we don't validate any multi-value options
+    conf = configparser.ConfigParser(strict=False)
     conf.read(path)
     return dict(conf)
 
