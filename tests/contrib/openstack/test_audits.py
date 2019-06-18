@@ -1,4 +1,4 @@
-from testtools import TestCase, skip
+from testtools import TestCase, skipIf
 from mock import patch
 import six
 
@@ -6,7 +6,7 @@ import charmhelpers.contrib.openstack.audits as audits
 import charmhelpers.contrib.openstack.audits.openstack_security_guide as guide
 
 
-@skip(six.PY2)
+@skipIf(six.PY2, 'Audits only support Python3')
 class AuditTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits._audits', {})
@@ -189,7 +189,7 @@ class AuditsTestCase(TestCase):
         self.assertEqual(verifier({'audit_type': audits.AuditType.OpenStackSecurityGuide}), True)
 
 
-@skip(six.PY2)
+@skipIf(six.PY2, 'Audits only support Python3')
 class OpenstackSecurityGuideTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._stat')
@@ -216,7 +216,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_permissions(config)
-        _validate_mode.assert_called_once_with('600', 'test')
+        _validate_mode.assert_called_once_with('600', 'test', False)
 
     @patch('os.path.isfile')
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_mode')
@@ -230,7 +230,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_permissions(config)
-        _validate_mode.assert_called_once_with('777', 'test')
+        _validate_mode.assert_called_once_with('777', 'test', False)
 
     @patch('glob.glob')
     @patch('os.path.isfile')
@@ -246,7 +246,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_permissions(config)
-        _validate_mode.assert_called_once_with('777', 'test')
+        _validate_mode.assert_called_once_with('777', 'test', False)
 
     @patch('os.path.isfile')
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_ownership')
@@ -258,7 +258,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_ownership(config)
-        _validate_owner.assert_called_once_with('root', 'root', 'test')
+        _validate_owner.assert_called_once_with('root', 'root', 'test', False)
 
     @patch('os.path.isfile')
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_ownership')
@@ -273,7 +273,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_ownership(config)
-        _validate_owner.assert_called_once_with('test-user', 'test-group', 'test')
+        _validate_owner.assert_called_once_with('test-user', 'test-group', 'test', False)
 
     @patch('glob.glob')
     @patch('os.path.isfile')
@@ -290,7 +290,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_ownership(config)
-        _validate_owner.assert_called_once_with('test-user', 'test-group', 'test')
+        _validate_owner.assert_called_once_with('test-user', 'test-group', 'test', False)
 
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._config_section')
     def test_validate_uses_keystone(self, _config_section):
