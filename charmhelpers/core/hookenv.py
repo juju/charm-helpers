@@ -479,7 +479,7 @@ def relation_get(attribute=None, unit=None, rid=None, app=None):
 
 
 @cached
-def relation_set_accepts_file():
+def _relation_set_accepts_file():
     """Return True if the juju relation-set command accepts a file.
 
     Cache the result as it won't change during the execution of a hook, and
@@ -509,7 +509,7 @@ def relation_set(relation_id=None, relation_settings=None, app=False, **kwargs):
         # sites pass in things like dicts or numbers.
         if value is not None:
             settings[key] = "{}".format(value)
-    if relation_set_accepts_file():
+    if _relation_set_accepts_file():
         # --file was introduced in Juju 1.23.2. Use it by default if
         # available, since otherwise we'll break if the relation data is
         # too big. Ideally we should tell relation-set to read the data from
