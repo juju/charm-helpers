@@ -330,11 +330,12 @@ class NRPE(object):
                 old_nrpe_monitors = {k: v for k, v in old_nrpe_monitors.items() if k not in self.remove_check_queue}
                 # update/add nrpe_monitors
                 old_nrpe_monitors.update(nrpe_monitors)
+                old_monitors['monitors']['remote']['nrpe'] = old_nrpe_monitors
                 # write back to the relation
                 relation_set(relation_id=rid, monitors=yaml.dump(old_monitors))
             else:
                 # write a brand new set of monitors, as no existing ones.
-                relation_set(relation_id=rid, monitor=yaml.dump(monitors))
+                relation_set(relation_id=rid, monitors=yaml.dump(monitors))
 
         self.remove_check_queue.clear()
 
