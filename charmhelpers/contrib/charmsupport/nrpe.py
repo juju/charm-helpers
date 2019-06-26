@@ -323,19 +323,18 @@ class NRPE(object):
         for rid in monitor_ids:
             reldata = relation_get(unit=local_unit(), rid=rid)
             if 'monitors' in reldata:
+                # update the existing set of monitors with the new data
                 old_monitors = yaml.safe_load(reldata['monitors'])
                 old_nrpe_monitors = old_monitors['monitors']['remote']['nrpe']
-                for shortname in old_nrpe_monitors.copy():
-                    if shortname in self.remove_check_queue:
-                        del old_nrpe_monitors[shortname]
-                    elif shortname in nrpe_monitors:
-                        old_nrpe_monitors[shortname] = nrpe_monitors[shortname].copy()
-                        del nrpe_monitors[shortname]
-                for shortname in nrpe_monitors:
-                    old_nrpe_monitors[shortname] = nrpe_monitors[shortname]
-                monitors = old_monitors.copy()
-
-            relation_set(relation_id=rid, monitors=yaml.dump(monitors))
+                # remove keys that are in the remove_check_queue
+                old_nrpe_monitors = {k: v for k, v in old_nrpe_monitors.items() if k not in self.remove_check_queue}
+                # update/add nrpe_monitors
+                old_nrpe_monitors.update(nrpe_monitors)
+                # write back to the relation
+                relation_set(relation_id=rid, monitors=yaml.dump(old_monitors))
+            else:
+                # write a brand new set of monitors, as no existing ones.
+                relation_set(relation_id=rid, monitor=yaml.dump(monitors))
 
         self.remove_check_queue.clear()
 
