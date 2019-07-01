@@ -330,7 +330,8 @@ class NRPE(object):
                 old_monitors = yaml.safe_load(reldata['monitors'])
                 old_nrpe_monitors = old_monitors['monitors']['remote']['nrpe']
                 # remove keys that are in the remove_check_queue
-                old_nrpe_monitors = {k: v for k, v in old_nrpe_monitors.items() if k not in self.remove_check_queue}
+                old_nrpe_monitors = {k: v for k, v in old_nrpe_monitors.items()
+                                     if k not in self.remove_check_queue}
                 # update/add nrpe_monitors
                 old_nrpe_monitors.update(nrpe_monitors)
                 old_monitors['monitors']['remote']['nrpe'] = old_nrpe_monitors
