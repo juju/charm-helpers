@@ -1,6 +1,36 @@
 Changelog
 ---------
 
+0.19.14
+^^^^^^^
+Wednesday 3rd July 2019
+
+ * Preserve old keymap entries on NRPE.write (#311)
+ * Make ConfigParser not strict (#338)
+ * Update tests to actually be run (#339)
+ * Make XFS inode size configurable (#313)
+ * ovs: Allow IPFIX configuration tuning (#335)
+ * Set unit_name when requesting certificates. (#334)
+ * Add relation support for firewall group logging (#333)
+ * Fix vendor_data py3 issue of PR #324 (#332)
+ * Fix wrong usage of relation_get in \*_broker_action_done (#327)
+ * Ensure CephContext will correctly be incomplete (#329)
+ * openstack: Add data for train release (#328)
+ * adding newton & above release support for nuage (#305)
+ * Add source keys before the apt list entry. (#326)
+ * Add Contexts for Nova Vendor Metadata (#324)
+ * openstack: add send_notifications_to_logs option (#323)
+ * openstack: rename physical-network-mtus, global-physnet-mtu for jinja (#322)
+ * openstack: add global-physnet-mtu to NeutronAPIContext  (#317)
+ * Openstack port resolver should filter out non-existent ports (#320)
+ * Fix typo in filter_installed_packages call (#318)
+ * Fix issue with ceph-radosgw unit-tests (#316)
+ * Bug/1786186 (#315)
+ * Switch test runner to tox and update travis-ci definition (#301)
+ * openstack: oslo messaging notification (#310)
+ * Re-enable pgrep_full (#309)
+ * contrib/openstack: Return status on process certificates (#308)
+
 0.19.13
 ^^^^^^^
 Tuesday 9th April 2019
