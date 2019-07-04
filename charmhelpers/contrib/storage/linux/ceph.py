@@ -301,6 +301,7 @@ class ReplicatedPool(Pool):
                  percent_data=10.0, app_name=None):
         super(ReplicatedPool, self).__init__(service=service, name=name)
         self.replicas = replicas
+        self.percent_data = percent_data
         if pg_num:
             # Since the number of placement groups were specified, ensure
             # that there aren't too many created.
@@ -330,6 +331,17 @@ class ReplicatedPool(Pool):
                                           name=self.app_name)
                 except CalledProcessError:
                     log('Could not set app name for pool {}'.format(self.name, level=WARNING))
+                kvstore = kv()
+                if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
+                    try:
+                        cmds = [
+                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'target_size_ratio', str(self.percent_data / 100.0)],
+                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
+                        ]
+                        for cmd in cmds:
+                            check_call(cmd)
+                    except CalledProcessError:
+                        log('Could not configure auto scaling for pool {}'.format(self.name, level=WARNING))
             except CalledProcessError:
                 raise
 
@@ -382,6 +394,17 @@ class ErasurePool(Pool):
                                           name=self.app_name)
                 except CalledProcessError:
                     log('Could not set app name for pool {}'.format(self.name, level=WARNING))
+                kvstore = kv()
+                if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
+                    try:
+                        cmds = [
+                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'target_size_ratio', str(self.percent_data / 100.0)],
+                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
+                        ]
+                        for cmd in cmds:
+                            check_call(cmd)
+                    except CalledProcessError:
+                        log('Could not configure auto scaling for pool {}'.format(self.name, level=WARNING))
             except CalledProcessError:
                 raise
 
