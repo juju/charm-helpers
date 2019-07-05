@@ -1849,6 +1849,42 @@ class OpenStackHelpersTestCase(TestCase):
         fake_configs.write_all.assert_called_once()
         fake_resume_helper.assert_called_once_with(fake_configs)
 
+    @patch.object(openstack, 'os_release')
+    @patch.object(openstack, 'snap_install_requested')
+    def test_run_in_apache_kilo(self,
+                                mock_snap_install_requested,
+                                mock_os_release):
+        mock_snap_install_requested.return_value = False
+        mock_os_release.return_value = 'kilo'
+        self.assertFalse(openstack.run_in_apache('keystone', mock_os_release()))
+
+    @patch.object(openstack, 'os_release')
+    @patch.object(openstack, 'snap_install_requested')
+    def test_run_in_apache_liberty(self,
+                                   mock_snap_install_requested,
+                                   mock_os_release):
+        mock_snap_install_requested.return_value = False
+        mock_os_release.return_value = 'liberty'
+        self.assertTrue(openstack.run_in_apache('keystone', mock_os_release()))
+
+    @patch.object(openstack, 'os_release')
+    @patch.object(openstack, 'snap_install_requested')
+    def test_run_in_apache_kilo_no_release(self,
+                                           mock_snap_install_requested,
+                                           mock_os_release):
+        mock_snap_install_requested.return_value = False
+        mock_os_release.return_value = 'kilo'
+        self.assertFalse(openstack.run_in_apache('keystone'))
+
+    @patch.object(openstack, 'os_release')
+    @patch.object(openstack, 'snap_install_requested')
+    def test_run_in_apache_liberty_no_release(self,
+                                              mock_snap_install_requested,
+                                              mock_os_release):
+        mock_snap_install_requested.return_value = False
+        mock_os_release.return_value = 'liberty'
+        self.assertTrue(openstack.run_in_apache('keystone'))
+
 
 if __name__ == '__main__':
     unittest.main()

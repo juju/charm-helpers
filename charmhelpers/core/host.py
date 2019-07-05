@@ -37,6 +37,7 @@ from collections import OrderedDict
 from .hookenv import log, INFO, DEBUG, local_unit, charm_name
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
+from charmhelpers.core.decorators import retry_on_exception
 
 __platform__ = get_platform()
 if __platform__ == "ubuntu":
@@ -754,6 +755,25 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
                 for action in actions:
                     service(action, service_name)
     return r
+
+
+def restart_pid_check(service_name, ptable_string=None):
+    """Stop a service, check the processes are gone, start service
+    @param service_name: service name as init system knows it
+    @param ptable_string: string to look for in process table to match service
+    """
+
+    @retry_on_exception(5, base_delay=3, exc_type=AssertionError)
+    def check_pids_gone(svc_string):
+        log("Checking no pids for {} exist".format(svc_string), level=INFO)
+        assert(subprocess.call(["pgrep", svc_string, "--nslist", "pid",
+                               "--ns", str(os.getpid())]) == 1)
+
+    if not ptable_string:
+        ptable_string = service_name
+    service_stop(service_name)
+    check_pids_gone(ptable_string)
+    service_start(service_name)
 
 
 def pwgen(length=None):
