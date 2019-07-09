@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+0.19.15
+^^^^^^^
+Tuesday 9rd July 2019
+
+ * Make NRPE.add_check(shortname=...) optional again (#345)
+
 0.19.14
 ^^^^^^^
 Wednesday 3rd July 2019
