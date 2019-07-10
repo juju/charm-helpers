@@ -193,12 +193,15 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
 
 IDENTITY_SERVICE_RELATION_VERSIONED = {
     'api_version': '3',
+    'service_tenant_id': 'svc-proj-id',
+    'service_domain_id': 'svc-dom-id',
 }
 IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
 
 IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
     'api_version': '3',
-    'service_domain_id': '567890',
+    'service_tenant_id': 'svc-proj-id',
+    'service_domain_id': 'svc-dom-id',
 }
 IDENTITY_CREDENTIALS_RELATION_VERSIONED.update(IDENTITY_CREDENTIALS_RELATION_UNSET)
 
@@ -1132,8 +1135,10 @@ class ContextTests(unittest.TestCase):
             'admin_password': 'foo',
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
-            'admin_tenant_id': None,
-            'admin_domain_id': None,
+            'admin_tenant_id': 'svc-proj-id',
+            'admin_domain_id': 'svc-dom-id',
+            'service_project_id': 'svc-proj-id',
+            'service_domain_id': 'svc-dom-id',
             'admin_user': 'adam',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
@@ -1211,9 +1216,8 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'filter_installed_packages')
     @patch.object(context, 'os_release')
     def test_keystone_authtoken_www_authenticate_uri_stein_apiv3(self, mock_os_release, mock_filter_installed_packages):
-        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_UNSET)
-        relation_data['api_version'] = '3'
-        relation = FakeRelation(relation_data=relation_data)
+        relation = FakeRelation(
+            relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
         self.relation_get.side_effect = relation.get
 
         mock_filter_installed_packages.return_value = []
@@ -1227,8 +1231,8 @@ class ContextTests(unittest.TestCase):
 
         expected = collections.OrderedDict((
             ('auth_type', 'password'),
-            ('www_authenticate_uri', 'http://keystonehost.local:5000/v3'),
-            ('auth_url', 'http://keystone-host.local:35357/v3'),
+            ('www_authenticate_uri', 'https://keystonehost.local:5000/v3'),
+            ('auth_url', 'https://keystone-host.local:35357/v3'),
             ('project_domain_name', 'admin_domain'),
             ('user_domain_name', 'admin_domain'),
             ('project_name', 'admin'),
