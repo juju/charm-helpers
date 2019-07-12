@@ -1216,8 +1216,8 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'filter_installed_packages')
     @patch.object(context, 'os_release')
     def test_keystone_authtoken_www_authenticate_uri_stein_apiv3(self, mock_os_release, mock_filter_installed_packages):
-        relation = FakeRelation(
-            relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
+        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_VERSIONED)
+        relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
 
         mock_filter_installed_packages.return_value = []
