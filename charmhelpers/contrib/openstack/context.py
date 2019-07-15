@@ -258,7 +258,7 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql+pymysql'
                 }
-                if CompareOpenStackReleases(rel) < 'stein':
+                if CompareOpenStackReleases(rel) < 'queens':
                     ctxt['database_type'] = 'mysql'
                 if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
