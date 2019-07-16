@@ -737,7 +737,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'get_os_codename_install_source')
     def test_shared_db_context_with_data(self, os_codename):
         '''Test shared-db context with all required data'''
-        os_codename.return_value = 'stein'
+        os_codename.return_value = 'queens'
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
         self.relation_get.side_effect = relation.get
         self.get_address_in_network.return_value = ''
@@ -772,7 +772,7 @@ class ContextTests(unittest.TestCase):
     def test_shared_db_context_with_data_and_access_net_match(self,
                                                               os_codename):
         """Correctly set hostname for access net returns complete context"""
-        os_codename.return_value = 'stein'
+        os_codename.return_value = 'queens'
         relation = FakeRelation(
             relation_data=SHARED_DB_RELATION_ACCESS_NETWORK)
         self.relation_get.side_effect = relation.get
@@ -792,7 +792,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'get_os_codename_install_source')
     def test_shared_db_context_explicit_relation_id(self, os_codename):
         '''Test shared-db context setting the relation_id'''
-        os_codename.return_value = 'stein'
+        os_codename.return_value = 'queens'
         relation = FakeRelation(relation_data=SHARED_DB_RELATION_ALT_RID)
         self.related_units.return_value = ['mysql-alt/0']
         self.relation_get.side_effect = relation.get
@@ -883,9 +883,9 @@ class ContextTests(unittest.TestCase):
                      'database_type': 'mysql+pymysql'})
 
     @patch.object(context, 'get_os_codename_install_source')
-    def test_shared_db_context_with_params_rocky(self, os_codename):
+    def test_shared_db_context_with_params_pike(self, os_codename):
         '''Test shared-db context with object parameters'''
-        os_codename.return_value = 'rocky'
+        os_codename.return_value = 'pike'
         shared_db = context.SharedDBContext(
             database='quantum', user='quantum', relation_prefix='quantum')
         relation = FakeRelation(relation_data=SHARED_DB_RELATION_NAMESPACED)
