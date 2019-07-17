@@ -1,6 +1,15 @@
 Changelog
 ---------
 
+0.19.16
+^^^^^^^
+Wednesday 17th July 2019
+
+ * Use pymysql >= Queens (#348)
+ * Add helper to get the percona entry for amulet (#349)
+ * Adding function to check if relation has proper broker_rsp (#347)
+ * Add service_{project,domain}_id keys to Ident ctxt (#346)
+
 0.19.15
 ^^^^^^^
 Tuesday 9rd July 2019
