@@ -154,6 +154,8 @@ def generate_ha_relation_data(service,
     @param extra_settings: Dict of additional resource data
     @returns dict: json encoded data for use with relation_set
     """
+    _relation_data = {}
+
     if haproxy_enabled:
         _haproxy_res = 'res_{}_haproxy'.format(service)
         _relation_data = {
