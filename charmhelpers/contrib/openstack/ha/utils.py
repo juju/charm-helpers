@@ -154,23 +154,17 @@ def generate_ha_relation_data(service,
     @param extra_settings: Dict of additional resource data
     @returns dict: json encoded data for use with relation_set
     """
-    _relation_data = {}
+    _relation_data = {'resources': {}, 'resource_params': {}}
 
     if haproxy_enabled:
         _haproxy_res = 'res_{}_haproxy'.format(service)
-        _relation_data = {
-            'resources': {
-                _haproxy_res: 'lsb:haproxy',
-            },
-            'resource_params': {
-                _haproxy_res: 'op monitor interval="5s"'
-            },
-            'init_services': {
-                _haproxy_res: 'haproxy'
-            },
-            'clones': {
-                'cl_{}_haproxy'.format(service): _haproxy_res
-            },
+        _relation_data['resources'] = {_haproxy_res: 'lsb:haproxy'}
+        _relation_data['resource_params'] = {
+            _haproxy_res: 'op monitor interval="5s"'
+        }
+        _relation_data['init_services'] = {_haproxy_res: 'haproxy'}
+        _relation_data['clones'] = {
+            'cl_{}_haproxy'.format(service): _haproxy_res
         }
 
     if extra_settings:

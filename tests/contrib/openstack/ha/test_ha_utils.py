@@ -286,7 +286,8 @@ class HATests(unittest.TestCase):
         extra_settings = {
             'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
             'init_services': {'res_nova_cauth': 'nova-cauth'},
-            'delete_resources': ['res_ceilometer_polling'],
+            'delete_resources': ['res_ceilometer_polling',
+                                 'res_ceilometer_haproxy'],
             'groups': {'grp_testservice_wombles': 'res_testservice_orinoco'},
         }
         expected = {
