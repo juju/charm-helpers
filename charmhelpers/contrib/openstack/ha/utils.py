@@ -128,8 +128,8 @@ def expect_ha():
 
 
 def generate_ha_relation_data(service,
-                              haproxy_enabled=True,
-                              extra_settings=None):
+                              extra_settings=None,
+                              haproxy_enabled=True):
     """ Generate relation data for ha relation
 
     Based on configuration options and unit interfaces, generate a json
