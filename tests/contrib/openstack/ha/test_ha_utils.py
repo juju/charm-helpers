@@ -279,6 +279,59 @@ class HATests(unittest.TestCase):
         ha.update_hacluster_vip('testservice', test_data)
         self.assertEqual(test_data, expected)
 
+    def test_generate_ha_relation_data_haproxy_disabled(self):
+        self.get_hacluster_config.return_value = {
+            'vip': '10.5.100.1 ffff::1 ffaa::1'
+        }
+        extra_settings = {
+            'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
+            'init_services': {'res_nova_cauth': 'nova-cauth'},
+            'delete_resources': ['res_ceilometer_polling'],
+            'groups': {'grp_testservice_wombles': 'res_testservice_orinoco'},
+        }
+        expected = {
+            'colocations': {'vip_cauth': 'inf: res_nova_cauth grp_nova_vips'},
+            'groups': {
+                'grp_testservice_vips': ('res_testservice_242d562_vip '
+                                         'res_testservice_856d56f_vip '
+                                         'res_testservice_f563c5d_vip'),
+                'grp_testservice_wombles': 'res_testservice_orinoco'
+            },
+            'resource_params': {
+                'res_testservice_242d562_vip':
+                    ('params ip="10.5.100.1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+                'res_testservice_856d56f_vip':
+                    ('params ipv6addr="ffff::1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+                'res_testservice_f563c5d_vip':
+                    ('params ipv6addr="ffaa::1" op monitor depth="0" '
+                     'timeout="20s" interval="10s"'),
+            },
+            'resources': {
+                'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
+                'res_testservice_856d56f_vip': 'ocf:heartbeat:IPv6addr',
+                'res_testservice_f563c5d_vip': 'ocf:heartbeat:IPv6addr',
+            },
+            'clones': {},
+            'init_services': {
+                'res_nova_cauth': 'nova-cauth'
+            },
+            'delete_resources': ["res_ceilometer_polling",
+                                 "res_testservice_eth1_vip",
+                                 "res_testservice_eth1_vip_ipv6addr",
+                                 "res_testservice_eth2_vip"],
+        }
+        expected = {
+            'json_{}'.format(k): json.dumps(v, **ha.JSON_ENCODE_OPTIONS)
+            for k, v in expected.items() if v
+        }
+        self.assertEqual(
+            ha.generate_ha_relation_data('testservice',
+                                         haproxy_enabled=False,
+                                         extra_settings=extra_settings),
+            expected)
+
     def test_generate_ha_relation_data(self):
         self.get_hacluster_config.return_value = {
             'vip': '10.5.100.1 ffff::1 ffaa::1'
