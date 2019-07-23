@@ -84,7 +84,8 @@ from charmhelpers.fetch import (
     SourceConfigError,
     GPGKeyError,
     get_upstream_version,
-    filter_missing_packages
+    filter_missing_packages,
+    ubuntu_apt_pkg as apt,
 )
 
 from charmhelpers.fetch.snap import (
@@ -443,8 +444,6 @@ def get_os_codename_package(package, fatal=True):
                 # Second item in list is Version
                 return line.split()[1]
 
-    import apt_pkg as apt
-
     cache = apt_cache()
 
     try:
@@ -658,7 +657,6 @@ def openstack_upgrade_available(package):
                          a newer version of package.
     """
 
-    import apt_pkg as apt
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     if not cur_vers:
