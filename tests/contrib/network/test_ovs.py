@@ -146,11 +146,10 @@ class OVSHelpersTest(unittest.TestCase):
         get_bridge_ports.side_effect = [
             ['p1', 'p2'],
             ['p3']]
-        self.assertEqual(ovs.get_bridges_and_ports_map(),
-                         {
-                             'br1': ['p1', 'p2'],
-                             'br2': ['p3'],
-                         })
+        self.assertEqual(ovs.get_bridges_and_ports_map(), {
+            'br1': ['p1', 'p2'],
+            'br2': ['p3'],
+        })
 
     @patch('subprocess.check_call')
     def test_add_bridge(self, check_call):
