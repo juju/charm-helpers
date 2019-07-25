@@ -126,6 +126,32 @@ class OVSHelpersTest(unittest.TestCase):
         self.addCleanup(_m.stop)
         return mock
 
+    @patch('subprocess.check_output')
+    def test_get_bridges(self, check_output):
+        check_output.return_value = b"br1\n br2  "
+        self.assertEqual(ovs.get_bridges(), ['br1', 'br2'])
+        check_output.assert_called_once_with(['ovs-vsctl', 'list-br'])
+
+    @patch('subprocess.check_output')
+    def test_get_bridge_ports(self, check_output):
+        check_output.return_value = b"p1\n p2  \np3"
+        self.assertEqual(ovs.get_bridge_ports('br1'), ['p1', 'p2', 'p3'])
+        check_output.assert_called_once_with(
+            ['ovs-vsctl', '--', 'list-ports', 'br1'])
+
+    @patch.object(ovs, 'get_bridges')
+    @patch.object(ovs, 'get_bridge_ports')
+    def test_get_bridges_and_ports_map(self, get_bridge_ports, get_bridges):
+        get_bridges.return_value = ['br1', 'br2']
+        get_bridge_ports.side_effect = [
+            ['p1', 'p2'],
+            ['p3']]
+        self.assertEqual(ovs.get_bridges_and_ports_map(),
+                         {
+                             'br1': ['p1', 'p2'],
+                             'br2': ['p3'],
+                         })
+
     @patch('subprocess.check_call')
     def test_add_bridge(self, check_call):
         ovs.add_bridge('test')
