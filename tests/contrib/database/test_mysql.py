@@ -182,7 +182,19 @@ class MysqlTests(unittest.TestCase):
     def test_set_mysql_root_password(self, mock_set_passwd):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         helper.set_mysql_root_password(password='1234')
-        mock_set_passwd.assert_called_with('root', '1234')
+        mock_set_passwd.assert_called_with(
+            'root',
+            '1234',
+            current_password=None)
+
+    @mock.patch.object(mysql.MySQLHelper, 'set_mysql_password')
+    def test_set_mysql_root_password_cur_passwd(self, mock_set_passwd):
+        helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
+        helper.set_mysql_root_password(password='1234', current_password='abc')
+        mock_set_passwd.assert_called_with(
+            'root',
+            '1234',
+            current_password='abc')
 
     @mock.patch.object(mysql, 'log', lambda *args, **kwargs: None)
     @mock.patch.object(mysql, 'is_leader')
@@ -223,13 +235,17 @@ class MysqlTests(unittest.TestCase):
              mock.call.execute('select 1;'),
              mock.call.close()]
         )
+        mock_get_passwd.assert_called_once_with(None)
 
         # make sure for the non-leader leader-set is not called
         mock_is_leader.return_value = False
         mock_leader_set.reset_mock()
+        mock_get_passwd.reset_mock()
         helper.set_mysql_password(username='root', password='1234')
         mock_leader_set.assert_not_called()
+        mock_get_passwd.assert_called_once_with(None)
 
+        mock_get_passwd.reset_mock()
         mock_compare_releases.return_value = 'bionic'
         helper.set_mysql_password(username='root', password='1234')
         SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET "
@@ -242,6 +258,20 @@ class MysqlTests(unittest.TestCase):
              mock.call.execute('select 1;'),
              mock.call.close()]
         )
+        mock_get_passwd.assert_called_once_with(None)
+
+        # Test supplying the current password
+        mock_is_leader.return_value = False
+        mock_connect.reset_mock()
+        mock_get_passwd.reset_mock()
+        helper.set_mysql_password(
+            username='root',
+            password='1234',
+            current_password='currpass')
+        self.assertFalse(mock_get_passwd.called)
+        mock_connect.assert_has_calls(
+            [mock.call(user='root', password='currpass'),  # original password
+             mock.call(user='root', password='1234')])  # new password
 
     @mock.patch.object(mysql, 'leader_get')
     @mock.patch.object(mysql, 'leader_set')
