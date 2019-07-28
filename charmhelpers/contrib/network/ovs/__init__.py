@@ -52,7 +52,8 @@ def get_bridges():
     """
     cmd = ["ovs-vsctl", "list-br"]
     lines = subprocess.check_output(cmd).decode('utf-8').split("\n")
-    return [l.strip() for l in lines]
+    maybe_bridges = [l.strip() for l in lines]
+    return [b for b in maybe_bridges if b]
 
 
 def get_bridge_ports(name):
@@ -67,7 +68,8 @@ def get_bridge_ports(name):
     """
     cmd = ["ovs-vsctl", "--", "list-ports", name]
     lines = subprocess.check_output(cmd).decode('utf-8').split("\n")
-    return [l.strip() for l in lines]
+    maybe_ports = [l.strip() for l in lines]
+    return [p for p in maybe_ports if p]
 
 
 def get_bridges_and_ports_map():
