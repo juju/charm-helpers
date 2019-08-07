@@ -1158,11 +1158,16 @@ def resource_get(name):
 
 @cached
 def juju_version():
-    """Full version string (eg. '1.23.3.1-trusty-amd64')"""
-    # Per https://bugs.launchpad.net/juju-core/+bug/1455368/comments/1
-    jujud = glob.glob('/var/lib/juju/tools/machine-*/jujud')[0]
-    return subprocess.check_output([jujud, 'version'],
-                                   universal_newlines=True).strip()
+    """Determine the version of Juju under which the charm is running."""
+    if 'JUJU_VERSION' in os.environ:
+        return os.environ['JUJU_VERSION']
+    else:
+        # Very old versions of Juju don't set the JUJU_VERSION env var, so
+        # this workaround was developed.  See the following for context:
+        # https://bugs.launchpad.net/juju-core/+bug/1455368/comments/1
+        jujud = glob.glob('/var/lib/juju/tools/machine-*/jujud')[0]
+        return subprocess.check_output([jujud, 'version'],
+                                       universal_newlines=True).strip()
 
 
 def has_juju_version(minimum_version):
