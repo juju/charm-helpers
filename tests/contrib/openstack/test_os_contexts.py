@@ -3940,3 +3940,13 @@ class ContextTests(unittest.TestCase):
 
         self.assertEqual({'vendor_data_json': '{}'}, ctxt)
         self.assertFalse(log.called)
+
+    @patch.object(context, 'socket')
+    def test_host_info_context(self, _socket):
+        _socket.getfqdn.return_value = 'myhost.mydomain'
+        _socket.gethostname.return_value = 'myhost'
+        ctxt = context.HostInfoContext()()
+        self.assertEqual({
+            'host_fqdn': 'myhost.mydomain',
+            'host': 'myhost'},
+            ctxt)
