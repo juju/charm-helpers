@@ -18,6 +18,7 @@ import json
 import math
 import os
 import re
+import socket
 import time
 from base64 import b64decode
 from subprocess import check_call, CalledProcessError
@@ -2158,5 +2159,16 @@ class LogrotateContext(OSContextGenerator):
             'logrotate_logs_location': self.location,
             'logrotate_interval': self.interval,
             'logrotate_count': self.count,
+        }
+        return ctxt
+
+
+class HostInfoContext(OSContextGenerator):
+    """Context to provide host information."""
+
+    def __call__(self):
+        ctxt = {
+            'host_fqdn': socket.getfqdn(),
+            'host': socket.gethostname(),
         }
         return ctxt
