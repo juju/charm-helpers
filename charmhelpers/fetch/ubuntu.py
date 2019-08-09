@@ -18,6 +18,7 @@ import platform
 import re
 import six
 import subprocess
+import sys
 import time
 
 from charmhelpers.core.host import get_distrib_codename
@@ -225,6 +226,17 @@ def apt_cache(in_memory=True, progress=None):
     :returns:Object used to interrogate the system apt and dpkg databases.
     :rtype:ubuntu_apt_pkg.Cache
     """
+    if 'apt_pkg' in sys.modules:
+        # NOTE(fnordahl): When our consumer use the upstream ``apt_pkg`` module
+        # in conjunction with the apt_cache helper function, they may expect us
+        # to call ``apt_pkg.init()`` for them.
+        #
+        # Detect this situation, log a warning and make the call to
+        # ``apt_pkg.init()`` to avoid the consumer Python interpreter from
+        # crashing with a segmentation fault.
+        log('Support for use of upstream ``apt_pkg`` module in conjunction'
+            'with charm-helpers is deprecated since 2019-06-25', level=WARNING)
+        sys.modules['apt_pkg'].init()
     return ubuntu_apt_pkg.Cache()
 
 
