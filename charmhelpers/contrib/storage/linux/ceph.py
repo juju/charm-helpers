@@ -325,6 +325,10 @@ class ReplicatedPool(Pool):
                 update_pool(client=self.service,
                             pool=self.name,
                             settings={'size': str(self.replicas)})
+                # Ensure we set the expected pool ratio
+                update_pool(client=self.service,
+                            pool=self.name,
+                            settings={'target_size_ratio': str(self.percent_data / 100.0)})
                 try:
                     set_app_name_for_pool(client=self.service,
                                           pool=self.name,
@@ -335,8 +339,7 @@ class ReplicatedPool(Pool):
                 if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
                     try:
                         cmds = [
-                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'target_size_ratio', str(self.percent_data / 100.0)],
-                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
+                            ['ceph', 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
                         ]
                         for cmd in cmds:
                             check_call(cmd)
@@ -394,12 +397,15 @@ class ErasurePool(Pool):
                                           name=self.app_name)
                 except CalledProcessError:
                     log('Could not set app name for pool {}'.format(self.name, level=WARNING))
+                # Ensure we set the expected pool ratio
+                update_pool(client=self.service,
+                            pool=self.name,
+                            settings={'target_size_ratio': str(self.percent_data / 100.0)})
                 kvstore = kv()
                 if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
                     try:
                         cmds = [
-                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'target_size_ratio', str(self.percent_data / 100.0)],
-                            ['ceph', '--id', self.service, 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
+                            ['ceph', 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
                         ]
                         for cmd in cmds:
                             check_call(cmd)
