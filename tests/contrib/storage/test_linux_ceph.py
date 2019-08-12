@@ -311,7 +311,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_luminous_ceph(self, get_osds):
-        self.cmp_pkgrevno.return_value = 1
+        self.cmp_pkgrevno.side_effect = [-1, 1]
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
@@ -363,7 +363,7 @@ class CephUtilsTests(TestCase):
         db = MagicMock()
         kv.return_value = db
         db.get.return_value = ['pg_autoscaler']
-        self.cmp_pkgrevno.return_value = -1
+        self.cmp_pkgrevno.return_value = 1
         get_osds.return_value = range(1, 9)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=50)
@@ -377,6 +377,8 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
                   'target_size_ratio', '0.5']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'application', 'enable', 'test', 'unknown']),
+
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
                  'pg_autoscale_mode', 'on']),
         ])
@@ -482,10 +484,6 @@ class CephUtilsTests(TestCase):
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                  'target_size_ratio', '1.0']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                 'pg_autoscale_mode', 'on']),
         ])
 
     def test_get_erasure_profile_none(self):

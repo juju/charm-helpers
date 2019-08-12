@@ -325,10 +325,12 @@ class ReplicatedPool(Pool):
                 update_pool(client=self.service,
                             pool=self.name,
                             settings={'size': str(self.replicas)})
-                # Ensure we set the expected pool ratio
-                update_pool(client=self.service,
-                            pool=self.name,
-                            settings={'target_size_ratio': str(self.percent_data / 100.0)})
+                nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+                if nautilus_or_later:
+                    # Ensure we set the expected pool ratio
+                    update_pool(client=self.service,
+                                pool=self.name,
+                                settings={'target_size_ratio': str(self.percent_data / 100.0)})
                 try:
                     set_app_name_for_pool(client=self.service,
                                           pool=self.name,
@@ -338,11 +340,7 @@ class ReplicatedPool(Pool):
                 kvstore = kv()
                 if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
                     try:
-                        cmds = [
-                            ['ceph', 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
-                        ]
-                        for cmd in cmds:
-                            check_call(cmd)
+                        enable_pg_autoscale(self.service, self.name)
                     except CalledProcessError:
                         log('Could not configure auto scaling for pool {}'.format(self.name, level=WARNING))
             except CalledProcessError:
@@ -397,18 +395,16 @@ class ErasurePool(Pool):
                                           name=self.app_name)
                 except CalledProcessError:
                     log('Could not set app name for pool {}'.format(self.name, level=WARNING))
-                # Ensure we set the expected pool ratio
-                update_pool(client=self.service,
-                            pool=self.name,
-                            settings={'target_size_ratio': str(self.percent_data / 100.0)})
+                nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+                if nautilus_or_later:
+                    # Ensure we set the expected pool ratio
+                    update_pool(client=self.service,
+                                pool=self.name,
+                                settings={'target_size_ratio': str(self.percent_data / 100.0)})
                 kvstore = kv()
                 if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
                     try:
-                        cmds = [
-                            ['ceph', 'osd', 'pool', 'set', self.name, 'pg_autoscale_mode', 'on'],
-                        ]
-                        for cmd in cmds:
-                            check_call(cmd)
+                        enable_pg_autoscale(self.service, self.name)
                     except CalledProcessError:
                         log('Could not configure auto scaling for pool {}'.format(self.name, level=WARNING))
             except CalledProcessError:
@@ -416,6 +412,17 @@ class ErasurePool(Pool):
 
     """Get an existing erasure code profile if it already exists.
        Returns json formatted output"""
+
+
+def enable_pg_autoscale(service, pool_name):
+    """
+    Enable Ceph's PG autoscaler for the specified pool.
+
+    :param service: six.string_types. The Ceph user name to run the command under
+    :param pool_name: six.string_types. The name of the pool to enable sutoscaling on
+    :raise: CalledProcessError if the command fails
+    """
+    check_call(['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, 'pg_autoscale_mode', 'on'])
 
 
 def get_mon_map(service):
