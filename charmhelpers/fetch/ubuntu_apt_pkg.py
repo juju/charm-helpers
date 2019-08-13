@@ -40,17 +40,10 @@ import os
 import subprocess
 
 
-class _container(object):
+class _container(dict):
     """Simple container for attributes."""
-    def __init__(self, attr_map):
-        """Initialize package attribute container.
-
-        :param attr_map: Dictionary key value pairs to transform into
-                         attributes with a value on instance of the class.
-        :type attr_map: Dict[str, str]
-        """
-        for k, v in attr_map.items():
-            setattr(self, k, v)
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
 
 class Package(_container):
