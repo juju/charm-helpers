@@ -202,9 +202,8 @@ def upstream_version(version):
     :rtype: str
     """
     if version:
-        version = version[version.find(':') + 1:]
-        if '-' in version:
-            version = version[:version.find('-')]
+        version = version.split(':')[-1]
+        version = version.split('-')[0]
     return version
 
 
