@@ -218,11 +218,13 @@ def filter_missing_packages(packages):
     )
 
 
-def apt_cache(*_):
+def apt_cache(*_, **__):
     """Shim returning an object simulating the apt_pkg Cache.
 
     :param _: Accept arguments for compability, not used.
     :type _: any
+    :param __: Accept keyword arguments for compability, not used.
+    :type __: any
     :returns:Object used to interrogate the system apt and dpkg databases.
     :rtype:ubuntu_apt_pkg.Cache
     """
