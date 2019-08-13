@@ -98,21 +98,21 @@ def getenv(update=None):
 class FetchTest(TestCase):
 
     @patch("charmhelpers.fetch.ubuntu.log")
-    @patch('apt_pkg.Cache')
+    @patch.object(fetch, 'apt_cache')
     def test_filter_packages_missing_ubuntu(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim', 'emacs'])
         self.assertEquals(result, ['emacs'])
 
     @patch("charmhelpers.fetch.ubuntu.log")
-    @patch('apt_pkg.Cache')
+    @patch.object(fetch, 'apt_cache')
     def test_filter_packages_none_missing_ubuntu(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim'])
         self.assertEquals(result, [])
 
     @patch('charmhelpers.fetch.ubuntu.log')
-    @patch('apt_pkg.Cache')
+    @patch.object(fetch, 'apt_cache')
     def test_filter_packages_not_available_ubuntu(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim', 'joe'])
@@ -980,7 +980,7 @@ class AptTests(TestCase):
         _run_apt_command(["some", "command"], fatal=True)
         self.assertTrue(sleep.called)
 
-    @patch('apt_pkg.Cache')
+    @patch.object(fetch, 'apt_cache')
     def test_get_upstream_version(self, cache):
         cache.side_effect = fake_apt_cache
         self.assertEqual(fetch.get_upstream_version('vim'), '7.3.547')
