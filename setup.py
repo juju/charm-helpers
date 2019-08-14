@@ -35,7 +35,6 @@ SETUP = {
         'Tempita',
         'Jinja2',
         'six',
-        'psutil',
     ],
     'packages': find_packages(exclude=('tests', 'tests.*', 'tools', 'tools.*')),
     'scripts': [
