@@ -17,8 +17,9 @@ import os
 import platform
 import re
 import six
-import time
 import subprocess
+import sys
+import time
 
 from charmhelpers.core.host import get_distrib_codename
 
@@ -29,6 +30,7 @@ from charmhelpers.core.hookenv import (
     env_proxy_settings,
 )
 from charmhelpers.fetch import SourceConfigError, GPGKeyError
+from charmhelpers.fetch import ubuntu_apt_pkg
 
 PROPOSED_POCKET = (
     "# Proposed\n"
@@ -216,14 +218,28 @@ def filter_missing_packages(packages):
     )
 
 
-def apt_cache(in_memory=True, progress=None):
-    """Build and return an apt cache."""
-    from apt import apt_pkg
-    apt_pkg.init()
-    if in_memory:
-        apt_pkg.config.set("Dir::Cache::pkgcache", "")
-        apt_pkg.config.set("Dir::Cache::srcpkgcache", "")
-    return apt_pkg.Cache(progress)
+def apt_cache(*_, **__):
+    """Shim returning an object simulating the apt_pkg Cache.
+
+    :param _: Accept arguments for compability, not used.
+    :type _: any
+    :param __: Accept keyword arguments for compability, not used.
+    :type __: any
+    :returns:Object used to interrogate the system apt and dpkg databases.
+    :rtype:ubuntu_apt_pkg.Cache
+    """
+    if 'apt_pkg' in sys.modules:
+        # NOTE(fnordahl): When our consumer use the upstream ``apt_pkg`` module
+        # in conjunction with the apt_cache helper function, they may expect us
+        # to call ``apt_pkg.init()`` for them.
+        #
+        # Detect this situation, log a warning and make the call to
+        # ``apt_pkg.init()`` to avoid the consumer Python interpreter from
+        # crashing with a segmentation fault.
+        log('Support for use of upstream ``apt_pkg`` module in conjunction'
+            'with charm-helpers is deprecated since 2019-06-25', level=WARNING)
+        sys.modules['apt_pkg'].init()
+    return ubuntu_apt_pkg.Cache()
 
 
 def apt_install(packages, options=None, fatal=False):
@@ -723,7 +739,6 @@ def get_upstream_version(package):
 
     @returns None (if not installed) or the upstream version
     """
-    import apt_pkg
     cache = apt_cache()
     try:
         pkg = cache[package]
@@ -735,4 +750,4 @@ def get_upstream_version(package):
         # package is known, but no version is currently installed.
         return None
 
-    return apt_pkg.upstream_version(pkg.current_ver.ver_str)
+    return ubuntu_apt_pkg.upstream_version(pkg.current_ver.ver_str)

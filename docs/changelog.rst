@@ -1,6 +1,23 @@
 Changelog
 ---------
 
+0.20.1
+^^^^^^
+Wednesday 14th August 2019
+
+* Remove ``psutil`` from ``setup.py`` (#359)
+
+0.20.0
+^^^^^^
+Tuesday 13th August 2019
+
+* Replace ``python-apt`` functionality (#341)
+* Add context with info about running host (#357)
+* Use "rabbit_use_ssl" instead of "ssl" for ocata config (#355)
+* Add getter helpers to contrib ovs module (#353)
+* Allow the current password to be passed in. (#354)
+* Optionally configure haproxy (#351)
+
 0.19.16
 ^^^^^^^
 Wednesday 17th July 2019

@@ -39,7 +39,7 @@ userinstall:
 
 
 .venv:
-	dpkg-query -W -f='$${status}' gcc python-dev python-virtualenv python-apt 2>/dev/null | grep --invert-match "not-installed" || sudo apt-get install -y python-dev python-virtualenv python-apt
+	dpkg-query -W -f='$${status}' gcc python-dev python-virtualenv 2>/dev/null | grep --invert-match "not-installed" || sudo apt-get install -y python-dev python-virtualenv
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -I -r test_requirements.txt

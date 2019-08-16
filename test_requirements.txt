@@ -1,7 +1,6 @@
 # Test-only dependencies are unpinned.
 #
 git+https://git.launchpad.net/ubuntu/+source/python-distutils-extra
-git+https://git.launchpad.net/python-apt@1.1.y-xenial
 pip
 six
 coverage>=3.6
