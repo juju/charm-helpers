@@ -1437,19 +1437,24 @@ def get_request_states(request, relation='ceph'):
 
     @param request: A CephBrokerRq object
     """
-    complete = []
     requests = {}
     for rid in relation_ids(relation):
         complete = False
+        broker_unit = None
+        broker_rsp = None
         previous_request = get_previous_request(rid)
         if request == previous_request:
             sent = True
-            complete = is_request_complete_for_rid(previous_request, rid)
+            _, broker_unit, broker_rsp = find_broker_rsp_for_completed_request(
+                previous_request, rid=rid)
+            if broker_rsp:
+                complete = True
         else:
             sent = False
-            complete = False
 
         requests[rid] = {
+            'unit': broker_unit,
+            'broker_rsp': broker_rsp,
             'sent': sent,
             'complete': complete,
         }
@@ -1457,14 +1462,17 @@ def get_request_states(request, relation='ceph'):
     return requests
 
 
-def is_request_sent(request, relation='ceph'):
+def is_request_sent(request, relation='ceph', states=None):
     """Check to see if a functionally equivalent request has already been sent
 
-    Returns True if a similair request has been sent
+    Returns True if a similar request has been sent
 
     @param request: A CephBrokerRq object
+    @param relation: The respective relation
+    @param states: Optionally parse existing states query
     """
-    states = get_request_states(request, relation=relation)
+    if states is None:
+        states = get_request_states(request, relation=relation)
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
@@ -1472,15 +1480,19 @@ def is_request_sent(request, relation='ceph'):
     return True
 
 
-def is_request_complete(request, relation='ceph'):
+def is_request_complete(request, relation='ceph', states=None):
     """Check to see if a functionally equivalent request has already been
     completed
 
-    Returns True if a similair request has been completed
+    Returns True if a similar request has been completed
 
     @param request: A CephBrokerRq object
+    @param relation: The respective relation
+    @param states: Optionally parse existing states query
+
     """
-    states = get_request_states(request, relation=relation)
+    if states is None:
+        states = get_request_states(request, relation=relation)
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
@@ -1488,37 +1500,67 @@ def is_request_complete(request, relation='ceph'):
     return True
 
 
-def is_request_complete_for_rid(request, rid):
-    """Check if a given request has been completed on the given relation
+def get_broker_rsp_from_completed_request(
+        request, relation='ceph', states=None):
+    """Get the Broker response from a completed request.
 
-    @param request: A CephBrokerRq object
-    @param rid: Relation ID
+    :param request: A CephBrokerRq object
+    :param relation: The respective relation
+    :param states: Optionally parse existing states query
+    :returns: A CephBrokerRsp object
     """
-    broker_key = get_broker_rsp_key()
-    for unit in related_units(rid):
-        rdata = relation_get(rid=rid, unit=unit)
-        if rdata.get(broker_key):
-            rsp = CephBrokerRsp(rdata.get(broker_key))
-            if rsp.request_id == request.request_id:
-                if not rsp.exit_code:
-                    return True
-        else:
-            # The remote unit sent no reply targeted at this unit so either the
-            # remote ceph cluster does not support unit targeted replies or it
-            # has not processed our request yet.
-            if rdata.get('broker_rsp'):
-                request_data = json.loads(rdata['broker_rsp'])
-                if request_data.get('request-id'):
-                    log('Ignoring legacy broker_rsp without unit key as remote '
-                        'service supports unit specific replies', level=DEBUG)
-                else:
-                    log('Using legacy broker_rsp as remote service does not '
-                        'supports unit specific replies', level=DEBUG)
-                    rsp = CephBrokerRsp(rdata['broker_rsp'])
-                    if not rsp.exit_code:
-                        return True
+    if states is None:
+        states = get_request_states(request, relation=relation)
+    for rid in states.keys():
+        if states[rid]['complete']:
+            return states[rid]['broker_rsp']
 
-    return False
+
+def find_broker_rsp_for_completed_request(request, rid=None, relation='ceph'):
+    """Find the broker response for a specific request, if available.
+
+    :param request: A CephBrokerRq object
+    :param rid: an optional relation ID to search in
+    :type rid: str
+    :param relation: The relation to search in. Unused if rid param is supplied
+    :type relation: str
+    :returns: If the response is found, it will return the relation id, the
+      unit id, and the broker response. Otherwise, returns None, None, None.
+    :rtype: str, str, CephBrokerRsp object
+    """
+    if rid:
+        rids = [rid]
+    else:
+        rids = relation_ids(relation)
+    broker_key = get_broker_rsp_key()
+    for rid in rids:
+        for unit in related_units(rid):
+            rdata = relation_get(rid=rid, unit=unit)
+            if rdata.get(broker_key):
+                rsp = CephBrokerRsp(rdata.get(broker_key))
+                if rsp.request_id == request.request_id:
+                    log("Found broker {}/{}, response is {}.".format(
+                        rid, unit, rdata.get(broker_key)), level=DEBUG)
+                    if not rsp.exit_code:
+                        return rid, unit, rsp
+            else:
+                # The remote unit sent no reply targeted at this unit so
+                # either the remote ceph cluster does not support unit
+                # targeted replies or it has not processed our request yet.
+                if rdata.get('broker_rsp'):
+                    request_data = json.loads(rdata['broker_rsp'])
+                    if request_data.get('request-id'):
+                        log('Ignoring legacy broker_rsp without unit key as'
+                            ' remote service supports unit specific replies',
+                            level=DEBUG)
+                    else:
+                        log('Using legacy broker_rsp as remote service does '
+                            'not support unit specific replies', level=DEBUG)
+                        rsp = CephBrokerRsp(rdata['broker_rsp'])
+                        if not rsp.exit_code:
+                            return rid, unit, rsp
+
+    return None, None, None
 
 
 def get_broker_rsp_key():
@@ -1530,22 +1572,36 @@ def get_broker_rsp_key():
     return 'broker-rsp-' + local_unit().replace('/', '-')
 
 
-def send_request_if_needed(request, relation='ceph'):
+def send_request_if_needed(request, relation='ceph', states=None):
     """Send broker request if an equivalent request has not already been sent
 
     @param request: A CephBrokerRq object
+    @param relation: The respective relation
+    @param states: Optionally parse existing states query
     """
-    if is_request_sent(request, relation=relation):
+    if is_request_sent(request, relation=relation, states=states):
         log('Request already sent but not complete, not sending new request',
             level=DEBUG)
     else:
-        for rid in relation_ids(relation):
-            log('Sending request {}'.format(request.request_id), level=DEBUG)
-            relation_set(relation_id=rid, broker_req=request.request)
+        log("Request {} not sent, sending it now.".format(
+            request.request_id), level=DEBUG)
+        send_broker_request(request, relation=relation)
+
+
+def send_broker_request(request, relation='ceph'):
+    """Send broker request
+
+    :param request: A CephBrokerRq object to be sent
+    :param relation: the relation to which send the request.
+    """
+    for rid in relation_ids(relation):
+        log('Sending request {}'.format(request.request_id), level=DEBUG)
+        relation_set(relation_id=rid, broker_req=request.request)
 
 
 def has_broker_rsp(rid=None, unit=None):
-    """Return True if the broker_rsp key is 'truthy' (i.e. set to something) in the relation data.
+    """Return True if the broker_rsp key is 'truthy' (i.e. set to something) in
+     the relation data.
 
     :param rid: The relation to check (default of None means current relation)
     :type rid: Union[str, None]
@@ -1559,40 +1615,32 @@ def has_broker_rsp(rid=None, unit=None):
     return True if broker_rsp else False
 
 
-def is_broker_action_done(action, rid=None, unit=None):
+def is_broker_action_done(action, rsp):
     """Check whether broker action has completed yet.
 
     @param action: name of action to be performed
+    @param rsp: a CephBrokerRsp object
     @returns True if action complete otherwise False
     """
-    rdata = relation_get(rid=rid, unit=unit) or {}
-    broker_rsp = rdata.get(get_broker_rsp_key())
-    if not broker_rsp:
-        return False
-
-    rsp = CephBrokerRsp(broker_rsp)
     unit_name = local_unit().partition('/')[2]
     key = "unit_{}_ceph_broker_action.{}".format(unit_name, action)
     kvstore = kv()
     val = kvstore.get(key=key)
     if val and val == rsp.request_id:
+        log("Request ID {} already marked done.".format(rsp.request_id),
+            level=DEBUG)
         return True
 
     return False
 
 
-def mark_broker_action_done(action, rid=None, unit=None):
+def mark_broker_action_done(action, rsp):
     """Mark action as having been completed.
 
     @param action: name of action to be performed
+    @param rsp: a CephBrokerRsp object
     @returns None
     """
-    rdata = relation_get(rid=rid, unit=unit) or {}
-    broker_rsp = rdata.get(get_broker_rsp_key())
-    if not broker_rsp:
-        return
-
-    rsp = CephBrokerRsp(broker_rsp)
     unit_name = local_unit().partition('/')[2]
     key = "unit_{}_ceph_broker_action.{}".format(unit_name, action)
     kvstore = kv()

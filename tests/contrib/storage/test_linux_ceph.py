@@ -1326,18 +1326,23 @@ class CephUtilsTests(TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.related_units
 
-    #    @patch.object(ceph_utils, 'uuid')
-    #    @patch.object(ceph_utils, 'local_unit')
-    #    def test_get_request_states(self, mlocal_unit, muuid):
-    #        muuid.uuid1.return_value = '0bc7dc54'
     @patch.object(ceph_utils, 'local_unit')
     def test_get_request_states(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool(name='glance', replica_count=3)
-        expect = {'ceph:8': {'complete': True, 'sent': True}}
-        self.assertEqual(ceph_utils.get_request_states(rq), expect)
+        rsp = ceph_utils.CephBrokerRsp(
+            '{"request-id": "0bc7dc54", "exit-code": 0}')
+        expect = {'ceph:8': {
+            'complete': True,
+            'sent': True,
+            'unit': 'ceph/0',
+            'broker_rsp': rsp,
+        }}
+        with patch.object(ceph_utils, 'CephBrokerRsp') as mocked_rsp:
+            mocked_rsp.return_value = rsp
+            self.assertEqual(expect, ceph_utils.get_request_states(rq))
 
     @patch.object(ceph_utils, 'local_unit')
     def test_get_request_states_newrq(self, mlocal_unit):
@@ -1345,8 +1350,13 @@ class CephUtilsTests(TestCase):
         self.setup_client_relation(CEPH_CLIENT_RELATION)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool(name='glance', replica_count=4)
-        expect = {'ceph:8': {'complete': False, 'sent': False}}
-        self.assertEqual(ceph_utils.get_request_states(rq), expect)
+        expect = {'ceph:8': {
+            'complete': False,
+            'sent': False,
+            'unit': None,
+            'broker_rsp': None,
+        }}
+        self.assertEqual(expect, ceph_utils.get_request_states(rq))
 
     @patch.object(ceph_utils, 'local_unit')
     def test_get_request_states_pendingrq(self, mlocal_unit):
@@ -1356,19 +1366,31 @@ class CephUtilsTests(TestCase):
         self.setup_client_relation(rel)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool(name='glance', replica_count=3)
-        expect = {'ceph:8': {'complete': False, 'sent': True}}
-        self.assertEqual(ceph_utils.get_request_states(rq), expect)
+        expect = {'ceph:8': {
+            'complete': False,
+            'sent': True,
+            'unit': None,
+            'broker_rsp': None,
+        }}
+
+        self.assertEqual(expect, ceph_utils.get_request_states(rq))
 
     @patch.object(ceph_utils, 'local_unit')
     def test_get_request_states_failedrq(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
         rel = copy.deepcopy(CEPH_CLIENT_RELATION)
-        rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = '{"request-id": "0bc7dc54", "exit-code": 1}'
+        rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = (
+            '{"request-id": "0bc7dc54", "exit-code": 1}')
         self.setup_client_relation(rel)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool(name='glance', replica_count=3)
-        expect = {'ceph:8': {'complete': False, 'sent': True}}
-        self.assertEqual(ceph_utils.get_request_states(rq), expect)
+        expect = {'ceph:8': {
+            'complete': False,
+            'sent': True,
+            'unit': None,
+            'broker_rsp': None,
+        }}
+        self.assertEqual(expect, ceph_utils.get_request_states(rq))
 
     @patch.object(ceph_utils, 'local_unit')
     def test_is_request_sent(self, mlocal_unit):
@@ -1395,6 +1417,15 @@ class CephUtilsTests(TestCase):
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool(name='glance', replica_count=3)
         self.assertTrue(ceph_utils.is_request_sent(rq))
+
+    @patch.object(ceph_utils, 'get_request_states')
+    def test_is_request_sent_with_states(self, get_request_states):
+        states = {'ceph:43': {'sent': False, 'complete': False}}
+        self.assertFalse(ceph_utils.is_request_sent(None, states=states))
+        get_request_states.assert_not_called()
+        states = {'ceph:43': {'sent': True, 'complete': False}}
+        self.assertTrue(ceph_utils.is_request_sent(None, states=states))
+        get_request_states.assert_not_called()
 
     @patch.object(ceph_utils, 'local_unit')
     def test_is_request_sent_legacy(self, mlocal_unit):
@@ -1449,6 +1480,15 @@ class CephUtilsTests(TestCase):
         rq.add_op_create_pool(name='glance', replica_count=3)
         self.assertFalse(ceph_utils.is_request_complete(rq))
 
+    @patch.object(ceph_utils, 'get_request_states')
+    def test_is_request_complete_with_states(self, get_request_states):
+        states = {'ceph:43': {'sent': True, 'complete': False}}
+        self.assertFalse(ceph_utils.is_request_complete(None, states=states))
+        get_request_states.assert_not_called()
+        states = {'ceph:43': {'sent': True, 'complete': True}}
+        self.assertTrue(ceph_utils.is_request_complete(None, states=states))
+        get_request_states.assert_not_called()
+
     @patch.object(ceph_utils, 'local_unit')
     def test_is_request_complete_legacy(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
@@ -1474,6 +1514,58 @@ class CephUtilsTests(TestCase):
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool(name='glance', replica_count=3)
         self.assertFalse(ceph_utils.is_request_complete(rq))
+
+    @patch.object(ceph_utils, 'get_request_states')
+    def test_get_broker_rsp_from_completed_request(
+            self, get_request_states):
+        rq = ceph_utils.CephBrokerRq()
+        broker_rsp = ceph_utils.CephBrokerRsp(
+            '{"exit-code": 0,'
+            ' "request-id": "34b726fc-be38-11e9-8f61-fa163e53ddb9"}')
+        get_request_states.return_value = {'ceph:43': {
+            'sent': True,
+            'complete': True,
+            'broker_rsp': broker_rsp,
+        }}
+        self.assertEqual(broker_rsp,
+                         ceph_utils.get_broker_rsp_from_completed_request(rq))
+        get_request_states.assert_called_once_with(rq, relation='ceph')
+
+    @patch.object(ceph_utils, 'get_request_states')
+    def test_get_broker_rsp_from_completed_request_not_complete(
+            self, get_request_states):
+        rq = ceph_utils.CephBrokerRq()
+        get_request_states.return_value = {'ceph:43': {
+            'sent': True,
+            'complete': False,
+            'broker_rsp': 'foo',
+        }}
+        self.assertIsNone(ceph_utils.get_broker_rsp_from_completed_request(rq))
+        get_request_states.assert_called_once_with(rq, relation='ceph')
+
+    @patch.object(ceph_utils, 'get_request_states')
+    def test_get_broker_rsp_from_completed_request_with_states(
+            self, get_request_states):
+        broker_rsp = ceph_utils.CephBrokerRsp(
+            '{"exit-code": 0,'
+            ' "request-id": "34b726fc-be38-11e9-8f61-fa163e53ddb9"}')
+        states = {'ceph:43': {
+            'sent': True,
+            'complete': True,
+            'broker_rsp': broker_rsp,
+        }}
+        self.assertEqual(
+            broker_rsp, ceph_utils.get_broker_rsp_from_completed_request(
+                None, states=states))
+        get_request_states.assert_not_called()
+        states = {'ceph:43': {
+            'sent': True,
+            'complete': False,
+            'broker_rsp': 'foo',
+        }}
+        self.assertIsNone(ceph_utils.get_broker_rsp_from_completed_request(
+            None, states=states))
+        get_request_states.assert_not_called()
 
     def test_equivalent_broker_requests(self):
         rq1 = ceph_utils.CephBrokerRq()
@@ -1505,57 +1597,87 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid(self, mlocal_unit, muuid):
+    def test_find_broker_rsp_for_completed_request(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
-        req.add_op_create_pool(name='glance', replica_count=3)
-        mlocal_unit.return_value = 'glance/0'
-        self.setup_client_relation(CEPH_CLIENT_RELATION)
-        self.assertTrue(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
+        rsp = ceph_utils.CephBrokerRsp(
+            '{"request-id": "0bc7dc54", "exit-code": 0}')
+        with patch.object(ceph_utils, 'CephBrokerRsp') as mocked_rsp:
+            mocked_rsp.return_value = rsp
+            mlocal_unit.return_value = 'glance/0'
+            self.setup_client_relation(CEPH_CLIENT_RELATION)
+            self.assertEqual(('ceph:8', 'ceph/0', rsp),
+                             ceph_utils.find_broker_rsp_for_completed_request(
+                                 req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_newrq(self, mlocal_unit, muuid):
+    def test_find_broker_rsp_for_completed_request_newrq(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = 'a44c0fa6'
         req = ceph_utils.CephBrokerRq()
-        req.add_op_create_pool(name='glance', replica_count=4)
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
-        self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
+        self.assertEqual((None, None, None),
+                         ceph_utils.find_broker_rsp_for_completed_request(
+                             req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_failed(self, mlocal_unit, muuid):
+    def test_find_broker_rsp_for_completed_request_failedrq(
+            self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
-        req = ceph_utils.CephBrokerRq()
-        req.add_op_create_pool(name='glance', replica_count=4)
-        mlocal_unit.return_value = 'glance/0'
         rel = copy.deepcopy(CEPH_CLIENT_RELATION)
-        rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = '{"request-id": "0bc7dc54", "exit-code": 1}'
+        rel['ceph:8']['ceph/0']['broker-rsp-glance-0'] = (
+            '{"request-id": "0bc7dc54", "exit-code": 1}')
         self.setup_client_relation(rel)
-        self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
+        req = ceph_utils.CephBrokerRq()
+        mlocal_unit.return_value = 'glance/0'
+        self.assertEqual((None, None, None),
+                         ceph_utils.find_broker_rsp_for_completed_request(
+                             req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_pending(self, mlocal_unit, muuid):
+    def test_find_broker_rsp_for_completed_request_pending(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
-        req.add_op_create_pool(name='glance', replica_count=4)
         mlocal_unit.return_value = 'glance/0'
         rel = copy.deepcopy(CEPH_CLIENT_RELATION)
         del rel['ceph:8']['ceph/0']['broker-rsp-glance-0']
         self.setup_client_relation(rel)
-        self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
+        self.assertEqual((None, None, None),
+                         ceph_utils.find_broker_rsp_for_completed_request(
+                             req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_legacy(self, mlocal_unit, muuid):
+    def test_find_broker_rsp_for_completed_request_legacy(self, mlocal_unit, muuid):
         muuid.uuid1.return_value = '0bc7dc54'
         req = ceph_utils.CephBrokerRq()
-        req.add_op_create_pool(name='glance', replica_count=3)
+        rsp = ceph_utils.CephBrokerRsp(
+            '{"request-id": "0bc7dc54", "exit-code": 0}')
+        with patch.object(ceph_utils, 'CephBrokerRsp') as mocked_rsp:
+            mocked_rsp.return_value = rsp
+            mlocal_unit.return_value = 'glance/0'
+            self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
+            self.assertEqual(('ceph:8', 'ceph/0', rsp),
+                             ceph_utils.find_broker_rsp_for_completed_request(
+                                 req, 'ceph:8'))
+
+    @patch.object(ceph_utils, 'uuid')
+    @patch.object(ceph_utils, 'local_unit')
+    def test_find_broker_rsp_for_completed_request_legacy_ignored(
+            self, mlocal_unit, muuid):
+        muuid.uuid1.return_value = '0bc7dc54'
+        req = ceph_utils.CephBrokerRq()
         mlocal_unit.return_value = 'glance/0'
-        self.setup_client_relation(CEPH_CLIENT_RELATION_LEGACY)
-        self.assertTrue(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
+        rel = copy.deepcopy(CEPH_CLIENT_RELATION_LEGACY)
+        rel['ceph:8']['ceph/0'][
+            'broker_rsp'] = '{"request-id": "0bc7dc54", "exit-code": 0}'
+        self.setup_client_relation(rel)
+        self.assertEqual((None, None, None),
+                         ceph_utils.find_broker_rsp_for_completed_request(
+                             req, 'ceph:8'))
 
     @patch.object(ceph_utils, 'local_unit')
     def test_get_broker_rsp_key(self, mlocal_unit):
@@ -1603,22 +1725,17 @@ class CephUtilsTests(TestCase):
         try:
             db_path = '{}/kv.db'.format(tmpdir)
             with patch('charmhelpers.core.unitdata._KV', Storage(db_path)):
-                rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
-                broker_key = ceph_utils.get_broker_rsp_key()
-                self.relation_get.return_value = {broker_key:
-                                                  json.dumps({"request-id":
-                                                              rq_id,
-                                                              "exit-code": 0})}
+                broker_rsp = ceph_utils.CephBrokerRsp(
+                    '{"exit-code": 0,'
+                    ' "request-id": "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"}')
+
                 action = 'restart_nova_compute'
-                ret = ceph_utils.is_broker_action_done(action, rid="ceph:1",
-                                                       unit="ceph/0")
-                self.relation_get.assert_has_calls([call(rid='ceph:1', unit='ceph/0')])
+                ret = ceph_utils.is_broker_action_done(action, broker_rsp)
                 self.assertFalse(ret)
 
-                ceph_utils.mark_broker_action_done(action)
+                ceph_utils.mark_broker_action_done(action, broker_rsp)
                 self.assertTrue(os.path.exists(tmpdir))
-                ret = ceph_utils.is_broker_action_done(action, rid="ceph:1",
-                                                       unit="ceph/0")
+                ret = ceph_utils.is_broker_action_done(action, broker_rsp)
                 self.assertTrue(ret)
         finally:
             if os.path.exists(tmpdir):
@@ -1652,18 +1769,15 @@ class CephUtilsTests(TestCase):
         try:
             db_path = '{}/kv.db'.format(tmpdir)
             with patch('charmhelpers.core.unitdata._KV', Storage(db_path)):
-                rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
-                broker_key = ceph_utils.get_broker_rsp_key()
-                self.relation_get.return_value = {broker_key:
-                                                  json.dumps({"request-id":
-                                                              rq_id})}
+                broker_rsp = ceph_utils.CephBrokerRsp(
+                    '{"exit-code": 0,'
+                    ' "request-id": "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"}')
+
                 action = 'restart_nova_compute'
-                ceph_utils.mark_broker_action_done(action, rid="ceph:1",
-                                                   unit="ceph/0")
+                ceph_utils.mark_broker_action_done(action, broker_rsp)
                 key = 'unit_0_ceph_broker_action.{}'.format(action)
-                self.relation_get.assert_has_calls([call(rid='ceph:1', unit='ceph/0')])
                 kvstore = Storage(db_path)
-                self.assertEqual(kvstore.get(key=key), rq_id)
+                self.assertEqual(kvstore.get(key=key), broker_rsp.request_id)
         finally:
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
