@@ -162,7 +162,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     def setUp(self):
         super(OpenStackHelpersTestCase, self).setUp()
-        self.patch(fetch, 'apt_dpkg_env', lambda: {})
+        self.patch(fetch, 'get_apt_dpkg_env', lambda: {})
 
     def _apt_cache(self):
         # mocks out the apt cache
