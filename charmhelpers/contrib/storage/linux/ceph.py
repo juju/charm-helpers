@@ -1155,14 +1155,12 @@ class CephBrokerRq(object):
                 'rwx': ['prefix1', 'prefix2'],
                 'class-read': ['prefix3']}
         """
-        op_type = 'add-permissions-to-key'
-        if self.op_exists(name, op_type):
-            self.ops.append({
-                'op': op_type, 'group': name,
-                'namespace': namespace,
-                'name': key_name or service_name(),
-                'group-permission': permission,
-                'object-prefix-permissions': object_prefix_permissions})
+        self.ops.append({
+            'op': 'add-permissions-to-key', 'group': name,
+            'namespace': namespace,
+            'name': key_name or service_name(),
+            'group-permission': permission,
+            'object-prefix-permissions': object_prefix_permissions})
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
                            weight=None, group=None, namespace=None,
