@@ -1134,6 +1134,14 @@ class CephBrokerRq(object):
             self.request_id = str(uuid.uuid1())
         self.ops = []
 
+    def op_exists(self, name, op_type):
+        """
+        Checks the ops in this request for one of type op_type
+        and named name.
+        """
+        return any([req for req in self.ops
+                    if req['op'] == op_type and req['name'] == name])
+
     def add_op_request_access_to_group(self, name, namespace=None,
                                        permission=None, key_name=None,
                                        object_prefix_permissions=None):
@@ -1200,11 +1208,13 @@ class CephBrokerRq(object):
         if pg_num and weight:
             raise ValueError('pg_num and weight are mutually exclusive')
 
-        self.ops.append({'op': 'create-pool', 'name': name,
-                         'replicas': replica_count, 'pg_num': pg_num,
-                         'weight': weight, 'group': group,
-                         'group-namespace': namespace, 'app-name': app_name,
-                         'max-bytes': max_bytes, 'max-objects': max_objects})
+        op_type = 'create-pool'
+        if not self.op_exists(name, op_type):
+            self.ops.append({'op': op_type, 'name': name,
+                             'replicas': replica_count, 'pg_num': pg_num,
+                             'weight': weight, 'group': group,
+                             'group-namespace': namespace, 'app-name': app_name,
+                             'max-bytes': max_bytes, 'max-objects': max_objects})
 
     def add_op_create_erasure_pool(self, name, erasure_profile=None,
                                    weight=None, group=None, app_name=None,
@@ -1232,12 +1242,14 @@ class CephBrokerRq(object):
         :param max_objects: Maximum objects quota to apply
         :type max_objects: int
         """
-        self.ops.append({'op': 'create-pool', 'name': name,
-                         'pool-type': 'erasure',
-                         'erasure-profile': erasure_profile,
-                         'weight': weight,
-                         'group': group, 'app-name': app_name,
-                         'max-bytes': max_bytes, 'max-objects': max_objects})
+        op_type = 'create-pool'
+        if not self.op_exists(name, op_type):
+            self.ops.append({'op': op_type, 'name': name,
+                             'pool-type': 'erasure',
+                             'erasure-profile': erasure_profile,
+                             'weight': weight,
+                             'group': group, 'app-name': app_name,
+                             'max-bytes': max_bytes, 'max-objects': max_objects})
 
     def set_ops(self, ops):
         """Set request ops to provided value.
