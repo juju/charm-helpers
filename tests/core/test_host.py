@@ -1991,7 +1991,7 @@ class HelpersTest(TestCase):
         check_output.return_value = ''
         self.assertEquals(
             host.get_system_env('aKey', 'aDefault'), 'aDefault')
-        self.assertRaises(KeyError, host.get_system_env, 'aKey')
+        self.assertEquals(host.get_system_env('aKey'), None)
         check_output.return_value = 'aKey=aValue\n'
         self.assertEquals(
             host.get_system_env('aKey', 'aDefault'), 'aValue')

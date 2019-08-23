@@ -1086,7 +1086,7 @@ def get_system_env(key, default=None):
     :type default: any
     :returns: Value for key if found or contents of default parameter
     :rtype: any
-    :raises: subprocess.CalledProcessError, KeyError
+    :raises: subprocess.CalledProcessError
     """
     env_file = '/etc/environment'
     # use the shell and env(1) to parse the global environments file.  This is
@@ -1101,6 +1101,4 @@ def get_system_env(key, default=None):
         if k.upper() == key.upper():
             return v
     else:
-        if default:
-            return default
-        raise KeyError('"{}" not found in {}.'.format(key, env_file))
+        return default
