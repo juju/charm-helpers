@@ -1986,6 +1986,19 @@ class HelpersTest(TestCase):
             ['dpkg', '--print-architecture']
         )
 
+    @patch('subprocess.check_output')
+    def test_get_system_env(self, check_output):
+        check_output.return_value = ''
+        self.assertEquals(
+            host.get_system_env('aKey', 'aDefault'), 'aDefault')
+        self.assertEquals(host.get_system_env('aKey'), None)
+        check_output.return_value = 'aKey=aValue\n'
+        self.assertEquals(
+            host.get_system_env('aKey', 'aDefault'), 'aValue')
+        check_output.return_value = 'avalue=shell=wicked\n'
+        self.assertEquals(
+            host.get_system_env('AVALUE', 'aDefault'), 'shell=wicked')
+
 
 class TestHostCompator(TestCase):
 

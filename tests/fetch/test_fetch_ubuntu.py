@@ -86,16 +86,11 @@ def fake_apt_cache(in_memory=True, progress=None):
     return cache
 
 
-def getenv(update=None):
-    # return a copy of os.environ with update applied.
-    # this was necessary because some modules modify os.environment directly
-    copy = os.environ.copy()
-    if update is not None:
-        copy.update(update)
-    return copy
-
-
 class FetchTest(TestCase):
+
+    def setUp(self):
+        super(FetchTest, self).setUp()
+        self.patch(fetch, 'get_apt_dpkg_env', lambda: {})
 
     @patch("charmhelpers.fetch.ubuntu.log")
     @patch.object(fetch, 'apt_cache')
@@ -270,7 +265,7 @@ class FetchTest(TestCase):
         source = "ppa:test-ppa"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env={})
 
     @patch("charmhelpers.fetch.ubuntu.log")
     @patch('subprocess.check_call')
@@ -291,7 +286,7 @@ class FetchTest(TestCase):
         source = "ppa:test-ppa"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env={})
         sleep.assert_called_with(10)
         self.assertTrue(fetch.CMD_RETRY_COUNT, sleep.call_count)
 
@@ -301,7 +296,7 @@ class FetchTest(TestCase):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env={})
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch('subprocess.check_call')
@@ -309,7 +304,7 @@ class FetchTest(TestCase):
         source = "https://example.com"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env={})
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch('subprocess.check_call')
@@ -333,7 +328,7 @@ class FetchTest(TestCase):
         source = "deb http://archive.ubuntu.com/ubuntu raring-backports main"
         fetch.add_source(source=source)
         check_call.assert_called_with(
-            ['add-apt-repository', '--yes', source])
+            ['add-apt-repository', '--yes', source], env={})
 
     @patch.object(fetch, '_write_apt_gpg_keyfile')
     @patch.object(fetch, '_dearmor_gpg_key')
@@ -361,7 +356,8 @@ class FetchTest(TestCase):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         check_call.return_value = 0  # Successful exit code
         fetch.add_source(source=source, key=PGP_KEY_ID)
-        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call(
+            ['add-apt-repository', '--yes', source], env={}),
         check_output.assert_has_calls([
             call(['curl', ('https://keyserver.ubuntu.com'
                            '/pks/lookup?op=get&options=mr'
@@ -397,7 +393,8 @@ class FetchTest(TestCase):
 
         source = "https://USER:PASS@private-ppa.launchpad.net/project/awesome"
         fetch.add_source(source=source, key=PGP_KEY_ID)
-        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call(
+            ['add-apt-repository', '--yes', source], env={}),
         check_output.assert_has_calls([
             call(['curl', ('https://keyserver.ubuntu.com'
                            '/pks/lookup?op=get&options=mr'
@@ -416,7 +413,7 @@ class FetchTest(TestCase):
                                           dearmor_gpg_key,
                                           w_keyfile):
 
-        def check_call_side_effect(args):
+        def check_call_side_effect(*args, **kwargs):
             # Make sure the gpg key has already been added before the
             # add-apt-repository call, as the update could fail otherwise.
             popen.assert_called_with(
@@ -455,7 +452,8 @@ fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
         dearmor_gpg_key.assert_called_with(key_bytes)
         w_keyfile.assert_called_with(key_name=expected_key,
                                      key_material=PGP_KEY_BIN_PGP)
-        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call(
+            ['add-apt-repository', '--yes', source], env={}),
 
     @patch.object(fetch, '_write_apt_gpg_keyfile')
     @patch.object(fetch, '_dearmor_gpg_key')
@@ -468,7 +466,7 @@ fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
                                           dearmor_gpg_key,
                                           w_keyfile):
 
-        def check_call_side_effect(args):
+        def check_call_side_effect(*args, **kwargs):
             # Make sure the gpg key has already been added before the
             # add-apt-repository call, as the update could fail otherwise.
             popen.assert_called_with(
@@ -509,7 +507,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         dearmor_gpg_key.assert_called_with(key_bytes)
         w_keyfile.assert_called_with(key_name=expected_key,
                                      key_material=PGP_KEY_BIN_PGP)
-        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call(
+            ['add-apt-repository', '--yes', source], env={}),
 
     def test_add_source_cloud_invalid_pocket(self):
         source = "cloud:havana-updates"
@@ -622,7 +621,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
         key_id = PGP_KEY_ID
         fetch.add_source(source=source, key=key_id)
-        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call(
+            ['add-apt-repository', '--yes', source], env={}),
         check_output.assert_has_calls([
             call(['curl', ('https://keyserver.ubuntu.com'
                            '/pks/lookup?op=get&options=mr'
@@ -657,7 +657,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
 
         source = "https://USER:PASS@private-ppa.launchpad.net/project/awesome"
         fetch.add_source(source=source, key=PGP_KEY_ID)
-        check_call.assert_any_call(['add-apt-repository', '--yes', source]),
+        check_call.assert_any_call(
+            ['add-apt-repository', '--yes', source], env={}),
         check_output.assert_has_calls([
             call(['curl', ('https://keyserver.ubuntu.com'
                            '/pks/lookup?op=get&options=mr'
@@ -683,7 +684,7 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
             fetch.add_source(src)
             cmd = ['add-apt-repository', '-y',
                    'ppa:ubuntu-cloud-archive/folsom-staging']
-            _subp.assert_called_with(cmd)
+            _subp.assert_called_with(cmd, env={})
 
     @patch(builtin_open)
     @patch('charmhelpers.fetch.ubuntu.apt_install')
@@ -732,6 +733,10 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
 
 class AptTests(TestCase):
 
+    def setUp(self):
+        super(AptTests, self).setUp()
+        self.patch(fetch, 'get_apt_dpkg_env', lambda: {})
+
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.ubuntu.log')
     def test_apt_upgrade_non_fatal(self, log, mock_call):
@@ -741,7 +746,7 @@ class AptTests(TestCase):
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'upgrade'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -752,7 +757,7 @@ class AptTests(TestCase):
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'upgrade'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -763,7 +768,7 @@ class AptTests(TestCase):
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'dist-upgrade'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -776,7 +781,7 @@ class AptTests(TestCase):
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'install', 'foo', 'bar'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -789,7 +794,7 @@ class AptTests(TestCase):
             ['apt-get', '--assume-yes',
              '--option=Dpkg::Options::=--force-confold',
              'install', 'foo', 'bar'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -802,7 +807,7 @@ class AptTests(TestCase):
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'install', 'foo bar'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -816,7 +821,7 @@ class AptTests(TestCase):
         check_call.assert_called_with(
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'install', 'foo', 'bar'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -846,7 +851,7 @@ class AptTests(TestCase):
         self.assertTrue(log.called)
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes', 'purge', 'foo bar'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -858,7 +863,7 @@ class AptTests(TestCase):
         self.assertTrue(log.called)
         mock_call.assert_called_with(
             ['apt-get', '--assume-yes', 'purge', 'foo', 'bar'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -945,14 +950,14 @@ class AptTests(TestCase):
         fetch.apt_update(fatal=True)
         check_call.assert_called_with(
             ['apt-get', 'update'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.call')
     def test_apt_update_nonfatal(self, call):
         fetch.apt_update()
         call.assert_called_with(
             ['apt-get', 'update'],
-            env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+            env={})
 
     @patch('subprocess.check_call')
     @patch('time.sleep')
@@ -1002,3 +1007,13 @@ class AptTests(TestCase):
             ['apt-get', '--assume-yes', 'autoremove'],
             False
         )
+
+
+class TestAptDpkgEnv(TestCase):
+
+    @patch.object(fetch, 'get_system_env')
+    def test_get_apt_dpkg_env(self, mock_get_system_env):
+        mock_get_system_env.return_value = '/a/path'
+        self.assertEquals(
+            fetch.get_apt_dpkg_env(),
+            {'DEBIAN_FRONTEND': 'noninteractive', 'PATH': '/a/path'})

@@ -104,6 +104,7 @@ if __platform__ == "ubuntu":
     import_key = fetch.import_key
     get_upstream_version = fetch.get_upstream_version
     apt_pkg = fetch.ubuntu_apt_pkg
+    get_apt_dpkg_env = fetch.get_apt_dpkg_env
 elif __platform__ == "centos":
     yum_search = fetch.yum_search
 
