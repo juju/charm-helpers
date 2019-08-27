@@ -23,6 +23,7 @@
 #
 
 import os
+import base64
 
 from charmhelpers.core import host
 from charmhelpers.core.hookenv import (
@@ -37,8 +38,8 @@ from charmhelpers.core.hookenv import (
 
 def get_cert(cn=None):
     # TODO: deal with multiple https endpoints via charm config
-    cert = config_get('ssl_cert')
-    key = config_get('ssl_key')
+    cert = base64.b64decode(config_get('ssl_cert'))
+    key = base64.b64decode(config_get('ssl_key'))
     if not (cert and key):
         log("Inspecting identity-service relations for SSL certificate.",
             level=INFO)
