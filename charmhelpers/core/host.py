@@ -1098,7 +1098,7 @@ def get_system_env(key, default=None):
         universal_newlines=True)
     for k, v in (line.split('=', 1)
                  for line in output.splitlines() if '=' in line):
-        if k.upper() == key.upper():
+        if k == key:
             return v
     else:
         return default
