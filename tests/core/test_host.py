@@ -1995,9 +1995,9 @@ class HelpersTest(TestCase):
         check_output.return_value = 'aKey=aValue\n'
         self.assertEquals(
             host.get_system_env('aKey', 'aDefault'), 'aValue')
-        check_output.return_value = 'avalue=shell=wicked\n'
+        check_output.return_value = 'otherKey=shell=wicked\n'
         self.assertEquals(
-            host.get_system_env('AVALUE', 'aDefault'), 'shell=wicked')
+            host.get_system_env('otherKey', 'aDefault'), 'shell=wicked')
 
 
 class TestHostCompator(TestCase):
