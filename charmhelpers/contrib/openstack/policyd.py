@@ -405,6 +405,9 @@ def clean_policyd_dir_for(service, keep_paths=None):
     :type keep_paths: Union[None, List[str]]
     """
     keep_paths = keep_paths or []
+    path = policyd_dir_for(service)
+    if not os.path.exist(path):
+        ch_host.mkdir(path, owner=service, group=service, perms=0o775)
     for direntry in os.scandir(policyd_dir_for(service)):
         # see if the path should be kept.
         if direntry.path in keep_paths:
