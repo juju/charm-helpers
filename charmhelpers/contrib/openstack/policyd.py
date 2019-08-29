@@ -254,14 +254,12 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
             return
     except Exception:
         return
-    if not is_policyd_override_valid_on_this_release(openstack_release):
-        return
     # if the policyd overrides have been performed just return
     if os.path.isfile(_policy_success_file()):
         return
     maybe_do_policyd_overrides(
-        service, blacklist_paths, blacklist_keys, modify_function,
-        restart_handler)
+        openstack_release, service, blacklist_paths, blacklist_keys,
+        modify_function, restart_handler)
 
 
 def get_policy_resource_filename():
