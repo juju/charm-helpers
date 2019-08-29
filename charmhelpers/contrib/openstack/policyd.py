@@ -22,7 +22,6 @@ import zipfile
 
 import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.host as ch_host
-import charmhelpers.contrib.openstack.utils as ch_utils
 
 # Policy.d helper functions.
 #
@@ -140,6 +139,13 @@ def is_policyd_override_valid_on_this_release(openstack_release):
     :rtype: bool
     """
     ubuntu_release = ch_host.lsb_release()['DISTRIB_CODENAME'].lower()
+    # TODO(ajkavanagh) circular import!  This is because the status message
+    # generation code in utils has to call into this module, but this function
+    # needs the CompareOpenStackReleases() function.  The only way to solve
+    # this is either to put ALL of this module into utils, or refactor one or
+    # other of the CompareOpenStackReleases or status message generation code
+    # into a 3rd module.
+    import charmhelpers.contrib.openstack.utils as ch_utils
     return (ch_host.CompareHostReleases(ubuntu_release) >= 'bionic' and
             ch_utils.CompareOpenStackReleases(openstack_release) >= 'queens')
 
