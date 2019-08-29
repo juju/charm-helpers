@@ -97,6 +97,10 @@ from charmhelpers.fetch.snap import (
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 from charmhelpers.contrib.openstack.exceptions import OSContextError
+from charmhelpers.contrib.openstack.policyd import (
+    policyd_status_message_prefix,
+    POLICYD_CONFIG_NAME,
+)
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
@@ -861,6 +865,12 @@ def _determine_os_workload_status(
         state = 'active'
         message = "Unit is ready"
         juju_log(message, 'INFO')
+
+    try:
+        if config(POLICYD_CONFIG_NAME):
+            message = "{} {}".format(policyd_status_message_prefix(), message)
+    except Exception:
+        pass
 
     return state, message
 
