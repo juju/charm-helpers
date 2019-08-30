@@ -30,6 +30,7 @@ import six
 import os
 import shutil
 import json
+import subprocess
 import time
 import uuid
 
@@ -39,6 +40,7 @@ from subprocess import (
     CalledProcessError,
 )
 from charmhelpers.core.hookenv import (
+    cached,
     config,
     service_name,
     local_unit,
@@ -337,8 +339,7 @@ class ReplicatedPool(Pool):
                                           name=self.app_name)
                 except CalledProcessError:
                     log('Could not set app name for pool {}'.format(self.name, level=WARNING))
-                kvstore = kv()
-                if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
+                if 'pg_autoscaler' in enabled_manager_modules():
                     try:
                         enable_pg_autoscale(self.service, self.name)
                     except CalledProcessError:
@@ -401,8 +402,7 @@ class ErasurePool(Pool):
                     update_pool(client=self.service,
                                 pool=self.name,
                                 settings={'target_size_ratio': str(self.percent_data / 100.0)})
-                kvstore = kv()
-                if 'pg_autoscaler' in kvstore.get('enabled-modules', []):
+                if 'pg_autoscaler' in enabled_manager_modules():
                     try:
                         enable_pg_autoscale(self.service, self.name)
                     except CalledProcessError:
@@ -412,6 +412,22 @@ class ErasurePool(Pool):
 
     """Get an existing erasure code profile if it already exists.
        Returns json formatted output"""
+
+
+@cached
+def enabled_manager_modules():
+    """Return a list of enabled manager modules.
+
+    :returns: list[str]
+    """
+    cmd = ['ceph', 'mgr', 'module', 'ls']
+    try:
+        modules = subprocess.check_output(cmd)
+    except subprocess.CalledProcessError as e:
+        log("Failed to list ceph modules: {}".format(e), WARNING)
+        return []
+    modules = json.loads(modules)
+    return modules['enabled_modules']
 
 
 def enable_pg_autoscale(service, pool_name):

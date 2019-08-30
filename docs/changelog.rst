@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.20.2
+^^^^^^
+Tuesday 27th August 2019
+
+* get_system_env: Search should be case sensitive (#365)
+* fetch: Override apt execution environment (#360)
+
 0.20.1
 ^^^^^^
 Wednesday 14th August 2019

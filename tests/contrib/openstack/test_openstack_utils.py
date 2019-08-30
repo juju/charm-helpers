@@ -160,6 +160,10 @@ class FakeDNS(object):
 
 class OpenStackHelpersTestCase(TestCase):
 
+    def setUp(self):
+        super(OpenStackHelpersTestCase, self).setUp()
+        self.patch(fetch, 'get_apt_dpkg_env', lambda: {})
+
     def _apt_cache(self):
         # mocks out the apt cache
         def cache_get(package):
@@ -470,7 +474,7 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.configure_installation_source(src)
             ex_cmd = [
                 'add-apt-repository', '--yes', 'ppa:gandelman-a/openstack']
-            mock.assert_called_with(ex_cmd)
+            mock.assert_called_with(ex_cmd, env={})
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'import_key')
@@ -483,7 +487,7 @@ class OpenStackHelpersTestCase(TestCase):
         _spcc.assert_called_once_with(
             ['add-apt-repository', '--yes',
              'deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
-             'precise-havana main'])
+             'precise-havana main'], env={})
 
     @patch.object(fetch, 'get_distrib_codename')
     @patch(builtin_open)
@@ -504,7 +508,7 @@ class OpenStackHelpersTestCase(TestCase):
         _spcc.assert_called_once_with(
             ['add-apt-repository', '--yes',
              'deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
-             'restricted main multiverse universe'])
+             'restricted main multiverse universe'], env={})
 
     @patch('charmhelpers.fetch.filter_installed_packages')
     @patch('charmhelpers.fetch.apt_install')
@@ -581,7 +585,7 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.configure_installation_source(src)
             cmd = ['add-apt-repository', '-y',
                    'ppa:ubuntu-cloud-archive/folsom-staging']
-            _subp.assert_called_with(cmd)
+            _subp.assert_called_with(cmd, env={})
 
     @patch(builtin_open)
     @patch.object(fetch, 'apt_install')
