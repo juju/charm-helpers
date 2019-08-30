@@ -306,11 +306,11 @@ def open_and_filter_yaml_files(filepath):
         for name, _, _ in _yield_yamlfiles(zfp):
             names[name] += 1
         # There must be at least 1 yaml file.
-        if not names:
+        if len(names.keys()) == 0:
             raise BadPolicyZipFile("contains no yaml files with {} extensions."
                                    .format(", ".join(YAML_EXTS)))
         # There must be no duplicates
-        duplicates = [n for n, c in names if c > 1]
+        duplicates = [n for n, c in names.items() if c > 1]
         if duplicates:
             raise BadPolicyZipFile("{} have duplicates in the zip file."
                                    .format(", ".join(duplicates)))
@@ -331,7 +331,7 @@ def _yield_yamlfiles(zipfile):
     for infolist_item in zipfile.infolist():
         if infolist_item.is_dir():
             continue
-        _, name_ext = os.path.split(zipfile.filename)
+        _, name_ext = os.path.split(infolist_item.filename)
         name, ext = os.path.splitext(name_ext)
         ext = ext.lower()
         if ext and ext in YAML_EXTS:
@@ -365,7 +365,7 @@ def read_and_validate_yaml(stream, blacklist_keys=None):
     if not isinstance(doc, dict):
         raise BadPolicyYamlFile("doesn't look like a policy file?")
     keys = set(doc.keys())
-    blacklisted_keys_present = keys.union(blacklist_keys)
+    blacklisted_keys_present = keys.intersection(blacklist_keys)
     if blacklisted_keys_present:
         raise BadPolicyYamlFile("blacklisted keys {} present."
                                 .format(", ".join(blacklisted_keys_present)))
@@ -387,7 +387,7 @@ def policyd_dir_for(service):
     :returns: the policy.d override directory.
     :rtype: os.PathLike[str]
     """
-    return os.path.join("etc", service, "policy.d")
+    return os.path.join("/", "etc", service, "policy.d")
 
 
 def clean_policyd_dir_for(service, keep_paths=None):
@@ -508,6 +508,7 @@ def process_policy_resource_file(resource_file,
     :returns: True if the processing was successful, False if not.
     :rtype: boolean
     """
+    blacklist_paths = blacklist_paths or []
     completed = False
     try:
         with open_and_filter_yaml_files(resource_file) as (zfp, gen):
@@ -520,7 +521,7 @@ def process_policy_resource_file(resource_file,
                 if yaml_filename in blacklist_paths:
                     raise BadPolicyZipFile("policy.d name {} is blacklisted"
                                            .format(yaml_filename))
-                with zfp.open(gen) as fp:
+                with zfp.open(zipinfo) as fp:
                     yaml_doc = read_and_validate_yaml(fp, blacklist_keys)
                 if modify_function is not None and callable(modify_function):
                     yaml_doc = modify_function(yaml_doc)
@@ -538,6 +539,11 @@ def process_policy_resource_file(resource_file,
             "File {} failed with IOError.  This really shouldn't happen"
             " -- error: {}".format(str(e)),
             level=POLICYD_LOG_LEVEL_DEFAULT)
+    except Exception as e:
+        import traceback
+        hookenv.log("General Exception({}) during policyd processing"
+                    .format(str(e)))
+        hookenv.log(traceback.format_exc())
     finally:
         if not completed:
             hookenv.log("Processing {} failed: cleaning policy.d directory",
