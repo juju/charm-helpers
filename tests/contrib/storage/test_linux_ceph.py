@@ -177,11 +177,13 @@ class CephUtilsTests(TestCase):
             'relation_set',
             'log',
             'cmp_pkgrevno',
+            'enabled_manager_modules',
         ]]
         # Ensure the config is setup for mocking properly.
         self.test_config = TestConfig()
         self.config.side_effect = self.test_config.get
         self.cmp_pkgrevno.return_value = 1
+        self.enabled_manager_modules.return_value = []
 
     def _patch(self, method):
         _m = patch.object(ceph_utils, method)
@@ -357,12 +359,10 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
         ])
 
-    @patch.object(ceph_utils, 'kv')
+    @patch.object(ceph_utils, 'enabled_manager_modules')
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_autoscaler(self, get_osds, kv):
-        db = MagicMock()
-        kv.return_value = db
-        db.get.return_value = ['pg_autoscaler']
+    def test_replicated_pool_create_autoscaler(self, get_osds, enabled_manager_modules):
+        enabled_manager_modules.return_value = ['pg_autoscaler']
         self.cmp_pkgrevno.return_value = 1
         get_osds.return_value = range(1, 9)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
