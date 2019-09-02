@@ -30,7 +30,6 @@ import six
 import os
 import shutil
 import json
-import subprocess
 import time
 import uuid
 
@@ -40,7 +39,6 @@ from subprocess import (
     CalledProcessError,
 )
 from charmhelpers.core.hookenv import (
-    cached,
     config,
     service_name,
     local_unit,
@@ -414,7 +412,6 @@ class ErasurePool(Pool):
        Returns json formatted output"""
 
 
-@cached
 def enabled_manager_modules():
     """Return a list of enabled manager modules.
 
@@ -422,8 +419,8 @@ def enabled_manager_modules():
     """
     cmd = ['ceph', 'mgr', 'module', 'ls']
     try:
-        modules = subprocess.check_output(cmd)
-    except subprocess.CalledProcessError as e:
+        modules = check_output(cmd)
+    except CalledProcessError as e:
         log("Failed to list ceph modules: {}".format(e), WARNING)
         return []
     modules = json.loads(modules)

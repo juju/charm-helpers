@@ -164,6 +164,25 @@ class TestConfig():
         return self.config.get(key)
 
 
+class CephBasicUtilsTests(TestCase):
+    def setUp(self):
+        super(CephBasicUtilsTests, self).setUp()
+        [self._patch(m) for m in [
+            'check_output',
+        ]]
+
+    def _patch(self, method):
+        _m = patch.object(ceph_utils, method)
+        mock = _m.start()
+        self.addCleanup(_m.stop)
+        setattr(self, method, mock)
+
+    def test_enabled_manager_modules(self):
+        self.check_output.return_value = '{"enabled_modules": []}'
+        ceph_utils.enabled_manager_modules()
+        self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls'])
+
+
 class CephUtilsTests(TestCase):
     def setUp(self):
         super(CephUtilsTests, self).setUp()
@@ -464,7 +483,10 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'kv')
     @patch.object(ceph_utils, 'get_erasure_profile')
     @patch.object(ceph_utils, 'get_osds')
-    def test_erasure_pool_create_autotune(self, get_osds, erasure_profile, kv):
+    def test_erasure_pool_create_autoscaler(self,
+                                            get_osds,
+                                            erasure_profile,
+                                            kv):
         db = MagicMock()
         kv.return_value = db
         db.get.return_value = ['pg_autoscaler']
