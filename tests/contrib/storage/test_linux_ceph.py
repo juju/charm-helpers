@@ -1,4 +1,4 @@
-from mock import patch, call, mock_open, MagicMock
+from mock import patch, call, mock_open
 
 import six
 from shutil import rmtree
@@ -378,10 +378,9 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
         ])
 
-    @patch.object(ceph_utils, 'enabled_manager_modules')
     @patch.object(ceph_utils, 'get_osds')
-    def test_replicated_pool_create_autoscaler(self, get_osds, enabled_manager_modules):
-        enabled_manager_modules.return_value = ['pg_autoscaler']
+    def test_replicated_pool_create_autoscaler(self, get_osds):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
         self.cmp_pkgrevno.return_value = 1
         get_osds.return_value = range(1, 9)
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
@@ -480,16 +479,12 @@ class CephUtilsTests(TestCase):
                   'application', 'enable', 'test', 'unknown'])
         ])
 
-    @patch.object(ceph_utils, 'kv')
     @patch.object(ceph_utils, 'get_erasure_profile')
     @patch.object(ceph_utils, 'get_osds')
     def test_erasure_pool_create_autoscaler(self,
                                             get_osds,
-                                            erasure_profile,
-                                            kv):
-        db = MagicMock()
-        kv.return_value = db
-        db.get.return_value = ['pg_autoscaler']
+                                            erasure_profile):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
         self.cmp_pkgrevno.return_value = 1
         get_osds.return_value = range(1, 60)
         erasure_profile.return_value = {
