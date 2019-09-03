@@ -1717,6 +1717,10 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-nfg-logging',
                 'default': False,
             },
+            'enable_port_forwarding': {
+                'rel_key': 'enable-port-forwarding',
+                'default': False,
+            },
             'global_physnet_mtu': {
                 'rel_key': 'global-physnet-mtu',
                 'default': 1500,
@@ -1745,6 +1749,13 @@ class NeutronAPIContext(OSContextGenerator):
             extension_drivers.append('log')
 
         ctxt['extension_drivers'] = ','.join(extension_drivers)
+
+        l3_extension_plugins = []
+
+        if ctxt['enable_port_forwarding']:
+            l3_extension_plugins.append('port_forwarding')
+
+        ctxt['l3_extension_plugins'] = l3_extension_plugins
 
         return ctxt
 

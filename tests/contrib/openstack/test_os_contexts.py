@@ -3567,6 +3567,22 @@ class ContextTests(unittest.TestCase):
         api_ctxt = context.NeutronAPIContext()()
         self.assertEquals(api_ctxt['enable_nfg_logging'], False)
 
+    def test_neutronapicontext_port_forwarding_on(self):
+        self.setup_neutron_api_context_relation({
+            'enable-port-forwarding': 'True',
+            'l2-population': 'True'
+        })
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['enable_port_forwarding'], True)
+
+    def test_neutronapicontext_port_forwarding_off(self):
+        self.setup_neutron_api_context_relation({
+            'enable-port-forwarding': 'False',
+            'l2-population': 'True'
+        })
+        api_ctxt = context.NeutronAPIContext()()
+        self.assertEquals(api_ctxt['enable_port_forwarding'], False)
+
     def test_neutronapicontext_string_converted(self):
         self.setup_neutron_api_context_relation({
             'l2-population': 'True'})
