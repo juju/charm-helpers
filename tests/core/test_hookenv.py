@@ -488,6 +488,21 @@ class HelpersTest(TestCase):
         self.assertEqual(result, None)
         self.assertFalse(check_output.called)
 
+    @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
+    @patch('charmhelpers.core.hookenv.charm_dir')
+    @patch('subprocess.check_output')
+    def test_gets_config_no_cache_without_scope(self,
+                                                check_output,
+                                                charm_dir):
+        check_output.return_value = json.dumps(dict(baz='bar')).encode('UTF-8')
+        charm_dir.return_value = '/nonexistent'
+
+        result = hookenv.config(use_cache=False)
+
+        self.assertFalse(result.implicit_save)
+        self.assertEqual(result['baz'], 'bar')
+        self.assertTrue(check_output.called)
+
     @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_local_unit(self, os_):
         os_.environ = {

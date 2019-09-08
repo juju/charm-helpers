@@ -391,7 +391,7 @@ class Config(dict):
 _cache_config = None
 
 
-def config(scope=None):
+def config(scope=None, use_cache=True):
     """
     Get the juju charm configuration (scope==None) or individual key,
     (scope=str).  The returned value is a Python data structure loaded as
@@ -411,10 +411,11 @@ def config(scope=None):
         # JSON Decode Exception for Python2.7 through Python3.4
         exc_json = ValueError
     try:
-        if _cache_config is None:
+        if not use_cache or _cache_config is None:
             config_data = json.loads(
                 subprocess.check_output(config_cmd_line).decode('UTF-8'))
             _cache_config = Config(config_data)
+            _cache_config.implicit_save = use_cache
         if scope is not None:
             return _cache_config.get(scope)
         return _cache_config
