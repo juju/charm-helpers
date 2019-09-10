@@ -122,11 +122,22 @@ class BadPolicyZipFile(Exception):
     def __init__(self, log_message):
         self.log_message = log_message
 
+    def __str__(self):
+        return self.log_message
+
 
 class BadPolicyYamlFile(Exception):
 
     def __init__(self, log_message):
         self.log_message = log_message
+
+    def __str__(self):
+        return self.log_message
+
+if six.PY2:
+    BadZipFile = zipfile.BadZipfile
+else:
+    BadZipFile = zipfile.BadZipFile
 
 
 def is_policyd_override_valid_on_this_release(openstack_release):
@@ -303,7 +314,8 @@ def open_and_filter_yaml_files(filepath):
     with zipfile.ZipFile(filepath, 'r') as zfp:
         # first pass through; check for duplicates and at least one yaml file.
         names = collections.defaultdict(int)
-        for name, _, _ in _yield_yamlfiles(zfp):
+        yamlfiles = _yamlfiles(zfp)
+        for name, _, _ in yamlfiles:
             names[name] += 1
         # There must be at least 1 yaml file.
         if len(names.keys()) == 0:
@@ -315,10 +327,10 @@ def open_and_filter_yaml_files(filepath):
             raise BadPolicyZipFile("{} have duplicates in the zip file."
                                    .format(", ".join(duplicates)))
         # Finally, let's yield the generator
-        yield (zfp, _yield_yamlfiles(zfp))
+        yield (zfp, yamlfiles)
 
 
-def _yield_yamlfiles(zipfile):
+def _yamlfiles(zipfile):
     """Helper to get a yaml file (according to YAML_EXTS extensions) and the
     infolist item from a zipfile.
 
@@ -326,8 +338,9 @@ def _yield_yamlfiles(zipfile):
     :type zipfile: zipfile.ZipFile
     :returns: generator of (name, filename, info item) for each self-identified
               yaml file.
-    :rtype: Generator[(str, str, zipfile.ZipInfo)]
+    :rtype: List[(str, str, zipfile.ZipInfo)]
     """
+    l = []
     for infolist_item in zipfile.infolist():
         if infolist_item.is_dir():
             continue
@@ -335,7 +348,8 @@ def _yield_yamlfiles(zipfile):
         name, ext = os.path.splitext(name_ext)
         ext = ext.lower()
         if ext and ext in YAML_EXTS:
-            yield name, name_ext, infolist_item
+            l.append((name, name_ext, infolist_item))
+    return l
 
 
 def read_and_validate_yaml(stream, blacklist_keys=None):
@@ -408,7 +422,8 @@ def clean_policyd_dir_for(service, keep_paths=None):
     path = policyd_dir_for(service)
     if not os.path.exists(path):
         ch_host.mkdir(path, owner=service, group=service, perms=0o775)
-    for direntry in os.scandir(policyd_dir_for(service)):
+    _scanner = os.scandir if six.PY3 else _py2_scandir
+    for direntry in _scanner(path):
         # see if the path should be kept.
         if direntry.path in keep_paths:
             continue
@@ -417,6 +432,33 @@ def clean_policyd_dir_for(service, keep_paths=None):
             shutil.rmtree(direntry.path)
         else:
             os.remove(direntry.path)
+
+@contextlib.contextmanager
+def _py2_scandir(path):
+    """provide a py2 implementation of os.scandir if this module ever gets used
+    in a py2 charm (unlikely).  uses os.listdir() to get the names in the path,
+    and then mocks the is_dir() function using os.path.isdir() to check for a
+    directory.
+
+    :param path: the path to list the directories for
+    :type path: str
+    :returns: Generator that provides _P27Direntry objects
+    :rtype: ContextManager[_P27Direntry]
+    """
+    for f in os.listdir(path):
+        yield _P27Direntry(f)
+
+
+class _P27Direntry(object):
+    """Mock a scandir Direntry object with enough to use in
+    clean_policyd_dir_for
+    """
+
+    def __init__(self, path):
+        self.path = path
+
+    def is_dir(self):
+        return os.path.isdir(self.path)
 
 
 def path_for_policy_file(service, name):
@@ -529,7 +571,7 @@ def process_policy_resource_file(resource_file,
                     yaml.dump(yaml_doc, f)
         # Every thing worked, so we mark up a success.
         completed = True
-    except (zipfile.BadZipFile, BadPolicyZipFile, BadPolicyYamlFile) as e:
+    except (BadZipFile, BadPolicyZipFile, BadPolicyYamlFile) as e:
         hookenv.log("Processing {} failed: {}".format(resource_file, str(e)),
                     level=POLICYD_LOG_LEVEL_DEFAULT)
     except IOError as e:
@@ -537,16 +579,18 @@ def process_policy_resource_file(resource_file,
         # the filename comes from Juju and thus, should exist.
         hookenv.log(
             "File {} failed with IOError.  This really shouldn't happen"
-            " -- error: {}".format(str(e)),
+            " -- error: {}".format(resource_file, str(e)),
             level=POLICYD_LOG_LEVEL_DEFAULT)
     except Exception as e:
         import traceback
         hookenv.log("General Exception({}) during policyd processing"
-                    .format(str(e)))
+                    .format(str(e)),
+                    level=POLICYD_LOG_LEVEL_DEFAULT)
         hookenv.log(traceback.format_exc())
     finally:
         if not completed:
-            hookenv.log("Processing {} failed: cleaning policy.d directory",
+            hookenv.log("Processing {} failed: cleaning policy.d directory"
+                        .format(resource_file),
                         level=POLICYD_LOG_LEVEL_DEFAULT)
             clean_policyd_dir_for(service, blacklist_paths)
         else:
