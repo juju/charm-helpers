@@ -115,6 +115,7 @@ POLICYD_RESOURCE_NAME = "policyd-override"
 POLICYD_CONFIG_NAME = "use-policyd-override"
 POLICYD_SUCCESS_FILENAME = "policyd-override-success"
 POLICYD_LOG_LEVEL_DEFAULT = hookenv.INFO
+POLICYD_ALWAYS_BLACKLISTED_KEYS = ("admin_required", "cloud_admin")
 
 
 class BadPolicyZipFile(Exception):
@@ -375,6 +376,7 @@ def read_and_validate_yaml(stream, blacklist_keys=None):
              blacklisted keys in the file.
     """
     blacklist_keys = blacklist_keys or []
+    blacklist_keys.append(POLICYD_ALWAYS_BLACKLISTED_KEYS)
     doc = yaml.safe_load(stream)
     if not isinstance(doc, dict):
         raise BadPolicyYamlFile("doesn't look like a policy file?")
