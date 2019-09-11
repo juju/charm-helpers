@@ -135,6 +135,7 @@ class BadPolicyYamlFile(Exception):
     def __str__(self):
         return self.log_message
 
+
 if six.PY2:
     BadZipFile = zipfile.BadZipfile
 else:
@@ -434,6 +435,7 @@ def clean_policyd_dir_for(service, keep_paths=None):
             shutil.rmtree(direntry.path)
         else:
             os.remove(direntry.path)
+
 
 @contextlib.contextmanager
 def _py2_scandir(path):

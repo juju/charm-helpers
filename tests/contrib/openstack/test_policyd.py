@@ -141,6 +141,7 @@ class PolicydTests(unittest.TestCase):
                          "test-file")
         mock_resource_get.assert_called_once_with(
             policyd.POLICYD_RESOURCE_NAME)
+
         # check that if an error is raised, that None is returned.
         def go_bang(*args):
             raise Exception("bang")
@@ -338,6 +339,7 @@ class PolicydTests(unittest.TestCase):
         mock_file.return_value = "the-path"
         policyd.remove_policy_success_file()
         mock_os_remove.assert_called_once_with("the-path")
+
         # now test that failure doesn't fail the function
         def go_bang(*args):
             raise Exception("bang")
@@ -456,5 +458,3 @@ class PolicydTests(unittest.TestCase):
         mock_log.assert_any_call(
             "General Exception(bang2) during policyd processing",
             level=policyd.POLICYD_LOG_LEVEL_DEFAULT)
-
-
