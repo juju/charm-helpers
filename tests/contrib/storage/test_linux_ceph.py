@@ -164,6 +164,25 @@ class TestConfig():
         return self.config.get(key)
 
 
+class CephBasicUtilsTests(TestCase):
+    def setUp(self):
+        super(CephBasicUtilsTests, self).setUp()
+        [self._patch(m) for m in [
+            'check_output',
+        ]]
+
+    def _patch(self, method):
+        _m = patch.object(ceph_utils, method)
+        mock = _m.start()
+        self.addCleanup(_m.stop)
+        setattr(self, method, mock)
+
+    def test_enabled_manager_modules(self):
+        self.check_output.return_value = '{"enabled_modules": []}'
+        ceph_utils.enabled_manager_modules()
+        self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls'])
+
+
 class CephUtilsTests(TestCase):
     def setUp(self):
         super(CephUtilsTests, self).setUp()
@@ -177,11 +196,13 @@ class CephUtilsTests(TestCase):
             'relation_set',
             'log',
             'cmp_pkgrevno',
+            'enabled_manager_modules',
         ]]
         # Ensure the config is setup for mocking properly.
         self.test_config = TestConfig()
         self.config.side_effect = self.test_config.get
         self.cmp_pkgrevno.return_value = 1
+        self.enabled_manager_modules.return_value = []
 
     def _patch(self, method):
         _m = patch.object(ceph_utils, method)
@@ -311,7 +332,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_luminous_ceph(self, get_osds):
-        self.cmp_pkgrevno.return_value = 1
+        self.cmp_pkgrevno.side_effect = [-1, 1]
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
@@ -354,6 +375,30 @@ class CephUtilsTests(TestCase):
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
                   '128']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
+        ])
+
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_autoscaler(self, get_osds):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
+        self.cmp_pkgrevno.return_value = 1
+        get_osds.return_value = range(1, 9)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=50)
+        p.create()
+
+        # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+        # at 100 PGs/OSD, the number of expected placement groups will be 128
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '128']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
+                  'target_size_ratio', '0.5']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'application', 'enable', 'test', 'unknown']),
+
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
+                 'pg_autoscale_mode', 'on']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -432,6 +477,30 @@ class CephUtilsTests(TestCase):
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown'])
+        ])
+
+    @patch.object(ceph_utils, 'get_erasure_profile')
+    @patch.object(ceph_utils, 'get_osds')
+    def test_erasure_pool_create_autoscaler(self,
+                                            get_osds,
+                                            erasure_profile):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
+        self.cmp_pkgrevno.return_value = 1
+        get_osds.return_value = range(1, 60)
+        erasure_profile.return_value = {
+            'directory': '/usr/lib/x86_64-linux-gnu/ceph/erasure-code',
+            'k': '2',
+            'technique': 'reed_sol_van',
+            'm': '1',
+            'plugin': 'jerasure'}
+        p = ceph_utils.ErasurePool(name='test', service='admin',
+                                   percent_data=100)
+        p.create()
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+                  '2048', '2048', 'erasure', 'default']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
         ])
 
     def test_get_erasure_profile_none(self):
