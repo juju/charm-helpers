@@ -204,12 +204,14 @@ class PolicydTests(unittest.TestCase):
             MockInfoListItem(False, "file4.Yaml"),
             MockInfoListItem(True, "file5"),
             MockInfoListItem(True, "file6.yaml"),
-            MockInfoListItem(False, "file7")])
+            MockInfoListItem(False, "file7"),
+            MockInfoListItem(False, "file8.j2")])
 
         self.assertEqual(list(policyd._yamlfiles(zipfile)),
-                         [("file1", "file1.yaml", mock.ANY),
-                          ("file3", "file3.YML", mock.ANY),
-                          ("file4", "file4.Yaml", mock.ANY)])
+                         [("file1", ".yaml", "file1.yaml", mock.ANY),
+                          ("file3", ".yml", "file3.YML", mock.ANY),
+                          ("file4", ".yaml", "file4.Yaml", mock.ANY),
+                          ("file8", ".j2", "file8.j2", mock.ANY)])
 
     @mock.patch.object(policyd.yaml, "safe_load")
     def test_read_and_validate_yaml(self, mock_safe_load):
@@ -380,8 +382,8 @@ class PolicydTests(unittest.TestCase):
         mod_fn = mock.Mock()
         mock_path_for_policy_file.side_effect = lambda s, n: s + "/" + n
         gen = [
-            ("file1", "file1.yaml", "file1-zipinfo"),
-            ("file2", "file2.yml", "file2-zipinfo")]
+            ("file1", ".yaml", "file1.yaml", "file1-zipinfo"),
+            ("file2", ".yml", "file2.yml", "file2-zipinfo")]
         mock_open_and_filter_yaml_files.return_value.__enter__.return_value = \
             (mock_zfp, gen)
         # first verify that we can blacklist a file
@@ -413,12 +415,14 @@ class PolicydTests(unittest.TestCase):
 
         mock_clean_policyd_dir_for.reset_mock()
         mock_zfp.reset_mock()
-        mock_zfp.open.return_value.__enter__.return_value = "fp"
-        gen = [("file1", "file1.yaml", "file1-zipinfo")]
+        mock_fp = mock.MagicMock()
+        mock_fp.read.return_value = '{"rule1": "value1"}'
+        mock_zfp.open.return_value.__enter__.return_value = mock_fp
+        gen = [("file1", ".j2", "file1.j2", "file1-zipinfo")]
         mock_open_and_filter_yaml_files.return_value.__enter__.return_value = \
             (mock_zfp, gen)
-        mock_read_and_validate_yaml.return_value = "read_yaml_return"
-        mod_fn.return_value = "modded_yaml"
+        mock_read_and_validate_yaml.return_value = {"rule1": "modded_value1"}
+        mod_fn.return_value = '{"rule1": "modded_value1"}'
         mock__policy_success_file.return_value = "policy-success-file"
         with _patch_open() as (mock_open, mock_file):
             res = policyd.process_policy_resource_file(
@@ -426,10 +430,25 @@ class PolicydTests(unittest.TestCase):
             self.assertTrue(res)
             mock_open.assert_any_call("aservice/file1", "wt")
             mock_open.assert_any_call("policy-success-file", "w")
-            mock_yaml_dump.assert_called_once_with("modded_yaml", mock.ANY)
+            mock_yaml_dump.assert_called_once_with(
+                {"rule1": "modded_value1"}, mock.ANY)
         mock_zfp.open.assert_called_once_with("file1-zipinfo")
-        mock_read_and_validate_yaml.assert_called_once_with("fp", ["key"])
-        mod_fn.assert_called_once_with("read_yaml_return")
+        mock_read_and_validate_yaml.assert_called_once_with(
+            '{"rule1": "modded_value1"}', ["key"])
+        mod_fn.assert_called_once_with('{"rule1": "value1"}')
+
+        # raise a BadPolicyZipFile if we have a template, but there is no
+        # template function
+        mock_log.reset_mock()
+        with _patch_open() as (mock_open, mock_file):
+            res = policyd.process_policy_resource_file(
+                "resource.zip", "aservice", [], ["key"],
+                template_function=None)
+            self.assertFalse(res)
+        mock_log.assert_any_call(
+            "Processing resource.zip failed: Template file1.j2 "
+            "but no template_function is available",
+            level=policyd.POLICYD_LOG_LEVEL_DEFAULT)
 
         # raise the IOError to validate that code path
         def raise_ioerror(*args):

@@ -23,12 +23,88 @@ import zipfile
 import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.host as ch_host
 
-# Policy.d helper functions.
-#
-# The /etc/<service-name>/policy.d/ directory, for OpenStack services can
-# contain YAML or JSON files to override the default policies configured in a
-# service.  These helpers are used to load, validate, and write YAML files to
-# the policy.d directory
+# Features provided by this module:
+
+"""
+Policy.d helper functions
+=========================
+
+The functions in this module are designed, as a set, to provide an easy-to-use
+set of hooks for classic charms to add in /etc/<service-name>/policy.d/
+directory override YAML files.
+
+(For charms.openstack charms, a mixin class is provided for this
+functionality).
+
+In order to "hook" this functionality into a (classic) charm, two functions are
+provided:
+
+    maybe_do_policyd_overrides(openstack_release,
+                               service,
+                               blacklist_paths=none,
+                               blacklist_keys=none,
+                               template_function=none,
+                               restart_handler=none)
+
+    maybe_do_policyd_overrides_on_config_changed(openstack_release,
+                                                 service,
+                                                 blacklist_paths=None,
+                                                 blacklist_keys=None,
+                                                 template_function=None,
+                                                 restart_handler=None
+
+(See the docstrings for details on the parameters)
+
+The functions should be called from the install and upgrade hooks in the charm.
+The `maybe_do_policyd_overrides_on_config_changed` function is designed to be
+called on the config-changed hook, in that it does an additional check to
+ensure that an already overriden policy.d in an upgrade or install hooks isn't
+repeated.
+
+In order the *enable* this functionality, the charm's install, config_changed,
+and upgrade_charm hooks need to be modified, and a new config option (see
+below) needs to be added.  The README for the charm should also be updated.
+
+Examples from the keystone charm are:
+
+@hooks.hook('install.real')
+@harden()
+def install():
+    ...
+    # call the policy overrides handler which will install any policy overrides
+    maybe_do_policyd_overrides(os_release('keystone'), 'keystone')
+
+
+@hooks.hook('config-changed')
+@restart_on_change(restart_map(), restart_functions=restart_function_map())
+@harden()
+def config_changed():
+    ...
+    # call the policy overrides handler which will install any policy overrides
+    maybe_do_policyd_overrides_on_config_changed(os_release('keystone'),
+                                                 'keystone')
+
+@hooks.hook('upgrade-charm')
+@restart_on_change(restart_map(), stopstart=True)
+@harden()
+def upgrade_charm():
+    ...
+    # call the policy overrides handler which will install any policy overrides
+    maybe_do_policyd_overrides(os_release('keystone'), 'keystone')
+
+Status Line
+===========
+
+The workload status code in charm-helpers has been modified to detect if
+policy.d override code has been incorporated into the charm by checking for the
+new config variable (in the config.yaml).  If it has been, then the workload
+status line will automatically show "PO:" at the beginning of the workload
+status for that unit/service if the config option is set.  If the policy
+override is broken, the "PO (broken):" will be shown.  No changes to the charm
+(apart from those already mentioned) are needed to enable this functionality.
+(charms.openstack charms also get this functionality, but please see that
+library for further details).
+"""
 
 # The config.yaml for the charm should contain the following for the config
 # option:
@@ -83,9 +159,17 @@ The `<charm-name>` is the name that this charm is deployed as, with
 
 The format of the resource file is a ZIP file (.zip extension) containing at
 least one YAML file with an extension of `.yaml` or `.yml`.  Note that any
-directories in the ZIP file are ignored; all of the files are flattened into
-a single directory.  There must not be any duplicated filenames; this will
-cause an error and nothing in the resource file will be applied.
+directories in the ZIP file are ignored; all of the files are flattened into a
+single directory.  There must not be any duplicated filenames; this will cause
+an error and nothing in the resource file will be applied.
+
+(ed. next part is optional is the charm supports some form of
+template/substitution on a read file)
+
+If a (ed. "one or more of") [`.j2`, `.tmpl`, `.tpl`] file is found in the
+resource file then the charm will perform a substitution with charm variables
+taken from the config or relations.  (ed. edit as appropriate to include the
+variable).
 
 To enable the policy overrides the config option `use-policyd-override` must be
 set to `True`.
@@ -110,7 +194,8 @@ OpenStack system.  The charms for the other services that may need overrides
 should be checked to ensure that they support overrides before proceeding.
 """
 
-YAML_EXTS = ['.yaml', '.yml']
+POLICYD_VALID_EXTS = ['.yaml', '.yml', '.j2']
+POLICYD_TEMPLATE_EXTS = ['.j2']
 POLICYD_RESOURCE_NAME = "policyd-override"
 POLICYD_CONFIG_NAME = "use-policyd-override"
 POLICYD_SUCCESS_FILENAME = "policyd-override-success"
@@ -167,7 +252,7 @@ def maybe_do_policyd_overrides(openstack_release,
                                service,
                                blacklist_paths=None,
                                blacklist_keys=None,
-                               modify_function=None,
+                               template_function=None,
                                restart_handler=None):
     """If the config option is set, get the resource file and process it to
     enable the policy.d overrides for the service passed.
@@ -176,9 +261,10 @@ def maybe_do_policyd_overrides(openstack_release,
     is only supported on openstack_release "queens" or later, and on ubuntu
     "bionic" or later.  Prior to these versions, this feature is a NOP.
 
-    The optional modify_function is a function that accepts a python dictionary
-    and has an opportunity to modify the yaml (as a python object) prior to it
-    being written to the disk.
+    The optional template_function is a function that accepts a string and has
+    an opportunity to modify the loaded file prior to it being read by
+    yaml.safe_load().  This allows the charm to perform "templating" using
+    charm derived data.
 
     The param blacklist_paths are paths (that are in the service's policy.d
     directory that should not be touched).
@@ -205,10 +291,9 @@ def maybe_do_policyd_overrides(openstack_release,
     :param blacklist_keys: optional list of keys that mustn't appear in the
                            yaml file's
     :type blacklist_keys: Union[None, List[str]]
-    :param modify_function: Optional function that can modify the yaml
-                            document.
-    :type modify_function: Union[None,
-                                 Callable[[Dict[str, str]], Dict[str,str]]]
+    :param template_function: Optional function that can modify the string
+                              prior to being processed as a Yaml document.
+    :type template_function: Union[None, Callable[[str], str]]
     :param restart_handler: The function to call if the service should be
                             restarted.
     :type restart_handler: Union[None, Callable[]]
@@ -226,7 +311,7 @@ def maybe_do_policyd_overrides(openstack_release,
     resource_filename = get_policy_resource_filename()
     restart = process_policy_resource_file(
         resource_filename, service, blacklist_paths, blacklist_keys,
-        modify_function)
+        template_function)
     if restart and restart_handler is not None and callable(restart_handler):
         restart_handler()
 
@@ -235,7 +320,7 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
                                                  service,
                                                  blacklist_paths=None,
                                                  blacklist_keys=None,
-                                                 modify_function=None,
+                                                 template_function=None,
                                                  restart_handler=None):
     """This function is designed to be called from the config changed hook
     handler.  It will only perform the policyd overrides if the config is True
@@ -253,10 +338,9 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
     :param blacklist_keys: optional list of keys that mustn't appear in the
                            yaml file's
     :type blacklist_keys: Union[None, List[str]]
-    :param modify_function: Optional function that can modify the yaml
-                            document.
-    :type modify_function: Union[None,
-                                 Callable[[Dict[str, str]], Dict[str,str]]]
+    :param template_function: Optional function that can modify the string
+                              prior to being processed as a Yaml document.
+    :type template_function: Union[None, Callable[[str], str]]
     :param restart_handler: The function to call if the service should be
                             restarted.
     :type restart_handler: Union[None, Callable[]]
@@ -272,7 +356,7 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
         return
     maybe_do_policyd_overrides(
         openstack_release, service, blacklist_paths, blacklist_keys,
-        modify_function, restart_handler)
+        template_function, restart_handler)
 
 
 def get_policy_resource_filename():
@@ -322,7 +406,7 @@ def open_and_filter_yaml_files(filepath):
         # There must be at least 1 yaml file.
         if len(names.keys()) == 0:
             raise BadPolicyZipFile("contains no yaml files with {} extensions."
-                                   .format(", ".join(YAML_EXTS)))
+                                   .format(", ".join(POLICYD_VALID_EXTS)))
         # There must be no duplicates
         duplicates = [n for n, c in names.items() if c > 1]
         if duplicates:
@@ -333,14 +417,14 @@ def open_and_filter_yaml_files(filepath):
 
 
 def _yamlfiles(zipfile):
-    """Helper to get a yaml file (according to YAML_EXTS extensions) and the
-    infolist item from a zipfile.
+    """Helper to get a yaml file (according to POLICYD_VALID_EXTS extensions)
+    and the infolist item from a zipfile.
 
     :param zipfile: the zipfile to read zipinfo items from
     :type zipfile: zipfile.ZipFile
-    :returns: generator of (name, filename, info item) for each self-identified
+    :returns: generator of (name, ext, filename, info item) for each self-identified
               yaml file.
-    :rtype: List[(str, str, zipfile.ZipInfo)]
+    :rtype: List[(str, str, str, zipfile.ZipInfo)]
     """
     l = []
     for infolist_item in zipfile.infolist():
@@ -349,24 +433,24 @@ def _yamlfiles(zipfile):
         _, name_ext = os.path.split(infolist_item.filename)
         name, ext = os.path.splitext(name_ext)
         ext = ext.lower()
-        if ext and ext in YAML_EXTS:
-            l.append((name, name_ext, infolist_item))
+        if ext and ext in POLICYD_VALID_EXTS:
+            l.append((name, ext, name_ext, infolist_item))
     return l
 
 
-def read_and_validate_yaml(stream, blacklist_keys=None):
+def read_and_validate_yaml(stream_or_doc, blacklist_keys=None):
     """Read, validate and return the (first) yaml document from the stream.
 
-    The stream is read, and checked for a yaml file.  The the top-level keys
-    are checked against the blacklist_keys provided.  If there are problems
-    then an Exception is raised.  Otherwise the yaml document is returned as a
-    Python object that can be dumped back as a yaml file on the system.
+    The doc is read, and checked for a yaml file.  The the top-level keys are
+    checked against the blacklist_keys provided.  If there are problems then an
+    Exception is raised.  Otherwise the yaml document is returned as a Python
+    object that can be dumped back as a yaml file on the system.
 
     The yaml file must only consist of a str:str mapping, and if not then the
     yaml file is rejected.
 
-    :param stream: the file object to read the yaml from
-    :type stream: Union[AnyStr, IO[AnyStr]]
+    :param stream_or_doc: the file object to read the yaml from
+    :type stream_or_doc: Union[AnyStr, IO[AnyStr]]
     :param blacklist_keys: Any keys, which if in the yaml file, should cause
         and error.
     :type blacklisted_keys: Union[None, List[str]]
@@ -378,7 +462,7 @@ def read_and_validate_yaml(stream, blacklist_keys=None):
     """
     blacklist_keys = blacklist_keys or []
     blacklist_keys.append(POLICYD_ALWAYS_BLACKLISTED_KEYS)
-    doc = yaml.safe_load(stream)
+    doc = yaml.safe_load(stream_or_doc)
     if not isinstance(doc, dict):
         raise BadPolicyYamlFile("doesn't look like a policy file?")
     keys = set(doc.keys())
@@ -517,13 +601,15 @@ def process_policy_resource_file(resource_file,
                                  service,
                                  blacklist_paths=None,
                                  blacklist_keys=None,
-                                 modify_function=None):
+                                 template_function=None):
     """Process the resource file (which should contain at least one yaml file)
     and write those files to the service's policy.d directory.
 
-    The optional modify_function is a function that accepts a python dictionary
-    and has an opportunity to modify the yaml (as a python object) prior to it
-    being written to the disk.
+    The optional template_function is a function that accepts a python
+    string and has an opportunity to modify the document
+    prior to it being read by the yaml.safe_load() function and written to
+    disk. Note that this function does *not* say how the templating is done -
+    this is up to the charm to implement its chosen method.
 
     The param blacklist_paths are paths (that are in the service's policy.d
     directory that should not be touched).
@@ -547,10 +633,9 @@ def process_policy_resource_file(resource_file,
     :param blacklist_keys: optional list of keys that mustn't appear in the
                            yaml file's
     :type blacklist_keys: Union[None, List[str]]
-    :param modify_function: Optional function that can modify the yaml
-                            document.
-    :type modify_function: Union[None,
-                                 Callable[[Dict[str, str]], Dict[str,str]]]
+    :param template_function: Optional function that can modify the yaml
+                              document.
+    :type template_function: Union[None, Callable[[AnyStr], AnyStr]]
     :returns: True if the processing was successful, False if not.
     :rtype: boolean
     """
@@ -561,16 +646,24 @@ def process_policy_resource_file(resource_file,
             # first clear out the policy.d directory and clear success
             remove_policy_success_file()
             clean_policyd_dir_for(service, blacklist_paths)
-            for name, filename, zipinfo in gen:
+            for name, ext, filename, zipinfo in gen:
                 # construct a name for the output file.
                 yaml_filename = path_for_policy_file(service, name)
                 if yaml_filename in blacklist_paths:
                     raise BadPolicyZipFile("policy.d name {} is blacklisted"
                                            .format(yaml_filename))
                 with zfp.open(zipinfo) as fp:
-                    yaml_doc = read_and_validate_yaml(fp, blacklist_keys)
-                if modify_function is not None and callable(modify_function):
-                    yaml_doc = modify_function(yaml_doc)
+                    doc = fp.read()
+                    # if template_function is not None, then offer the document
+                    # to the template function
+                    if ext in POLICYD_TEMPLATE_EXTS:
+                        if (template_function is None or not
+                                callable(template_function)):
+                            raise BadPolicyZipFile(
+                                "Template {} but no template_function is "
+                                "available".format(filename))
+                        doc = template_function(doc)
+                    yaml_doc = read_and_validate_yaml(doc, blacklist_keys)
                 with open(yaml_filename, "wt") as f:
                     yaml.dump(yaml_doc, f)
         # Every thing worked, so we mark up a success.
