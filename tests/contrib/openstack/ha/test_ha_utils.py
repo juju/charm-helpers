@@ -185,8 +185,8 @@ class HATests(unittest.TestCase):
             },
             'resource_params': {
                 'res_testservice_242d562_vip':
-                    ('params ip="10.5.100.1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"')
+                    ('params ip="10.5.100.1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"')
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
@@ -207,8 +207,8 @@ class HATests(unittest.TestCase):
             },
             'resource_params': {
                 'res_testservice_242d562_vip':
-                    ('params ip="10.5.100.1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"')
+                    ('params ip="10.5.100.1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"')
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2'
@@ -234,8 +234,8 @@ class HATests(unittest.TestCase):
             'resource_params': {
                 'res_testservice_242d562_vip': (
                     'params ip="10.5.100.1" cidr_netmask="255.255.255.0" '
-                    'nic="eth1" op monitor depth="0" timeout="20s" '
-                    'interval="10s"')
+                    'nic="eth1" op monitor timeout="20s" '
+                    'interval="10s" depth="0"')
 
             },
             'resources': {
@@ -261,14 +261,14 @@ class HATests(unittest.TestCase):
                                  'res_testservice_eth2_vip'],
             'resource_params': {
                 'res_testservice_242d562_vip':
-                    ('params ip="10.5.100.1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ip="10.5.100.1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_856d56f_vip':
-                    ('params ipv6addr="ffff::1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ipv6addr="ffff::1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_f563c5d_vip':
-                    ('params ipv6addr="ffaa::1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ipv6addr="ffaa::1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
@@ -299,14 +299,14 @@ class HATests(unittest.TestCase):
             },
             'resource_params': {
                 'res_testservice_242d562_vip':
-                    ('params ip="10.5.100.1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ip="10.5.100.1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_856d56f_vip':
-                    ('params ipv6addr="ffff::1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ipv6addr="ffff::1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_f563c5d_vip':
-                    ('params ipv6addr="ffaa::1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ipv6addr="ffaa::1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
@@ -352,14 +352,14 @@ class HATests(unittest.TestCase):
             },
             'resource_params': {
                 'res_testservice_242d562_vip':
-                    ('params ip="10.5.100.1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ip="10.5.100.1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_856d56f_vip':
-                    ('params ipv6addr="ffff::1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ipv6addr="ffff::1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_f563c5d_vip':
-                    ('params ipv6addr="ffaa::1" op monitor depth="0" '
-                     'timeout="20s" interval="10s"'),
+                    ('params ipv6addr="ffaa::1" op monitor '
+                     'timeout="20s" interval="10s" depth="0"'),
                 'res_testservice_haproxy': 'op monitor interval="5s"',
             },
             'resources': {
