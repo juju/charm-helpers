@@ -228,7 +228,7 @@ else:
 
 
 def is_policyd_override_valid_on_this_release(openstack_release):
-    """Check that the charm is running on at least Ubuntu bionic, and at
+    """Check that the charm is running on at least Ubuntu Xenial, and at
     least the queens release.
 
     :param openstack_release: the release codename that is installed.
@@ -244,7 +244,7 @@ def is_policyd_override_valid_on_this_release(openstack_release):
     # other of the CompareOpenStackReleases or status message generation code
     # into a 3rd module.
     import charmhelpers.contrib.openstack.utils as ch_utils
-    return (ch_host.CompareHostReleases(ubuntu_release) >= 'bionic' and
+    return (ch_host.CompareHostReleases(ubuntu_release) >= 'xenial' and
             ch_utils.CompareOpenStackReleases(openstack_release) >= 'queens')
 
 
@@ -259,7 +259,7 @@ def maybe_do_policyd_overrides(openstack_release,
 
     The param `openstack_release` is required as the policyd overrides feature
     is only supported on openstack_release "queens" or later, and on ubuntu
-    "bionic" or later.  Prior to these versions, this feature is a NOP.
+    "xenial" or later.  Prior to these versions, this feature is a NOP.
 
     The optional template_function is a function that accepts a string and has
     an opportunity to modify the loaded file prior to it being read by
