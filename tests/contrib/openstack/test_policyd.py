@@ -153,16 +153,16 @@ class PolicydTests(unittest.TestCase):
     @mock.patch.object(policyd.zipfile, "ZipFile")
     def test_open_and_filter_yaml_files(self, mock_ZipFile, mock__yamlfiles):
         mock__yamlfiles.return_value = [
-            ("file1", "file1.yaml", None),
-            ("file2", "file2.YML", None)]
+            ("file1", ".yaml", "file1.yaml", None),
+            ("file2", ".yml", "file2.YML", None)]
         mock_ZipFile.return_value.__enter__.return_value = "zfp"
         # test a valid zip file
         with policyd.open_and_filter_yaml_files("some-file") as (zfp, files):
             self.assertEqual(zfp, "zfp")
             mock_ZipFile.assert_called_once_with("some-file", "r")
             self.assertEqual(files, [
-                ("file1", "file1.yaml", None),
-                ("file2", "file2.YML", None)])
+                ("file1", ".yaml", "file1.yaml", None),
+                ("file2", ".yml", "file2.YML", None)])
         # ensure that there must be at least one file.
         mock__yamlfiles.return_value = []
         with self.assertRaises(policyd.BadPolicyZipFile):
@@ -170,9 +170,9 @@ class PolicydTests(unittest.TestCase):
                 pass
         # ensure that it picks up duplicates
         mock__yamlfiles.return_value = [
-            ("file1", "file1.yaml", None),
-            ("file2", "file2.yml", None),
-            ("file1", "file1.yml", None)]
+            ("file1", ".yaml", "file1.yaml", None),
+            ("file2", ".yml", "file2.yml", None),
+            ("file1", ".yml", "file1.yml", None)]
         with self.assertRaises(policyd.BadPolicyZipFile):
             with policyd.open_and_filter_yaml_files("some-file"):
                 pass

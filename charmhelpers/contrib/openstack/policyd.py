@@ -194,8 +194,8 @@ OpenStack system.  The charms for the other services that may need overrides
 should be checked to ensure that they support overrides before proceeding.
 """
 
-POLICYD_VALID_EXTS = ['.yaml', '.yml', '.j2']
-POLICYD_TEMPLATE_EXTS = ['.j2']
+POLICYD_VALID_EXTS = ['.yaml', '.yml', '.j2', '.tmpl', '.tpl']
+POLICYD_TEMPLATE_EXTS = ['.j2', '.tmpl', '.tpl']
 POLICYD_RESOURCE_NAME = "policyd-override"
 POLICYD_CONFIG_NAME = "use-policyd-override"
 POLICYD_SUCCESS_FILENAME = "policyd-override-success"
@@ -237,7 +237,7 @@ def is_policyd_override_valid_on_this_release(openstack_release):
     :rtype: bool
     """
     ubuntu_release = ch_host.lsb_release()['DISTRIB_CODENAME'].lower()
-    # TODO(ajkavanagh) circular import!  This is because the status message
+    # NOTE(ajkavanagh) circular import!  This is because the status message
     # generation code in utils has to call into this module, but this function
     # needs the CompareOpenStackReleases() function.  The only way to solve
     # this is either to put ALL of this module into utils, or refactor one or
@@ -401,7 +401,7 @@ def open_and_filter_yaml_files(filepath):
         # first pass through; check for duplicates and at least one yaml file.
         names = collections.defaultdict(int)
         yamlfiles = _yamlfiles(zfp)
-        for name, _, _ in yamlfiles:
+        for name, _, _, _ in yamlfiles:
             names[name] += 1
         # There must be at least 1 yaml file.
         if len(names.keys()) == 0:
