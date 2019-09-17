@@ -56,6 +56,8 @@ class PolicydTests(unittest.TestCase):
         self.assertFalse(
             policyd.is_policyd_override_valid_on_this_release("pike"))
 
+    @mock.patch.object(policyd, "clean_policyd_dir_for")
+    @mock.patch.object(policyd, "remove_policy_success_file")
     @mock.patch.object(policyd, "process_policy_resource_file")
     @mock.patch.object(policyd, "get_policy_resource_filename")
     @mock.patch.object(policyd, "is_policyd_override_valid_on_this_release")
@@ -65,7 +67,9 @@ class PolicydTests(unittest.TestCase):
         mock_config,
         mock_is_policyd_override_valid_on_this_release,
         mock_get_policy_resource_filename,
-        mock_process_policy_resource_file
+        mock_process_policy_resource_file,
+        mock_remove_policy_success_file,
+        mock_clean_policyd_dir_for,
     ):
         # test success condition
         mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}
@@ -99,14 +103,29 @@ class PolicydTests(unittest.TestCase):
         mock_process_policy_resource_file.assert_called_once_with(
             "resource.zip", "aservice", ["a"], ["b"], mod_fn)
         restart_handler.assert_not_called()
+        # test that directory gets cleaned if the config is not set
+        mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: False}
+        mock_process_policy_resource_file.reset_mock()
+        policyd.maybe_do_policyd_overrides(
+            "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
+        mock_process_policy_resource_file.assert_not_called()
+        mock_remove_policy_success_file.assert_called_once_with()
+        mock_clean_policyd_dir_for.assert_called_once_with("aservice", ["a"])
 
+    @mock.patch.object(policyd, "clean_policyd_dir_for")
+    @mock.patch.object(policyd, "remove_policy_success_file")
     @mock.patch.object(policyd, "maybe_do_policyd_overrides")
     @mock.patch.object(policyd, "_policy_success_file")
     @mock.patch("os.path.isfile")
     @mock.patch.object(policyd.hookenv, "config")
     def test_maybe_do_policyd_overrides_on_config_changed(
-            self, mock_config, mock_isfile, mock__policy_success_file,
-            mock_maybe_do_policyd_overrides
+        self,
+        mock_config,
+        mock_isfile,
+        mock__policy_success_file,
+        mock_maybe_do_policyd_overrides,
+        mock_remove_policy_success_file,
+        mock_clean_policyd_dir_for,
     ):
         # test success condition
         mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}
@@ -126,6 +145,8 @@ class PolicydTests(unittest.TestCase):
         policyd.maybe_do_policyd_overrides_on_config_changed(
             "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
         mock_maybe_do_policyd_overrides.assert_not_called()
+        mock_remove_policy_success_file.assert_called_once_with()
+        mock_clean_policyd_dir_for.assert_called_once_with("aservice", ["a"])
         # test that policy success file is already set (i.e. policy override
         # already done)
         mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}

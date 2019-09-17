@@ -301,6 +301,8 @@ def maybe_do_policyd_overrides(openstack_release,
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
+            remove_policy_success_file()
+            clean_policyd_dir_for(service, blacklist_paths)
             return
     except Exception:
         return
@@ -348,6 +350,8 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
+            remove_policy_success_file()
+            clean_policyd_dir_for(service, blacklist_paths)
             return
     except Exception:
         return
