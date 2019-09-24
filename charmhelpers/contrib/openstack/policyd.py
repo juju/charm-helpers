@@ -236,7 +236,6 @@ def is_policyd_override_valid_on_this_release(openstack_release):
     :returns: True if okay
     :rtype: bool
     """
-    ubuntu_release = ch_host.lsb_release()['DISTRIB_CODENAME'].lower()
     # NOTE(ajkavanagh) circular import!  This is because the status message
     # generation code in utils has to call into this module, but this function
     # needs the CompareOpenStackReleases() function.  The only way to solve
@@ -244,8 +243,7 @@ def is_policyd_override_valid_on_this_release(openstack_release):
     # other of the CompareOpenStackReleases or status message generation code
     # into a 3rd module.
     import charmhelpers.contrib.openstack.utils as ch_utils
-    return (ch_host.CompareHostReleases(ubuntu_release) >= 'xenial' and
-            ch_utils.CompareOpenStackReleases(openstack_release) >= 'queens')
+    return ch_utils.CompareOpenStackReleases(openstack_release) >= 'queens'
 
 
 def maybe_do_policyd_overrides(openstack_release,

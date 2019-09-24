@@ -18,40 +18,10 @@ class PolicydTests(unittest.TestCase):
     def setUp(self):
         super(PolicydTests, self).setUp()
 
-    @mock.patch('charmhelpers.core.host.lsb_release')
-    def test_is_policyd_override_valid_on_this_release(self, mock_lsb_release):
-        mock_lsb_release.return_value = {
-            'DISTRIB_CODENAME': "xenial",
-        }
+    def test_is_policyd_override_valid_on_this_release(self):
         self.assertTrue(
             policyd.is_policyd_override_valid_on_this_release("queens"))
         self.assertTrue(
-            policyd.is_policyd_override_valid_on_this_release("rocky"))
-        self.assertFalse(
-            policyd.is_policyd_override_valid_on_this_release("pike"))
-        # and shift to cosmic
-        mock_lsb_release.return_value = {
-            'DISTRIB_CODENAME': "cosmic",
-        }
-        self.assertTrue(
-            policyd.is_policyd_override_valid_on_this_release("queens"))
-        # and should fail on trusty and vivid, etc.
-        mock_lsb_release.return_value = {
-            'DISTRIB_CODENAME': "wily",
-        }
-        self.assertFalse(
-            policyd.is_policyd_override_valid_on_this_release("queens"))
-        self.assertFalse(
-            policyd.is_policyd_override_valid_on_this_release("rocky"))
-        self.assertFalse(
-            policyd.is_policyd_override_valid_on_this_release("pike"))
-        # and trusty, just to make sure
-        mock_lsb_release.return_value = {
-            'DISTRIB_CODENAME': "trusty",
-        }
-        self.assertFalse(
-            policyd.is_policyd_override_valid_on_this_release("queens"))
-        self.assertFalse(
             policyd.is_policyd_override_valid_on_this_release("rocky"))
         self.assertFalse(
             policyd.is_policyd_override_valid_on_this_release("pike"))
