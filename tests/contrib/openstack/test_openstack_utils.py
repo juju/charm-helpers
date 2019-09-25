@@ -1596,6 +1596,10 @@ class OpenStackHelpersTestCase(TestCase):
         r = f()
         self.assertEquals(r, 'damaged')
 
+    # TODO(ajkavanagh) -- there should be a test for
+    # _determine_os_workload_status() as the policyd override code has changed
+    # it, but there wasn't a test previously.
+
     @patch.object(openstack, 'restart_on_change_helper')
     @patch.object(openstack, 'is_unit_paused_set')
     def test_pausable_restart_on_change(
