@@ -1,6 +1,17 @@
 Changelog
 ---------
 
+0.20.3
+^^^^^^
+Friday 27th September 2019
+
+* Add policyd override helpers (#368)
+* Resource parameter order is important in Eoan (#373)
+* Complete Eoan Enablement (#372)
+* Conditionally add port_forwarding to l3_extension_plugins (#370)
+* Allow enabling the pg autoscaler when the module is enabled (#343)
+* Change openstack amulet helper to use OS_ env var format (#369)
+
 0.20.2
 ^^^^^^
 Tuesday 27th August 2019
