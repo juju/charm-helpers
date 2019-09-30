@@ -6,6 +6,7 @@ import sys
 import shutil
 import tempfile
 
+from collections import OrderedDict
 
 sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
@@ -582,3 +583,157 @@ class PerconaTests(unittest.TestCase):
 
         self.assertTrue('innodb_change_buffering' not in mysql_config)
         self.assertTrue('innodb_io_capacity' not in mysql_config)
+
+
+class Mysql8Tests(unittest.TestCase):
+
+    def setUp(self):
+        super(Mysql8Tests, self).setUp()
+        self.template = "/tmp/mysql-passwd.txt"
+        self.connection = mock.MagicMock()
+        self.cursor = mock.MagicMock()
+        self.connection.cursor.return_value = self.cursor
+        self.helper = mysql.MySQL8Helper(
+            rpasswdf_template=self.template,
+            upasswdf_template=self.template)
+        self.helper.connection = self.connection
+        self.user = "user"
+        self.host = "10.5.0.21"
+        self.password = "passwd"
+        self.db = "mydb"
+
+    def test_grant_exists(self):
+        # With backticks
+        self.cursor.fetchall.return_value = (
+            ("GRANT USAGE ON *.* TO `{}`@`{}`".format(self.user, self.host),),
+            ("GRANT ALL PRIVILEGES ON `{}`.* TO `{}`@`{}`"
+             .format(self.db, self.user, self.host),))
+        self.assertTrue(self.helper.grant_exists(self.db, self.user, self.host))
+
+        self.cursor.execute.assert_called_with(
+            "SHOW GRANTS FOR '{}'@'{}'".format(self.user, self.host))
+
+        # With single quotes
+        self.cursor.fetchall.return_value = (
+            ("GRANT USAGE ON *.* TO '{}'@'{}'".format(self.user, self.host),),
+            ("GRANT ALL PRIVILEGES ON '{}'.* TO '{}'@'{}'"
+             .format(self.db, self.user, self.host),))
+        self.assertTrue(self.helper.grant_exists(self.db, self.user, self.host))
+
+        # Grant not there
+        self.cursor.fetchall.return_value = (
+            ("GRANT USAGE ON *.* TO '{}'@'{}'".format("someuser", "notmyhost"),),
+            ("GRANT ALL PRIVILEGES ON '{}'.* TO '{}'@'{}'"
+             .format("somedb", "someuser", "notmyhost"),))
+        self.assertFalse(self.helper.grant_exists(self.db, self.user, self.host))
+
+    def test_create_grant(self):
+        self.helper.grant_exists = mock.MagicMock(return_value=False)
+        self.helper.create_user = mock.MagicMock()
+
+        self.helper.create_grant(self.db, self.user, self.host, self.password)
+        self.cursor.execute.assert_called_with(
+            "GRANT ALL PRIVILEGES ON `{}`.* TO '{}'@'{}'"
+            .format(self.db, self.user, self.host))
+        self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+
+    def test_create_user(self):
+        self.helper.create_user(self.user, self.host, self.password)
+        self.cursor.execute.assert_called_with(
+            "CREATE USER '{}'@'{}' IDENTIFIED BY '{}'".
+            format(self.user, self.host, self.password))
+
+    def test_create_router_grant(self):
+        self.helper.create_user = mock.MagicMock()
+
+        self.helper.create_router_grant(self.user, self.host, self.password)
+        _calls = [
+            mock.call("GRANT CREATE USER ON *.* TO '{}'@'{}' WITH GRANT OPTION"
+                      .format(self.user, self.host)),
+            mock.call("GRANT SELECT, INSERT, UPDATE, DELETE ON "
+                      "mysql_innodb_cluster_metadata.* TO '{}'@'{}'"
+                      .format(self.user, self.host)),
+            mock.call("GRANT SELECT ON mysql.user TO '{}'@'{}'"
+                      .format(self.user, self.host)),
+            mock.call("GRANT SELECT ON "
+                      "performance_schema.replication_group_members TO "
+                      "'{}'@'{}'".format(self.user, self.host)),
+            mock.call("GRANT SELECT ON "
+                      "performance_schema.replication_group_member_stats TO "
+                      "'{}'@'{}'".format(self.user, self.host))]
+
+        self.cursor.execute.assert_has_calls(_calls)
+        self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+
+    def test_configure_router(self):
+        self.helper.create_user = mock.MagicMock()
+        self.helper.create_router_grant = mock.MagicMock()
+        self.helper.normalize_address = mock.MagicMock(return_value=self.host)
+        self.helper.get_mysql_password = mock.MagicMock(return_value=self.password)
+
+        self.assertEqual(self.password, self.helper.configure_router(self.host, self.user))
+        self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+        self.helper.create_router_grant.assert_called_with(self.user, self.host, self.password)
+
+
+class MysqlHelperTests(unittest.TestCase):
+
+    def setUp(self):
+        super(MysqlHelperTests, self).setUp()
+
+    def test_get_prefix(self):
+        _tests = {
+            "prefix1": "prefix1_username",
+            "prefix2": "prefix2_database",
+            "prefix3": "prefix3_hostname"}
+
+        for key in _tests.keys():
+            self.assertEqual(
+                key,
+                mysql.get_prefix(_tests[key]))
+
+    def test_get_db_data(self):
+        _unprefixed = "myprefix"
+        # Test relation data has every variation of shared-db/db-router data
+        _relation_data = {
+            "egress-subnets": "10.5.0.43/32",
+            "ingress-address": "10.5.0.43",
+            "nova_database": "nova",
+            "nova_hostname": "10.5.0.43",
+            "nova_username": "nova",
+            "novaapi_database": "nova_api",
+            "novaapi_hostname": "10.5.0.43",
+            "novaapi_username": "nova",
+            "novacell0_database": "nova_cell0",
+            "novacell0_hostname": "10.5.0.43",
+            "novacell0_username": "nova",
+            "private-address": "10.5.0.43",
+            "database": "keystone",
+            "username": "keystone",
+            "hostname": "10.5.0.43",
+            "mysqlrouter_username":
+            "mysqlrouteruser",
+            "mysqlrouter_hostname": "10.5.0.43"}
+
+        _expected_data = OrderedDict([
+            ('nova', OrderedDict([('database', 'nova'),
+                                  ('hostname', '10.5.0.43'),
+                                  ('username', 'nova')])),
+            ('novaapi', OrderedDict([('database', 'nova_api'),
+                                     ('hostname', '10.5.0.43'),
+                                     ('username', 'nova')])),
+            ('novacell0', OrderedDict([('database', 'nova_cell0'),
+                                       ('hostname', '10.5.0.43'),
+                                       ('username', 'nova')])),
+            ('mysqlrouter', OrderedDict([('username', 'mysqlrouteruser'),
+                                         ('hostname', '10.5.0.43')])),
+            ('myprefix', OrderedDict([('hostname', '10.5.0.43'),
+                                      ('database', 'keystone'),
+                                      ('username', 'keystone')]))])
+
+        _results = mysql.get_db_data(_relation_data, unprefixed=_unprefixed)
+
+        for prefix in _expected_data.keys():
+            for key in _expected_data[prefix].keys():
+                self.assertEqual(
+                    _results[prefix][key], _expected_data[prefix][key])
