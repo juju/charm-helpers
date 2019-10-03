@@ -3846,7 +3846,7 @@ class ContextTests(unittest.TestCase):
             {
                 'openstack_release': 'essex',
                 'operating_system_release': 'xenial'})
-        os_release.assert_called_once_with('python-keystone', base='icehouse')
+        os_release.assert_called_once_with('python-keystone')
         self.lsb_release.assert_called_once_with()
 
     def test_logrotate_context_unset(self):
