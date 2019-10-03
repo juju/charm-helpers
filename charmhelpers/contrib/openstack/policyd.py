@@ -299,10 +299,17 @@ def maybe_do_policyd_overrides(openstack_release,
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
-            remove_policy_success_file()
             clean_policyd_dir_for(service, blacklist_paths)
+            if (os.path.isfile(_policy_success_file()) and
+                    restart_handler is not None and
+                    callable(restart_handler)):
+                restart_handler()
+            remove_policy_success_file()
             return
-    except Exception:
+    except Exception as e:
+        print("Exception is: ", str(e))
+        import traceback
+        traceback.print_exc()
         return
     if not is_policyd_override_valid_on_this_release(openstack_release):
         return
@@ -348,8 +355,12 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
-            remove_policy_success_file()
             clean_policyd_dir_for(service, blacklist_paths)
+            if (os.path.isfile(_policy_success_file()) and
+                    restart_handler is not None and
+                    callable(restart_handler)):
+                restart_handler()
+            remove_policy_success_file()
             return
     except Exception:
         return

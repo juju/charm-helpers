@@ -31,16 +31,22 @@ class PolicydTests(unittest.TestCase):
     @mock.patch.object(policyd, "process_policy_resource_file")
     @mock.patch.object(policyd, "get_policy_resource_filename")
     @mock.patch.object(policyd, "is_policyd_override_valid_on_this_release")
+    @mock.patch.object(policyd, "_policy_success_file")
+    @mock.patch("os.path.isfile")
     @mock.patch.object(policyd.hookenv, "config")
     def test_maybe_do_policyd_overrides(
         self,
         mock_config,
+        mock_isfile,
+        mock__policy_success_file,
         mock_is_policyd_override_valid_on_this_release,
         mock_get_policy_resource_filename,
         mock_process_policy_resource_file,
         mock_remove_policy_success_file,
         mock_clean_policyd_dir_for,
     ):
+        mock_isfile.return_value = False
+        mock__policy_success_file.return_value = "s-return"
         # test success condition
         mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}
         mock_is_policyd_override_valid_on_this_release.return_value = True
