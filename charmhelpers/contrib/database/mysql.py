@@ -11,6 +11,8 @@
 # limitations under the License.
 
 """Helper for working with a MySQL database"""
+import collections
+import copy
 import json
 import re
 import sys
@@ -67,8 +69,11 @@ class MySQLHelper(object):
 
     def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
                  migrate_passwd_to_leader_storage=True,
-                 delete_ondisk_passwd_file=True):
+                 delete_ondisk_passwd_file=True, user="root", password=None):
+        self.user = user
         self.host = host
+        self.password = password
+
         # Password file path templates
         self.root_passwd_file_template = rpasswdf_template
         self.user_passwd_file_template = upasswdf_template
@@ -79,8 +84,13 @@ class MySQLHelper(object):
         self.connection = None
 
     def connect(self, user='root', password=None, host=None):
+        if user is None:
+            user = self.user
+        if password is None:
+            password = self.password
         if host is None:
             host = self.host
+
         log("Opening db connection for %s@%s" % (user, host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=host,
                                           passwd=password)
@@ -593,3 +603,158 @@ class PerconaClusterHelper(object):
 
         mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
         return mysql_config
+
+
+class MySQL8Helper(MySQLHelper):
+
+    def grant_exists(self, db_name, db_user, remote_ip):
+        cursor = self.connection.cursor()
+        priv_string = ("GRANT ALL PRIVILEGES ON {}.* "
+                       "TO {}@{}".format(db_name, db_user, remote_ip))
+        try:
+            cursor.execute("SHOW GRANTS FOR '{}'@'{}'".format(db_user,
+                                                              remote_ip))
+            grants = [i[0] for i in cursor.fetchall()]
+        except MySQLdb.OperationalError:
+            return False
+        finally:
+            cursor.close()
+
+        # Different versions of MySQL use ' or `. Ignore these in the check.
+        return priv_string in [
+            i.replace("'", "").replace("`", "") for i in grants]
+
+    def create_grant(self, db_name, db_user, remote_ip, password):
+        if self.grant_exists(db_name, db_user, remote_ip):
+            return
+
+        # Make sure the user exists
+        # MySQL8 must create the user before the grant
+        self.create_user(db_user, remote_ip, password)
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("GRANT ALL PRIVILEGES ON `{}`.* TO '{}'@'{}'"
+                           .format(db_name, db_user, remote_ip))
+        finally:
+            cursor.close()
+
+    def create_user(self, db_user, remote_ip, password):
+
+        SQL_USER_CREATE = (
+            "CREATE USER '{db_user}'@'{remote_ip}' "
+            "IDENTIFIED BY '{password}'")
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(SQL_USER_CREATE.format(
+                db_user=db_user,
+                remote_ip=remote_ip,
+                password=password)
+            )
+        except MySQLdb._exceptions.OperationalError:
+            log("DB user {} already exists.".format(db_user),
+                "WARNING")
+        finally:
+            cursor.close()
+
+    def create_router_grant(self, db_user, remote_ip, password):
+
+        # Make sure the user exists
+        # MySQL8 must create the user before the grant
+        self.create_user(db_user, remote_ip, password)
+
+        # Mysql-Router specific grants
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("GRANT CREATE USER ON *.* TO '{}'@'{}' WITH GRANT "
+                           "OPTION".format(db_user, remote_ip))
+            cursor.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON "
+                           "mysql_innodb_cluster_metadata.* TO '{}'@'{}'"
+                           .format(db_user, remote_ip))
+            cursor.execute("GRANT SELECT ON mysql.user TO '{}'@'{}'"
+                           .format(db_user, remote_ip))
+            cursor.execute("GRANT SELECT ON "
+                           "performance_schema.replication_group_members "
+                           "TO '{}'@'{}'".format(db_user, remote_ip))
+            cursor.execute("GRANT SELECT ON "
+                           "performance_schema.replication_group_member_stats "
+                           "TO '{}'@'{}'".format(db_user, remote_ip))
+        finally:
+            cursor.close()
+
+    def configure_router(self, hostname, username):
+
+        if self.connection is None:
+            self.connect(password=self.get_mysql_root_password())
+
+        remote_ip = self.normalize_address(hostname)
+        password = self.get_mysql_password(username)
+        self.create_user(username, remote_ip, password)
+        self.create_router_grant(username, remote_ip, password)
+
+        return password
+
+
+def get_prefix(requested, keys=None):
+    """Return existing prefix or None.
+
+    :param requested: Request string. i.e. novacell0_username
+    :type requested: str
+    :param keys: Keys to determine prefix. Defaults set in function.
+    :type keys: List of str keys
+    :returns: String prefix i.e. novacell0
+    :rtype: Union[None, str]
+    """
+    if keys is None:
+        # Shared-DB default keys
+        keys = ["_database", "_username", "_hostname"]
+    for key in keys:
+        if requested.endswith(key):
+            return requested[:-len(key)]
+
+
+def get_db_data(relation_data, unprefixed):
+    """Organize database requests into a collections.OrderedDict
+
+    :param relation_data: shared-db relation data
+    :type relation_data: dict
+    :param unprefixed: Prefix to use for requests without a prefix. This should
+                       be unique for each side of the relation to avoid
+                       conflicts.
+    :type unprefixed: str
+    :returns: Order dict of databases and users
+    :rtype: collections.OrderedDict
+    """
+    # Deep copy to avoid unintentionally changing relation data
+    settings = copy.deepcopy(relation_data)
+    databases = collections.OrderedDict()
+
+    # Clear non-db related elements
+    if "egress-subnets" in settings.keys():
+        settings.pop("egress-subnets")
+    if "ingress-address" in settings.keys():
+        settings.pop("ingress-address")
+    if "private-address" in settings.keys():
+        settings.pop("private-address")
+
+    singleset = {"database", "username", "hostname"}
+    if singleset.issubset(settings):
+        settings["{}_{}".format(unprefixed, "hostname")] = (
+            settings["hostname"])
+        settings.pop("hostname")
+        settings["{}_{}".format(unprefixed, "database")] = (
+            settings["database"])
+        settings.pop("database")
+        settings["{}_{}".format(unprefixed, "username")] = (
+            settings["username"])
+        settings.pop("username")
+
+    for k, v in settings.items():
+        db = k.split("_")[0]
+        x = "_".join(k.split("_")[1:])
+        if db not in databases:
+            databases[db] = collections.OrderedDict()
+        databases[db][x] = v
+
+    return databases
