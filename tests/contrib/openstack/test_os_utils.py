@@ -122,19 +122,21 @@ class UtilsTests(unittest.TestCase):
             relation_settings={'restart-trigger': 'uuid4'}
         )
 
+    @mock.patch.object(utils, 'lsb_release')
     @mock.patch.object(utils, 'config')
     @mock.patch('charmhelpers.contrib.openstack.utils.get_os_codename_package')
     @mock.patch('charmhelpers.contrib.openstack.utils.'
                 'get_os_codename_install_source')
     def test_os_release(self, mock_get_os_codename_install_source,
                         mock_get_os_codename_package,
-                        mock_config):
+                        mock_config, mock_lsb_release):
         # Wipe the modules cached os_rel
         utils._os_rel = None
+        mock_lsb_release.return_value = {"DISTRIB_CODENAME": "trusty"}
         mock_get_os_codename_install_source.return_value = None
         mock_get_os_codename_package.return_value = None
         mock_config.return_value = 'cloud-pocket'
-        self.assertEqual(utils.os_release('my-pkg'), 'essex')
+        self.assertEqual(utils.os_release('my-pkg'), 'icehouse')
         mock_get_os_codename_install_source.assert_called_once_with(
             'cloud-pocket')
         mock_get_os_codename_package.assert_called_once_with(
@@ -142,14 +144,25 @@ class UtilsTests(unittest.TestCase):
         # Next call to os_release should pickup cached version
         mock_get_os_codename_install_source.reset_mock()
         mock_get_os_codename_package.reset_mock()
-        self.assertEqual(utils.os_release('my-pkg'), 'essex')
+        self.assertEqual(utils.os_release('my-pkg'), 'icehouse')
         self.assertFalse(mock_get_os_codename_install_source.called)
         self.assertFalse(mock_get_os_codename_package.called)
         # Call os_release and bypass cache
+        mock_lsb_release.return_value = {"DISTRIB_CODENAME": "xenial"}
         mock_get_os_codename_install_source.reset_mock()
         mock_get_os_codename_package.reset_mock()
         self.assertEqual(utils.os_release('my-pkg', reset_cache=True),
-                         'essex')
+                         'mitaka')
+        mock_get_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
+        mock_get_os_codename_package.assert_called_once_with(
+            'my-pkg', fatal=False)
+        # Override base
+        mock_lsb_release.return_value = {"DISTRIB_CODENAME": "xenial"}
+        mock_get_os_codename_install_source.reset_mock()
+        mock_get_os_codename_package.reset_mock()
+        self.assertEqual(utils.os_release('my-pkg', reset_cache=True, base="ocata"),
+                         'ocata')
         mock_get_os_codename_install_source.assert_called_once_with(
             'cloud-pocket')
         mock_get_os_codename_package.assert_called_once_with(
