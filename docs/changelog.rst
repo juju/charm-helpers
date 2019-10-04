@@ -1,6 +1,15 @@
 Changelog
 ---------
 
+0.20.4
+^^^^^^
+Friday 4th October 2019
+
+* Stop duplicate ops being added to CephBrokerRq (#381)
+* Allow OpenStack deployments from PPA packages (#380)
+* MySQL 8 features (#377)
+* Fix policyd helper where when the config value is set to false (#379)
+
 0.20.3
 ^^^^^^
 Friday 27th September 2019
