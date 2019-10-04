@@ -1186,10 +1186,10 @@ class CephBrokerRq(object):
         self.ops = []
 
     def add_op(self, op):
-        """Add an op if it not already in the list.
+        """Add an op if it is not already in the list.
 
-        :param name: operation to add.
-        :type name: dict
+        :param op: Operation to add.
+        :type op: dict
         """
         for existing_op in self.ops:
             if op == existing_op:
