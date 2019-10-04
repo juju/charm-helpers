@@ -1191,10 +1191,8 @@ class CephBrokerRq(object):
         :param op: Operation to add.
         :type op: dict
         """
-        for existing_op in self.ops:
-            if op == existing_op:
-                return
-        self.ops.append(op)
+        if op not in self.ops:
+            self.ops.append(op)
 
     def add_op_request_access_to_group(self, name, namespace=None,
                                        permission=None, key_name=None,
