@@ -441,8 +441,13 @@ def _yamlfiles(zipfile):
     """
     l = []
     for infolist_item in zipfile.infolist():
-        if infolist_item.is_dir():
-            continue
+        try:
+            if infolist_item.is_dir():
+                continue
+        except AttributeError:
+            # fallback to "old" way to determine dir entry for pre-py36
+            if infolist_item.filename.endswith('/'):
+                continue
         _, name_ext = os.path.split(infolist_item.filename)
         name, ext = os.path.splitext(name_ext)
         ext = ext.lower()
