@@ -296,6 +296,8 @@ def maybe_do_policyd_overrides(openstack_release,
                             restarted.
     :type restart_handler: Union[None, Callable[]]
     """
+    hookenv.log("Running maybe_do_policyd_overrides",
+                level=POLICYD_LOG_LEVEL_DEFAULT)
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
@@ -307,11 +309,15 @@ def maybe_do_policyd_overrides(openstack_release,
             remove_policy_success_file()
             return
     except Exception as e:
-        print("Exception is: ", str(e))
+        hookenv.log("... ERROR: Exception is: {}".format(str(e)),
+                    level=POLICYD_CONFIG_NAME)
         import traceback
-        traceback.print_exc()
+        hookenv.log(traceback.format_exc(), level=POLICYD_LOG_LEVEL_DEFAULT)
         return
     if not is_policyd_override_valid_on_this_release(openstack_release):
+        hookenv.log("... policy overrides not valid on this release: {}"
+                    .format(openstack_release),
+                    level=POLICYD_LOG_LEVEL_DEFAULT)
         return
     # from now on it should succeed; if it doesn't then status line will show
     # broken.
@@ -352,6 +358,8 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
                             restarted.
     :type restart_handler: Union[None, Callable[]]
     """
+    hookenv.log("Running maybe_do_policyd_overrides_on_config_changed",
+                level=POLICYD_LOG_LEVEL_DEFAULT)
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
@@ -362,10 +370,16 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
                 restart_handler()
             remove_policy_success_file()
             return
-    except Exception:
+    except Exception as e:
+        hookenv.log("... ERROR: Exception is: {}".format(str(e)),
+                    level=POLICYD_CONFIG_NAME)
+        import traceback
+        hookenv.log(traceback.format_exc(), level=POLICYD_LOG_LEVEL_DEFAULT)
         return
     # if the policyd overrides have been performed just return
     if os.path.isfile(_policy_success_file()):
+        hookenv.log("... already setup, so skipping.",
+                    level=POLICYD_LOG_LEVEL_DEFAULT)
         return
     maybe_do_policyd_overrides(
         openstack_release, service, blacklist_paths, blacklist_keys,
@@ -441,8 +455,13 @@ def _yamlfiles(zipfile):
     """
     l = []
     for infolist_item in zipfile.infolist():
-        if infolist_item.is_dir():
-            continue
+        try:
+            if infolist_item.is_dir():
+                continue
+        except AttributeError:
+            # fallback to "old" way to determine dir entry for pre-py36
+            if infolist_item.filename.endswith('/'):
+                continue
         _, name_ext = os.path.split(infolist_item.filename)
         name, ext = os.path.splitext(name_ext)
         ext = ext.lower()
@@ -652,6 +671,7 @@ def process_policy_resource_file(resource_file,
     :returns: True if the processing was successful, False if not.
     :rtype: boolean
     """
+    hookenv.log("Running process_policy_resource_file", level=hookenv.DEBUG)
     blacklist_paths = blacklist_paths or []
     completed = False
     try:
