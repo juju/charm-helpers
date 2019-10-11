@@ -339,6 +339,16 @@ class HelpersTest(TestCase):
             hookenv.log('foo', level)
             mock_call.assert_called_with(['juju-log', '-l', level, 'foo'])
 
+    @patch('subprocess.call')
+    def test_action_log_message(self, mock_call):
+        hookenv.action_log('foo')
+        mock_call.assert_called_with(['action-log', 'foo'])
+
+    @patch('subprocess.call')
+    def test_action_log_message_object(self, mock_call):
+        hookenv.action_log(object)
+        mock_call.assert_called_with(['action-log', repr(object)])
+
     @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('charmhelpers.core.hookenv.charm_dir')
     @patch('subprocess.check_output')
