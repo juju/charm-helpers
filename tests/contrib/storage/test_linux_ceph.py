@@ -178,7 +178,7 @@ class CephBasicUtilsTests(TestCase):
         setattr(self, method, mock)
 
     def test_enabled_manager_modules(self):
-        self.check_output.return_value = '{"enabled_modules": []}'
+        self.check_output.return_value = b'{"enabled_modules": []}'
         ceph_utils.enabled_manager_modules()
         self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls'])
 
