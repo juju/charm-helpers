@@ -17,6 +17,7 @@ import contextlib
 import os
 import six
 import shutil
+import sys
 import yaml
 import zipfile
 
@@ -280,6 +281,11 @@ def maybe_do_policyd_overrides(openstack_release,
     """
     hookenv.log("Running maybe_do_policyd_overrides",
                 level=POLICYD_LOG_LEVEL_DEFAULT)
+    if not is_policyd_override_valid_on_this_release(openstack_release):
+        hookenv.log("... policy overrides not valid on this release: {}"
+                    .format(openstack_release),
+                    level=POLICYD_LOG_LEVEL_DEFAULT)
+        return
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
@@ -295,11 +301,6 @@ def maybe_do_policyd_overrides(openstack_release,
                     level=POLICYD_CONFIG_NAME)
         import traceback
         hookenv.log(traceback.format_exc(), level=POLICYD_LOG_LEVEL_DEFAULT)
-        return
-    if not is_policyd_override_valid_on_this_release(openstack_release):
-        hookenv.log("... policy overrides not valid on this release: {}"
-                    .format(openstack_release),
-                    level=POLICYD_LOG_LEVEL_DEFAULT)
         return
     # from now on it should succeed; if it doesn't then status line will show
     # broken.
@@ -340,6 +341,8 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
                             restarted.
     :type restart_handler: Union[None, Callable[]]
     """
+    if not is_policyd_override_valid_on_this_release(openstack_release):
+        return
     hookenv.log("Running maybe_do_policyd_overrides_on_config_changed",
                 level=POLICYD_LOG_LEVEL_DEFAULT)
     config = hookenv.config()
@@ -523,7 +526,7 @@ def clean_policyd_dir_for(service, keep_paths=None):
     path = policyd_dir_for(service)
     if not os.path.exists(path):
         ch_host.mkdir(path, owner=service, group=service, perms=0o775)
-    _scanner = os.scandir if six.PY3 else _py2_scandir
+    _scanner = os.scandir if sys.version_info > (3, 4) else _py2_scandir
     for direntry in _scanner(path):
         # see if the path should be kept.
         if direntry.path in keep_paths:

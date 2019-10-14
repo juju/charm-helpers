@@ -34,8 +34,10 @@ class PolicydTests(unittest.TestCase):
     @mock.patch.object(policyd, "_policy_success_file")
     @mock.patch("os.path.isfile")
     @mock.patch.object(policyd.hookenv, "config")
+    @mock.patch("charmhelpers.core.hookenv.log")
     def test_maybe_do_policyd_overrides(
         self,
+        mock_log,
         mock_config,
         mock_isfile,
         mock__policy_success_file,
@@ -88,22 +90,27 @@ class PolicydTests(unittest.TestCase):
         mock_remove_policy_success_file.assert_called_once_with()
         mock_clean_policyd_dir_for.assert_called_once_with("aservice", ["a"])
 
+    @mock.patch.object(policyd, "is_policyd_override_valid_on_this_release")
     @mock.patch.object(policyd, "clean_policyd_dir_for")
     @mock.patch.object(policyd, "remove_policy_success_file")
     @mock.patch.object(policyd, "maybe_do_policyd_overrides")
     @mock.patch.object(policyd, "_policy_success_file")
     @mock.patch("os.path.isfile")
     @mock.patch.object(policyd.hookenv, "config")
+    @mock.patch("charmhelpers.core.hookenv.log")
     def test_maybe_do_policyd_overrides_on_config_changed(
         self,
+        mock_log,
         mock_config,
         mock_isfile,
         mock__policy_success_file,
         mock_maybe_do_policyd_overrides,
         mock_remove_policy_success_file,
         mock_clean_policyd_dir_for,
+        mock_is_policyd_override_valid_on_this_release,
     ):
         # test success condition
+        mock_is_policyd_override_valid_on_this_release.return_value = True
         mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}
         mock__policy_success_file.return_value = "s-return"
         mock_isfile.return_value = False
