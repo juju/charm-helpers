@@ -360,7 +360,9 @@ class HATests(unittest.TestCase):
                 'res_testservice_f563c5d_vip':
                     ('params ipv6addr="ffaa::1" op monitor '
                      'timeout="20s" interval="10s" depth="0"'),
-                'res_testservice_haproxy': 'op monitor interval="5s"',
+                'res_testservice_haproxy':
+                    ('meta migration-threshold="INFINITY" failure-timeout="5s" '
+                     'op monitor interval="5s"'),
             },
             'resources': {
                 'res_testservice_242d562_vip': 'ocf:heartbeat:IPaddr2',
@@ -418,7 +420,9 @@ class HATests(unittest.TestCase):
                     'params fqdn="test.internal.maas" ip_address="10.0.0.1"',
                 'res_testservice_public_hostname':
                     'params fqdn="test.public.maas" ip_address="10.0.0.1"',
-                'res_testservice_haproxy': 'op monitor interval="5s"',
+                'res_testservice_haproxy':
+                    ('meta migration-threshold="INFINITY" failure-timeout="5s" '
+                     'op monitor interval="5s"'),
             },
             'resources': {
                 'res_testservice_admin_hostname': 'ocf:maas:dns',
