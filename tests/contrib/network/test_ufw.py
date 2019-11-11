@@ -220,6 +220,40 @@ class TestUFW(unittest.TestCase):
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.Popen')
+    def test_modify_access_prepend(self, popen, log, is_enabled):
+        is_enabled.return_value = True
+        p = mock.Mock()
+        p.configure_mock(**{'communicate.return_value': ('stdout', 'stderr'),
+                            'returncode': 0})
+        popen.return_value = p
+        ufw.modify_access('127.0.0.1', dst='127.0.0.1', port='80',
+                          prepend=True)
+        popen.assert_any_call(['ufw', 'prepend', 'allow', 'from', '127.0.0.1',
+                               'to', '127.0.0.1', 'port', '80'],
+                              stdout=subprocess.PIPE)
+        log.assert_any_call(('ufw allow: ufw prepend allow from 127.0.0.1 '
+                             'to 127.0.0.1 port 80'), level='DEBUG')
+        log.assert_any_call('stdout', level='INFO')
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.Popen')
+    def test_modify_access_comment(self, popen, log, is_enabled):
+        is_enabled.return_value = True
+        p = mock.Mock()
+        p.configure_mock(**{'communicate.return_value': ('stdout', 'stderr'),
+                            'returncode': 0})
+        popen.return_value = p
+        ufw.modify_access('127.0.0.1', dst='127.0.0.1', port='80',
+                          comment='No comment')
+        popen.assert_any_call(['ufw', 'allow', 'from', '127.0.0.1',
+                               'to', '127.0.0.1', 'port', '80',
+                               'comment', 'No comment'],
+                              stdout=subprocess.PIPE)
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.Popen')
     def test_grant_access(self, popen, log, is_enabled):
         is_enabled.return_value = True
         p = mock.Mock()

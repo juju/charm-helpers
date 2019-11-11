@@ -236,20 +236,31 @@ def default_policy(policy='deny', direction='incoming'):
 
 
 def modify_access(src, dst='any', port=None, proto=None, action='allow',
-                  index=None):
+                  index=None, prepend=False, comment=None):
     """
     Grant access to an address or subnet
 
     :param src: address (e.g. 192.168.1.234) or subnet
                 (e.g. 192.168.1.0/24).
+    :type src: Optional[str]
     :param dst: destiny of the connection, if the machine has multiple IPs and
                 connections to only one of those have to accepted this is the
                 field has to be set.
+    :type dst: Optional[str]
     :param port: destiny port
+    :type port: Optional[int]
     :param proto: protocol (tcp or udp)
+    :type proto: Optional[str]
     :param action: `allow` or `delete`
+    :type action: str
     :param index: if different from None the rule is inserted at the given
                   `index`.
+    :type index: Optional[int]
+    :param prepend: Whether to insert the rule before all other rules matching
+                    the rule's IP type.
+    :type prepend: bool
+    :param comment: Create the rule with a comment
+    :type comment: Optional[str]
     """
     if not is_enabled():
         hookenv.log('ufw is disabled, skipping modify_access()', level='WARN')
@@ -259,6 +270,8 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow',
         cmd = ['ufw', 'delete', 'allow']
     elif index is not None:
         cmd = ['ufw', 'insert', str(index), action]
+    elif prepend:
+        cmd = ['ufw', 'prepend', action]
     else:
         cmd = ['ufw', action]
 
@@ -273,6 +286,9 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow',
 
     if proto is not None:
         cmd += ['proto', proto]
+
+    if comment:
+        cmd.extend(['comment', comment])
 
     hookenv.log('ufw {}: {}'.format(action, ' '.join(cmd)), level='DEBUG')
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
