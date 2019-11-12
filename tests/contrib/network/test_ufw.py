@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import mock
 import os
+import six
 import subprocess
 import unittest
 
@@ -36,6 +37,16 @@ DEFAULT_POLICY_OUTPUT = """Default incoming policy changed to 'deny'
 """
 DEFAULT_POLICY_OUTPUT_OUTGOING = """Default outgoing policy changed to 'allow'
 (be sure to update your rules accordingly)
+"""
+
+UFW_STATUS_NUMBERED = """Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 6641/tcp                   ALLOW IN    10.219.3.86                # charm-ovn-central
+[12] 6641/tcp                   REJECT IN   Anywhere
+[19] 6644/tcp (v6)              REJECT IN   Anywhere (v6)              # charm-ovn-central
+
 """
 
 
@@ -518,3 +529,27 @@ class TestUFW(unittest.TestCase):
                                           'PATH': os.environ['PATH']})
         log.assert_any_call(msg, level='DEBUG')
         log.assert_any_call("ufw couldn't be reloaded", level='WARN')
+
+    def test_status(self):
+        if six.PY2:
+            return
+        with mock.patch('subprocess.run') as run:
+            cp = mock.MagicMock()
+            cp.stdout = UFW_STATUS_NUMBERED
+            run.return_value = cp
+            expect = {
+                1: {'to': '6641/tcp', 'action': 'allow in',
+                    'from': '10.219.3.86', 'ipv6': False,
+                    'comment': 'charm-ovn-central'},
+                12: {'to': '6641/tcp', 'action': 'reject in',
+                     'from': 'any', 'ipv6': False,
+                     'comment': ''},
+                19: {'to': '6644/tcp', 'action': 'reject in',
+                     'from': 'any', 'ipv6': True,
+                     'comment': 'charm-ovn-central'},
+            }
+            n_rules = 0
+            for n, r in ufw.status():
+                self.assertDictEqual(r, expect[n])
+                n_rules += 1
+            self.assertEquals(n_rules, 3)

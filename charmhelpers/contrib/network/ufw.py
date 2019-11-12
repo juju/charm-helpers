@@ -35,8 +35,9 @@ Examples:
   >>> ufw.enable()
   >>> ufw.service('4949', 'close')  # munin
 """
-import re
 import os
+import re
+import six
 import subprocess
 
 from charmhelpers.core import hookenv
@@ -356,3 +357,33 @@ def service(name, action):
     else:
         raise UFWError(("'{}' not supported, use 'allow' "
                         "or 'delete'").format(action))
+
+
+def status():
+    """Retrieve firewall rules as represented by UFW.
+
+    :returns: Tuples with rule number and data
+        (1, {'to': '', 'action':, 'from':, '', ipv6: True, 'comment': ''})
+    :rtype: Iterator[Tuple[int, Dict[str, Union[bool, str]]]]
+    """
+    if six.PY2:
+        raise RuntimeError('Call to function not supported on Python2')
+    cp = subprocess.run(('ufw', 'status', 'numbered',),
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        check=True, universal_newlines=True)
+    for line in cp.stdout.splitlines():
+        if not line.startswith('['):
+            continue
+        ipv6 = True if '(v6)' in line else False
+        line = line.replace('(v6)', '')
+        line = line.replace('[', '')
+        line = line.replace(']', '')
+        line = line.replace('Anywhere', 'any')
+        row = line.split()
+        yield (int(row[0]), {
+            'to': row[1],
+            'action': ' '.join(row[2:4]).lower(),
+            'from': row[4],
+            'ipv6': ipv6,
+            'comment': row[6] if len(row) > 5 and row[5] == '#' else '',
+        })
