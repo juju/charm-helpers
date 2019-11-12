@@ -267,7 +267,10 @@ def modify_access(src, dst='any', port=None, proto=None, action='allow',
         return
 
     if action == 'delete':
-        cmd = ['ufw', 'delete', 'allow']
+        if index is not None:
+            cmd = ['ufw', '--force', 'delete', str(index)]
+        else:
+            cmd = ['ufw', 'delete', 'allow']
     elif index is not None:
         cmd = ['ufw', 'insert', str(index), action]
     elif prepend:

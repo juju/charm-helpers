@@ -254,6 +254,19 @@ class TestUFW(unittest.TestCase):
     @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
     @mock.patch('charmhelpers.core.hookenv.log')
     @mock.patch('subprocess.Popen')
+    def test_modify_access_delete_index(self, popen, log, is_enabled):
+        is_enabled.return_value = True
+        p = mock.Mock()
+        p.configure_mock(**{'communicate.return_value': ('stdout', 'stderr'),
+                            'returncode': 0})
+        popen.return_value = p
+        ufw.modify_access(None, dst=None, action='delete', index=42)
+        popen.assert_any_call(['ufw', '--force', 'delete', '42'],
+                              stdout=subprocess.PIPE)
+
+    @mock.patch('charmhelpers.contrib.network.ufw.is_enabled')
+    @mock.patch('charmhelpers.core.hookenv.log')
+    @mock.patch('subprocess.Popen')
     def test_grant_access(self, popen, log, is_enabled):
         is_enabled.return_value = True
         p = mock.Mock()
