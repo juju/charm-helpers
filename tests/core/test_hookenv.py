@@ -1817,6 +1817,41 @@ class HooksTest(TestCase):
         hookenv.action_fail(message)
         check_call.assert_called_with(['action-fail', message])
 
+    @patch('subprocess.check_output')
+    def test_function_get_with_key(self, check_output):
+        function_data = 'bar'
+        check_output.return_value = json.dumps(function_data).encode('UTF-8')
+
+        result = hookenv.function_get(key='foo')
+
+        self.assertEqual(result, 'bar')
+        check_output.assert_called_with(['function-get', 'foo', '--format=json'])
+
+    @patch('subprocess.check_output')
+    def test_function_get_without_key(self, check_output):
+        check_output.return_value = json.dumps(dict(foo='bar')).encode('UTF-8')
+
+        result = hookenv.function_get()
+
+        self.assertEqual(result['foo'], 'bar')
+        check_output.assert_called_with(['function-get', '--format=json'])
+
+    @patch('subprocess.check_call')
+    def test_function_set(self, check_call):
+        values = {'foo': 'bar', 'fooz': 'barz'}
+        hookenv.function_set(values)
+        # The order of the key/value pairs can change, so sort them before test
+        called_args = check_call.call_args_list[0][0][0]
+        called_args.pop(0)
+        called_args.sort()
+        self.assertEqual(called_args, ['foo=bar', 'fooz=barz'])
+
+    @patch('subprocess.check_call')
+    def test_function_fail(self, check_call):
+        message = "Ooops, the function failed"
+        hookenv.function_fail(message)
+        check_call.assert_called_with(['function-fail', message])
+
     def test_status_set_invalid_state(self):
         self.assertRaises(ValueError, hookenv.status_set, 'random', 'message')
 
