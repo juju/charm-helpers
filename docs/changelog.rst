@@ -1,6 +1,20 @@
 Changelog
 ---------
 
+0.20.5
+^^^^^^
+Monday 18th November 2019
+
+ * ufw: add support for new keywords as well as a function to retrieve rules (#390)
+ * Duplicate resource retry fix from reactive (#392)
+ * Add section-placement (#389)
+ * Update swift versions for train (#388)
+ * Fix the py35 issue with json not accepting bytestrings (#387)
+ * Fix policyd on trusty (py34 issue) (#386)
+ * Add support for the action-log hook command (#385)
+ * Update the policyd docstrings due to charm changes (#382)
+ * Fix policyd on py35 (#384)
+
 0.20.4
 ^^^^^^
 Friday 4th October 2019
