@@ -128,7 +128,7 @@ def function_log(message):
         message = repr(message)
     command += [message[:SH_MAX_ARG]]
     # Missing function-log should not cause failures in unit tests
-    # Send action_log output to stderr
+    # Send function_log output to stderr
     try:
         subprocess.call(command)
     except OSError as e:
@@ -966,8 +966,16 @@ def charm_dir():
     return os.environ.get('CHARM_DIR')
 
 
+def cmd_exists(cmd):
+    """Return True if the specified cmd exists in the path"""
+    return any(
+        os.access(os.path.join(path, cmd), os.X_OK)
+        for path in os.environ["PATH"].split(os.pathsep)
+    )
+
+
 @cached
-@deprecate("moved to function_get()", "2019-11", log=juju_log)
+@deprecate("moved to function_get()", "2019-11", log=log)
 def action_get(key=None):
     """Gets the value of an action parameter, or all key/value param pairs"""
     cmd = ['action-get']
@@ -981,6 +989,10 @@ def action_get(key=None):
 @cached
 def function_get(key=None):
     """Gets the value of an action parameter, or all key/value param pairs"""
+    # Fallback for older charms.
+    if not cmd_exists('function-get'):
+        return action_get(key)
+
     cmd = ['function-get']
     if key is not None:
         cmd.append(key)
@@ -989,7 +1001,7 @@ def function_get(key=None):
     return function_data
 
 
-@deprecate("moved to function_set()", "2019-11", log=juju_log)
+@deprecate("moved to function_set()", "2019-11", log=log)
 def action_set(values):
     """Sets the values to be returned after the action finishes"""
     cmd = ['action-set']
@@ -1000,13 +1012,17 @@ def action_set(values):
 
 def function_set(values):
     """Sets the values to be returned after the function finishes"""
+    # Fallback for older charms.
+    if not cmd_exists('function-set'):
+        action_set(values)
+
     cmd = ['function-set']
     for k, v in list(values.items()):
         cmd.append('{}={}'.format(k, v))
     subprocess.check_call(cmd)
 
 
-@deprecate("moved to function_fail()", "2019-11", log=juju_log)
+@deprecate("moved to function_fail()", "2019-11", log=log)
 def action_fail(message):
     """Sets the action status to failed and sets the error message.
 
@@ -1018,6 +1034,10 @@ def function_fail(message):
     """Sets the function status to failed and sets the error message.
 
     The results set by action_set are preserved."""
+    # Fallback for older charms.
+    if not cmd_exists('function-fail'):
+        action_fail(message)
+
     subprocess.check_call(['function-fail', message])
 
 
@@ -1028,7 +1048,7 @@ def action_name():
 
 def function_name():
     """Get the name of the currently executing function."""
-    return os.environ.get('JUJU_FUNCTION_NAME')
+    return os.environ.get('JUJU_FUNCTION_NAME') or action_name()
 
 
 def action_uuid():
@@ -1038,7 +1058,7 @@ def action_uuid():
 
 def function_id():
     """Get the ID of the currently executing function."""
-    return os.environ.get('JUJU_FUNCTION_ID')
+    return os.environ.get('JUJU_FUNCTION_ID') or action_uuid()
 
 
 def action_tag():
@@ -1048,7 +1068,7 @@ def action_tag():
 
 def function_tag():
     """Get the tag for the currently executing function."""
-    return os.environ.get('JUJU_FUNCTION_TAG')
+    return os.environ.get('JUJU_FUNCTION_TAG') or action_tag()
 
 
 def status_set(workload_state, message):

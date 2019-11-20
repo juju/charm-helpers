@@ -340,14 +340,14 @@ class HelpersTest(TestCase):
             mock_call.assert_called_with(['juju-log', '-l', level, 'foo'])
 
     @patch('subprocess.call')
-    def test_action_log_message(self, mock_call):
-        hookenv.action_log('foo')
-        mock_call.assert_called_with(['action-log', 'foo'])
+    def test_function_log_message(self, mock_call):
+        hookenv.function_log('foo')
+        mock_call.assert_called_with(['function-log', 'foo'])
 
     @patch('subprocess.call')
-    def test_action_log_message_object(self, mock_call):
-        hookenv.action_log(object)
-        mock_call.assert_called_with(['action-log', repr(object)])
+    def test_function_log_message_object(self, mock_call):
+        hookenv.function_log(object)
+        mock_call.assert_called_with(['function-log', repr(object)])
 
     @patch('charmhelpers.core.hookenv._cache_config', None)
     @patch('charmhelpers.core.hookenv.charm_dir')
@@ -1817,19 +1817,23 @@ class HooksTest(TestCase):
         hookenv.action_fail(message)
         check_call.assert_called_with(['action-fail', message])
 
+    @patch('charmhelpers.core.hookenv.cmd_exists')
     @patch('subprocess.check_output')
-    def test_function_get_with_key(self, check_output):
+    def test_function_get_with_key(self, check_output, cmd_exists):
         function_data = 'bar'
         check_output.return_value = json.dumps(function_data).encode('UTF-8')
+        cmd_exists.return_value = True
 
         result = hookenv.function_get(key='foo')
 
         self.assertEqual(result, 'bar')
         check_output.assert_called_with(['function-get', 'foo', '--format=json'])
 
+    @patch('charmhelpers.core.hookenv.cmd_exists')
     @patch('subprocess.check_output')
-    def test_function_get_without_key(self, check_output):
+    def test_function_get_without_key(self, check_output, cmd_exists):
         check_output.return_value = json.dumps(dict(foo='bar')).encode('UTF-8')
+        cmd_exists.return_value = True
 
         result = hookenv.function_get()
 
