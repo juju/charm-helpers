@@ -471,7 +471,8 @@ class MySQLHelper(object):
         return password
 
 
-class PerconaClusterHelper(object):
+class MySQLConfigHelper(object):
+    """Base configuration helper for MySQL."""
 
     # Going for the biggest page size to avoid wasted bytes.
     # InnoDB page size is 16MB
@@ -547,36 +548,48 @@ class PerconaClusterHelper(object):
                     mtot, modifier = mem.strip().split(' ')
                     return '%s%s' % (mtot, modifier[0].upper())
 
-    def parse_config(self):
-        """Parse charm configuration and calculate values for config files."""
-        config = config_get()
-        mysql_config = {}
-        if 'max-connections' in config:
-            mysql_config['max_connections'] = config['max-connections']
+    def get_innodb_flush_log_at_trx_commit(self):
+        """Get value for innodb_flush_log_at_trx_commit.
 
-        if 'wait-timeout' in config:
-            mysql_config['wait_timeout'] = config['wait-timeout']
+        Use the innodb-flush-log-at-trx-commit or the tunning-level setting
+        translated by INNODB_FLUSH_CONFIG_VALUES to get the
+        innodb_flush_log_at_trx_commit value.
 
-        if 'innodb-flush-log-at-trx-commit' in config:
-            mysql_config['innodb_flush_log_at_trx_commit'] = \
-                config['innodb-flush-log-at-trx-commit']
-        elif 'tuning-level' in config:
-            mysql_config['innodb_flush_log_at_trx_commit'] = \
-                self.INNODB_FLUSH_CONFIG_VALUES.get(config['tuning-level'], 1)
+        :returns: Numeric value for innodb_flush_log_at_trx_commit
+        :rtype: int
+        """
+        if config_get('innodb-flush-log-at-trx-commit'):
+            return config_get('innodb-flush-log-at-trx-commit')
+        elif config_get('tuning-level'):
+            return self.INNODB_FLUSH_CONFIG_VALUES.get(
+                config_get('tuning-level'), 1)
 
-        if ('innodb-change-buffering' in config and
-                config['innodb-change-buffering'] in self.INNODB_VALID_BUFFERING_VALUES):
-            mysql_config['innodb_change_buffering'] = config['innodb-change-buffering']
+    def get_innodb_change_buffering(self):
+        """Get value for innodb_change_buffering.
 
-        if 'innodb-io-capacity' in config:
-            mysql_config['innodb_io_capacity'] = config['innodb-io-capacity']
+        Use the innodb-change-buffering validated against
+        INNODB_VALID_BUFFERING_VALUES to get the innodb_change_buffering value.
 
-        # Set a sane default key_buffer size
-        mysql_config['key_buffer'] = self.human_to_bytes('32M')
+        :returns: String value for innodb_change_buffering.
+        :rtype: str
+        """
+        _icb = config_get('innodb-change-buffering')
+        if _icb and _icb in self.INNODB_VALID_BUFFERING_VALUES:
+            return _icb
+
+    def get_innodb_buffer_pool_size(self):
+        """Get value for innodb_buffer_pool_size.
+
+        Return the number value of innodb-buffer-pool-size or dataset-size. If
+        neither is set, calculate a sane default based on total memory.
+
+        :returns: Numeric value for innodb_buffer_pool_size.
+        :rtype: int
+        """
         total_memory = self.human_to_bytes(self.get_mem_total())
 
-        dataset_bytes = config.get('dataset-size', None)
-        innodb_buffer_pool_size = config.get('innodb-buffer-pool-size', None)
+        dataset_bytes = config_get('dataset-size')
+        innodb_buffer_pool_size = config_get('innodb-buffer-pool-size')
 
         if innodb_buffer_pool_size:
             innodb_buffer_pool_size = self.human_to_bytes(
@@ -601,7 +614,35 @@ class PerconaClusterHelper(object):
                 innodb_buffer_pool_size,
                 total_memory), level='WARN')
 
-        mysql_config['innodb_buffer_pool_size'] = innodb_buffer_pool_size
+        return innodb_buffer_pool_size
+
+
+class PerconaClusterHelper(MySQLConfigHelper):
+    """Percona-cluster specific configuration helper."""
+
+    def parse_config(self):
+        """Parse charm configuration and calculate values for config files."""
+        config = config_get()
+        mysql_config = {}
+        if 'max-connections' in config:
+            mysql_config['max_connections'] = config['max-connections']
+
+        if 'wait-timeout' in config:
+            mysql_config['wait_timeout'] = config['wait-timeout']
+
+        if self.get_innodb_flush_log_at_trx_commit() is not None:
+            mysql_config['innodb_flush_log_at_trx_commit'] = \
+                self.get_innodb_flush_log_at_trx_commit()
+
+        if self.get_innodb_change_buffering() is not None:
+            mysql_config['innodb_change_buffering'] = config['innodb-change-buffering']
+
+        if 'innodb-io-capacity' in config:
+            mysql_config['innodb_io_capacity'] = config['innodb-io-capacity']
+
+        # Set a sane default key_buffer size
+        mysql_config['key_buffer'] = self.human_to_bytes('32M')
+        mysql_config['innodb_buffer_pool_size'] = self.get_innodb_buffer_pool_size()
         return mysql_config
 
 
