@@ -556,13 +556,14 @@ class MySQLConfigHelper(object):
         innodb_flush_log_at_trx_commit value.
 
         :returns: Numeric value for innodb_flush_log_at_trx_commit
-        :rtype: int
+        :rtype: Union[None, int]
         """
-        if config_get('innodb-flush-log-at-trx-commit'):
-            return config_get('innodb-flush-log-at-trx-commit')
-        elif config_get('tuning-level'):
-            return self.INNODB_FLUSH_CONFIG_VALUES.get(
-                config_get('tuning-level'), 1)
+        _iflatc = config_get('innodb-flush-log-at-trx-commit')
+        _tuning_level = config_get('tuning-level')
+        if _iflatc:
+            return _iflatc
+        elif _tuning_level:
+            return self.INNODB_FLUSH_CONFIG_VALUES.get(_tuning_level, 1)
 
     def get_innodb_change_buffering(self):
         """Get value for innodb_change_buffering.
@@ -571,7 +572,7 @@ class MySQLConfigHelper(object):
         INNODB_VALID_BUFFERING_VALUES to get the innodb_change_buffering value.
 
         :returns: String value for innodb_change_buffering.
-        :rtype: str
+        :rtype: Union[None, str]
         """
         _icb = config_get('innodb-change-buffering')
         if _icb and _icb in self.INNODB_VALID_BUFFERING_VALUES:
