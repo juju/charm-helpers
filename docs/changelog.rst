@@ -1,6 +1,14 @@
 Changelog
 ---------
 
+0.20.6
+^^^^^^
+Thursday 21st November 2019
+
+ * MySQL configuration handling (#395)
+ * Use juju ssh for get_ubuntu_release_from_sentry (#396)
+ * Policyd library changes to support openstack-dashboard (#393)
+
 0.20.5
 ^^^^^^
 Monday 18th November 2019
@@ -33,7 +41,7 @@ Friday 27th September 2019
 * Complete Eoan Enablement (#372)
 * Conditionally add port_forwarding to l3_extension_plugins (#370)
 * Allow enabling the pg autoscaler when the module is enabled (#343)
-* Change openstack amulet helper to use OS_ env var format (#369)
+* Change openstack amulet helper to use `OS_` env var format (#369)
 
 0.20.2
 ^^^^^^
