@@ -88,7 +88,7 @@ class AmuletUtils(object):
         """
         msg = None
         cmd = 'lsb_release -cs'
-        release, code = sentry_unit.run(cmd)
+        release, code = sentry_unit.ssh(cmd)
         if code == 0:
             self.log.debug('{} lsb_release: {}'.format(
                 sentry_unit.info['unit_name'], release))
