@@ -40,6 +40,9 @@ class FakeSentry(object):
     def run(self, command):
         return self.commands[command]
 
+    def ssh(self, command):
+        return self.commands[command]
+
     def run_action(self, action, action_args=None):
         return 'action-id'
 
