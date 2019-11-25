@@ -1850,8 +1850,11 @@ class HooksTest(TestCase):
         called_args.sort()
         self.assertEqual(called_args, ['foo=bar', 'fooz=barz'])
 
+    @patch('charmhelpers.core.hookenv.cmd_exists')
     @patch('subprocess.check_call')
-    def test_function_fail(self, check_call):
+    def test_function_fail(self, check_call, cmd_exists):
+        cmd_exists.return_value = True
+
         message = "Ooops, the function failed"
         hookenv.function_fail(message)
         check_call.assert_called_with(['function-fail', message])
