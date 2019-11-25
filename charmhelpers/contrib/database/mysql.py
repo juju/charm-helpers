@@ -476,10 +476,10 @@ class MySQLHelper(object):
 _singleton_config_helper = None
 
 
-def get_mysql_config_helper(cls):
+def get_mysql_config_helper():
     global _singleton_config_helper
     if _singleton_config_helper is None:
-        _singleton_config_helper = cls()
+        _singleton_config_helper = MySQLConfigHelper()
     return _singleton_config_helper
 
 
@@ -507,15 +507,6 @@ class MySQLConfigHelper(object):
         'safest': 1,
         'unsafe': 0,
     }
-
-    @property
-    def singleton_config_helper(self):
-        """Either returns the already created helper, or create a new one.
-        """
-        global _singleton_config_helper
-        if _singleton_config_helper is None:
-            _singleton_config_helper = get_mysql_config_helper(self.__class__)
-        return _singleton_config_helper
 
     def human_to_bytes(self, human):
         """Convert human readable configuration options to bytes."""
