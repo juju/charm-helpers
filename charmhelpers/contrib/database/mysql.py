@@ -471,6 +471,18 @@ class MySQLHelper(object):
         return password
 
 
+# `_singleton_config_helper` stores the instance of the helper class that is
+# being used during a hook invocation.
+_singleton_config_helper = None
+
+
+def get_mysql_config_helper():
+    global _singleton_config_helper
+    if _singleton_config_helper is None:
+        _singleton_config_helper = MySQLConfigHelper()
+    return _singleton_config_helper
+
+
 class MySQLConfigHelper(object):
     """Base configuration helper for MySQL."""
 
