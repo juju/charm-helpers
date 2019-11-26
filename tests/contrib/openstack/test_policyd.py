@@ -88,55 +88,21 @@ class PolicydTests(unittest.TestCase):
             "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
         mock_process_policy_resource_file.assert_not_called()
         mock_remove_policy_success_file.assert_called_once_with()
-        mock_clean_policyd_dir_for.assert_called_once_with("aservice", ["a"])
+        mock_clean_policyd_dir_for.assert_called_once_with(
+            "aservice", ["a"], user='aservice', group='aservice')
 
-    @mock.patch.object(policyd, "is_policyd_override_valid_on_this_release")
-    @mock.patch.object(policyd, "clean_policyd_dir_for")
-    @mock.patch.object(policyd, "remove_policy_success_file")
     @mock.patch.object(policyd, "maybe_do_policyd_overrides")
-    @mock.patch.object(policyd, "_policy_success_file")
-    @mock.patch("os.path.isfile")
-    @mock.patch.object(policyd.hookenv, "config")
-    @mock.patch("charmhelpers.core.hookenv.log")
-    def test_maybe_do_policyd_overrides_on_config_changed(
+    def test_maybe_do_policyd_overrides_with_config_changed(
         self,
-        mock_log,
-        mock_config,
-        mock_isfile,
-        mock__policy_success_file,
         mock_maybe_do_policyd_overrides,
-        mock_remove_policy_success_file,
-        mock_clean_policyd_dir_for,
-        mock_is_policyd_override_valid_on_this_release,
     ):
-        # test success condition
-        mock_is_policyd_override_valid_on_this_release.return_value = True
-        mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}
-        mock__policy_success_file.return_value = "s-return"
-        mock_isfile.return_value = False
         mod_fn = mock.Mock()
         restart_handler = mock.Mock()
         policyd.maybe_do_policyd_overrides_on_config_changed(
             "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
         mock_maybe_do_policyd_overrides.assert_called_once_with(
-            "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
-        mock_config.assert_called_once_with()
-        mock_isfile.assert_called_once_with("s-return")
-        # test no config value for POLICYD_SUCCESS_FILENAME
-        mock_maybe_do_policyd_overrides.reset_mock()
-        mock_config.return_value = {}
-        policyd.maybe_do_policyd_overrides_on_config_changed(
-            "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
-        mock_maybe_do_policyd_overrides.assert_not_called()
-        mock_remove_policy_success_file.assert_called_once_with()
-        mock_clean_policyd_dir_for.assert_called_once_with("aservice", ["a"])
-        # test that policy success file is already set (i.e. policy override
-        # already done)
-        mock_config.return_value = {policyd.POLICYD_CONFIG_NAME: True}
-        mock_isfile.return_value = False
-        policyd.maybe_do_policyd_overrides_on_config_changed(
-            "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler)
-        mock_maybe_do_policyd_overrides.assert_not_called()
+            "arelease", "aservice", ["a"], ["b"], mod_fn, restart_handler,
+            config_changed=True)
 
     @mock.patch("charmhelpers.core.hookenv.resource_get")
     def test_get_policy_resource_filename(self, mock_resource_get):
@@ -257,6 +223,7 @@ class PolicydTests(unittest.TestCase):
         self.assertEqual(policyd.policyd_dir_for('thing'),
                          "/etc/thing/policy.d")
 
+    @mock.patch.object(policyd.hookenv, 'log')
     @mock.patch("os.remove")
     @mock.patch("shutil.rmtree")
     @mock.patch("charmhelpers.core.host.mkdir")
@@ -267,7 +234,8 @@ class PolicydTests(unittest.TestCase):
                                    mock_os_path_exists,
                                    mock_mkdir,
                                    mock_shutil_rmtree,
-                                   mock_os_remove):
+                                   mock_os_remove,
+                                   mock_log):
         if six.PY3:
             mock_scan_dir_parts = (mock.patch, ["os.scandir"])
         else:
@@ -371,8 +339,12 @@ class PolicydTests(unittest.TestCase):
     @mock.patch.object(policyd, "clean_policyd_dir_for")
     @mock.patch.object(policyd, "remove_policy_success_file")
     @mock.patch.object(policyd, "open_and_filter_yaml_files")
+    @mock.patch.object(policyd.ch_host, 'write_file')
+    @mock.patch.object(policyd, "maybe_create_directory_for")
     def test_process_policy_resource_file(
         self,
+        mock_maybe_create_directory_for,
+        mock_write_file,
         mock_open_and_filter_yaml_files,
         mock_remove_policy_success_file,
         mock_clean_policyd_dir_for,
@@ -396,8 +368,14 @@ class PolicydTests(unittest.TestCase):
         self.assertFalse(res)
         mock_remove_policy_success_file.assert_called_once_with()
         mock_clean_policyd_dir_for.assert_has_calls([
-            mock.call("aservice", ["aservice/file1"]),
-            mock.call("aservice", ["aservice/file1"])])
+            mock.call("aservice",
+                      ["aservice/file1"],
+                      user='aservice',
+                      group='aservice'),
+            mock.call("aservice",
+                      ["aservice/file1"],
+                      user='aservice',
+                      group='aservice')])
         mock_zfp.open.assert_not_called()
         mod_fn.assert_not_called()
         mock_log.assert_any_call("Processing resource.zip failed: policy.d"
@@ -428,14 +406,19 @@ class PolicydTests(unittest.TestCase):
         mock_read_and_validate_yaml.return_value = {"rule1": "modded_value1"}
         mod_fn.return_value = '{"rule1": "modded_value1"}'
         mock__policy_success_file.return_value = "policy-success-file"
+        mock_yaml_dump.return_value = "dumped-file"
         with _patch_open() as (mock_open, mock_file):
             res = policyd.process_policy_resource_file(
                 "resource.zip", "aservice", [], ["key"], mod_fn)
             self.assertTrue(res)
-            mock_open.assert_any_call("aservice/file1", "wt")
+            # mock_open.assert_any_call("aservice/file1", "wt")
+            mock_write_file.assert_called_once_with(
+                "aservice/file1",
+                b'dumped-file',
+                "aservice",
+                "aservice")
             mock_open.assert_any_call("policy-success-file", "w")
-            mock_yaml_dump.assert_called_once_with(
-                {"rule1": "modded_value1"}, mock.ANY)
+            mock_yaml_dump.assert_called_once_with({"rule1": "modded_value1"})
         mock_zfp.open.assert_called_once_with("file1-zipinfo")
         mock_read_and_validate_yaml.assert_called_once_with(
             '{"rule1": "modded_value1"}', ["key"])
