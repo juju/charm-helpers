@@ -313,8 +313,17 @@ SYSTEMD_SYSTEM = '/run/systemd/system'
 
 def init_is_systemd():
     """Return True if the host system uses systemd, False otherwise."""
-    if lsb_release()['DISTRIB_CODENAME'] == 'trusty':
-        return False
+
+    if __platform__ == "centos":
+        # CentOS/RHEL 7 is the first version with systemd, identified by
+        # VERSION_ID="7" in /etc/os-release, or "8" for CentOS/RHEL 8. 
+        # /etc/os-release does not exist on CentOS 6 and below, thus:
+        if not os.path.isfile('/etc/os-release'):
+            return False
+    else:
+        if lsb_release()['DISTRIB_CODENAME'] == 'trusty':
+            return False
+
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
