@@ -1,5 +1,4 @@
 import subprocess
-import yum
 import os
 
 from charmhelpers.core.strutils import BasicStringComparator
@@ -61,9 +60,15 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
     is None.
     """
     if not pkgcache:
-        y = yum.YumBase()
-        packages = y.doPackageLists()
-        pkgcache = {i.Name: i.version for i in packages['installed']}
+        pkgcache = dict()
+        rpm_cmd = ['rpm', '-q', package, '--qf', '%{VERSION}']
+        rpm_process = subprocess.Popen(rpm_cmd, universal_newlines=True, stdout=subprocess.PIPE)
+        (rpm_out, rpm_err) = rpm_process.communicate()
+        # wait() returns 1 if 'package' isn't installed
+        if rpm_process.wait() == 0:
+            # pick up version number
+            pkgcache[package] = rpm_out
+    # Will throw KeyError if 'package' isn't installed, as before
     pkg = pkgcache[package]
     if pkg > revno:
         return 1

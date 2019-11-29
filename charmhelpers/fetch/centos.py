@@ -16,7 +16,6 @@ import subprocess
 import os
 import time
 import six
-import yum
 
 from tempfile import NamedTemporaryFile
 from charmhelpers.core.hookenv import log
@@ -28,10 +27,19 @@ YUM_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
 
 def filter_installed_packages(packages):
     """Return a list of packages that require installation."""
-    yb = yum.YumBase()
-    package_list = yb.doPackageLists()
-    temp_cache = {p.base_package_name: 1 for p in package_list['installed']}
-
+    rpm_cmd = ['rpm', '-qa', '--qf', '%{NAME} ']
+    rpm_process = subprocess.Popen(rpm_cmd, universal_newlines=True, stdout=subprocess.PIPE)
+    (rpm_out, rpm_err) = rpm_process.communicate()
+    rpm_exit = rpm_process.wait()
+    temp_cache = {}
+    if rpm_exit != 0:
+        # for now, assume all requested packages need installation
+        return packages
+    else:
+        package_list_installed = rpm_out.split()
+        for p in package_list_installed:
+            temp_cache[p] = 1
+ 
     _pkgs = [p for p in packages if not temp_cache.get(p, False)]
     return _pkgs
 
