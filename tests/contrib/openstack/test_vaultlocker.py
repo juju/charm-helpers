@@ -15,6 +15,7 @@
 import json
 import mock
 import os
+import sys
 import unittest
 
 import charmhelpers.contrib.openstack.vaultlocker as vaultlocker
@@ -35,6 +36,23 @@ COMPLETE_RELATION = {
             'test-service/0_role_id': json.dumps('test-role-from-vault'),
             'test-service/0_token':
                 json.dumps('00c9a9ab-c523-459d-a250-2ce8f0877c03'),
+        }
+    }
+}
+
+DIRTY_RELATION = {
+    'secrets-storage:1': {
+        'vault/0': {
+            'vault_url': json.dumps('http://vault:8200'),
+            'test-service/0_role_id': json.dumps('test-role-from-vault'),
+            'test-service/0_token':
+                json.dumps('00c9a9ab-c523-459d-a250-2ce8f0877c03'),
+        },
+        'vault/1': {
+            'vault_url': json.dumps('http://vault:8200'),
+            'test-service/0_role_id': json.dumps('test-role-from-vault'),
+            'test-service/0_token':
+                json.dumps('67b36149-dc86-4b80-96c4-35b91847d16e'),
         }
     }
 }
@@ -71,6 +89,17 @@ class VaultLockerTestCase(unittest.TestCase):
         self.hookenv.local_unit.return_value = 'test-service/0'
         self.db = TestDB()
         self.unitdata.kv.return_value = self.db
+        fake_exc = mock.MagicMock()
+        fake_exc.InvalidRequest = Exception
+        self.fake_hvac = mock.MagicMock()
+        self.fake_hvac.exceptions = fake_exc
+        sys.modules['hvac'] = self.fake_hvac
+
+    def fake_retrieve_secret_id(self, url=None, token=None):
+        if token == self.good_token:
+            return '31be8e65-20a3-45e0-a4a8-4d5a0554fb60'
+        else:
+            raise self.fake_hvac.exceptions.InvalidRequest
 
     def _patch(self, target):
         _m = mock.patch.object(vaultlocker, target)
@@ -151,17 +180,17 @@ class VaultLockerTestCase(unittest.TestCase):
                           'vault_url': 'http://vault:8200'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
         self.assertTrue(vaultlocker.vault_relation_complete())
-        retrieve_secret_id.assert_called_once_with(
-            url='http://vault:8200',
-            token='00c9a9ab-c523-459d-a250-2ce8f0877c03'
-        )
+        calls = [mock.call(url='http://vault:8200',
+                           token='00c9a9ab-c523-459d-a250-2ce8f0877c03')]
+        retrieve_secret_id.assert_has_calls(calls)
 
     @mock.patch.object(vaultlocker, 'retrieve_secret_id')
     def test_context_complete_cached_secret_id(self, retrieve_secret_id):
         self._setup_relation(COMPLETE_RELATION)
         context = vaultlocker.VaultKVContext('charm-test')
-        self.db.set('last-token', '00c9a9ab-c523-459d-a250-2ce8f0877c03')
         self.db.set('secret-id', '5502fd27-059b-4b0a-91b2-eaff40b6a112')
+        self.good_token = 'invalid-token'  # i.e. cause failure
+        retrieve_secret_id.side_effect = self.fake_retrieve_secret_id
         self.assertEqual(context(),
                          {'role_id': 'test-role-from-vault',
                           'secret_backend': 'charm-test',
@@ -169,11 +198,54 @@ class VaultLockerTestCase(unittest.TestCase):
                           'vault_url': 'http://vault:8200'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
         self.assertTrue(vaultlocker.vault_relation_complete())
-        retrieve_secret_id.assert_not_called()
+        calls = [mock.call(url='http://vault:8200',
+                           token='00c9a9ab-c523-459d-a250-2ce8f0877c03')]
+        retrieve_secret_id.assert_has_calls(calls)
+
+    @mock.patch.object(vaultlocker, 'retrieve_secret_id')
+    def test_purge_old_tokens(self, retrieve_secret_id):
+        self._setup_relation(DIRTY_RELATION)
+        context = vaultlocker.VaultKVContext('charm-test')
+        self.db.set('secret-id', '5502fd27-059b-4b0a-91b2-eaff40b6a112')
+        self.good_token = '67b36149-dc86-4b80-96c4-35b91847d16e'
+        retrieve_secret_id.side_effect = self.fake_retrieve_secret_id
+        self.assertEqual(context(),
+                         {'role_id': 'test-role-from-vault',
+                          'secret_backend': 'charm-test',
+                          'secret_id': '31be8e65-20a3-45e0-a4a8-4d5a0554fb60',
+                          'vault_url': 'http://vault:8200'})
+        self.hookenv.relation_ids.assert_called_with('secrets-storage')
+        self.assertTrue(vaultlocker.vault_relation_complete())
+        self.assertEquals(self.db.get('secret-id'),
+                          '31be8e65-20a3-45e0-a4a8-4d5a0554fb60')
+        calls = [mock.call(url='http://vault:8200',
+                           token='67b36149-dc86-4b80-96c4-35b91847d16e')]
+        retrieve_secret_id.assert_has_calls(calls)
+
+    @mock.patch.object(vaultlocker, 'retrieve_secret_id')
+    def test_context_complete_cached_dirty_data(self, retrieve_secret_id):
+        self._setup_relation(DIRTY_RELATION)
+        context = vaultlocker.VaultKVContext('charm-test')
+        self.db.set('secret-id', '5502fd27-059b-4b0a-91b2-eaff40b6a112')
+        self.good_token = '67b36149-dc86-4b80-96c4-35b91847d16e'
+        retrieve_secret_id.side_effect = self.fake_retrieve_secret_id
+        self.assertEqual(context(),
+                         {'role_id': 'test-role-from-vault',
+                          'secret_backend': 'charm-test',
+                          'secret_id': '31be8e65-20a3-45e0-a4a8-4d5a0554fb60',
+                          'vault_url': 'http://vault:8200'})
+        self.hookenv.relation_ids.assert_called_with('secrets-storage')
+        self.assertTrue(vaultlocker.vault_relation_complete())
+        self.assertEquals(self.db.get('secret-id'),
+                          '31be8e65-20a3-45e0-a4a8-4d5a0554fb60')
+        calls = [mock.call(url='http://vault:8200',
+                           token='67b36149-dc86-4b80-96c4-35b91847d16e')]
+        retrieve_secret_id.assert_has_calls(calls)
 
     @mock.patch.object(vaultlocker, 'retrieve_secret_id')
     def test_context_complete_with_ca(self, retrieve_secret_id):
         self._setup_relation(COMPLETE_WITH_CA_RELATION)
+        retrieve_secret_id.return_value = 'token1234'
         context = vaultlocker.VaultKVContext('charm-test')
         retrieve_secret_id.return_value = 'a3551c8d-0147-4cb6-afc6-efb3db2fccb2'
         self.assertEqual(context(),
@@ -184,7 +256,6 @@ class VaultLockerTestCase(unittest.TestCase):
                           'vault_ca': 'test-ca-data'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
         self.assertTrue(vaultlocker.vault_relation_complete())
-        retrieve_secret_id.assert_called_once_with(
-            url='http://vault:8200',
-            token='00c9a9ab-c523-459d-a250-2ce8f0877c03'
-        )
+        calls = [mock.call(url='http://vault:8200',
+                           token='00c9a9ab-c523-459d-a250-2ce8f0877c03')]
+        retrieve_secret_id.assert_has_calls(calls)
