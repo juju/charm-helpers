@@ -117,13 +117,13 @@ ansible_hosts_path = '/etc/ansible/hosts'
 ansible_vars_path = '/etc/ansible/host_vars/localhost'
 
 
-def install_ansible_support(from_ppa=True, ppa_location='ppa:rquillo/ansible'):
+def install_ansible_support(from_ppa=True, ppa_location='ppa:ansible/ansible'):
     """Installs the ansible package.
 
     By default it is installed from the `PPA`_ linked from
     the ansible `website`_ or from a ppa specified by a charm config..
 
-    .. _PPA: https://launchpad.net/~rquillo/+archive/ansible
+    .. _PPA: https://launchpad.net/~ansible/+archive/ubuntu/ansible
     .. _website: http://docs.ansible.com/intro_installation.html#latest-releases-via-apt-ubuntu
 
     If from_ppa is empty, you must ensure that the package is available
