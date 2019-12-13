@@ -16,87 +16,103 @@
 #
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
-"""Charm Helpers ansible - declare the state of your machines.
+"""
+The ansible package enables you to easily use the configuration management
+tool `Ansible`_ to easily setup and configure your charm. All of your charm
+configuration options and relation-data are available as regular Ansible
+variables which can be used in your playbooks and templates.
 
-This helper enables you to declare your machine state, rather than
-program it procedurally (and have to test each change to your procedures).
-Your install hook can be as simple as::
+.. _Ansible: https://www.ansible.com/
 
-    {{{
-    import charmhelpers.contrib.ansible
+Usage
+=====
 
+Here is an example directory structure for a charm to get you started::
 
+    charm-ansible-example/
+    |-- ansible
+    |   |-- playbook.yaml
+    |   `-- templates
+    |       `-- example.j2
+    |-- config.yaml
+    |-- copyright
+    |-- icon.svg
+    |-- layer.yaml
+    |-- metadata.yaml
+    |-- reactive
+    |   `-- example.py
+    |-- README.md
+
+Running a playbook called ``playbook.yaml`` when the ``install`` hook is run
+can be as simple as::
+
+    from charmhelpers.contrib import ansible
+    from charms.reactive import hook
+
+    @hook('install')
     def install():
-        charmhelpers.contrib.ansible.install_ansible_support()
-        charmhelpers.contrib.ansible.apply_playbook('playbooks/install.yaml')
-    }}}
+        ansible.install_ansible_support()
+        ansible.apply_playbook('ansible/playbook.yaml')
 
-and won't need to change (nor will its tests) when you change the machine
-state.
+Here is an example playbook that uses the ``template`` module to template the
+file ``example.j2`` to the charm host and then uses the ``debug`` module to
+print out all the host and Juju variables that you can use in your playbooks.
+Note that you must target ``localhost`` as the playbook is run locally on the
+charm host::
 
-All of your juju config and relation-data are available as template
-variables within your playbooks and templates. An install playbook looks
-something like::
-
-    {{{
     ---
     - hosts: localhost
-      user: root
-
       tasks:
-        - name: Add private repositories.
+        - name: Template a file
           template:
-            src: ../templates/private-repositories.list.jinja2
-            dest: /etc/apt/sources.list.d/private.list
+            src: templates/example.j2
+            dest: /tmp/example.j2
 
-        - name: Update the cache.
-          apt: update_cache=yes
+        - name: Print all variables available to Ansible
+          debug:
+            var: vars
 
-        - name: Install dependencies.
-          apt: pkg={{ item }}
-          with_items:
-            - python-mimeparse
-            - python-webob
-            - sunburnt
+Read more online about `playbooks`_ and standard Ansible `modules`_.
 
-        - name: Setup groups.
-          group: name={{ item.name }} gid={{ item.gid }}
-          with_items:
-            - { name: 'deploy_user', gid: 1800 }
-            - { name: 'service_user', gid: 1500 }
+.. _playbooks: https://docs.ansible.com/ansible/latest/user_guide/playbooks.html
+.. _modules: https://docs.ansible.com/ansible/latest/user_guide/modules.html
 
-      ...
-    }}}
-
-Read more online about `playbooks`_ and standard ansible `modules`_.
-
-.. _playbooks: http://www.ansibleworks.com/docs/playbooks.html
-.. _modules: http://www.ansibleworks.com/docs/modules.html
-
-A further feature os the ansible hooks is to provide a light weight "action"
+A further feature of the Ansible hooks is to provide a light weight "action"
 scripting tool. This is a decorator that you apply to a function, and that
-function can now receive cli args, and can pass extra args to the playbook.
+function can now receive cli args, and can pass extra args to the playbook::
 
-e.g.
-
-
-@hooks.action()
-def some_action(amount, force="False"):
-    "Usage: some-action AMOUNT [force=True]"  # <-- shown on error
-    # process the arguments
-    # do some calls
-    # return extra-vars to be passed to ansible-playbook
-    return {
-        'amount': int(amount),
-        'type': force,
-    }
+    @hooks.action()
+    def some_action(amount, force="False"):
+        "Usage: some-action AMOUNT [force=True]"  # <-- shown on error
+        # process the arguments
+        # do some calls
+        # return extra-vars to be passed to ansible-playbook
+        return {
+            'amount': int(amount),
+            'type': force,
+        }
 
 You can now create a symlink to hooks.py that can be invoked like a hook, but
-with cli params:
+with cli params::
 
-# link actions/some-action to hooks/hooks.py
+    # link actions/some-action to hooks/hooks.py
 
-actions/some-action amount=10 force=true
+    actions/some-action amount=10 force=true
+
+Install Ansible via pip
+=======================
+
+If you want to install a specific version of Ansible via pip instead of
+``install_ansible_support`` which uses APT, consider using the layer options
+of `layer-basic`_ to install Ansible in a virtualenv::
+
+    options:
+      basic:
+        python_packages: ['ansible==2.9.0']
+        include_system_packages: true
+        use_venv: true
+
+.. _layer-basic: https://charmsreactive.readthedocs.io/en/latest/layer-basic.html#layer-configuration
 
 """
 import os
@@ -118,16 +134,16 @@ ansible_vars_path = '/etc/ansible/host_vars/localhost'
 
 
 def install_ansible_support(from_ppa=True, ppa_location='ppa:rquillo/ansible'):
-    """Installs the ansible package.
+    """Installs Ansible via APT.
 
-    By default it is installed from the `PPA`_ linked from
-    the ansible `website`_ or from a ppa specified by a charm config..
+    By default this installs Ansible from the `PPA`_ linked from
+    the Ansible `website`_ or from a PPA set in ``ppa_location``.
 
     .. _PPA: https://launchpad.net/~rquillo/+archive/ansible
     .. _website: http://docs.ansible.com/intro_installation.html#latest-releases-via-apt-ubuntu
 
-    If from_ppa is empty, you must ensure that the package is available
-    from a configured repository.
+    If ``from_ppa`` is ``False``, then Ansible will be installed from
+    Ubuntu's Universe repositories.
     """
     if from_ppa:
         charmhelpers.fetch.add_source(ppa_location)
@@ -170,7 +186,7 @@ class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
 
     Example::
 
-        hooks = AnsibleHooks(playbook_path='playbooks/my_machine_state.yaml')
+        hooks = AnsibleHooks(playbook_path='ansible/my_machine_state.yaml')
 
         # All the tasks within my_machine_state.yaml tagged with 'install'
         # will be run automatically after do_custom_work()
@@ -188,13 +204,12 @@ class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
         # the hooks which are handled by ansible-only and they'll be registered
         # for you:
         # hooks = AnsibleHooks(
-        #     'playbooks/my_machine_state.yaml',
+        #     'ansible/my_machine_state.yaml',
         #     default_hooks=['config-changed', 'start', 'stop'])
 
         if __name__ == "__main__":
             # execute a hook based on the name the program is called by
             hooks.execute(sys.argv)
-
     """
 
     def __init__(self, playbook_path, default_hooks=None):
