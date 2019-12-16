@@ -18,7 +18,7 @@
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 """
 The ansible package enables you to easily use the configuration management
-tool `Ansible`_ to easily setup and configure your charm. All of your charm
+tool `Ansible`_ to setup and configure your charm. All of your charm
 configuration options and relation-data are available as regular Ansible
 variables which can be used in your playbooks and templates.
 
