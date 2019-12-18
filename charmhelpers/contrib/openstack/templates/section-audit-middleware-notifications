@@ -1,0 +1,8 @@
+{% if audit_middleware and transport_url-%}
+[audit_middleware_notifications]
+driver = {{ oslo_messaging_driver }}
+transport_url = {{ transport_url }}
+{% if send_notifications_to_logs %}
+driver = log
+{% endif %}
+{% endif -%}
