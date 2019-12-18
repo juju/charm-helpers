@@ -552,6 +552,9 @@ class IdentityServiceContext(OSContextGenerator):
                             ctxt, keystonemiddleware_os_release)
 
                 if self.context_complete(ctxt):
+                    ctxt['audit_middleware'] = \
+                        False if config('audit-middleware') is None else config('audit-middleware')
+
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
@@ -597,6 +600,7 @@ class IdentityCredentialsContext(IdentityServiceContext):
                 ctxt.update({
                     'service_port': rdata.get('credentials_port'),
                     'service_host': credentials_host,
+                    'service': self.service,
                     'auth_host': auth_host,
                     'auth_port': rdata.get('auth_port'),
                     'admin_tenant_name': rdata.get('credentials_project'),

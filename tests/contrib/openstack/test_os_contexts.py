@@ -346,6 +346,10 @@ AMQP_NOTIFICATIONS_LOGS = {
     'send-notifications-to-logs': True
 }
 
+AUDIT_MIDDLEWARE = {
+    'audit-middleware': True
+}
+
 AMQP_NOVA_CONFIG = {
     'nova-rabbit-user': 'adam',
     'nova-rabbit-vhost': 'foo',
@@ -1733,6 +1737,26 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
             'send_notifications_to_logs': True,
+        }
+
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_audit_middleware_notifications(self):
+        """Test amqp context with audit middleware enabled with notifications"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AUDIT_MIDDLEWARE.update(AMQP_CONFIG)
+        self.config.return_value = AUDIT_MIDDLEWARE
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'oslo_messaging_driver': 'messagingv2',
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo',
+            'audit_middleware': True,
         }
 
         self.assertEquals(result, expected)
