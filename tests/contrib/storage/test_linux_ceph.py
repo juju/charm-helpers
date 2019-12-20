@@ -178,7 +178,7 @@ class CephBasicUtilsTests(TestCase):
         setattr(self, method, mock)
 
     def test_enabled_manager_modules(self):
-        self.check_output.return_value = '{"enabled_modules": []}'
+        self.check_output.return_value = b'{"enabled_modules": []}'
         ceph_utils.enabled_manager_modules()
         self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls'])
 
@@ -1254,8 +1254,11 @@ class CephUtilsTests(TestCase):
         uuid.uuid1.return_value = 'uuid'
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('pool1', replica_count=1)
+        rq.add_op_create_pool('pool1', replica_count=1)
+        rq.add_op_create_pool('pool2')
         rq.add_op_create_pool('pool2')
         rq.add_op_create_pool('pool3', group='test')
+        rq.add_op_request_access_to_group(name='test')
         rq.add_op_request_access_to_group(name='test')
         rq.add_op_request_access_to_group(name='objects',
                                           key_name='test')

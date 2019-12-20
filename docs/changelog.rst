@@ -1,6 +1,55 @@
 Changelog
 ---------
 
+0.20.7
+^^^^^^
+Wednesday 27th November 2019
+
+* Add function-get/set/fail methods alongside the action ones (#394)
+* MySQL Helper Singleton (#397)
+
+0.20.6
+^^^^^^
+Thursday 21st November 2019
+
+ * MySQL configuration handling (#395)
+ * Use juju ssh for get_ubuntu_release_from_sentry (#396)
+ * Policyd library changes to support openstack-dashboard (#393)
+
+0.20.5
+^^^^^^
+Monday 18th November 2019
+
+ * ufw: add support for new keywords as well as a function to retrieve rules (#390)
+ * Duplicate resource retry fix from reactive (#392)
+ * Add section-placement (#389)
+ * Update swift versions for train (#388)
+ * Fix the py35 issue with json not accepting bytestrings (#387)
+ * Fix policyd on trusty (py34 issue) (#386)
+ * Add support for the action-log hook command (#385)
+ * Update the policyd docstrings due to charm changes (#382)
+ * Fix policyd on py35 (#384)
+
+0.20.4
+^^^^^^
+Friday 4th October 2019
+
+* Stop duplicate ops being added to CephBrokerRq (#381)
+* Allow OpenStack deployments from PPA packages (#380)
+* MySQL 8 features (#377)
+* Fix policyd helper where when the config value is set to false (#379)
+
+0.20.3
+^^^^^^
+Friday 27th September 2019
+
+* Add policyd override helpers (#368)
+* Resource parameter order is important in Eoan (#373)
+* Complete Eoan Enablement (#372)
+* Conditionally add port_forwarding to l3_extension_plugins (#370)
+* Allow enabling the pg autoscaler when the module is enabled (#343)
+* Change openstack amulet helper to use `OS_` env var format (#369)
+
 0.20.2
 ^^^^^^
 Tuesday 27th August 2019

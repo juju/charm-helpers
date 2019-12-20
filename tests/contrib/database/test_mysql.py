@@ -6,6 +6,7 @@ import sys
 import shutil
 import tempfile
 
+from collections import OrderedDict
 
 sys.modules['MySQLdb'] = mock.Mock()
 from charmhelpers.contrib.database import mysql  # noqa
@@ -383,17 +384,193 @@ class MysqlTests(unittest.TestCase):
         mock_leader_set.assert_not_called()
 
 
+class MySQLConfigHelperTests(unittest.TestCase):
+
+    def setUp(self):
+        super(MySQLConfigHelperTests, self).setUp()
+        self.config_data = {}
+        self.config = mock.MagicMock()
+        mysql.config_get = self.config
+        self.config.side_effect = self._fake_config
+
+    def _fake_config(self, key=None):
+        if key:
+            try:
+                return self.config_data[key]
+            except KeyError:
+                return None
+        else:
+            return self.config_data
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_pool_fixed(self, log, mem):
+        mem.return_value = "100G"
+        self.config_data = {
+            'innodb-buffer-pool-size': "50%",
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_buffer_pool_size(),
+            helper.human_to_bytes("50G"))
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_pool_not_set(self, mog, mem):
+        mem.return_value = "100G"
+        self.config_data = {
+            'innodb-buffer-pool-size': '',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_buffer_pool_size(),
+            helper.DEFAULT_INNODB_BUFFER_SIZE_MAX)
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_buffer_unset(self, mog, mem):
+        mem.return_value = "100G"
+        self.config_data = {
+            'innodb-buffer-pool-size': None,
+            'dataset-size': None,
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_buffer_pool_size(),
+            helper.DEFAULT_INNODB_BUFFER_SIZE_MAX)
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_buffer_unset_small(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'innodb-buffer-pool-size': None,
+            'dataset-size': None,
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_buffer_pool_size(),
+            int(helper.human_to_bytes(mem.return_value) *
+                helper.DEFAULT_INNODB_BUFFER_FACTOR))
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_dataset_size(self, mog, mem):
+        mem.return_value = "100G"
+        self.config_data = {
+            'dataset-size': "10G",
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_buffer_pool_size(),
+            int(helper.human_to_bytes("10G")))
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_tuning_level(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'tuning-level': 'safest',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_flush_log_at_trx_commit(),
+            1
+        )
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_tuning_level_fast(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'tuning-level': 'fast',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_flush_log_at_trx_commit(),
+            2
+        )
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_tuning_level_unsafe(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'tuning-level': 'unsafe',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_flush_log_at_trx_commit(),
+            0
+        )
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_valid_values(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'innodb-change-buffering': 'all',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_innodb_change_buffering(),
+            'all'
+        )
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_innodb_invalid_values(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'innodb-change-buffering': 'invalid',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertTrue(helper.get_innodb_change_buffering() is None)
+
+
 class PerconaTests(unittest.TestCase):
 
     def setUp(self):
         super(PerconaTests, self).setUp()
+        self.config_data = {}
+        self.config = mock.MagicMock()
+        mysql.config_get = self.config
+        self.config.side_effect = self._fake_config
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    def _fake_config(self, key=None):
+        if key:
+            try:
+                return self.config_data[key]
+            except KeyError:
+                return None
+        else:
+            return self.config_data
+
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_pool_fixed(self, log, config, mem):
+    def test_parse_config_innodb_pool_fixed(self, log, mem):
         mem.return_value = "100G"
-        config.return_value = {
+        self.config_data = {
             'innodb-buffer-pool-size': "50%",
         }
 
@@ -403,12 +580,11 @@ class PerconaTests(unittest.TestCase):
         self.assertEqual(mysql_config.get('innodb_buffer_pool_size'),
                          helper.human_to_bytes("50G"))
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_pool_not_set(self, mog, config, mem):
+    def test_parse_config_innodb_pool_not_set(self, mog, mem):
         mem.return_value = "100G"
-        config.return_value = {
+        self.config_data = {
             'innodb-buffer-pool-size': '',
         }
 
@@ -419,12 +595,11 @@ class PerconaTests(unittest.TestCase):
             mysql_config.get('innodb_buffer_pool_size'),
             helper.DEFAULT_INNODB_BUFFER_SIZE_MAX)
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_buffer_unset(self, mog, config, mem):
+    def test_parse_config_innodb_buffer_unset(self, mog, mem):
         mem.return_value = "100G"
-        config.return_value = {
+        self.config_data = {
             'innodb-buffer-pool-size': None,
             'dataset-size': None,
         }
@@ -436,13 +611,11 @@ class PerconaTests(unittest.TestCase):
             mysql_config.get('innodb_buffer_pool_size'),
             helper.DEFAULT_INNODB_BUFFER_SIZE_MAX)
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_buffer_unset_small(self, mog,
-                                                    config, mem):
+    def test_parse_config_innodb_buffer_unset_small(self, mog, mem):
         mem.return_value = "512M"
-        config.return_value = {
+        self.config_data = {
             'innodb-buffer-pool-size': None,
             'dataset-size': None,
         }
@@ -455,12 +628,11 @@ class PerconaTests(unittest.TestCase):
             int(helper.human_to_bytes(mem.return_value) *
                 helper.DEFAULT_INNODB_BUFFER_FACTOR))
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_dataset_size(self, mog, config, mem):
+    def test_parse_config_innodb_dataset_size(self, mog, mem):
         mem.return_value = "100G"
-        config.return_value = {
+        self.config_data = {
             'dataset-size': "10G",
         }
 
@@ -471,14 +643,13 @@ class PerconaTests(unittest.TestCase):
             mysql_config.get('innodb_buffer_pool_size'),
             int(helper.human_to_bytes("10G")))
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_wait_timeout(self, mog, config, mem):
+    def test_parse_config_wait_timeout(self, mog, mem):
         mem.return_value = "100G"
 
         timeout = 314
-        config.return_value = {
+        self.config_data = {
             'wait-timeout': timeout,
         }
 
@@ -489,13 +660,11 @@ class PerconaTests(unittest.TestCase):
             mysql_config.get('wait_timeout'),
             timeout)
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_tuning_level(self, mog,
-                                       config, mem):
+    def test_parse_config_tuning_level(self, mog, mem):
         mem.return_value = "512M"
-        config.return_value = {
+        self.config_data = {
             'tuning-level': 'safest',
         }
 
@@ -507,13 +676,11 @@ class PerconaTests(unittest.TestCase):
             1
         )
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_tuning_level_fast(self, mog,
-                                            config, mem):
+    def test_parse_config_tuning_level_fast(self, mog, mem):
         mem.return_value = "512M"
-        config.return_value = {
+        self.config_data = {
             'tuning-level': 'fast',
         }
 
@@ -525,13 +692,11 @@ class PerconaTests(unittest.TestCase):
             2
         )
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_tuning_level_unsafe(self, mog,
-                                              config, mem):
+    def test_parse_config_tuning_level_unsafe(self, mog, mem):
         mem.return_value = "512M"
-        config.return_value = {
+        self.config_data = {
             'tuning-level': 'unsafe',
         }
 
@@ -543,13 +708,11 @@ class PerconaTests(unittest.TestCase):
             0
         )
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_valid_values(self, mog,
-                                              config, mem):
+    def test_parse_config_innodb_valid_values(self, mog, mem):
         mem.return_value = "512M"
-        config.return_value = {
+        self.config_data = {
             'innodb-change-buffering': 'all',
             'innodb-io-capacity': 100,
         }
@@ -567,13 +730,11 @@ class PerconaTests(unittest.TestCase):
             100
         )
 
-    @mock.patch.object(mysql.PerconaClusterHelper, 'get_mem_total')
-    @mock.patch.object(mysql, 'config_get')
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
     @mock.patch.object(mysql, 'log')
-    def test_parse_config_innodb_invalid_values(self, mog,
-                                                config, mem):
+    def test_parse_config_innodb_invalid_values(self, mog, mem):
         mem.return_value = "512M"
-        config.return_value = {
+        self.config_data = {
             'innodb-change-buffering': 'invalid',
         }
 
@@ -582,3 +743,157 @@ class PerconaTests(unittest.TestCase):
 
         self.assertTrue('innodb_change_buffering' not in mysql_config)
         self.assertTrue('innodb_io_capacity' not in mysql_config)
+
+
+class Mysql8Tests(unittest.TestCase):
+
+    def setUp(self):
+        super(Mysql8Tests, self).setUp()
+        self.template = "/tmp/mysql-passwd.txt"
+        self.connection = mock.MagicMock()
+        self.cursor = mock.MagicMock()
+        self.connection.cursor.return_value = self.cursor
+        self.helper = mysql.MySQL8Helper(
+            rpasswdf_template=self.template,
+            upasswdf_template=self.template)
+        self.helper.connection = self.connection
+        self.user = "user"
+        self.host = "10.5.0.21"
+        self.password = "passwd"
+        self.db = "mydb"
+
+    def test_grant_exists(self):
+        # With backticks
+        self.cursor.fetchall.return_value = (
+            ("GRANT USAGE ON *.* TO `{}`@`{}`".format(self.user, self.host),),
+            ("GRANT ALL PRIVILEGES ON `{}`.* TO `{}`@`{}`"
+             .format(self.db, self.user, self.host),))
+        self.assertTrue(self.helper.grant_exists(self.db, self.user, self.host))
+
+        self.cursor.execute.assert_called_with(
+            "SHOW GRANTS FOR '{}'@'{}'".format(self.user, self.host))
+
+        # With single quotes
+        self.cursor.fetchall.return_value = (
+            ("GRANT USAGE ON *.* TO '{}'@'{}'".format(self.user, self.host),),
+            ("GRANT ALL PRIVILEGES ON '{}'.* TO '{}'@'{}'"
+             .format(self.db, self.user, self.host),))
+        self.assertTrue(self.helper.grant_exists(self.db, self.user, self.host))
+
+        # Grant not there
+        self.cursor.fetchall.return_value = (
+            ("GRANT USAGE ON *.* TO '{}'@'{}'".format("someuser", "notmyhost"),),
+            ("GRANT ALL PRIVILEGES ON '{}'.* TO '{}'@'{}'"
+             .format("somedb", "someuser", "notmyhost"),))
+        self.assertFalse(self.helper.grant_exists(self.db, self.user, self.host))
+
+    def test_create_grant(self):
+        self.helper.grant_exists = mock.MagicMock(return_value=False)
+        self.helper.create_user = mock.MagicMock()
+
+        self.helper.create_grant(self.db, self.user, self.host, self.password)
+        self.cursor.execute.assert_called_with(
+            "GRANT ALL PRIVILEGES ON `{}`.* TO '{}'@'{}'"
+            .format(self.db, self.user, self.host))
+        self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+
+    def test_create_user(self):
+        self.helper.create_user(self.user, self.host, self.password)
+        self.cursor.execute.assert_called_with(
+            "CREATE USER '{}'@'{}' IDENTIFIED BY '{}'".
+            format(self.user, self.host, self.password))
+
+    def test_create_router_grant(self):
+        self.helper.create_user = mock.MagicMock()
+
+        self.helper.create_router_grant(self.user, self.host, self.password)
+        _calls = [
+            mock.call("GRANT CREATE USER ON *.* TO '{}'@'{}' WITH GRANT OPTION"
+                      .format(self.user, self.host)),
+            mock.call("GRANT SELECT, INSERT, UPDATE, DELETE ON "
+                      "mysql_innodb_cluster_metadata.* TO '{}'@'{}'"
+                      .format(self.user, self.host)),
+            mock.call("GRANT SELECT ON mysql.user TO '{}'@'{}'"
+                      .format(self.user, self.host)),
+            mock.call("GRANT SELECT ON "
+                      "performance_schema.replication_group_members TO "
+                      "'{}'@'{}'".format(self.user, self.host)),
+            mock.call("GRANT SELECT ON "
+                      "performance_schema.replication_group_member_stats TO "
+                      "'{}'@'{}'".format(self.user, self.host))]
+
+        self.cursor.execute.assert_has_calls(_calls)
+        self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+
+    def test_configure_router(self):
+        self.helper.create_user = mock.MagicMock()
+        self.helper.create_router_grant = mock.MagicMock()
+        self.helper.normalize_address = mock.MagicMock(return_value=self.host)
+        self.helper.get_mysql_password = mock.MagicMock(return_value=self.password)
+
+        self.assertEqual(self.password, self.helper.configure_router(self.host, self.user))
+        self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+        self.helper.create_router_grant.assert_called_with(self.user, self.host, self.password)
+
+
+class MysqlHelperTests(unittest.TestCase):
+
+    def setUp(self):
+        super(MysqlHelperTests, self).setUp()
+
+    def test_get_prefix(self):
+        _tests = {
+            "prefix1": "prefix1_username",
+            "prefix2": "prefix2_database",
+            "prefix3": "prefix3_hostname"}
+
+        for key in _tests.keys():
+            self.assertEqual(
+                key,
+                mysql.get_prefix(_tests[key]))
+
+    def test_get_db_data(self):
+        _unprefixed = "myprefix"
+        # Test relation data has every variation of shared-db/db-router data
+        _relation_data = {
+            "egress-subnets": "10.5.0.43/32",
+            "ingress-address": "10.5.0.43",
+            "nova_database": "nova",
+            "nova_hostname": "10.5.0.43",
+            "nova_username": "nova",
+            "novaapi_database": "nova_api",
+            "novaapi_hostname": "10.5.0.43",
+            "novaapi_username": "nova",
+            "novacell0_database": "nova_cell0",
+            "novacell0_hostname": "10.5.0.43",
+            "novacell0_username": "nova",
+            "private-address": "10.5.0.43",
+            "database": "keystone",
+            "username": "keystone",
+            "hostname": "10.5.0.43",
+            "mysqlrouter_username":
+            "mysqlrouteruser",
+            "mysqlrouter_hostname": "10.5.0.43"}
+
+        _expected_data = OrderedDict([
+            ('nova', OrderedDict([('database', 'nova'),
+                                  ('hostname', '10.5.0.43'),
+                                  ('username', 'nova')])),
+            ('novaapi', OrderedDict([('database', 'nova_api'),
+                                     ('hostname', '10.5.0.43'),
+                                     ('username', 'nova')])),
+            ('novacell0', OrderedDict([('database', 'nova_cell0'),
+                                       ('hostname', '10.5.0.43'),
+                                       ('username', 'nova')])),
+            ('mysqlrouter', OrderedDict([('username', 'mysqlrouteruser'),
+                                         ('hostname', '10.5.0.43')])),
+            ('myprefix', OrderedDict([('hostname', '10.5.0.43'),
+                                      ('database', 'keystone'),
+                                      ('username', 'keystone')]))])
+
+        _results = mysql.get_db_data(_relation_data, unprefixed=_unprefixed)
+
+        for prefix in _expected_data.keys():
+            for key in _expected_data[prefix].keys():
+                self.assertEqual(
+                    _results[prefix][key], _expected_data[prefix][key])

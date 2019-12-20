@@ -97,6 +97,10 @@ from charmhelpers.fetch.snap import (
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 from charmhelpers.contrib.openstack.exceptions import OSContextError
+from charmhelpers.contrib.openstack.policyd import (
+    policyd_status_message_prefix,
+    POLICYD_CONFIG_NAME,
+)
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
@@ -200,7 +204,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('stein',
         ['2.20.0', '2.21.0']),
     ('train',
-        ['2.22.0']),
+        ['2.22.0', '2.23.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -527,7 +531,7 @@ def reset_os_release():
     _os_rel = None
 
 
-def os_release(package, base='essex', reset_cache=False):
+def os_release(package, base=None, reset_cache=False):
     '''
     Returns OpenStack release codename from a cached global.
 
@@ -538,6 +542,8 @@ def os_release(package, base='essex', reset_cache=False):
     the installation source, the earliest release supported by the charm should
     be returned.
     '''
+    if not base:
+        base = UBUNTU_OPENSTACK_RELEASE[lsb_release()['DISTRIB_CODENAME']]
     global _os_rel
     if reset_cache:
         reset_os_release()
@@ -666,7 +672,10 @@ def openstack_upgrade_available(package):
         codename = get_os_codename_install_source(src)
         avail_vers = get_os_version_codename_swift(codename)
     else:
-        avail_vers = get_os_version_install_source(src)
+        try:
+            avail_vers = get_os_version_install_source(src)
+        except:
+            avail_vers = cur_vers
     apt.init()
     return apt.version_compare(avail_vers, cur_vers) >= 1
 
@@ -861,6 +870,12 @@ def _determine_os_workload_status(
         state = 'active'
         message = "Unit is ready"
         juju_log(message, 'INFO')
+
+    try:
+        if config(POLICYD_CONFIG_NAME):
+            message = "{} {}".format(policyd_status_message_prefix(), message)
+    except Exception:
+        pass
 
     return state, message
 
@@ -1683,7 +1698,7 @@ def enable_memcache(source=None, release=None, package=None):
     if release:
         _release = release
     else:
-        _release = os_release(package, base='icehouse')
+        _release = os_release(package)
     if not _release:
         _release = get_os_codename_install_source(source)
 
