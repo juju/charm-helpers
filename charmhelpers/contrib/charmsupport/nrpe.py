@@ -490,7 +490,10 @@ def remove_deprecated_check(nrpe, deprecated_services):
     """
     Remove checks fro deprecated services in list
 
-    :param NRPE nrpe: NRPE object to remove check from
+    :param nrpe: NRPE object to remove check from
+    :type nrpe: NRPE
+    :param deprecated_services: List of deprecated services that are removed
+    :type deprecated_services: list
     """
     for dep_svc in deprecated_services:
         log('Deprecated service: {}'.format(dep_svc))
