@@ -674,7 +674,7 @@ def openstack_upgrade_available(package):
     else:
         try:
             avail_vers = get_os_version_install_source(src)
-        except:
+        except Exception:
             avail_vers = cur_vers
     apt.init()
     return apt.version_compare(avail_vers, cur_vers) >= 1

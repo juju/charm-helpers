@@ -1,5 +1,5 @@
 from testtools import TestCase, skipIf
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 import six
 
 import charmhelpers.contrib.openstack.audits as audits
@@ -302,11 +302,11 @@ class OpenstackSecurityGuideTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._config_section')
     def test_validate_uses_keystone(self, _config_section):
-        _config_section.return_value = {
+        _config_section.side_effect = [None, {
             'auth_strategy': 'keystone',
-        }
+        }]
         guide.validate_uses_keystone({})
-        _config_section.assert_called_with({}, 'DEFAULT')
+        _config_section.assert_has_calls([call({}, 'api'), call({}, 'DEFAULT')])
 
     @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._config_section')
     def test_validate_uses_tls_for_keystone(self, _config_section):

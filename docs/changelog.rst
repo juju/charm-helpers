@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.20.7
+^^^^^^
+Wednesday 27th November 2019
+
+* Add function-get/set/fail methods alongside the action ones (#394)
+* MySQL Helper Singleton (#397)
+
 0.20.6
 ^^^^^^
 Thursday 21st November 2019
