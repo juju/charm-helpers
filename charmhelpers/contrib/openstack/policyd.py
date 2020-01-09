@@ -307,9 +307,9 @@ def maybe_do_policyd_overrides(openstack_release,
                                   blacklist_paths,
                                   user=_user,
                                   group=_group)
-            if (os.path.isfile(_policy_success_file())
-                    and restart_handler is not None
-                    and callable(restart_handler)):
+            if (os.path.isfile(_policy_success_file()) and
+                    restart_handler is not None and
+                    callable(restart_handler)):
                 restart_handler()
             remove_policy_success_file()
             return
