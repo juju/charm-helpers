@@ -79,6 +79,7 @@ docs:
 	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y
 	- [ -z "`dpkg -l | grep python-pip`" ] && sudo apt-get install python-pip -y
 	- [ -z "`pip list | grep -i sphinx-pypi-upload`" ] && sudo pip install sphinx-pypi-upload
+	- [ -z "`pip list | grep -i sphinx_rtd_theme`" ] && sudo pip install sphinx_rtd_theme
 	cd docs && make html && cd -
 .PHONY: docs
 
