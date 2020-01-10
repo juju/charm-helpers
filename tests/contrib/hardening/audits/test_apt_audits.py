@@ -33,8 +33,11 @@ class RestrictedPackagesTestCase(TestCase):
             pkgver = MagicMock()
             pkgver.parent_pkg = self.create_package('foo')
             pkg.provides_list = [('virtualfoo', None, pkgver)]
-            pkg.has_provides = True
-            pkg.has_versions = False
+            resp = {
+                'has_provides': True,
+                'has_versions': False,
+            }
+            pkg.get.side_effect = resp.get
 
         return pkg
 
