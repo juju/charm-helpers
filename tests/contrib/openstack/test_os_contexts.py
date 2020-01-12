@@ -3991,16 +3991,12 @@ class ContextTests(unittest.TestCase):
             'host': 'myhost',
             'use_fqdn_hint': False},
             ctxt)
-        kv = MagicMock()
-        kv().get.return_value = True
-        self.kv.side_effect = kv
-        ctxt = context.HostInfoContext()()
+        ctxt = context.HostInfoContext(use_fqdn_hint_cb=lambda: True)()
         self.assertEqual({
             'host_fqdn': 'myhost.mydomain',
             'host': 'myhost',
             'use_fqdn_hint': True},
             ctxt)
-        self.kv.side_effect = TestDB
         # if getaddrinfo is unable to find the canonical name we should return
         # the shortname to match the behaviour of the original implementation.
         _socket.getaddrinfo.return_value = [(None, None, None, 'localhost', None)]

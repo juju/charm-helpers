@@ -2181,21 +2181,22 @@ class LogrotateContext(OSContextGenerator):
 class HostInfoContext(OSContextGenerator):
     """Context to provide host information."""
 
-    def _get_use_fqdn_hint(self):
-        """Get hint from local unit KV store for whether FQDN should be used
+    def __init__(self, use_fqdn_hint_cb=None):
+        """Initialize HostInfoContext
 
-        Depending on the workload a charm manages, the use of FQDN vs.
-        shortname may be a deploy-time decision, i.e. behavour can not change
-        on post deploy charm upgrade or configuration change.
-
-        The hint is passed on as a flag in the context to allow the decision to
-        be made in the Jinja2 configuration template.
-
-        :returns: True or False
-        :rtype: bool
+        :param use_fqdn_hint_cb: Callback whose return value used to populate
+                                 `use_fqdn_hint`
+        :type use_fqdn_hint_cb: Callable[[], bool]
         """
-        db = kv()
-        return db.get('openstack-hostinfocontext-use-fqdn-hint', False)
+        # Store callback used to get hint for whether FQDN should be used
+
+        # Depending on the workload a charm manages, the use of FQDN vs.
+        # shortname may be a deploy-time decision, i.e. behaviour can not
+        # change on charm upgrade or post-deployment configuration change.
+
+        # The hint is passed on as a flag in the context to allow the decision
+        # to be made in the Jinja2 configuration template.
+        self.use_fqdn_hint_cb = use_fqdn_hint_cb
 
     def _get_canonical_name(self, name=None):
         """Get the official FQDN of the host
@@ -2239,6 +2240,7 @@ class HostInfoContext(OSContextGenerator):
         ctxt = {
             'host_fqdn': self._get_canonical_name(name) or name,
             'host': name,
-            'use_fqdn_hint': self._get_use_fqdn_hint(),
+            'use_fqdn_hint': (
+                self.use_fqdn_hint_cb() if self.use_fqdn_hint_cb else False)
         }
         return ctxt
