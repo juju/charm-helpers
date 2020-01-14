@@ -1,8 +1,8 @@
-import collections
 import charmhelpers.contrib.openstack.context as context
-import yaml
+import collections
 import json
 import unittest
+import yaml
 from copy import copy, deepcopy
 from mock import (
     patch,
@@ -3959,10 +3959,38 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, 'socket')
     def test_host_info_context(self, _socket):
-        _socket.getfqdn.return_value = 'myhost.mydomain'
+        _socket.getaddrinfo.return_value = [(None, None, None, 'myhost.mydomain', None)]
         _socket.gethostname.return_value = 'myhost'
         ctxt = context.HostInfoContext()()
         self.assertEqual({
             'host_fqdn': 'myhost.mydomain',
-            'host': 'myhost'},
+            'host': 'myhost',
+            'use_fqdn_hint': False},
+            ctxt)
+        ctxt = context.HostInfoContext(use_fqdn_hint_cb=lambda: True)()
+        self.assertEqual({
+            'host_fqdn': 'myhost.mydomain',
+            'host': 'myhost',
+            'use_fqdn_hint': True},
+            ctxt)
+        # if getaddrinfo is unable to find the canonical name we should return
+        # the shortname to match the behaviour of the original implementation.
+        _socket.getaddrinfo.return_value = [(None, None, None, 'localhost', None)]
+        ctxt = context.HostInfoContext()()
+        self.assertEqual({
+            'host_fqdn': 'myhost',
+            'host': 'myhost',
+            'use_fqdn_hint': False},
+            ctxt)
+        if six.PY2:
+            _socket.error = Exception
+            _socket.getaddrinfo.side_effect = Exception
+        else:
+            _socket.getaddrinfo.side_effect = OSError
+        _socket.gethostname.return_value = 'myhost'
+        ctxt = context.HostInfoContext()()
+        self.assertEqual({
+            'host_fqdn': 'myhost',
+            'host': 'myhost',
+            'use_fqdn_hint': False},
             ctxt)
