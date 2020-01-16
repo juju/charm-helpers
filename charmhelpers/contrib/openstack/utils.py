@@ -50,9 +50,14 @@ from charmhelpers.core.hookenv import (
     hook_name,
     application_version_set,
     cached,
+    leader_set,
+    leader_get,
 )
 
-from charmhelpers.core.strutils import BasicStringComparator
+from charmhelpers.core.strutils import (
+    BasicStringComparator,
+    bool_from_string,
+)
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
@@ -1868,3 +1873,28 @@ def series_upgrade_complete(resume_unit_helper=None, configs=None):
         configs.write_all()
         if resume_unit_helper:
             resume_unit_helper(configs)
+
+
+def is_db_initialised():
+    """Check leader storage to see if database has been initialised.
+
+    :returns: Whether DB has been initialised
+    :rtype: bool
+    """
+    db_initialised = None
+    if leader_get('db-initialised') is None:
+        juju_log(
+            'db-initialised key missing, assuming db is not initialised',
+            'DEBUG')
+        db_initialised = False
+    else:
+        db_initialised = bool_from_string(leader_get('db-initialised'))
+    juju_log('Database initialised: {}'.format(db_initialised), 'DEBUG')
+    return db_initialised
+
+
+def set_db_initialised():
+    """Add flag to leader storage to indicate database has been initialised.
+    """
+    juju_log('Setting db-initialised to True', 'DEBUG')
+    leader_set({'db-initialised': True})
