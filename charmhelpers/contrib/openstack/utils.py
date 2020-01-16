@@ -1884,16 +1884,17 @@ def is_db_initialised():
     db_initialised = None
     if leader_get('db-initialised') is None:
         juju_log(
-            '"db-initialised key missing, assuming db is not initialised',
+            'db-initialised key missing, assuming db is not initialised',
             'DEBUG')
         db_initialised = False
     else:
         db_initialised = bool_from_string(leader_get('db-initialised'))
-    juju_log("Database initialised: {}".format(db_initialised), 'DEBUG')
+    juju_log('Database initialised: {}'.format(db_initialised), 'DEBUG')
     return db_initialised
 
 
 def set_db_initialised():
     """Add flag to leader storage to indicate database has been initialised.
     """
+    juju_log('Setting db-initialised to True', 'DEBUG')
     leader_set({'db-initialised': True})
