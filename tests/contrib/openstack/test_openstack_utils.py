@@ -1857,6 +1857,22 @@ class OpenStackHelpersTestCase(TestCase):
         fake_configs.write_all.assert_called_once()
         fake_resume_helper.assert_called_once_with(fake_configs)
 
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'leader_get')
+    def test_is_db_initialised(self, leader_get, juju_log):
+        leader_get.return_value = 'True'
+        self.assertTrue(openstack.is_db_initialised())
+        leader_get.return_value = 'False'
+        self.assertFalse(openstack.is_db_initialised())
+        leader_get.return_value = None
+        self.assertFalse(openstack.is_db_initialised())
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'leader_set')
+    def test_set_db_initialised(self, leader_set, juju_log):
+        openstack.set_db_initialised()
+        leader_set.assert_called_once_with({'db-initialised': True})
+
 
 if __name__ == '__main__':
     unittest.main()
