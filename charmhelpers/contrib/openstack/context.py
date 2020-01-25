@@ -25,6 +25,10 @@ from subprocess import check_call, CalledProcessError
 
 import six
 
+from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
+    _config_ini as config_ini
+)
+
 from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
@@ -2244,3 +2248,119 @@ class HostInfoContext(OSContextGenerator):
                 self.use_fqdn_hint_cb() if self.use_fqdn_hint_cb else False)
         }
         return ctxt
+
+
+def validate_ovs_use_veth(*args, **kwargs):
+    """Validate OVS use veth setting for dhcp agents
+
+    The ovs_use_veth setting is considered immutable as it will break existing
+    deployments. Historically, we set ovs_use_veth=True in dhcp_agent.ini. It
+    turns out this is no longer necessary. Ideally, all new deployments would
+    have this set to False.
+
+    This function validates that the config value does not conflict with
+    previously deployed settings in dhcp_agent.ini.
+
+    See LP Bug#1831935 for details.
+
+    :returns: Status state and message
+    :rtype: Union[(None, None), (string, string)]
+    """
+    existing_ovs_use_veth = (
+        DHCPAgentContext().get_existing_ovs_use_veth())
+    config_ovs_use_veth = config("ovs-use-veth")
+
+    # Check settings are set and not None
+    if existing_ovs_use_veth is not None and config_ovs_use_veth is not None:
+        # Check for mismatch between existing config ini and juju config
+        if existing_ovs_use_veth != config_ovs_use_veth:
+            # Stop the line to avoid breakage
+            msg = (
+                "The existing setting for dhcp_agent.ini ovs_use_veth, {}, "
+                "does not match the juju config setting, {}. This may lead to "
+                "VMs being unable to receive a DHCP IP. Either change the "
+                "juju config setting or dhcp agents may need to be recreated."
+                .format(existing_ovs_use_veth, config_ovs_use_veth))
+            log(msg, ERROR)
+            return (
+                "blocked",
+                "Mismatched existing and configured ovs-use-veth. See log.")
+
+    # Everything is OK
+    return None, None
+
+
+class DHCPAgentContext(OSContextGenerator):
+
+    def __call__(self):
+        """Return the 'default_availability_zone' from the principal that this
+        ovs unit is attached to (as a subordinate) and the 'dns_domain' from
+        the neutron-plugin-api relations (if one is set).
+
+        :returns: {} if no relation set, or
+            {'availability_zone': availability_zone from principal relation}
+        """
+
+        ctxt = {}
+        dnsmasq_flags = config('dnsmasq-flags')
+        if dnsmasq_flags:
+            ctxt['dnsmasq_flags'] = config_flags_parser(dnsmasq_flags)
+        ctxt['dns_servers'] = config('dns-servers')
+
+        neutron_api_settings = NeutronAPIContext()()
+
+        ctxt['debug'] = config('debug')
+        ctxt['instance_mtu'] = config('instance-mtu')
+        ctxt['ovs_use_veth'] = self.get_ovs_use_veth()
+
+        ctxt['enable_metadata_network'] = config('enable-metadata-network')
+        ctxt['enable_isolated_metadata'] = config('enable-isolated-metadata')
+
+        if neutron_api_settings.get('dns_domain'):
+            ctxt['dns_domain'] = neutron_api_settings.get('dns_domain')
+
+        # Override user supplied config for these plugins as these settings are
+        # mandatory
+        if config('plugin') in ['nvp', 'nsx', 'n1kv']:
+            ctxt['enable_metadata_network'] = True
+            ctxt['enable_isolated_metadata'] = True
+
+        return ctxt
+
+    def get_existing_ovs_use_veth(self):
+        """Return existing ovs_use_veth setting from dhcp_agent.ini.
+
+        :returns: Value of ovs_use_veth setting: None or Bool
+        :rtype: Union[None, Bool]
+        """
+        dhcp_agent_ini = "/etc/neutron/dhcp_agent.ini"
+        existing_ovs_use_veth = None
+        # If there is a dhcp_agent.ini file read the current setting
+        if os.path.isfile(dhcp_agent_ini):
+            # config_ini does the right thing and returns None if the setting is
+            # commented.
+            existing_ovs_use_veth = (
+                config_ini(dhcp_agent_ini)["DEFAULT"].get("ovs_use_veth"))
+        return existing_ovs_use_veth
+
+    def get_ovs_use_veth(self):
+        """Return correct ovs_use_veth setting.
+
+        Get the right value from config or existing dhcp_agent.ini file.
+        Existing has precedence. Attempt to default to "False" without
+        disrupting existing deployments. Handle existing deployments and
+        upgrades safely. See LP Bug#1831935
+
+        :returns: Value to use for ovs_use_veth setting
+        :rtype: string
+        """
+        _existing = self.get_existing_ovs_use_veth()
+        if _existing is not None:
+            return str(_existing)
+
+        _config = config('ovs-use-veth')
+        if _config is None:
+            # New better default
+            return "False"
+        else:
+            return str(_config)

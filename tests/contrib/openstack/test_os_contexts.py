@@ -4018,3 +4018,116 @@ class ContextTests(unittest.TestCase):
             'host': 'myhost',
             'use_fqdn_hint': False},
             ctxt)
+
+    @patch.object(context, "DHCPAgentContext")
+    def test_validate_ovs_use_veth(self, _context):
+        # Default
+        _config = {"ovs-use-veth": False}
+        self.config.side_effect = fake_config(_config)
+        _ctxt_obj = MagicMock()
+        _context.return_value = _ctxt_obj
+
+        # No existing dhcp_agent.ini
+        _ctxt_obj.get_existing_ovs_use_veth.return_value = None
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # Check for agreement with existing dhcp_agent.ini
+        _ctxt_obj.get_existing_ovs_use_veth.return_value = False
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # Check for disagreement with existing dhcp_agent.ini
+        _ctxt_obj.get_existing_ovs_use_veth.return_value = True
+        self.assertEqual(
+            ("blocked",
+                "Mismatched existing and configured ovs-use-veth. See log."),
+            context.validate_ovs_use_veth())
+
+    def test_dhcp_agent_context(self):
+        # Defaults
+        _config = {
+            "debug": False,
+            "dns-servers": None,
+            "enable-isolated-metadata": None,
+            "enable-metadata-network": None,
+            "instance-mtu": None,
+            "ovs-use-veth": None}
+        _expect = {
+            "debug": False,
+            "dns_servers": None,
+            "enable_isolated_metadata": None,
+            "enable_metadata_network": None,
+            "instance_mtu": None,
+            "ovs_use_veth": "False"}
+        self.config.side_effect = fake_config(_config)
+        _get_ovs_use_veth = MagicMock()
+        _get_ovs_use_veth.return_value = "False"
+        ctx_object = context.DHCPAgentContext()
+        ctx_object.get_ovs_use_veth = _get_ovs_use_veth
+        ctxt = ctx_object()
+        self.assertEqual(_expect, ctxt)
+
+        # Non-defaults
+        _dns = "10.5.0.2"
+        _mtu = 8950
+        _config = {
+            "debug": True,
+            "dns-servers": _dns,
+            "enable-isolated-metadata": True,
+            "enable-metadata-network": True,
+            "instance-mtu": _mtu,
+            "ovs-use-veth": True}
+        _expect = {
+            "debug": True,
+            "dns_servers": _dns,
+            "enable_isolated_metadata": True,
+            "enable_metadata_network": True,
+            "instance_mtu": _mtu,
+            "ovs_use_veth": "True"}
+        self.config.side_effect = fake_config(_config)
+        _get_ovs_use_veth.return_value = "True"
+        ctxt = ctx_object()
+        self.assertEqual(_expect, ctxt)
+
+    def test_get_ovs_use_veth(self):
+        _config = {"ovs-use-veth": None}
+        self.config.side_effect = fake_config(_config)
+
+        _get_existing_ovs_use_veth = MagicMock()
+        ctx_object = context.DHCPAgentContext()
+        ctx_object.get_existing_ovs_use_veth = _get_existing_ovs_use_veth
+
+        # Default
+        _get_existing_ovs_use_veth.return_value = None
+        self.assertEqual("False", ctx_object.get_ovs_use_veth())
+
+        # Existing
+        _get_existing_ovs_use_veth.return_value = True
+        self.assertEqual("True", ctx_object.get_ovs_use_veth())
+
+        # Config
+        _config = {"ovs-use-veth": True}
+        self.config.side_effect = fake_config(_config)
+        _get_existing_ovs_use_veth.return_value = None
+        self.assertEqual("True", ctx_object.get_ovs_use_veth())
+
+    @patch.object(context, 'config_ini')
+    @patch.object(context.os.path, 'isfile')
+    def test_get_existing_ovs_use_veth(self, _is_file, _config_ini):
+        _config = {"ovs-use-veth": None}
+        self.config.side_effect = fake_config(_config)
+
+        ctx_object = context.DHCPAgentContext()
+
+        # Default
+        _is_file.return_value = False
+        self.assertEqual(None, ctx_object.get_existing_ovs_use_veth())
+
+        # Existing
+        _is_file.return_value = True
+        _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": True}}
+        self.assertEqual(True, ctx_object.get_existing_ovs_use_veth())
+
+        # Existing
+        _is_file.return_value = True
+        _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": False}}
+        self.assertEqual(False, ctx_object.get_existing_ovs_use_veth())
