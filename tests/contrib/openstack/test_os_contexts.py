@@ -4088,6 +4088,43 @@ class ContextTests(unittest.TestCase):
         ctxt = ctx_object()
         self.assertEqual(_expect, ctxt)
 
+    def test_dhcp_agent_context_no_dns_domain(self):
+        _config = {"dns-servers": '8.8.8.8'}
+        self.config.side_effect = fake_config(_config)
+        self.relation_ids.return_value = ['rid1']
+        self.related_units.return_value = ['nova-compute/0']
+        self.relation_get.return_value = 'nova'
+        self.assertEqual(
+            context.DHCPAgentContext()(),
+            {'instance_mtu': None,
+             'dns_servers': '8.8.8.8',
+             'ovs_use_veth': "False",
+             "enable_isolated_metadata": None,
+             "enable_metadata_network": None,
+             "debug": None}
+        )
+
+    def test_dhcp_agent_context_dnsmasq_flags(self):
+        _config = {'dnsmasq-flags': 'dhcp-userclass=set:ipxe,iPXE,'
+                                    'dhcp-match=set:ipxe,175,'
+                                    'server=1.2.3.4'}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(
+            context.DHCPAgentContext()(),
+            {
+                'dnsmasq_flags': collections.OrderedDict(
+                    [('dhcp-userclass', 'set:ipxe,iPXE'),
+                     ('dhcp-match', 'set:ipxe,175'),
+                     ('server', '1.2.3.4')]),
+                'instance_mtu': None,
+                'dns_servers': None,
+                'ovs_use_veth': "False",
+                "enable_isolated_metadata": None,
+                "enable_metadata_network": None,
+                "debug": None,
+            }
+        )
+
     def test_get_ovs_use_veth(self):
         _config = {"ovs-use-veth": None}
         self.config.side_effect = fake_config(_config)
