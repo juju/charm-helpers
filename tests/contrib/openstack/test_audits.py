@@ -61,7 +61,7 @@ class AuditTestCase(TestCase):
         try:
             # Again!
             @audits.audit(should_run)  # noqa
-            def test(options):
+            def test(options):         # noqa
                 pass
         except RuntimeError as e:
             self.assertEqual("Test name 'test' used more than once", e.args[0])

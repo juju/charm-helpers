@@ -40,4 +40,4 @@ def _get_platform_from_fs():
         )
     for k, v in content.items():
         content[k] = v.strip('"')
-    return content["Name"]
+    return content["NAME"]
