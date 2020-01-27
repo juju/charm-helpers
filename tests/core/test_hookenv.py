@@ -1288,7 +1288,7 @@ class HelpersTest(TestCase):
         self.assertEqual("--file", command[1])
         temp_file = command[2]
         with open(temp_file, "r") as f:
-            self.assertEqual("{foo: bar}", f.read().strip())
+            self.assertIn("foo: bar", f.read().strip())
         remove.assert_called_with(temp_file)
 
     @patch('charmhelpers.core.hookenv.local_unit', MagicMock())
@@ -1316,7 +1316,7 @@ class HelpersTest(TestCase):
         self.assertEqual("--file", command[1])
         temp_file = command[2]
         with open(temp_file, "r") as f:
-            self.assertEqual("{foo: '{''bar'': 1}'}", f.read().strip())
+            self.assertIn("foo: '{''bar'': 1}'", f.read().strip())
         remove.assert_called_with(temp_file)
 
     def test_lists_relation_types(self):

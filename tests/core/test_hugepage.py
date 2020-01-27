@@ -37,8 +37,9 @@ class HugepageTests(TestCase):
         self.fstab.Fstab().get_entry_by_attr.return_value = 'old fstab entry'
         self.fstab.Fstab().Entry.return_value = 'new fstab entry'
         hugepage.hugepage_support('nova')
-        sysctl_expect = ("{vm.hugetlb_shm_group: '1010', "
-                         "vm.max_map_count: 65536, vm.nr_hugepages: 256}\n")
+        sysctl_expect = ("vm.hugetlb_shm_group: '1010'\n"
+                         "vm.max_map_count: 65536\n"
+                         "vm.nr_hugepages: 256\n")
         self.sysctl.create.assert_called_with(sysctl_expect,
                                               '/etc/sysctl.d/10-hugepage.conf')
         self.mkdir.assert_called_with('/run/hugepages/kvm', owner='root',
