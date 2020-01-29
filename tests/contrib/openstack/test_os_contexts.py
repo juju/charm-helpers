@@ -4021,22 +4021,29 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, "DHCPAgentContext")
     def test_validate_ovs_use_veth(self, _context):
-        # Default
-        _config = {"ovs-use-veth": False}
-        self.config.side_effect = fake_config(_config)
-        _ctxt_obj = MagicMock()
-        _context.return_value = _ctxt_obj
+        # No existing dhcp_agent.ini and no config
+        _context.get_existing_ovs_use_veth.return_value = None
+        _context.parse_ovs_use_veth.return_value = None
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
 
-        # No existing dhcp_agent.ini
-        _ctxt_obj.get_existing_ovs_use_veth.return_value = None
+        # No existing dhcp_agent.ini and config set
+        _context.get_existing_ovs_use_veth.return_value = None
+        _context.parse_ovs_use_veth.return_value = True
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # Existing dhcp_agent.ini and no config
+        _context.get_existing_ovs_use_veth.return_value = True
+        _context.parse_ovs_use_veth.return_value = None
         self.assertEqual((None, None), context.validate_ovs_use_veth())
 
         # Check for agreement with existing dhcp_agent.ini
-        _ctxt_obj.get_existing_ovs_use_veth.return_value = False
+        _context.get_existing_ovs_use_veth.return_value = False
+        _context.parse_ovs_use_veth.return_value = False
         self.assertEqual((None, None), context.validate_ovs_use_veth())
 
         # Check for disagreement with existing dhcp_agent.ini
-        _ctxt_obj.get_existing_ovs_use_veth.return_value = True
+        _context.get_existing_ovs_use_veth.return_value = True
+        _context.parse_ovs_use_veth.return_value = False
         self.assertEqual(
             ("blocked",
                 "Mismatched existing and configured ovs-use-veth. See log."),
@@ -4057,10 +4064,10 @@ class ContextTests(unittest.TestCase):
             "enable_isolated_metadata": None,
             "enable_metadata_network": None,
             "instance_mtu": None,
-            "ovs_use_veth": "False"}
+            "ovs_use_veth": False}
         self.config.side_effect = fake_config(_config)
         _get_ovs_use_veth = MagicMock()
-        _get_ovs_use_veth.return_value = "False"
+        _get_ovs_use_veth.return_value = False
         ctx_object = context.DHCPAgentContext()
         ctx_object.get_ovs_use_veth = _get_ovs_use_veth
         ctxt = ctx_object()
@@ -4082,9 +4089,9 @@ class ContextTests(unittest.TestCase):
             "enable_isolated_metadata": True,
             "enable_metadata_network": True,
             "instance_mtu": _mtu,
-            "ovs_use_veth": "True"}
+            "ovs_use_veth": True}
         self.config.side_effect = fake_config(_config)
-        _get_ovs_use_veth.return_value = "True"
+        _get_ovs_use_veth.return_value = True
         ctxt = ctx_object()
         self.assertEqual(_expect, ctxt)
 
@@ -4098,7 +4105,7 @@ class ContextTests(unittest.TestCase):
             context.DHCPAgentContext()(),
             {'instance_mtu': None,
              'dns_servers': '8.8.8.8',
-             'ovs_use_veth': "False",
+             'ovs_use_veth': False,
              "enable_isolated_metadata": None,
              "enable_metadata_network": None,
              "debug": None}
@@ -4118,7 +4125,7 @@ class ContextTests(unittest.TestCase):
                      ('server', '1.2.3.4')]),
                 'instance_mtu': None,
                 'dns_servers': None,
-                'ovs_use_veth': "False",
+                'ovs_use_veth': False,
                 "enable_isolated_metadata": None,
                 "enable_metadata_network": None,
                 "debug": None,
@@ -4126,26 +4133,41 @@ class ContextTests(unittest.TestCase):
         )
 
     def test_get_ovs_use_veth(self):
-        _config = {"ovs-use-veth": None}
-        self.config.side_effect = fake_config(_config)
-
         _get_existing_ovs_use_veth = MagicMock()
+        _parse_ovs_use_veth = MagicMock()
         ctx_object = context.DHCPAgentContext()
         ctx_object.get_existing_ovs_use_veth = _get_existing_ovs_use_veth
+        ctx_object.parse_ovs_use_veth = _parse_ovs_use_veth
 
         # Default
         _get_existing_ovs_use_veth.return_value = None
-        self.assertEqual("False", ctx_object.get_ovs_use_veth())
+        _parse_ovs_use_veth.return_value = None
+        self.assertEqual(False, ctx_object.get_ovs_use_veth())
 
-        # Existing
+        # Existing dhcp_agent.ini and no config
         _get_existing_ovs_use_veth.return_value = True
-        self.assertEqual("True", ctx_object.get_ovs_use_veth())
+        _parse_ovs_use_veth.return_value = None
+        self.assertEqual(True, ctx_object.get_ovs_use_veth())
 
-        # Config
-        _config = {"ovs-use-veth": True}
-        self.config.side_effect = fake_config(_config)
+        # No existing dhcp_agent.ini and config set
         _get_existing_ovs_use_veth.return_value = None
-        self.assertEqual("True", ctx_object.get_ovs_use_veth())
+        _parse_ovs_use_veth.return_value = False
+        self.assertEqual(False, ctx_object.get_ovs_use_veth())
+
+        # Both set matching
+        _get_existing_ovs_use_veth.return_value = True
+        _parse_ovs_use_veth.return_value = True
+        self.assertEqual(True, ctx_object.get_ovs_use_veth())
+
+        # Both set mismatch: existing overrides
+        _get_existing_ovs_use_veth.return_value = False
+        _parse_ovs_use_veth.return_value = True
+        self.assertEqual(False, ctx_object.get_ovs_use_veth())
+
+        # Both set mismatch: existing overrides
+        _get_existing_ovs_use_veth.return_value = True
+        _parse_ovs_use_veth.return_value = False
+        self.assertEqual(True, ctx_object.get_ovs_use_veth())
 
     @patch.object(context, 'config_ini')
     @patch.object(context.os.path, 'isfile')
@@ -4164,7 +4186,56 @@ class ContextTests(unittest.TestCase):
         _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": True}}
         self.assertEqual(True, ctx_object.get_existing_ovs_use_veth())
 
-        # Existing
+        # Existing config_ini returns string
         _is_file.return_value = True
-        _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": False}}
+        _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": "False"}}
         self.assertEqual(False, ctx_object.get_existing_ovs_use_veth())
+
+    @patch.object(context, 'bool_from_string')
+    def test_parse_ovs_use_veth(self, _bool_from_string):
+        _config = {"ovs-use-veth": None}
+        self.config.side_effect = fake_config(_config)
+
+        ctx_object = context.DHCPAgentContext()
+
+        # Unset
+        self.assertEqual(None, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_not_called()
+
+        # Consider empty string unset
+        _config = {"ovs-use-veth": ""}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(None, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_not_called()
+
+        # Lower true
+        _bool_from_string.return_value = True
+        _config = {"ovs-use-veth": "true"}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(True, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_called_with("true")
+
+        # Lower false
+        _bool_from_string.return_value = False
+        _bool_from_string.reset_mock()
+        _config = {"ovs-use-veth": "false"}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(False, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_called_with("false")
+
+        # Upper True
+        _bool_from_string.return_value = True
+        _bool_from_string.reset_mock()
+        _config = {"ovs-use-veth": "True"}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(True, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_called_with("True")
+
+        # Invalid
+        _bool_from_string.reset_mock()
+        _config = {"ovs-use-veth": "Invalid"}
+        self.config.side_effect = fake_config(_config)
+        _bool_from_string.side_effect = ValueError
+        with self.assertRaises(ValueError):
+            ctx_object.parse_ovs_use_veth()
+            _bool_from_string.assert_called_with("Invalid")

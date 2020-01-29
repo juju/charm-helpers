@@ -2267,8 +2267,8 @@ def validate_ovs_use_veth(*args, **kwargs):
     :rtype: Union[(None, None), (string, string)]
     """
     existing_ovs_use_veth = (
-        DHCPAgentContext().get_existing_ovs_use_veth())
-    config_ovs_use_veth = config("ovs-use-veth")
+        DHCPAgentContext.get_existing_ovs_use_veth())
+    config_ovs_use_veth = DHCPAgentContext.parse_ovs_use_veth()
 
     # Check settings are set and not None
     if existing_ovs_use_veth is not None and config_ovs_use_veth is not None:
@@ -2293,12 +2293,14 @@ def validate_ovs_use_veth(*args, **kwargs):
 class DHCPAgentContext(OSContextGenerator):
 
     def __call__(self):
-        """Return the 'default_availability_zone' from the principal that this
+        """Return the DHCPAGentContext.
+
+        Return all DHCP Agent INI related configuration.
         ovs unit is attached to (as a subordinate) and the 'dns_domain' from
         the neutron-plugin-api relations (if one is set).
 
-        :returns: {} if no relation set, or
-            {'availability_zone': availability_zone from principal relation}
+        :returns: Dictionary context
+        :rtype: Dict
         """
 
         ctxt = {}
@@ -2327,24 +2329,54 @@ class DHCPAgentContext(OSContextGenerator):
 
         return ctxt
 
-    def get_existing_ovs_use_veth(self):
+    @staticmethod
+    def get_existing_ovs_use_veth():
         """Return existing ovs_use_veth setting from dhcp_agent.ini.
 
-        :returns: Value of ovs_use_veth setting: None or Bool
-        :rtype: Union[None, Bool]
+        :returns: Boolean value of existing ovs_use_veth setting or None
+        :rtype: Optional[Bool]
         """
-        dhcp_agent_ini = "/etc/neutron/dhcp_agent.ini"
+        DHCP_AGENT_INI = "/etc/neutron/dhcp_agent.ini"
         existing_ovs_use_veth = None
         # If there is a dhcp_agent.ini file read the current setting
-        if os.path.isfile(dhcp_agent_ini):
+        if os.path.isfile(DHCP_AGENT_INI):
             # config_ini does the right thing and returns None if the setting is
             # commented.
             existing_ovs_use_veth = (
-                config_ini(dhcp_agent_ini)["DEFAULT"].get("ovs_use_veth"))
+                config_ini(DHCP_AGENT_INI)["DEFAULT"].get("ovs_use_veth"))
+        # Convert to Bool if necessary
+        if isinstance(existing_ovs_use_veth, six.string_types):
+            return bool_from_string(existing_ovs_use_veth)
         return existing_ovs_use_veth
 
+    @staticmethod
+    def parse_ovs_use_veth():
+        """Parse the ovs-use-veth config setting.
+
+        Parse the string config setting for ovs-use-veth and return a boolean
+        or None.
+
+        bool_from_string will raise a ValueError if the string is not falsy or
+        truthy.
+
+        :raises: ValueError for invalid input
+        :returns: Boolean value of ovs-use-veth or None
+        :rtype: Optional[Bool]
+        """
+        _config = config("ovs-use-veth")
+        # An unset parameter returns None. Just in case we will also check for
+        # an empty string: "". Ironically, (the problem we are trying to avoid)
+        # "False" returns True and "" returns False.
+        if _config is None or not _config:
+            # Return None
+            return
+        # bool_from_string handles many variations of true and false strings
+        # as well as upper and lowercases including:
+        # ['y', 'yes', 'true', 't', 'on', 'n', 'no', 'false', 'f', 'off']
+        return bool_from_string(_config)
+
     def get_ovs_use_veth(self):
-        """Return correct ovs_use_veth setting.
+        """Return correct ovs_use_veth setting for use in dhcp_agent.ini.
 
         Get the right value from config or existing dhcp_agent.ini file.
         Existing has precedence. Attempt to default to "False" without
@@ -2352,15 +2384,15 @@ class DHCPAgentContext(OSContextGenerator):
         upgrades safely. See LP Bug#1831935
 
         :returns: Value to use for ovs_use_veth setting
-        :rtype: string
+        :rtype: Bool
         """
         _existing = self.get_existing_ovs_use_veth()
         if _existing is not None:
-            return str(_existing)
+            return _existing
 
-        _config = config('ovs-use-veth')
+        _config = self.parse_ovs_use_veth()
         if _config is None:
             # New better default
-            return "False"
+            return False
         else:
-            return str(_config)
+            return _config
