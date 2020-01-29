@@ -810,7 +810,7 @@ class Mysql8Tests(unittest.TestCase):
         _calls = [
             mock.call("GRANT CREATE USER ON *.* TO '{}'@'{}' WITH GRANT OPTION"
                       .format(self.user, self.host)),
-            mock.call("GRANT SELECT, INSERT, UPDATE, DELETE ON "
+            mock.call("GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON "
                       "mysql_innodb_cluster_metadata.* TO '{}'@'{}'"
                       .format(self.user, self.host)),
             mock.call("GRANT SELECT ON mysql.user TO '{}'@'{}'"
