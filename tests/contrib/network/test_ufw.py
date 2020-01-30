@@ -531,12 +531,8 @@ class TestUFW(unittest.TestCase):
         log.assert_any_call("ufw couldn't be reloaded", level='WARN')
 
     def test_status(self):
-        if six.PY2:
-            return
-        with mock.patch('subprocess.run') as run:
-            cp = mock.MagicMock()
-            cp.stdout = UFW_STATUS_NUMBERED
-            run.return_value = cp
+        with mock.patch('subprocess.check_output') as check_output:
+            check_output.return_value = UFW_STATUS_NUMBERED
             expect = {
                 1: {'to': '6641/tcp', 'action': 'allow in',
                     'from': '10.219.3.86', 'ipv6': False,
