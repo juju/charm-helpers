@@ -60,6 +60,10 @@ class AuditTestCase(TestCase):
 
         try:
             # Again!
+            #
+            # Both of the following '#noqa's are to prevent flake8 from
+            # noticing the duplicate function `test`  The intent in this test
+            # is for the audits.audit to pick up on the duplicate function.
             @audits.audit(should_run)  # noqa
             def test(options):         # noqa
                 pass
