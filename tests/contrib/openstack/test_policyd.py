@@ -241,7 +241,7 @@ class PolicydTests(unittest.TestCase):
             mock_scan_dir_parts = (mock.patch, ["os.scandir"])
         else:
             mock_scan_dir_parts = (mock.patch.object,
-                                   [policyd, "_py2_scandir"])
+                                   [policyd, "_fallback_scandir"])
 
         class MockDirEntry(object):
             def __init__(self, path, is_dir):
