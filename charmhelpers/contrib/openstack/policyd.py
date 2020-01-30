@@ -17,7 +17,6 @@ import contextlib
 import os
 import six
 import shutil
-import sys
 import yaml
 import zipfile
 
