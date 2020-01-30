@@ -37,7 +37,6 @@ Examples:
 """
 import os
 import re
-import six
 import subprocess
 
 from charmhelpers.core import hookenv
