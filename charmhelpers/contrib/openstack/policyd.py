@@ -560,7 +560,9 @@ def maybe_create_directory_for(path, user, group):
 
 @contextlib.contextmanager
 def _fallback_scandir(path):
-    """provide a fallback implementation of os.scandir if this module ever gets
+    """Fallback os.scandir implementation.
+
+    provide a fallback implementation of os.scandir if this module ever gets
     used in a py2 or py34 charm. Uses os.listdir() to get the names in the path,
     and then mocks the is_dir() function using os.path.isdir() to check for
     directory.
