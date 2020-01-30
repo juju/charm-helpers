@@ -1,7 +1,7 @@
 import contextlib
 import copy
 import io
-import sys
+import os
 import mock
 import six
 import unittest
@@ -237,7 +237,7 @@ class PolicydTests(unittest.TestCase):
                                    mock_shutil_rmtree,
                                    mock_os_remove,
                                    mock_log):
-        if sys.version_info > (3, 4):
+        if hasattr(os, 'scandir'):
             mock_scan_dir_parts = (mock.patch, ["os.scandir"])
         else:
             mock_scan_dir_parts = (mock.patch.object,
