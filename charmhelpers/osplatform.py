@@ -1,4 +1,10 @@
-import platform
+# -*- coding=utf-8 -*-
+try:
+    # this is done primarily for convenience; if python 2 support is dropped
+    # we can drop this import guard and switch to distro.name()
+    from distro import linux_distribution as dist
+except ImportError:
+    from platform import dist
 
 
 def get_platform():
@@ -8,18 +14,10 @@ def get_platform():
     will be returned (which is the name of the module).
     This string is used to decide which platform module should be imported.
     """
-    # linux_distribution is deprecated and will be removed in Python 3.7
-    # Warings *not* disabled, as we certainly need to fix this.
-    tuple_platform = platform.linux_distribution()
-    current_platform = tuple_platform[0]
-    if "Ubuntu" in current_platform:
+    distro_name, _, _ = dist()
+    if distro_name.lower() in ("ubuntu", "debian"):
         return "ubuntu"
-    elif "CentOS" in current_platform:
-        return "centos"
-    elif "debian" in current_platform:
-        # Stock Python does not detect Ubuntu and instead returns debian.
-        # Or at least it does in some build environments like Travis CI
-        return "ubuntu"
-    else:
-        raise RuntimeError("This module is not supported on {}."
-                           .format(current_platform))
+    elif distro_name.lower() == "centos":
+        return distro_name.lower()
+    raise RuntimeError("This module is not supported on {}."
+                       .format(distro_name))
