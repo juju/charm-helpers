@@ -100,6 +100,7 @@ actions/some-action amount=10 force=true
 
 """
 import os
+import json
 import stat
 import subprocess
 import functools
@@ -156,8 +157,7 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
     if tags:
         call.extend(['--tags', '{}'.format(tags)])
     if extra_vars:
-        extra = ["%s=%s" % (k, v) for k, v in extra_vars.items()]
-        call.extend(['--extra-vars', " ".join(extra)])
+        call.extend(['--extra-vars', json.dumps(extra_vars)])
     subprocess.check_call(call, env=env)
 
 
