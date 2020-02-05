@@ -2006,3 +2006,4 @@ class TestHostCompator(TestCase):
         from charmhelpers.osplatform import get_platform
         if get_platform() == 'ubuntu':
             self.assertTrue(host.CompareHostReleases('yakkety') < 'zesty')
+            self.assertTrue(host.CompareHostReleases('focal') > 'bionic')
