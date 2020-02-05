@@ -550,13 +550,13 @@ SUB_CONFIG_RELATION = {
     'nova-subordinate:0': {
         'nova-subordinate/0': {
             'private-address': 'nova_node1',
-            'subordinate_configuration': json.dumps(yaml.load(SUB_CONFIG)),
+            'subordinate_configuration': json.dumps(yaml.safe_load(SUB_CONFIG)),
         },
     },
     'glance-subordinate:0': {
         'glance-subordinate/0': {
             'private-address': 'glance_node1',
-            'subordinate_configuration': json.dumps(yaml.load(SUB_CONFIG)),
+            'subordinate_configuration': json.dumps(yaml.safe_load(SUB_CONFIG)),
         },
     },
     'foo-subordinate:0': {
@@ -569,14 +569,14 @@ SUB_CONFIG_RELATION = {
         'cinder-subordinate/0': {
             'private-address': 'cinder_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(CINDER_SUB_CONFIG1)),
+                yaml.safe_load(CINDER_SUB_CONFIG1)),
         },
     },
     'cinder-subordinate:1': {
         'cinder-subordinate/1': {
             'private-address': 'cinder_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(CINDER_SUB_CONFIG2)),
+                yaml.safe_load(CINDER_SUB_CONFIG2)),
         },
     },
 }
@@ -586,21 +586,21 @@ SUB_CONFIG_RELATION2 = {
         'ceilometer-agent/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(NOVA_SUB_CONFIG1)),
+                yaml.safe_load(NOVA_SUB_CONFIG1)),
         },
     },
     'neutron-plugin:3': {
         'neutron-ovs-plugin/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(NOVA_SUB_CONFIG2)),
+                yaml.safe_load(NOVA_SUB_CONFIG2)),
         },
     },
     'neutron-plugin:4': {
         'neutron-other-plugin/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(NOVA_SUB_CONFIG3)),
+                yaml.safe_load(NOVA_SUB_CONFIG3)),
         },
     }
 }

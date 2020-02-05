@@ -165,7 +165,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.assertEqual(stats.st_mode & stat.S_IRWXG, 0)
         self.assertEqual(stats.st_mode & stat.S_IRWXO, 0)
         with open(self.vars_path, 'r') as vars_file:
-            result = yaml.load(vars_file.read())
+            result = yaml.safe_load(vars_file.read())
             self.assertEqual({
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
