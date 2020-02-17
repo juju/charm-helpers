@@ -19,9 +19,14 @@ from setuptools import setup, find_packages
 
 version_file = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                             'VERSION'))
+require_file = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'requirements.txt'))
+
 with open(version_file) as v:
     VERSION = v.read().strip()
 
+with open(require_file) as r:
+    requires = r.read().splitlines()
 
 SETUP = {
     'name': "charmhelpers",
@@ -29,13 +34,7 @@ SETUP = {
     'author': "Charmers",
     'author_email': "juju@lists.ubuntu.com",
     'url': "https://github.com/juju/charm-helpers",
-    'install_requires': [
-        'netaddr',
-        'PyYAML',
-        'Tempita',
-        'Jinja2',
-        'six',
-    ],
+    'install_requires': requires,
     'packages': find_packages(exclude=('tests', 'tests.*', 'tools', 'tools.*')),
     'scripts': [
         "bin/chlp",

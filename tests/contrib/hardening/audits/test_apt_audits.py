@@ -19,6 +19,8 @@ from mock import MagicMock
 from mock import patch
 
 from charmhelpers.contrib.hardening.audits import apt
+from charmhelpers.fetch import ubuntu_apt_pkg as apt_pkg
+from charmhelpers.core import hookenv
 
 
 class RestrictedPackagesTestCase(TestCase):
@@ -33,8 +35,11 @@ class RestrictedPackagesTestCase(TestCase):
             pkgver = MagicMock()
             pkgver.parent_pkg = self.create_package('foo')
             pkg.provides_list = [('virtualfoo', None, pkgver)]
-            pkg.has_provides = True
-            pkg.has_versions = False
+            resp = {
+                'has_provides': True,
+                'has_versions': False,
+            }
+            pkg.get.side_effect = resp.get
 
         return pkg
 
@@ -72,3 +77,11 @@ class AptConfigTestCase(TestCase):
                                 'expected': 'false'}])
         audit.ensure_compliance()
         self.assertTrue(mock_apt_pkg.config.get.called)
+
+    @patch.object(hookenv, 'log')
+    def test_verify_config(self, mock_log):
+        cfg = apt_pkg.config
+        key, value = list(cfg.items())[0]
+        audit = apt.AptConfig([{"key": key, "expected": value}])
+        audit.ensure_compliance()
+        self.assertFalse(mock_log.called)
