@@ -658,6 +658,93 @@ def config_value_changed(option):
         return current != saved
 
 
+def get_endpoint_key(service_name, relation_id, unit_name):
+    """Return the key used to refer to an ep changed notification from a unit.
+
+    :param service_name: Service name eg nova, neutron, placement etc
+    :type service_name: str
+    :param relation_id: The id of the relation the unit is on.
+    :type relation_id: str
+    :param unit_name: The name of the unit publishing the notification.
+    :type unit_name: str
+    :returns: The key used to refer to an ep changed notification from a unit
+    :rtype: str
+    """
+    return '{}-{}-{}'.format(
+        service_name,
+        relation_id.replace(':', '_'),
+        unit_name.replace('/', '_'))
+
+
+def get_endpoint_notifications(service_names, rel_name='identity-service'):
+    """Return all notifications for the given services.
+
+    :param service_names: List of service name.
+    :type service_name: List
+    :param rel_name: Name of the relation to query
+    :type rel_name: str
+    :returns: A dict containing the source of the notification and its nonce.
+    :rtype: Dict[str, str]
+    """
+    notifications = {}
+    for rid in relation_ids(rel_name):
+        for unit in related_units(relid=rid):
+            ep_changed_json = relation_get(
+                rid=rid,
+                unit=unit,
+                attribute='ep_changed')
+            if ep_changed_json:
+                ep_changed = json.loads(ep_changed_json)
+                for service in service_names:
+                    if ep_changed.get(service):
+                        key = get_endpoint_key(service, rid, unit)
+                        notifications[key] = ep_changed[service]
+    return notifications
+
+
+def endpoint_changed(service_name, rel_name='identity-service'):
+    """Whether a new notification has been recieved for an endpoint.
+
+    :param service_name: Service name eg nova, neutron, placement etc
+    :type service_name: str
+    :param rel_name: Name of the relation to query
+    :type rel_name: str
+    :returns: Whether endpoint has changed
+    :rtype: bool
+    """
+    changed = False
+    with unitdata.HookData()() as t:
+        db = t[0]
+        notifications = get_endpoint_notifications(
+            [service_name],
+            rel_name=rel_name)
+        for key, nonce in notifications.items():
+            if db.get(key) != nonce:
+                juju_log(('New endpoint change notification found: '
+                          '{}={}').format(key, nonce),
+                         'INFO')
+                changed = True
+                break
+    return changed
+
+
+def save_endpoint_changed_triggers(service_names, rel_name='identity-service'):
+    """Save the enpoint triggers in  db so it can be tracked if they changed.
+
+    :param service_names: List of service name.
+    :type service_name: List
+    :param rel_name: Name of the relation to query
+    :type rel_name: str
+    """
+    with unitdata.HookData()() as t:
+        db = t[0]
+        notifications = get_endpoint_notifications(
+            service_names,
+            rel_name=rel_name)
+        for key, nonce in notifications.items():
+            db.set(key, nonce)
+
+
 def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     """
     Write an rc file in the charm-delivered directory containing

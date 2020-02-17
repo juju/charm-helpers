@@ -1914,6 +1914,85 @@ class OpenStackHelpersTestCase(TestCase):
                     'private-ip': '1.2.3.5'}}}
         self.assertFalse(openstack.is_db_maintenance_mode())
 
+    def test_get_endpoint_key(self):
+        self.assertEqual(
+            openstack.get_endpoint_key('placement', 'is:2', 'keystone/0'),
+            'placement-is_2-keystone_0')
+
+    @patch.object(openstack, 'relation_get')
+    @patch.object(openstack, 'related_units')
+    @patch.object(openstack, 'relation_ids')
+    def test_get_endpoint_notifications(self, relation_ids, related_units,
+                                        relation_get):
+        id_svc_rel_units = {
+            'identity-service:3': ['keystone/0', 'keystone/1', 'keystone/2']
+        }
+
+        def _related_units(relid):
+            return id_svc_rel_units[relid]
+
+        id_svc_rel_data = {
+            'keystone/0': {
+                'ep_changed': '{"placement": "d5c3"}'},
+            'keystone/1': {
+                'ep_changed': '{"nova": "4d06", "neutron": "2aa6"}'},
+            'keystone/2': {}}
+
+        def _relation_get(unit, rid, attribute):
+            return id_svc_rel_data[unit].get(attribute)
+
+        relation_ids.return_value = id_svc_rel_units.keys()
+        related_units.side_effect = _related_units
+        relation_get.side_effect = _relation_get
+        self.assertEqual(
+            openstack.get_endpoint_notifications(['neutron']),
+            {
+                'neutron-identity-service_3-keystone_1': '2aa6'})
+        self.assertEqual(
+            openstack.get_endpoint_notifications(['placement', 'neutron']),
+            {
+                'neutron-identity-service_3-keystone_1': '2aa6',
+                'placement-identity-service_3-keystone_0': 'd5c3'})
+
+    @patch.object(openstack, 'get_endpoint_notifications')
+    @patch.object(openstack.unitdata, 'HookData')
+    def test_endpoint_changed(self, HookData, get_endpoint_notifications):
+        self.kv_data = {}
+
+        def _kv_get(key):
+            return self.kv_data.get(key)
+        kv = self._unit_paused_helper(HookData)
+        kv.get.side_effect = _kv_get
+        # Check endpoint_changed returns True when there are new notifications.
+        get_endpoint_notifications.return_value = {
+            'neutron-identity-service_3-keystone_1': '2aa6',
+            'placement-identity-service_3-keystone_0': 'd5c3'}
+        self.assertTrue(openstack.endpoint_changed('placement'))
+        # Check endpoint_changed returns False when there are new
+        # notifications but they are not the ones being looked for.
+        self.assertTrue(openstack.endpoint_changed('nova'))
+        # Check endpoint_changed returns False if the notification
+        # has alredy been seen
+        get_endpoint_notifications.return_value = {
+            'placement-identity-service_3-keystone_0': 'd5c3'}
+        self.kv_data = {
+            'placement-identity-service_3-keystone_0': 'd5c3'}
+        self.assertFalse(openstack.endpoint_changed('placement'))
+
+    @patch.object(openstack, 'get_endpoint_notifications')
+    @patch.object(openstack.unitdata, 'HookData')
+    def test_save_endpoint_changed_triggers(self, HookData,
+                                            get_endpoint_notifications):
+        kv = self._unit_paused_helper(HookData)
+        get_endpoint_notifications.return_value = {
+            'neutron-identity-service_3-keystone_1': '2aa6',
+            'placement-identity-service_3-keystone_0': 'd5c3'}
+        openstack.save_endpoint_changed_triggers(['neutron', 'placement'])
+        kv_set_calls = [
+            call('neutron-identity-service_3-keystone_1', '2aa6'),
+            call('placement-identity-service_3-keystone_0', 'd5c3')]
+        kv.set.assert_has_calls(kv_set_calls, any_order=True)
+
 
 if __name__ == '__main__':
     unittest.main()
