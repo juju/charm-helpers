@@ -563,3 +563,28 @@ class ClusterUtilsTests(TestCase):
         cluster_utils.distributed_wait(modulo=5, wait=45)
         modulo_distribution.assert_called_with(modulo=5, wait=45,
                                                non_zero_wait=True)
+
+    @patch.object(cluster_utils, 'relation_ids')
+    def test_get_managed_services_and_ports(self, relation_ids):
+        relation_ids.return_value = ['rel:2']
+        self.assertEqual(
+            cluster_utils.get_managed_services_and_ports(
+                ['apache2', 'haproxy'],
+                [8067, 4545, 6732]),
+            (['apache2'], [8057, 4535, 6722]))
+        self.assertEqual(
+            cluster_utils.get_managed_services_and_ports(
+                ['apache2', 'haproxy'],
+                [8067, 4545, 6732],
+                external_services=['apache2']),
+            (['haproxy'], [8057, 4535, 6722]))
+
+        def add_ten(x):
+            return x + 10
+
+        self.assertEqual(
+            cluster_utils.get_managed_services_and_ports(
+                ['apache2', 'haproxy'],
+                [8067, 4545, 6732],
+                port_conv_f=add_ten),
+            (['apache2'], [8077, 4555, 6742]))

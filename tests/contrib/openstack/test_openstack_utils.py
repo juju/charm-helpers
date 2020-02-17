@@ -1857,6 +1857,63 @@ class OpenStackHelpersTestCase(TestCase):
         fake_configs.write_all.assert_called_once()
         fake_resume_helper.assert_called_once_with(fake_configs)
 
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'leader_get')
+    def test_is_db_initialised(self, leader_get, juju_log):
+        leader_get.return_value = 'True'
+        self.assertTrue(openstack.is_db_initialised())
+        leader_get.return_value = 'False'
+        self.assertFalse(openstack.is_db_initialised())
+        leader_get.return_value = None
+        self.assertFalse(openstack.is_db_initialised())
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'leader_set')
+    def test_set_db_initialised(self, leader_set, juju_log):
+        openstack.set_db_initialised()
+        leader_set.assert_called_once_with({'db-initialised': True})
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'relation_ids')
+    @patch.object(openstack, 'related_units')
+    @patch.object(openstack, 'relation_get')
+    def test_is_db_maintenance_mode(self, relation_get, related_units,
+                                    relation_ids, juju_log):
+        relation_ids.return_value = ['rid:1']
+        related_units.return_value = ['unit/0', 'unit/2']
+        rsettings = {
+            'rid:1': {
+                'unit/0': {
+                    'private-ip': '1.2.3.4',
+                    'cluster-series-upgrading': 'True'},
+                'unit/2': {
+                    'private-ip': '1.2.3.5'}}}
+        relation_get.side_effect = lambda unit, rid: rsettings[rid][unit]
+        self.assertTrue(openstack.is_db_maintenance_mode())
+        rsettings = {
+            'rid:1': {
+                'unit/0': {
+                    'private-ip': '1.2.3.4'},
+                'unit/2': {
+                    'private-ip': '1.2.3.5'}}}
+        self.assertFalse(openstack.is_db_maintenance_mode())
+        rsettings = {
+            'rid:1': {
+                'unit/0': {
+                    'private-ip': '1.2.3.4',
+                    'cluster-series-upgrading': 'False'},
+                'unit/2': {
+                    'private-ip': '1.2.3.5'}}}
+        self.assertFalse(openstack.is_db_maintenance_mode())
+        rsettings = {
+            'rid:1': {
+                'unit/0': {
+                    'private-ip': '1.2.3.4',
+                    'cluster-series-upgrading': 'lskjfsd'},
+                'unit/2': {
+                    'private-ip': '1.2.3.5'}}}
+        self.assertFalse(openstack.is_db_maintenance_mode())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,20 @@
+# Runtime Dependencies
+# Specify precise versions of runtime dependencies where possible.
+
+# https://pyyaml.org/wiki/PyYAML#history
+# PyYAML==5.2 is last supported for py34
+PyYAML==5.2;python_version >= '3.0' and python_version <= '3.4' # py3 trusty
+PyYAML;     python_version == '2.7' or python_version >= '3.5'  # all else
+
+# https://jinja.palletsprojects.com/en/2.11.x/changelog/
+# Jinja2==2.10 is last supported for py34
+# Jinja2==2.11 is last supported for py27 & py35
+Jinja2==2.10;python_version >= '3.0' and python_version <= '3.4' # py3 trusty
+Jinja2==2.11;python_version == '2.7' or python_version == '3.5'  # py27, py35
+Jinja2;      python_version >= '3.6'                             # py36 and on
+
+six
+netaddr
+Tempita
+
+

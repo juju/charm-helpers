@@ -1,8 +1,8 @@
-import collections
 import charmhelpers.contrib.openstack.context as context
-import yaml
+import collections
 import json
 import unittest
+import yaml
 from copy import copy, deepcopy
 from mock import (
     patch,
@@ -278,6 +278,10 @@ AMQP_NOTIFICATION_FORMAT = {
     'notification-format': 'both'
 }
 
+AMQP_NOTIFICATION_TOPICS = {
+    'notification-topics': 'foo,bar'
+}
+
 AMQP_NOTIFICATIONS_LOGS = {
     'send-notifications-to-logs': True
 }
@@ -546,13 +550,13 @@ SUB_CONFIG_RELATION = {
     'nova-subordinate:0': {
         'nova-subordinate/0': {
             'private-address': 'nova_node1',
-            'subordinate_configuration': json.dumps(yaml.load(SUB_CONFIG)),
+            'subordinate_configuration': json.dumps(yaml.safe_load(SUB_CONFIG)),
         },
     },
     'glance-subordinate:0': {
         'glance-subordinate/0': {
             'private-address': 'glance_node1',
-            'subordinate_configuration': json.dumps(yaml.load(SUB_CONFIG)),
+            'subordinate_configuration': json.dumps(yaml.safe_load(SUB_CONFIG)),
         },
     },
     'foo-subordinate:0': {
@@ -565,14 +569,14 @@ SUB_CONFIG_RELATION = {
         'cinder-subordinate/0': {
             'private-address': 'cinder_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(CINDER_SUB_CONFIG1)),
+                yaml.safe_load(CINDER_SUB_CONFIG1)),
         },
     },
     'cinder-subordinate:1': {
         'cinder-subordinate/1': {
             'private-address': 'cinder_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(CINDER_SUB_CONFIG2)),
+                yaml.safe_load(CINDER_SUB_CONFIG2)),
         },
     },
 }
@@ -582,21 +586,21 @@ SUB_CONFIG_RELATION2 = {
         'ceilometer-agent/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(NOVA_SUB_CONFIG1)),
+                yaml.safe_load(NOVA_SUB_CONFIG1)),
         },
     },
     'neutron-plugin:3': {
         'neutron-ovs-plugin/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(NOVA_SUB_CONFIG2)),
+                yaml.safe_load(NOVA_SUB_CONFIG2)),
         },
     },
     'neutron-plugin:4': {
         'neutron-other-plugin/0': {
             'private-address': 'nova_node1',
             'subordinate_configuration': json.dumps(
-                yaml.load(NOVA_SUB_CONFIG3)),
+                yaml.safe_load(NOVA_SUB_CONFIG3)),
         },
     }
 }
@@ -1468,6 +1472,26 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbitmq_virtual_host': 'foo',
             'notification_format': 'both',
+            'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
+        }
+
+        self.assertEquals(result, expected)
+
+    def test_amqp_context_with_notification_topics(self):
+        """Test amqp context with notification_topics option"""
+        relation = FakeRelation(relation_data=AMQP_RELATION)
+        self.relation_get.side_effect = relation.get
+        AMQP_NOTIFICATION_TOPICS.update(AMQP_CONFIG)
+        self.config.return_value = AMQP_NOTIFICATION_TOPICS
+        amqp = context.AMQPContext()
+        result = amqp()
+        expected = {
+            'oslo_messaging_driver': 'messagingv2',
+            'rabbitmq_host': 'rabbithost',
+            'rabbitmq_password': 'foobar',
+            'rabbitmq_user': 'adam',
+            'rabbitmq_virtual_host': 'foo',
+            'notification_topics': 'foo,bar',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
@@ -3959,10 +3983,259 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, 'socket')
     def test_host_info_context(self, _socket):
-        _socket.getfqdn.return_value = 'myhost.mydomain'
+        _socket.getaddrinfo.return_value = [(None, None, None, 'myhost.mydomain', None)]
         _socket.gethostname.return_value = 'myhost'
         ctxt = context.HostInfoContext()()
         self.assertEqual({
             'host_fqdn': 'myhost.mydomain',
-            'host': 'myhost'},
+            'host': 'myhost',
+            'use_fqdn_hint': False},
             ctxt)
+        ctxt = context.HostInfoContext(use_fqdn_hint_cb=lambda: True)()
+        self.assertEqual({
+            'host_fqdn': 'myhost.mydomain',
+            'host': 'myhost',
+            'use_fqdn_hint': True},
+            ctxt)
+        # if getaddrinfo is unable to find the canonical name we should return
+        # the shortname to match the behaviour of the original implementation.
+        _socket.getaddrinfo.return_value = [(None, None, None, 'localhost', None)]
+        ctxt = context.HostInfoContext()()
+        self.assertEqual({
+            'host_fqdn': 'myhost',
+            'host': 'myhost',
+            'use_fqdn_hint': False},
+            ctxt)
+        if six.PY2:
+            _socket.error = Exception
+            _socket.getaddrinfo.side_effect = Exception
+        else:
+            _socket.getaddrinfo.side_effect = OSError
+        _socket.gethostname.return_value = 'myhost'
+        ctxt = context.HostInfoContext()()
+        self.assertEqual({
+            'host_fqdn': 'myhost',
+            'host': 'myhost',
+            'use_fqdn_hint': False},
+            ctxt)
+
+    @patch.object(context, "DHCPAgentContext")
+    def test_validate_ovs_use_veth(self, _context):
+        # No existing dhcp_agent.ini and no config
+        _context.get_existing_ovs_use_veth.return_value = None
+        _context.parse_ovs_use_veth.return_value = None
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # No existing dhcp_agent.ini and config set
+        _context.get_existing_ovs_use_veth.return_value = None
+        _context.parse_ovs_use_veth.return_value = True
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # Existing dhcp_agent.ini and no config
+        _context.get_existing_ovs_use_veth.return_value = True
+        _context.parse_ovs_use_veth.return_value = None
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # Check for agreement with existing dhcp_agent.ini
+        _context.get_existing_ovs_use_veth.return_value = False
+        _context.parse_ovs_use_veth.return_value = False
+        self.assertEqual((None, None), context.validate_ovs_use_veth())
+
+        # Check for disagreement with existing dhcp_agent.ini
+        _context.get_existing_ovs_use_veth.return_value = True
+        _context.parse_ovs_use_veth.return_value = False
+        self.assertEqual(
+            ("blocked",
+                "Mismatched existing and configured ovs-use-veth. See log."),
+            context.validate_ovs_use_veth())
+
+    def test_dhcp_agent_context(self):
+        # Defaults
+        _config = {
+            "debug": False,
+            "dns-servers": None,
+            "enable-isolated-metadata": None,
+            "enable-metadata-network": None,
+            "instance-mtu": None,
+            "ovs-use-veth": None}
+        _expect = {
+            "debug": False,
+            "dns_servers": None,
+            "enable_isolated_metadata": None,
+            "enable_metadata_network": None,
+            "instance_mtu": None,
+            "ovs_use_veth": False}
+        self.config.side_effect = fake_config(_config)
+        _get_ovs_use_veth = MagicMock()
+        _get_ovs_use_veth.return_value = False
+        ctx_object = context.DHCPAgentContext()
+        ctx_object.get_ovs_use_veth = _get_ovs_use_veth
+        ctxt = ctx_object()
+        self.assertEqual(_expect, ctxt)
+
+        # Non-defaults
+        _dns = "10.5.0.2"
+        _mtu = 8950
+        _config = {
+            "debug": True,
+            "dns-servers": _dns,
+            "enable-isolated-metadata": True,
+            "enable-metadata-network": True,
+            "instance-mtu": _mtu,
+            "ovs-use-veth": True}
+        _expect = {
+            "debug": True,
+            "dns_servers": _dns,
+            "enable_isolated_metadata": True,
+            "enable_metadata_network": True,
+            "instance_mtu": _mtu,
+            "ovs_use_veth": True}
+        self.config.side_effect = fake_config(_config)
+        _get_ovs_use_veth.return_value = True
+        ctxt = ctx_object()
+        self.assertEqual(_expect, ctxt)
+
+    def test_dhcp_agent_context_no_dns_domain(self):
+        _config = {"dns-servers": '8.8.8.8'}
+        self.config.side_effect = fake_config(_config)
+        self.relation_ids.return_value = ['rid1']
+        self.related_units.return_value = ['nova-compute/0']
+        self.relation_get.return_value = 'nova'
+        self.assertEqual(
+            context.DHCPAgentContext()(),
+            {'instance_mtu': None,
+             'dns_servers': '8.8.8.8',
+             'ovs_use_veth': False,
+             "enable_isolated_metadata": None,
+             "enable_metadata_network": None,
+             "debug": None}
+        )
+
+    def test_dhcp_agent_context_dnsmasq_flags(self):
+        _config = {'dnsmasq-flags': 'dhcp-userclass=set:ipxe,iPXE,'
+                                    'dhcp-match=set:ipxe,175,'
+                                    'server=1.2.3.4'}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(
+            context.DHCPAgentContext()(),
+            {
+                'dnsmasq_flags': collections.OrderedDict(
+                    [('dhcp-userclass', 'set:ipxe,iPXE'),
+                     ('dhcp-match', 'set:ipxe,175'),
+                     ('server', '1.2.3.4')]),
+                'instance_mtu': None,
+                'dns_servers': None,
+                'ovs_use_veth': False,
+                "enable_isolated_metadata": None,
+                "enable_metadata_network": None,
+                "debug": None,
+            }
+        )
+
+    def test_get_ovs_use_veth(self):
+        _get_existing_ovs_use_veth = MagicMock()
+        _parse_ovs_use_veth = MagicMock()
+        ctx_object = context.DHCPAgentContext()
+        ctx_object.get_existing_ovs_use_veth = _get_existing_ovs_use_veth
+        ctx_object.parse_ovs_use_veth = _parse_ovs_use_veth
+
+        # Default
+        _get_existing_ovs_use_veth.return_value = None
+        _parse_ovs_use_veth.return_value = None
+        self.assertEqual(False, ctx_object.get_ovs_use_veth())
+
+        # Existing dhcp_agent.ini and no config
+        _get_existing_ovs_use_veth.return_value = True
+        _parse_ovs_use_veth.return_value = None
+        self.assertEqual(True, ctx_object.get_ovs_use_veth())
+
+        # No existing dhcp_agent.ini and config set
+        _get_existing_ovs_use_veth.return_value = None
+        _parse_ovs_use_veth.return_value = False
+        self.assertEqual(False, ctx_object.get_ovs_use_veth())
+
+        # Both set matching
+        _get_existing_ovs_use_veth.return_value = True
+        _parse_ovs_use_veth.return_value = True
+        self.assertEqual(True, ctx_object.get_ovs_use_veth())
+
+        # Both set mismatch: existing overrides
+        _get_existing_ovs_use_veth.return_value = False
+        _parse_ovs_use_veth.return_value = True
+        self.assertEqual(False, ctx_object.get_ovs_use_veth())
+
+        # Both set mismatch: existing overrides
+        _get_existing_ovs_use_veth.return_value = True
+        _parse_ovs_use_veth.return_value = False
+        self.assertEqual(True, ctx_object.get_ovs_use_veth())
+
+    @patch.object(context, 'config_ini')
+    @patch.object(context.os.path, 'isfile')
+    def test_get_existing_ovs_use_veth(self, _is_file, _config_ini):
+        _config = {"ovs-use-veth": None}
+        self.config.side_effect = fake_config(_config)
+
+        ctx_object = context.DHCPAgentContext()
+
+        # Default
+        _is_file.return_value = False
+        self.assertEqual(None, ctx_object.get_existing_ovs_use_veth())
+
+        # Existing
+        _is_file.return_value = True
+        _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": True}}
+        self.assertEqual(True, ctx_object.get_existing_ovs_use_veth())
+
+        # Existing config_ini returns string
+        _is_file.return_value = True
+        _config_ini.return_value = {"DEFAULT": {"ovs_use_veth": "False"}}
+        self.assertEqual(False, ctx_object.get_existing_ovs_use_veth())
+
+    @patch.object(context, 'bool_from_string')
+    def test_parse_ovs_use_veth(self, _bool_from_string):
+        _config = {"ovs-use-veth": None}
+        self.config.side_effect = fake_config(_config)
+
+        ctx_object = context.DHCPAgentContext()
+
+        # Unset
+        self.assertEqual(None, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_not_called()
+
+        # Consider empty string unset
+        _config = {"ovs-use-veth": ""}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(None, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_not_called()
+
+        # Lower true
+        _bool_from_string.return_value = True
+        _config = {"ovs-use-veth": "true"}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(True, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_called_with("true")
+
+        # Lower false
+        _bool_from_string.return_value = False
+        _bool_from_string.reset_mock()
+        _config = {"ovs-use-veth": "false"}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(False, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_called_with("false")
+
+        # Upper True
+        _bool_from_string.return_value = True
+        _bool_from_string.reset_mock()
+        _config = {"ovs-use-veth": "True"}
+        self.config.side_effect = fake_config(_config)
+        self.assertEqual(True, ctx_object.parse_ovs_use_veth())
+        _bool_from_string.assert_called_with("True")
+
+        # Invalid
+        _bool_from_string.reset_mock()
+        _config = {"ovs-use-veth": "Invalid"}
+        self.config.side_effect = fake_config(_config)
+        _bool_from_string.side_effect = ValueError
+        with self.assertRaises(ValueError):
+            ctx_object.parse_ovs_use_veth()
+            _bool_from_string.assert_called_with("Invalid")

@@ -1,6 +1,7 @@
 import contextlib
 import copy
 import io
+import os
 import mock
 import six
 import unittest
@@ -236,11 +237,11 @@ class PolicydTests(unittest.TestCase):
                                    mock_shutil_rmtree,
                                    mock_os_remove,
                                    mock_log):
-        if six.PY3:
+        if hasattr(os, 'scandir'):
             mock_scan_dir_parts = (mock.patch, ["os.scandir"])
         else:
             mock_scan_dir_parts = (mock.patch.object,
-                                   [policyd, "_py2_scandir"])
+                                   [policyd, "_fallback_scandir"])
 
         class MockDirEntry(object):
             def __init__(self, path, is_dir):
