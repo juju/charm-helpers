@@ -1,6 +1,18 @@
 Changelog
 ---------
 
+0.20.9
+^^^^^^
+Wednesday 19th February 2020
+
+* Ensure python3-hvac is installed for charms with encypt option (#431)
+* os_utils: Allow override of source configuration key (#432)
+* Methods to allow charms to detect endpoint changes (#430)
+* Support for python3.8 and python3.4 (#423)
+* Detect elementaryOS as Ubuntu to allow local testing (#426)
+* DHCPAgentContext for Neutron Plugin API charms (#422)
+* Add the EXECUTE grant for mysql router users (#424)
+
 0.20.8
 ^^^^^^
 Monday 27th January 2020
