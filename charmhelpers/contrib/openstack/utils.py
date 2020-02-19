@@ -555,9 +555,8 @@ def reset_os_release():
     _os_rel = None
 
 
-def os_release(package, base=None, reset_cache=False):
-    '''
-    Returns OpenStack release codename from a cached global.
+def os_release(package, base=None, reset_cache=False, source_key=None):
+    """Returns OpenStack release codename from a cached global.
 
     If reset_cache then unset the cached os_release version and return the
     freshly determined version.
@@ -565,7 +564,20 @@ def os_release(package, base=None, reset_cache=False):
     If the codename can not be determined from either an installed package or
     the installation source, the earliest release supported by the charm should
     be returned.
-    '''
+
+    :param package: Name of package to determine release from
+    :type package: str
+    :param base: Fallback codename if endavours to determine from package fail
+    :type base: Optional[str]
+    :param reset_cache: Reset any cached codename value
+    :type reset_cache: bool
+    :param source_key: Name of source configuration option
+                       (default: 'openstack-origin')
+    :type source_key: Optional[str]
+    :returns: OpenStack release codename
+    :rtype: str
+    """
+    source_key = source_key or 'openstack-origin'
     if not base:
         base = UBUNTU_OPENSTACK_RELEASE[lsb_release()['DISTRIB_CODENAME']]
     global _os_rel
@@ -575,7 +587,7 @@ def os_release(package, base=None, reset_cache=False):
         return _os_rel
     _os_rel = (
         get_os_codename_package(package, fatal=False) or
-        get_os_codename_install_source(config('openstack-origin')) or
+        get_os_codename_install_source(config(source_key)) or
         base)
     return _os_rel
 
