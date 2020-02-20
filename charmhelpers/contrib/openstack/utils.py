@@ -278,7 +278,7 @@ PACKAGE_CODENAMES = {
         ('14', 'rocky'),
         ('15', 'stein'),
         ('16', 'train'),
-        ('17', 'ussuri'),
+        ('18', 'ussuri'),
     ]),
     'ceilometer-common': OrderedDict([
         ('5', 'liberty'),
@@ -326,7 +326,7 @@ PACKAGE_CODENAMES = {
         ('14', 'rocky'),
         ('15', 'stein'),
         ('16', 'train'),
-        ('17', 'ussuri'),
+        ('18', 'ussuri'),
     ]),
 }
 
