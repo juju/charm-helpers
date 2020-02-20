@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.20.10
+^^^^^^^
+Thursday 20th February 2020
+
+* Unpinning Jinja2 and PyYAML (#435)
+* Adjust to new OpenStack Ussuri major version for horizon (#436)
+
 0.20.9
 ^^^^^^
 Wednesday 19th February 2020
