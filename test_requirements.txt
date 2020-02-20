@@ -31,8 +31,6 @@ Jinja2;      python_version >= '3.6'                             # py36 and on
 
 ##############################################################
 
--r./requirements.txt
-
 netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.
 psutil==1.2.1      # trusty
 python-keystoneclient==2.3.2 # xenial
