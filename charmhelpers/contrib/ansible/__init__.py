@@ -139,6 +139,42 @@ def install_ansible_support(from_ppa=True, ppa_location='ppa:rquillo/ansible'):
 
 
 def apply_playbook(playbook, tags=None, extra_vars=None):
+    """Run a playbook.
+
+    This helper runs a playbook with juju state variables as context,
+    therefore variables set in application config can be used directly.
+    List of tags (--tags) and dictionary with extra_vars (--extra-vars)
+    can be passed as additional parameters.
+
+    Read more about playbook `_variables`_ online.
+
+    .. _variables: https://docs.ansible.com/ansible/2.5/user_guide/playbooks_variables.html
+
+    Example::
+
+        # Run ansible/playbook.yaml with tag install and pass extra
+        # variables var_a and var_b
+        apply_playbook(
+            playbook='ansible/playbook.yaml',
+            tags=['install'],
+            extra_vars={'var_a': 'val_a', 'var_b': 'val_b'}
+        )
+
+        # Run ansible/playbook.yaml with tag config and extra variable nested,
+        # which is passed as json and can be used as dictionary in playbook
+        apply_playbook(
+            playbook='ansible/playbook.yaml',
+            tags=['config'],
+            extra_vars={'nested': {'a': 'value1', 'b': 'value2'}}
+        )
+
+        # Custom config file can be passed within extra_vars
+        apply_playbook(
+            playbook='ansible/playbook.yaml',
+            extra_vars="@some_file.json"
+        )
+
+    """
     tags = tags or []
     tags = ",".join(tags)
     charmhelpers.contrib.templating.contexts.juju_state_to_yaml(
