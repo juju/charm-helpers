@@ -37,7 +37,6 @@ Examples:
 """
 import os
 import re
-import six
 import subprocess
 
 from charmhelpers.core import hookenv
@@ -366,12 +365,10 @@ def status():
         (1, {'to': '', 'action':, 'from':, '', ipv6: True, 'comment': ''})
     :rtype: Iterator[Tuple[int, Dict[str, Union[bool, str]]]]
     """
-    if six.PY2:
-        raise RuntimeError('Call to function not supported on Python2')
-    cp = subprocess.run(('ufw', 'status', 'numbered',),
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                        check=True, universal_newlines=True)
-    for line in cp.stdout.splitlines():
+    cp = subprocess.check_output(('ufw', 'status', 'numbered',),
+                                 stderr=subprocess.STDOUT,
+                                 universal_newlines=True)
+    for line in cp.splitlines():
         if not line.startswith('['):
             continue
         ipv6 = True if '(v6)' in line else False

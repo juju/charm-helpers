@@ -141,6 +141,7 @@ class UtilsTests(unittest.TestCase):
             'cloud-pocket')
         mock_get_os_codename_package.assert_called_once_with(
             'my-pkg', fatal=False)
+        mock_config.assert_called_once_with('openstack-origin')
         # Next call to os_release should pickup cached version
         mock_get_os_codename_install_source.reset_mock()
         mock_get_os_codename_package.reset_mock()
@@ -167,6 +168,15 @@ class UtilsTests(unittest.TestCase):
             'cloud-pocket')
         mock_get_os_codename_package.assert_called_once_with(
             'my-pkg', fatal=False)
+        # Override source key
+        mock_config.reset_mock()
+        mock_get_os_codename_install_source.reset_mock()
+        mock_get_os_codename_package.reset_mock()
+        mock_get_os_codename_package.return_value = None
+        utils.os_release('my-pkg', reset_cache=True, source_key='source')
+        mock_config.assert_called_once_with('source')
+        mock_get_os_codename_install_source.assert_called_once_with(
+            'cloud-pocket')
 
     @mock.patch.object(utils, 'os_release')
     @mock.patch.object(utils, 'get_os_codename_install_source')

@@ -104,7 +104,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
             self.context_path)
 
         with open(self.context_path, 'r') as context_file:
-            result = yaml.load(context_file.read())
+            result = yaml.safe_load(context_file.read())
             expected = self.default_context()
             self.assertEqual(expected, result)
 
@@ -120,7 +120,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
             self.context_path)
 
         with open(self.context_path, 'r') as context_file:
-            result = yaml.load(context_file.read())
+            result = yaml.safe_load(context_file.read())
             expected = self.default_context()
             self.assertEqual(expected, result)
 
@@ -154,7 +154,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
             self.context_path)
 
         with open(self.context_path, 'r') as context_file:
-            result = yaml.load(context_file.read())
+            result = yaml.safe_load(context_file.read())
             expected = self.default_context()
             expected['current_relation'] = {
                 "relation_key1": "relation_value1",
@@ -194,7 +194,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
             self.context_path, namespace_separator='__')
 
         with open(self.context_path, 'r') as context_file:
-            result = yaml.load(context_file.read())
+            result = yaml.safe_load(context_file.read())
             expected = self.default_context()
             expected['current_relation'] = {
                 "relation_key1": "relation_value1",
@@ -217,7 +217,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
             self.context_path)
 
         with open(self.context_path, 'r') as context_file:
-            result = yaml.load(context_file.read())
+            result = yaml.safe_load(context_file.read())
             expected = self.default_context()
             expected["private-address"] = "10.1.1.10"
             self.assertEqual(expected, result)
@@ -240,7 +240,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
             namespace_separator='__')
 
         with open(self.context_path, 'r') as context_file:
-            result = yaml.load(context_file.read())
+            result = yaml.safe_load(context_file.read())
             expected = self.default_context()
             expected["private_address"] = "10.1.1.10"
             expected["wsgi_file__relation_key1"] = "relation_value1"
