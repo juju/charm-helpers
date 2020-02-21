@@ -41,7 +41,7 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
         charmhelpers.contrib.ansible.install_ansible_support()
 
         self.mock_fetch.add_source.assert_called_once_with(
-            'ppa:rquillo/ansible')
+            'ppa:ansible/ansible')
         self.mock_fetch.apt_update.assert_called_once_with(fatal=True)
         self.mock_fetch.apt_install.assert_called_once_with(
             'ansible')
