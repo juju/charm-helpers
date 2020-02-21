@@ -148,7 +148,7 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
 
     Read more about playbook `_variables`_ online.
 
-    .. _variables: https://docs.ansible.com/ansible/2.5/user_guide/playbooks_variables.html
+    .. _variables: https://docs.ansible.com/ansible/latest/user_guide/playbooks_variables.html
 
     Example::
 
