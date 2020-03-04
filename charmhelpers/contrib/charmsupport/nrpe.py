@@ -122,6 +122,34 @@ from charmhelpers.core import host
 #    ln -s hooks.py local-monitors-relation-changed
 
 
+# If shlex.join is not available (new as of Python 3.8) then let's emulate it.
+if 'join' in dir(shlex):
+    shlex_join = shlex.join
+else:
+    if 'ASCII' in dir(re):
+        # Python 3 defaults to Unicode
+        _find_unsafe = re.compile(r'[^\w@%+=:,./-]', re.ASCII).search
+    else:
+        # Python 2 defaults to ASCII
+        _find_unsafe = re.compile(r'[^\w@%+=:,./-]').search
+
+    # This is just shlex.join and friends from Python 3.8 with no substantive changes.
+    def shlex_quote(s):
+        """Return a shell-escaped version of the string *s*."""
+        if not s:
+            return "''"
+        if _find_unsafe(s) is None:
+            return s
+
+        # use single quotes, and put single quotes into double quotes
+        # the string $'b is then quoted as '$'"'"'b'
+        return "'" + s.replace("'", "'\"'\"'") + "'"
+
+    def shlex_join(split_command):
+        """Return a shell-escaped string from *split_command*."""
+        return ' '.join(shlex_quote(arg) for arg in split_command)
+
+
 class CheckException(Exception):
     pass
 
@@ -173,7 +201,7 @@ define service {{
             if os.path.exists(os.path.join(path, parts[0])):
                 command = os.path.join(path, parts[0])
                 if len(parts) > 1:
-                    command += " " + shlex.join(parts[1:])
+                    command += " " + shlex_join(parts[1:])
                 return command
         log('Check command not found: {}'.format(parts[0]))
         return ''
