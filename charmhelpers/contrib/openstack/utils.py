@@ -44,15 +44,21 @@ from charmhelpers.core.hookenv import (
     INFO,
     ERROR,
     related_units,
+    relation_get,
     relation_ids,
     relation_set,
     status_set,
     hook_name,
     application_version_set,
     cached,
+    leader_set,
+    leader_get,
 )
 
-from charmhelpers.core.strutils import BasicStringComparator
+from charmhelpers.core.strutils import (
+    BasicStringComparator,
+    bool_from_string,
+)
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
@@ -126,6 +132,7 @@ OPENSTACK_RELEASES = (
     'rocky',
     'stein',
     'train',
+    'ussuri',
 )
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
@@ -146,6 +153,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('cosmic', 'rocky'),
     ('disco', 'stein'),
     ('eoan', 'train'),
+    ('focal', 'ussuri'),
 ])
 
 
@@ -167,6 +175,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2018.2', 'rocky'),
     ('2019.1', 'stein'),
     ('2019.2', 'train'),
+    ('2020.1', 'ussuri'),
 ])
 
 # The ugly duckling - must list releases oldest to newest
@@ -205,6 +214,8 @@ SWIFT_CODENAMES = OrderedDict([
         ['2.20.0', '2.21.0']),
     ('train',
         ['2.22.0', '2.23.0']),
+    ('ussuri',
+        ['2.24.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -219,6 +230,7 @@ PACKAGE_CODENAMES = {
         ('18', 'rocky'),
         ('19', 'stein'),
         ('20', 'train'),
+        ('21', 'ussuri'),
     ]),
     'neutron-common': OrderedDict([
         ('7', 'liberty'),
@@ -230,6 +242,7 @@ PACKAGE_CODENAMES = {
         ('13', 'rocky'),
         ('14', 'stein'),
         ('15', 'train'),
+        ('16', 'ussuri'),
     ]),
     'cinder-common': OrderedDict([
         ('7', 'liberty'),
@@ -241,6 +254,7 @@ PACKAGE_CODENAMES = {
         ('13', 'rocky'),
         ('14', 'stein'),
         ('15', 'train'),
+        ('16', 'ussuri'),
     ]),
     'keystone': OrderedDict([
         ('8', 'liberty'),
@@ -252,6 +266,7 @@ PACKAGE_CODENAMES = {
         ('14', 'rocky'),
         ('15', 'stein'),
         ('16', 'train'),
+        ('17', 'ussuri'),
     ]),
     'horizon-common': OrderedDict([
         ('8', 'liberty'),
@@ -263,6 +278,7 @@ PACKAGE_CODENAMES = {
         ('14', 'rocky'),
         ('15', 'stein'),
         ('16', 'train'),
+        ('18', 'ussuri'),
     ]),
     'ceilometer-common': OrderedDict([
         ('5', 'liberty'),
@@ -274,6 +290,7 @@ PACKAGE_CODENAMES = {
         ('11', 'rocky'),
         ('12', 'stein'),
         ('13', 'train'),
+        ('14', 'ussuri'),
     ]),
     'heat-common': OrderedDict([
         ('5', 'liberty'),
@@ -285,6 +302,7 @@ PACKAGE_CODENAMES = {
         ('11', 'rocky'),
         ('12', 'stein'),
         ('13', 'train'),
+        ('14', 'ussuri'),
     ]),
     'glance-common': OrderedDict([
         ('11', 'liberty'),
@@ -296,6 +314,7 @@ PACKAGE_CODENAMES = {
         ('17', 'rocky'),
         ('18', 'stein'),
         ('19', 'train'),
+        ('20', 'ussuri'),
     ]),
     'openstack-dashboard': OrderedDict([
         ('8', 'liberty'),
@@ -307,10 +326,15 @@ PACKAGE_CODENAMES = {
         ('14', 'rocky'),
         ('15', 'stein'),
         ('16', 'train'),
+        ('18', 'ussuri'),
     ]),
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
+
+DB_SERIES_UPGRADING_KEY = 'cluster-series-upgrading'
+
+DB_MAINTENANCE_KEYS = [DB_SERIES_UPGRADING_KEY]
 
 
 class CompareOpenStackReleases(BasicStringComparator):
@@ -531,9 +555,8 @@ def reset_os_release():
     _os_rel = None
 
 
-def os_release(package, base=None, reset_cache=False):
-    '''
-    Returns OpenStack release codename from a cached global.
+def os_release(package, base=None, reset_cache=False, source_key=None):
+    """Returns OpenStack release codename from a cached global.
 
     If reset_cache then unset the cached os_release version and return the
     freshly determined version.
@@ -541,7 +564,20 @@ def os_release(package, base=None, reset_cache=False):
     If the codename can not be determined from either an installed package or
     the installation source, the earliest release supported by the charm should
     be returned.
-    '''
+
+    :param package: Name of package to determine release from
+    :type package: str
+    :param base: Fallback codename if endavours to determine from package fail
+    :type base: Optional[str]
+    :param reset_cache: Reset any cached codename value
+    :type reset_cache: bool
+    :param source_key: Name of source configuration option
+                       (default: 'openstack-origin')
+    :type source_key: Optional[str]
+    :returns: OpenStack release codename
+    :rtype: str
+    """
+    source_key = source_key or 'openstack-origin'
     if not base:
         base = UBUNTU_OPENSTACK_RELEASE[lsb_release()['DISTRIB_CODENAME']]
     global _os_rel
@@ -551,7 +587,7 @@ def os_release(package, base=None, reset_cache=False):
         return _os_rel
     _os_rel = (
         get_os_codename_package(package, fatal=False) or
-        get_os_codename_install_source(config('openstack-origin')) or
+        get_os_codename_install_source(config(source_key)) or
         base)
     return _os_rel
 
@@ -632,6 +668,93 @@ def config_value_changed(option):
         if saved is None:
             return False
         return current != saved
+
+
+def get_endpoint_key(service_name, relation_id, unit_name):
+    """Return the key used to refer to an ep changed notification from a unit.
+
+    :param service_name: Service name eg nova, neutron, placement etc
+    :type service_name: str
+    :param relation_id: The id of the relation the unit is on.
+    :type relation_id: str
+    :param unit_name: The name of the unit publishing the notification.
+    :type unit_name: str
+    :returns: The key used to refer to an ep changed notification from a unit
+    :rtype: str
+    """
+    return '{}-{}-{}'.format(
+        service_name,
+        relation_id.replace(':', '_'),
+        unit_name.replace('/', '_'))
+
+
+def get_endpoint_notifications(service_names, rel_name='identity-service'):
+    """Return all notifications for the given services.
+
+    :param service_names: List of service name.
+    :type service_name: List
+    :param rel_name: Name of the relation to query
+    :type rel_name: str
+    :returns: A dict containing the source of the notification and its nonce.
+    :rtype: Dict[str, str]
+    """
+    notifications = {}
+    for rid in relation_ids(rel_name):
+        for unit in related_units(relid=rid):
+            ep_changed_json = relation_get(
+                rid=rid,
+                unit=unit,
+                attribute='ep_changed')
+            if ep_changed_json:
+                ep_changed = json.loads(ep_changed_json)
+                for service in service_names:
+                    if ep_changed.get(service):
+                        key = get_endpoint_key(service, rid, unit)
+                        notifications[key] = ep_changed[service]
+    return notifications
+
+
+def endpoint_changed(service_name, rel_name='identity-service'):
+    """Whether a new notification has been recieved for an endpoint.
+
+    :param service_name: Service name eg nova, neutron, placement etc
+    :type service_name: str
+    :param rel_name: Name of the relation to query
+    :type rel_name: str
+    :returns: Whether endpoint has changed
+    :rtype: bool
+    """
+    changed = False
+    with unitdata.HookData()() as t:
+        db = t[0]
+        notifications = get_endpoint_notifications(
+            [service_name],
+            rel_name=rel_name)
+        for key, nonce in notifications.items():
+            if db.get(key) != nonce:
+                juju_log(('New endpoint change notification found: '
+                          '{}={}').format(key, nonce),
+                         'INFO')
+                changed = True
+                break
+    return changed
+
+
+def save_endpoint_changed_triggers(service_names, rel_name='identity-service'):
+    """Save the enpoint triggers in  db so it can be tracked if they changed.
+
+    :param service_names: List of service name.
+    :type service_name: List
+    :param rel_name: Name of the relation to query
+    :type rel_name: str
+    """
+    with unitdata.HookData()() as t:
+        db = t[0]
+        notifications = get_endpoint_notifications(
+            service_names,
+            rel_name=rel_name)
+        for key, nonce in notifications.items():
+            db.set(key, nonce)
 
 
 def save_script_rc(script_path="scripts/scriptrc", **env_vars):
@@ -1868,3 +1991,58 @@ def series_upgrade_complete(resume_unit_helper=None, configs=None):
         configs.write_all()
         if resume_unit_helper:
             resume_unit_helper(configs)
+
+
+def is_db_initialised():
+    """Check leader storage to see if database has been initialised.
+
+    :returns: Whether DB has been initialised
+    :rtype: bool
+    """
+    db_initialised = None
+    if leader_get('db-initialised') is None:
+        juju_log(
+            'db-initialised key missing, assuming db is not initialised',
+            'DEBUG')
+        db_initialised = False
+    else:
+        db_initialised = bool_from_string(leader_get('db-initialised'))
+    juju_log('Database initialised: {}'.format(db_initialised), 'DEBUG')
+    return db_initialised
+
+
+def set_db_initialised():
+    """Add flag to leader storage to indicate database has been initialised.
+    """
+    juju_log('Setting db-initialised to True', 'DEBUG')
+    leader_set({'db-initialised': True})
+
+
+def is_db_maintenance_mode(relid=None):
+    """Check relation data from notifications of db in maintenance mode.
+
+    :returns: Whether db has notified it is in maintenance mode.
+    :rtype: bool
+    """
+    juju_log('Checking for maintenance notifications', 'DEBUG')
+    if relid:
+        r_ids = [relid]
+    else:
+        r_ids = relation_ids('shared-db')
+    rids_units = [(r, u) for r in r_ids for u in related_units(r)]
+    notifications = []
+    for r_id, unit in rids_units:
+        settings = relation_get(unit=unit, rid=r_id)
+        for key, value in settings.items():
+            if value and key in DB_MAINTENANCE_KEYS:
+                juju_log(
+                    'Unit: {}, Key: {}, Value: {}'.format(unit, key, value),
+                    'DEBUG')
+                try:
+                    notifications.append(bool_from_string(value))
+                except ValueError:
+                    juju_log(
+                        'Could not discern bool from {}'.format(value),
+                        'WARN')
+                    pass
+    return True in notifications

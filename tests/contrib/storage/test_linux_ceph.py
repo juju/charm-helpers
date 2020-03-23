@@ -1,6 +1,7 @@
 from mock import patch, call, mock_open
 
 import six
+import errno
 from shutil import rmtree
 from tempfile import mkdtemp
 from threading import Timer
@@ -1139,8 +1140,8 @@ class CephUtilsTests(TestCase):
         e = self.assertRaises(IOError, ceph_utils.make_filesystem, device,
                               timeout=0)
         self.assertEquals(device, e.filename)
-        self.assertEquals(os.errno.ENOENT, e.errno)
-        self.assertEquals(os.strerror(os.errno.ENOENT), e.strerror)
+        self.assertEquals(errno.ENOENT, e.errno)
+        self.assertEquals(os.strerror(errno.ENOENT), e.strerror)
         self.log.assert_called_with(
             'Gave up waiting on block device %s' % device, level='ERROR')
 
