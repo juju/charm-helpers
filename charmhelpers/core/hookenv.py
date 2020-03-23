@@ -1093,7 +1093,7 @@ def status_set(workload_state, message):
 
     Use status-set to set the workload state with a message which is visible
     to the user via juju status. If the status-set command is not found then
-    assume this is juju < 1.23 and juju-log the message unstead.
+    assume this is juju < 1.23 and juju-log the message instead.
 
     workload_state -- valid juju workload state.
     message        -- status update message
