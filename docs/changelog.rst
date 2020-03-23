@@ -1,6 +1,43 @@
 Changelog
 ---------
 
+0.20.10
+^^^^^^^
+Thursday 20th February 2020
+
+* Unpinning Jinja2 and PyYAML (#435)
+* Adjust to new OpenStack Ussuri major version for horizon (#436)
+
+0.20.9
+^^^^^^
+Wednesday 19th February 2020
+
+* Ensure python3-hvac is installed for charms with encypt option (#431)
+* os_utils: Allow override of source configuration key (#432)
+* Methods to allow charms to detect endpoint changes (#430)
+* Support for python3.8 and python3.4 (#423)
+* Detect elementaryOS as Ubuntu to allow local testing (#426)
+* DHCPAgentContext for Neutron Plugin API charms (#422)
+* Add the EXECUTE grant for mysql router users (#424)
+
+0.20.8
+^^^^^^
+Monday 27th January 2020
+
+* Add get_managed_services_and_ports (#421)
+* Fix apt hardening module (#416)
+* Add is_db_maintenance_mode (#420)
+* Add Ussuri/Focal release and version details (#419)
+* Add is_db_initialised & set_db_initialised helpers (#418)
+* HostInfoContext: Fix retrieval of a hosts primary FQDN (#415)
+* Make linter happy (#411)
+* Add missing sphinx dependency (#412)
+* Add function to remove deprecated checks (#409)
+* Allow auth_strategy to be defined in api section (#410)
+* Update the charm_helpers_sync README (#406)
+* openstack: add notification_topics option (#405)
+* Rework vault token management (#401)
+
 0.20.7
 ^^^^^^
 Wednesday 27th November 2019

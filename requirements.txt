@@ -1,0 +1,16 @@
+# Runtime Dependencies
+
+# https://pyyaml.org/wiki/PyYAML#history
+# PyYAML==5.2 is last supported for py34
+PyYAML
+
+# https://jinja.palletsprojects.com/en/2.11.x/changelog/
+# Jinja2==2.10 is last supported for py34 (trusty)
+# Jinja2==2.11 is last supported for py27 & py35 (xenial)
+Jinja2
+
+six
+netaddr
+Tempita
+
+

@@ -218,7 +218,7 @@ class HelperSyncTests(unittest.TestCase):
     @patch('os.path.exists')
     def test_sync_helpers_from_config(self, exists, isdir, _sync):
         '''It correctly syncs a list of included helpers'''
-        include = yaml.load(INCLUDE)['include']
+        include = yaml.safe_load(INCLUDE)['include']
         isdir.return_value = True
         exists.return_value = False
         sync.sync_helpers(include=include,
@@ -248,7 +248,7 @@ class HelperSyncTests(unittest.TestCase):
     def test_sync_helpers_from_config_cleanup(self, _rmtree, _exists,
                                               isdir, _sync):
         '''It correctly syncs a list of included helpers'''
-        include = yaml.load(INCLUDE)['include']
+        include = yaml.safe_load(INCLUDE)['include']
         isdir.return_value = True
         _exists.return_value = True
 

@@ -41,7 +41,7 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
         charmhelpers.contrib.ansible.install_ansible_support()
 
         self.mock_fetch.add_source.assert_called_once_with(
-            'ppa:rquillo/ansible')
+            'ppa:ansible/ansible')
         self.mock_fetch.apt_update.assert_called_once_with(fatal=True)
         self.mock_fetch.apt_install.assert_called_once_with(
             'ansible')
@@ -165,7 +165,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.assertEqual(stats.st_mode & stat.S_IRWXG, 0)
         self.assertEqual(stats.st_mode & stat.S_IRWXO, 0)
         with open(self.vars_path, 'r') as vars_file:
-            result = yaml.load(vars_file.read())
+            result = yaml.safe_load(vars_file.read())
             self.assertEqual({
                 "group_code_owner": "webops_deploy",
                 "user_code_runner": "ubunet",
@@ -208,7 +208,30 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
-            '--tags', 'install,somethingelse', '--extra-vars', 'a=b'],
+            '--tags', 'install,somethingelse', '--extra-vars', '{"a": "b"}'],
+            env={'PYTHONUNBUFFERED': '1'})
+
+    @mock.patch.object(hookenv, 'config')
+    def test_calls_with_extra_vars_path(self, config):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/complete-state.yaml', tags=['install', 'somethingelse'],
+            extra_vars='@myvars.json')
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            '--tags', 'install,somethingelse', '--extra-vars', '"@myvars.json"'],
+            env={'PYTHONUNBUFFERED': '1'})
+
+    @mock.patch.object(hookenv, 'config')
+    def test_calls_with_extra_vars_dict(self, config):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/complete-state.yaml', tags=['install', 'somethingelse'],
+            extra_vars={'pkg': {'a': 'present', 'b': 'absent'}})
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            '--tags', 'install,somethingelse', '--extra-vars',
+            '{"pkg": {"a": "present", "b": "absent"}}'],
             env={'PYTHONUNBUFFERED': '1'})
 
     @mock.patch.object(hookenv, 'config')
