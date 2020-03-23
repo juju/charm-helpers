@@ -6,13 +6,13 @@ All contributions, both code and documentation, are welcome!
 Source
 ------
 
-The source code is located at https://code.launchpad.net/charm-helpers. To
-submit contributions you'll need to create a Launchpad account if you do not
+The source code is located at https://github.com/juju/charm-helpers. To
+submit contributions you'll need to create a GitHub account if you do not
 already have one.
 
 To get the code::
 
-  $ bzr branch lp:charm-helpers
+  $ git clone https://github.com/juju/charm-helpers
 
 To build and run tests::
 
@@ -22,25 +22,9 @@ To build and run tests::
 Submitting a Merge Proposal
 ---------------------------
 
-Run ``make test`` and ensure all tests pass. Then commit your changes and push
-them to a personal branch::
-
-  bzr ci -m "Description of your changes"
-  bzr push lp:~<launchpad-username>/charm-helpers/my-feature
-
-Note that the branch name ('my-feature' in the above example) can be anything
-you choose - preferably something descriptive.
-
-Once your branch is pushed, open it in a web browser, e.g.::
-
-  https://code.launchpad.net/~<launchpad-username>/charm-helpers/my-feature
-
-Find and click on the 'Propose for merging' link, and on the following screen,
-click the 'Propose Merge' button.
-
-.. note::
-
-  Do not set a value in the 'Reviewer' field - it will be set automatically.
+Run ``make test`` and ensure all tests pass. Then commit your changes to a
+`fork <https://github.com/juju/charm-helpers/fork>`_ and create a
+`pull request <https://github.com/juju/charm-helpers/compare>`_.
 
 Open Bugs
 ---------
