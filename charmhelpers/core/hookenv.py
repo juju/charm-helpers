@@ -121,6 +121,30 @@ def log(message, level=None):
             raise
 
 
+def log_trace(message):
+    return log(message, level=TRACE)
+
+
+def log_debug(message):
+    return log(message, level=DEBUG)
+
+
+def log_info(message):
+    return log(message, level=INFO)
+
+
+def log_warning(message):
+    return log(message, level=WARNING)
+
+
+def log_error(message):
+    return log(message, level=ERROR)
+
+
+def log_critical(message):
+    return log(message, level=CRITICAL)
+
+
 def function_log(message):
     """Write a function progress message"""
     command = ['function-log']
