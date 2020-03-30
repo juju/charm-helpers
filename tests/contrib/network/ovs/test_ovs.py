@@ -14,16 +14,26 @@ class TestOVS(test_utils.BaseTestCase):
 
     def test_add_br(self):
         self.patch_object(ovs.utils, '_run')
-        ovs.add_br('br-x')
+        ovs.add_br('br-x', exclusive=True)
         self._run.assert_called_once_with(
-            'ovs-vsctl', 'add-br', 'br-x', '--', 'set', 'bridge', 'br-x',
-            'protocols=OpenFlow13')
+            'ovs-vsctl', 'add-br', 'br-x')
         self._run.reset_mock()
-        ovs.add_br('br-x', ('charm', 'managed'))
-        self._run.assert_called_once_with(
-            'ovs-vsctl', 'add-br', 'br-x', '--', 'set', 'bridge', 'br-x',
-            'protocols=OpenFlow13', '--',
-            'br-set-external-id', 'br-x', 'charm', 'managed')
+        brdata = {
+            'protocols': 'OpenFlow10,OpenFlow13,OpenFlow14',
+            'external-ids': {
+                'charm': 'managed',
+            },
+        }
+        ovs.add_br('br-x', brdata=brdata)
+        if sys.version_info >= (3, 6):
+            # Skip test on Python versions prior to 3.5due to Dict ordering
+            self._run.assert_called_once_with(
+                'ovs-vsctl', 'add-br', 'br-x', '--may-exist',
+                '--',
+                'set', 'bridge', 'br-x',
+                'protocols=OpenFlow10,OpenFlow13,OpenFlow14',
+                '--',
+                'set', 'bridge', 'br-x', 'external-ids:charm=managed')
 
     def test_del_br(self):
         self.patch_object(ovs.utils, '_run')
@@ -47,7 +57,7 @@ class TestOVS(test_utils.BaseTestCase):
         }
         ovs.add_port('br-x', 'enp3s0f0', ifdata=ifdata)
         if sys.version_info >= (3, 6):
-            # Skip test on PY34 and PY35 due to Dict ordering issue
+            # Skip test on Python versions prior to 3.5due to Dict ordering
             self._run.assert_called_once_with(
                 'ovs-vsctl', '--may-exist', 'add-port', 'br-x', 'enp3s0f0',
                 '--',
@@ -68,7 +78,7 @@ class TestOVS(test_utils.BaseTestCase):
         self._run.reset_mock()
         ovs.add_port('br-x', 'enp3s0f0', ifdata=ifdata)
         if sys.version_info >= (3, 6):
-            # Skip test on PY34 and PY35 due to Dict ordering issue
+            # Skip test on Python versions prior to 3.5due to Dict ordering
             self._run.assert_called_once_with(
                 'ovs-vsctl', '--may-exist', 'add-port', 'br-x', 'enp3s0f0',
                 '--',

@@ -308,20 +308,82 @@ def port_to_br(port):
         return None
 
 
-def add_br(bridge, external_id=None):
+def _dict_to_vsctl(data, table, entity):
+    """
+    :param data: Additional data to attach to interface
+        The keys in the data dictionary map directly to column names in the
+        OpenvSwitch specified table as defined in DB-SCHEMA [0] referenced in
+        RFC 7047 [1]
+
+        There are some established conventions for keys in the external-ids
+        column of various tables, consult the OVS Integration Guide [2] for
+        more details.
+
+        NOTE(fnordahl): Technically the ``external-ids`` column is called
+        ``external_ids`` (with an underscore) and we rely on ``ovs-vsctl``'s
+        behaviour of transforming dashes to underscores for us [3] so we can
+        have a more pleasant data structure.
+
+        0: http://www.openvswitch.org/ovs-vswitchd.conf.db.5.pdf
+        1: https://tools.ietf.org/html/rfc7047
+        2: http://docs.openvswitch.org/en/latest/topics/integration/
+        3: https://github.com/openvswitch/ovs/blob/
+               20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
+                   lib/db-ctl-base.c#L189-L215
+    :type data: Optional[Dict[str,Union[str,Dict[str,str]]]]
+    :param table: Name of table to operate on
+    :type table: str
+    :param entity: Name of entity to operate on
+    :type entity: str
+    :returns: '--' separated ``ovs-vsctl set`` commands
+    :rtype: Iterator[str]
+    """
+    for (k, v) in data.items():
+        if isinstance(v, dict):
+            entries = {
+                '{}:{}'.format(k, dk): dv for (dk, dv) in v.items()}
+        else:
+            entries = {k: v}
+        for (colk, colv) in entries.items():
+            yield ('--', 'set', table, entity, '{}={}'.format(colk, colv))
+
+
+def add_br(bridge, brdata=None, exclusive=False):
     """Add bridge and optionally attach a external_id to bridge.
 
     :param bridge: Name of bridge to create
     :type bridge: str
-    :param external_id: Key-value pair
-    :type external_id: Optional[Tuple[str,str]]
+    :param brdata: Additional data to attach to interface
+        The keys in the ifdata dictionary map directly to column names in the
+        OpenvSwitch Interface table as defined in DB-SCHEMA [0] referenced in
+        RFC 7047 [1]
+
+        There are some established conventions for keys in the external-ids
+        column of various tables, consult the OVS Integration Guide [2] for
+        more details.
+
+        NOTE(fnordahl): Technically the ``external-ids`` column is called
+        ``external_ids`` (with an underscore) and we rely on ``ovs-vsctl``'s
+        behaviour of transforming dashes to underscores for us [3] so we can
+        have a more pleasant data structure.
+
+        0: http://www.openvswitch.org/ovs-vswitchd.conf.db.5.pdf
+        1: https://tools.ietf.org/html/rfc7047
+        2: http://docs.openvswitch.org/en/latest/topics/integration/
+        3: https://github.com/openvswitch/ovs/blob/
+               20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
+                   lib/db-ctl-base.c#L189-L215
+    :type brdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+    :param exclusive: If True, raise exception if port exists
+    :type exclusive: bool
     :raises: subprocess.CalledProcessError
     """
-    cmd = ['ovs-vsctl', 'add-br', bridge, '--', 'set', 'bridge', bridge,
-           'protocols=OpenFlow13']
-    if external_id:
-        cmd.extend(('--', 'br-set-external-id', bridge))
-        cmd.extend(external_id)
+    cmd = ['ovs-vsctl', 'add-br', bridge]
+    if not exclusive:
+        cmd.append('--may-exist')
+    if brdata:
+        for setcmd in _dict_to_vsctl(brdata, 'bridge', bridge):
+            cmd.extend(setcmd)
     utils._run(*cmd)
 
 
@@ -369,19 +431,11 @@ def add_port(bridge, port, ifdata=None, exclusive=False):
     """
     cmd = ['ovs-vsctl']
     if not exclusive:
-        cmd.extend(('--may-exist',))
+        cmd.append('--may-exist')
     cmd.extend(('add-port', bridge, port))
     if ifdata:
-        for (k, v) in ifdata.items():
-            if isinstance(v, dict):
-                entries = {
-                    '{}:{}'.format(k, dk): dv for (dk, dv) in v.items()}
-            else:
-                entries = {k: v}
-            for (colk, colv) in entries.items():
-                cmd.extend(
-                    ('--', 'set', 'Interface', port,
-                        '{}={}'.format(colk, colv)))
+        for setcmd in _dict_to_vsctl(ifdata, 'Interface', port):
+            cmd.extend(setcmd)
     utils._run(*cmd)
 
 
