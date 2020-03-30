@@ -8,6 +8,11 @@ import charmhelpers.contrib.network.ovs as ovs
 from tests.helpers import patch_open
 
 
+# NOTE(fnordahl): some functions drectly under the ``contrib.network.ovs``
+# module have their unit tests in the ``test_ovs.py`` module in the
+# ``tests.contrib.network.ovs`` package.
+
+
 GOOD_CERT = '''Certificate:
     Data:
         Version: 1 (0x0)
