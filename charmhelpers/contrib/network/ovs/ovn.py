@@ -23,12 +23,11 @@ def _run(*args):
     :param args: Command and arguments to run
     :type args: Tuple[str, ...]
     :returns: Information about the completed process
-    :rtype: subprocess.CompletedProcess
+    :rtype: str
     :raises subprocess.CalledProcessError
     """
-    return subprocess.run(
-        args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True,
-        universal_newlines=True)
+    return subprocess.check_output(args, stderr=subprocess.STDOUT,
+                                   universal_newlines=True)
 
 
 def ovn_rundir():
@@ -87,7 +86,7 @@ def ovs_appctl(target, *args):
     # to pass the full path to the socket.
     if target in ('ovnnb_db', 'ovnsb_db',):
         target = os.path.join(ovn_rundir(), target + '.ctl')
-    return _run('ovs-appctl', '-t', target, *args).stdout
+    return _run('ovs-appctl', '-t', target, *args)
 
 
 def cluster_status(target, schema=None):
@@ -259,8 +258,8 @@ def list_ports(bridge):
     :returns: List of ports
     :rtype: List
     """
-    cp = _run('ovs-vsctl', 'list-ports', bridge)
-    return cp.stdout.splitlines()
+    output = _run('ovs-vsctl', 'list-ports', bridge)
+    return output.splitlines()
 
 
 class SimpleOVSDB(object):
@@ -316,8 +315,8 @@ class SimpleOVSDB(object):
         cmd = [self.tool, '-f', 'json', 'find', self.tbl]
         if condition:
             cmd.append(condition)
-        cp = _run(*cmd)
-        data = json.loads(cp.stdout)
+        output = _run(*cmd)
+        data = json.loads(output)
         for row in data['data']:
             values = []
             for col in row:

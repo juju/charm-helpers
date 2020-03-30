@@ -48,12 +48,11 @@ Status: standby
 class TestOVSDB(utils.BaseTestCase):
 
     def test__run(self):
-        self.patch_object(ovn.subprocess, 'run')
-        self.run.return_value = 'aReturn'
+        self.patch_object(ovn.subprocess, 'check_output')
+        self.check_output.return_value = 'aReturn'
         self.assertEquals(ovn._run('aArg'), 'aReturn')
-        self.run.assert_called_once_with(
-            ('aArg',), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            check=True, universal_newlines=True)
+        self.check_output.assert_called_once_with(
+            ('aArg',), stderr=subprocess.STDOUT, universal_newlines=True)
 
     def test_ovn_rundir(self):
         self.patch_object(ovn.os.path, 'exists')
@@ -168,37 +167,46 @@ class TestOVSDB(utils.BaseTestCase):
             },
         }
         ovn.add_port('br-x', 'enp3s0f0', ifdata=ifdata)
-        self._run.assert_called_once_with(
-            'ovs-vsctl', '--may-exist', 'add-port', 'br-x', 'enp3s0f0',
-            '--',
-            'set', 'Interface', 'enp3s0f0', 'type=internal',
-            '--',
-            'set', 'Interface', 'enp3s0f0', 'external-ids:iface-id=fakeifid',
-            '--',
-            'set', 'Interface', 'enp3s0f0', 'external-ids:iface-status=active',
-            '--',
-            'set', 'Interface', 'enp3s0f0',
-            'external-ids:attached-mac=fakeaddr')
+        if sys.version_info > (3, 5):
+            # Skip test on PY34 and PY35 due to Dict ordering issue
+            self._run.assert_called_once_with(
+                'ovs-vsctl', '--may-exist', 'add-port', 'br-x', 'enp3s0f0',
+                '--',
+                'set', 'Interface', 'enp3s0f0', 'type=internal',
+                '--',
+                'set', 'Interface', 'enp3s0f0',
+                'external-ids:iface-id=fakeifid',
+                '--',
+                'set', 'Interface', 'enp3s0f0',
+                'external-ids:iface-status=active',
+                '--',
+                'set', 'Interface', 'enp3s0f0',
+                'external-ids:attached-mac=fakeaddr')
         self._run.reset_mock()
         ovn.add_port('br-x', 'enp3s0f0', exclusive=True)
         self._run.assert_called_once_with(
             'ovs-vsctl', 'add-port', 'br-x', 'enp3s0f0')
         self._run.reset_mock()
         ovn.add_port('br-x', 'enp3s0f0', ifdata=ifdata)
-        self._run.assert_called_once_with(
-            'ovs-vsctl', '--may-exist', 'add-port', 'br-x', 'enp3s0f0',
-            '--',
-            'set', 'Interface', 'enp3s0f0', 'type=internal',
-            '--',
-            'set', 'Interface', 'enp3s0f0', 'external-ids:iface-id=fakeifid',
-            '--',
-            'set', 'Interface', 'enp3s0f0', 'external-ids:iface-status=active',
-            '--',
-            'set', 'Interface', 'enp3s0f0',
-            'external-ids:attached-mac=fakeaddr')
+        if sys.version_info > (3, 5):
+            # Skip test on PY34 and PY35 due to Dict ordering issue
+            self._run.assert_called_once_with(
+                'ovs-vsctl', '--may-exist', 'add-port', 'br-x', 'enp3s0f0',
+                '--',
+                'set', 'Interface', 'enp3s0f0', 'type=internal',
+                '--',
+                'set', 'Interface', 'enp3s0f0',
+                'external-ids:iface-id=fakeifid',
+                '--',
+                'set', 'Interface', 'enp3s0f0',
+                'external-ids:iface-status=active',
+                '--',
+                'set', 'Interface', 'enp3s0f0',
+                'external-ids:attached-mac=fakeaddr')
 
     def test_list_ports(self):
         self.patch_object(ovn, '_run')
+        self._run.return_value = ''
         ovn.list_ports('someBridge')
         self._run.assert_called_once_with('ovs-vsctl', 'list-ports',
                                           'someBridge')
@@ -217,9 +225,7 @@ class TestSimpleOVSDB(utils.BaseTestCase):
     def test__find_tbl(self):
         self.target = ovn.SimpleOVSDB('atool', 'atable')
         self.patch_object(ovn, '_run')
-        cp = mock.MagicMock()
-        cp.stdout = mock.PropertyMock().return_value = VSCTL_BRIDGE_TBL
-        self._run.return_value = cp
+        self._run.return_value = VSCTL_BRIDGE_TBL
         self.maxDiff = None
         expect = {
             '_uuid': uuid.UUID('1e21ba48-61ff-4b32-b35e-cb80411da351'),
