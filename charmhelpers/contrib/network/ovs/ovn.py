@@ -13,6 +13,7 @@
 # limitations under the License.
 import os
 import subprocess
+import uuid
 
 from . import utils
 
@@ -45,6 +46,83 @@ def ovs_appctl(target, args, rundir=None):
     return utils._run('ovs-appctl', '-t', target, *args)
 
 
+class OVNClusterStatus(object):
+
+    def __init__(self, name, cluster_id, server_id, address, status, role,
+                 term, leader, vote, election_timer, log,
+                 entries_not_yet_committed, entries_not_yet_applied,
+                 connections, servers):
+        """Initialize and populate OVNClusterStatus object.
+
+        Use class initializer so we can define types in a compatible manner.
+
+        :param name: Name of schema used for database
+        :type name: str
+        :param cluster_id: UUID of cluster
+        :type cluster_id: uuid.UUID
+        :param server_id: UUID of server
+        :type server_id: uuid.UUID
+        :param address: OVSDB connection method
+        :type address: str
+        :param status: Status text
+        :type status: str
+        :param role: Role of server
+        :type role: str
+        :param term: Election term
+        :type term: int
+        :param leader: Short form UUID of leader
+        :type leader: str
+        :param vote: Vote
+        :type vote: str
+        :param election_timer: Current value of election timer
+        :type election_timer: int
+        :param log: Log
+        :type log: str
+        :param entries_not_yet_committed: Entries not yet committed
+        :type entries_not_yet_committed: int
+        :param entries_not_yet_applied: Entries not yet applied
+        :type entries_not_yet_applied: int
+        :param connections: Connections
+        :type connections: str
+        :param servers: Servers in the cluster
+            [('0ea6', 'ssl:192.0.2.42:6643')]
+        :type servers: List[Tuple[str,str]]
+        """
+        self.name = name
+        self.cluster_id = cluster_id
+        self.server_id = server_id
+        self.address = address
+        self.status = status
+        self.role = role
+        self.term = term
+        self.leader = leader
+        self.vote = vote
+        self.election_timer = election_timer
+        self.log = log
+        self.entries_not_yet_committed = entries_not_yet_committed
+        self.entries_not_yet_applied = entries_not_yet_applied
+        self.connections = connections
+        self.servers = servers
+
+    def __eq__(self, other):
+        return (
+            self.name == other.name and
+            self.cluster_id == other.cluster_id and
+            self.server_id == other.server_id and
+            self.address == other.address and
+            self.status == other.status and
+            self.role == other.role and
+            self.term == other.term and
+            self.leader == other.leader and
+            self.vote == other.vote and
+            self.election_timer == other.election_timer and
+            self.log == other.log and
+            self.entries_not_yet_committed == other.entries_not_yet_committed and
+            self.entries_not_yet_applied == other.entries_not_yet_applied and
+            self.connections == other.connections and
+            self.servers == other.servers)
+
+
 def cluster_status(target, schema=None):
     """Retrieve status information from clustered OVSDB.
 
@@ -53,25 +131,30 @@ def cluster_status(target, schema=None):
     :type target: str
     :param schema: Database schema name, deduced from target if not provided
     :type schema: Optional[str]
-    :returns: Structured cluster status data
-    :rtype: Dict[str, Union[str, List[str], Tuple[str, str]]]
-    :raises: subprocess.CalledProcessError
+    :returns: cluster status data object
+    :rtype: OVNClusterStatus
+    :raises: subprocess.CalledProcessError, KeyError, RuntimeError
     """
     schema_map = {
         'ovnnb_db': 'OVN_Northbound',
         'ovnsb_db': 'OVN_Southbound',
     }
+    if schema and schema not in schema_map.keys():
+        raise RuntimeError('Unknown schema provided: "{}"'.format(schema))
+
     status = {}
     k = ''
-    for line in ovs_appctl(
-            target,
-            'cluster/status',
-            schema or schema_map.get(target)).splitlines():
+    for line in ovs_appctl(target, 'cluster/status',
+                           schema or schema_map[target]).splitlines():
         if k and line.startswith(' '):
             # there is no key which means this is a instance of a multi-line/
             # multi-value item, populate the List which is already stored under
             # the key.
-            status[k].append(line.lstrip())
+            if k == 'servers':
+                status[k].append(
+                    tuple(line.replace(')', '').lstrip().split()[0:4:3]))
+            else:
+                status[k].append(line.lstrip())
         elif ':' in line:
             # this is a line with a key
             k, v = line.split(':', 1)
@@ -90,7 +173,22 @@ def cluster_status(target, schema=None):
                 # multi-value item.  Store key as List which will be
                 # populated on subsequent iterations.
                 status[k] = []
-    return status
+    return OVNClusterStatus(
+        status['name'],
+        uuid.UUID(status['cluster_id'][1]),
+        uuid.UUID(status['server_id'][1]),
+        status['address'],
+        status['status'],
+        status['role'],
+        int(status['term']),
+        status['leader'],
+        status['vote'],
+        int(status['election_timer']),
+        status['log'],
+        int(status['entries_not_yet_committed']),
+        int(status['entries_not_yet_applied']),
+        status['connections'],
+        status['servers'])
 
 
 def is_cluster_leader(target, schema=None):

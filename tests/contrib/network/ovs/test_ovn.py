@@ -1,4 +1,5 @@
 import textwrap
+import uuid
 
 import charmhelpers.contrib.network.ovs.ovn as ovn
 
@@ -59,28 +60,27 @@ class TestOVSDB(test_utils.BaseTestCase):
     def test_cluster_status(self):
         self.patch_object(ovn, 'ovs_appctl')
         self.ovs_appctl.return_value = CLUSTER_STATUS
-        expect = {
-            'name': 'OVN_Northbound',
-            'cluster_id': ('f6a3', 'f6a36e77-97bf-4740-b46a-705cbe4fef45'),
-            'server_id': ('0ea6', '0ea6e785-c2bb-4640-b7a2-85104c11a2c1'),
-            'address': 'ssl:10.219.3.174:6643',
-            'status': 'cluster member',
-            'role': 'follower',
-            'term': '3',
-            'leader': '22dd',
-            'vote': 'unknown',
-            'election_timer': '1000',
-            'log': '[2, 10]',
-            'entries_not_yet_committed': '0',
-            'entries_not_yet_applied': '0',
-            'connections': '->f6cf ->22dd <-22dd <-f6cf',
-            'servers': [
-                '0ea6 (0ea6 at ssl:10.219.3.174:6643) (self)',
-                'f6cf (f6cf at ssl:10.219.3.64:6643)',
-                '22dd (22dd at ssl:10.219.3.137:6643)',
-            ],
-        }
-        self.assertDictEqual(ovn.cluster_status('ovnnb_db'), expect)
+        expect = ovn.OVNClusterStatus(
+            'OVN_Northbound',
+            uuid.UUID('f6a36e77-97bf-4740-b46a-705cbe4fef45'),
+            uuid.UUID('0ea6e785-c2bb-4640-b7a2-85104c11a2c1'),
+            'ssl:10.219.3.174:6643',
+            'cluster member',
+            'follower',
+            3,
+            '22dd',
+            'unknown',
+            1000,
+            '[2, 10]',
+            0,
+            0,
+            '->f6cf ->22dd <-22dd <-f6cf',
+            [
+                ('0ea6', 'ssl:10.219.3.174:6643'),
+                ('f6cf', 'ssl:10.219.3.64:6643'),
+                ('22dd', 'ssl:10.219.3.137:6643'),
+            ])
+        self.assertEquals(ovn.cluster_status('ovnnb_db'), expect)
         self.ovs_appctl.assert_called_once_with('ovnnb_db', 'cluster/status',
                                                 'OVN_Northbound')
 
