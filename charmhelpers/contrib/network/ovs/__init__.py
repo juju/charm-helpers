@@ -312,7 +312,7 @@ def _dict_to_vsctl(data, table, entity):
     """
     :param data: Additional data to attach to interface
         The keys in the data dictionary map directly to column names in the
-        OpenvSwitch specified table as defined in DB-SCHEMA [0] referenced in
+        OpenvSwitch table specified as defined in DB-SCHEMA [0] referenced in
         RFC 7047 [1]
 
         There are some established conventions for keys in the external-ids
@@ -336,7 +336,7 @@ def _dict_to_vsctl(data, table, entity):
     :param entity: Name of entity to operate on
     :type entity: str
     :returns: '--' separated ``ovs-vsctl set`` commands
-    :rtype: Iterator[str]
+    :rtype: Iterator[Tuple[str, str, str, str, str]]
     """
     for (k, v) in data.items():
         if isinstance(v, dict):
@@ -353,9 +353,9 @@ def add_br(bridge, brdata=None, exclusive=False):
 
     :param bridge: Name of bridge to create
     :type bridge: str
-    :param brdata: Additional data to attach to interface
-        The keys in the ifdata dictionary map directly to column names in the
-        OpenvSwitch Interface table as defined in DB-SCHEMA [0] referenced in
+    :param brdata: Additional data to attach to bridge
+        The keys in the brdata dictionary map directly to column names in the
+        OpenvSwitch bridge table as defined in DB-SCHEMA [0] referenced in
         RFC 7047 [1]
 
         There are some established conventions for keys in the external-ids
@@ -374,7 +374,7 @@ def add_br(bridge, brdata=None, exclusive=False):
                20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
                    lib/db-ctl-base.c#L189-L215
     :type brdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
-    :param exclusive: If True, raise exception if port exists
+    :param exclusive: If True, raise exception if bridge exists
     :type exclusive: bool
     :raises: subprocess.CalledProcessError
     """

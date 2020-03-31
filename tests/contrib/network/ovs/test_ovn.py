@@ -6,71 +6,52 @@ import tests.utils as test_utils
 
 
 CLUSTER_STATUS = textwrap.dedent("""
-0ea6
-Name: OVN_Northbound
-Cluster ID: f6a3 (f6a36e77-97bf-4740-b46a-705cbe4fef45)
-Server ID: 0ea6 (0ea6e785-c2bb-4640-b7a2-85104c11a2c1)
-Address: ssl:10.219.3.174:6643
-Status: cluster member
-Role: follower
-Term: 3
-Leader: 22dd
-Vote: unknown
+    0ea6
+    Name: OVN_Northbound
+    Cluster ID: f6a3 (f6a36e77-97bf-4740-b46a-705cbe4fef45)
+    Server ID: 0ea6 (0ea6e785-c2bb-4640-b7a2-85104c11a2c1)
+    Address: ssl:10.219.3.174:6643
+    Status: cluster member
+    Role: follower
+    Term: 3
+    Leader: 22dd
+    Vote: unknown
 
-Election timer: 1000
-Log: [2, 10]
-Entries not yet committed: 0
-Entries not yet applied: 0
-Connections: ->f6cf ->22dd <-22dd <-f6cf
-Servers:
-    0ea6 (0ea6 at ssl:10.219.3.174:6643) (self)
-    f6cf (f6cf at ssl:10.219.3.64:6643)
-    22dd (22dd at ssl:10.219.3.137:6643)
-""")
+    Election timer: 1000
+    Log: [2, 10]
+    Entries not yet committed: 0
+    Entries not yet applied: 0
+    Connections: ->f6cf ->22dd <-22dd <-f6cf
+    Servers:
+        0ea6 (0ea6 at ssl:10.219.3.174:6643) (self)
+        f6cf (f6cf at ssl:10.219.3.64:6643)
+        22dd (22dd at ssl:10.219.3.137:6643)
+    """)
 
 NORTHD_STATUS_ACTIVE = textwrap.dedent("""
-Status: active
-""")
+    Status: active
+    """)
 
 NORTHD_STATUS_STANDBY = textwrap.dedent("""
-Status: standby
-""")
+    Status: standby
+    """)
 
 
 class TestOVSDB(test_utils.BaseTestCase):
 
-    def test_ovn_rundir(self):
-        self.patch_object(ovn.os.path, 'exists')
-        self.exists.side_effect = [False, False]
-        self.assertEquals(ovn.ovn_rundir(), '/var/run/ovn')
-        self.exists.side_effect = [False, True]
-        self.assertEquals(ovn.ovn_rundir(), '/var/run/openvswitch')
-        self.exists.side_effect = [True]
-        self.assertEquals(ovn.ovn_rundir(), '/var/run/ovn')
-
-    def test_ovn_sysconfdir(self):
-        self.patch_object(ovn.os.path, 'exists')
-        self.exists.side_effect = [False, False]
-        self.assertEquals(ovn.ovn_sysconfdir(), '/etc/ovn')
-        self.exists.side_effect = [False, True]
-        self.assertEquals(ovn.ovn_sysconfdir(), '/etc/openvswitch')
-        self.exists.side_effect = [True]
-        self.assertEquals(ovn.ovn_sysconfdir(), '/etc/ovn')
-
     def test_ovs_appctl(self):
         self.patch_object(ovn.utils, '_run')
-        self.patch_object(ovn, 'ovn_rundir')
-        self.ovn_rundir.return_value = '/var/run/openvswitch'
-        ovn.ovs_appctl('ovn-northd', 'is-paused')
+        ovn.ovs_appctl('ovn-northd', ('is-paused',))
         self._run.assert_called_once_with('ovs-appctl', '-t', 'ovn-northd',
                                           'is-paused')
         self._run.reset_mock()
-        ovn.ovs_appctl('ovnnb_db', 'cluster/status')
+        ovn.ovs_appctl('ovnnb_db', ('cluster/status',))
         self._run.assert_called_once_with('ovs-appctl', '-t',
-                                          '/var/run/openvswitch/ovnnb_db.ctl',
+                                          '/var/run/ovn/ovnnb_db.ctl',
                                           'cluster/status')
         self._run.reset_mock()
-        ovn.ovs_appctl('ovnsb_db', 'cluster/status')
+        ovn.ovs_appctl('ovnsb_db', ('cluster/status',),
+                       rundir='/var/run/openvswitch')
         self._run.assert_called_once_with('ovs-appctl', '-t',
                                           '/var/run/openvswitch/ovnsb_db.ctl',
                                           'cluster/status')

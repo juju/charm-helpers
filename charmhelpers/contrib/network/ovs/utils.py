@@ -15,7 +15,7 @@ import subprocess
 
 
 def _run(*args):
-    """Run a process, check result, capture decoded output from STDERR/STDOUT.
+    """Run a process, check result, capture decoded output from STDOUT.
 
     :param args: Command and arguments to run
     :type args: Tuple[str, ...]
@@ -23,5 +23,4 @@ def _run(*args):
     :rtype: str
     :raises subprocess.CalledProcessError
     """
-    return subprocess.check_output(args, stderr=subprocess.STDOUT,
-                                   universal_newlines=True)
+    return subprocess.check_output(args, universal_newlines=True)

@@ -47,6 +47,9 @@ class SimpleOVSDB(object):
         :param table: Which table to operate on
         :type table: str
         """
+        if tool not in ('ovs-vsctl', 'ovn-nbctl', 'ovn-sbctl'):
+            raise RuntimeError(
+                "tool must be one of 'ovs-vsctl', 'ovn-nbctl', 'ovn-sbctl'")
         self.tool = tool
         self.tbl = table
 
@@ -56,7 +59,7 @@ class SimpleOVSDB(object):
         :param condition: An optional RFC 7047 5.1 match condition
         :type condition: Optional[str]
         :returns: Dictionary with data
-        :rtype: Dict[str, any]
+        :rtype: Iterator[Dict[str, ANY]]
         """
         # When using json formatted output to OVS commands Internal OVSDB
         # notation may occur that require further deserializing.
