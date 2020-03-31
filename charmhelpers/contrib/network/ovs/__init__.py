@@ -166,6 +166,8 @@ def add_bridge(name, datapath_type=None, brdata=None, exclusive=False):
         for setcmd in _dict_to_vsctl_set(brdata, 'bridge', name):
             cmd.extend(setcmd)
     if datapath_type is not None:
+        log('DEPRECATION WARNING: add_bridge called with datapath_type, '
+            'please use the brdata keyword argument instead.')
         cmd += ['--', 'set', 'bridge', name,
                 'datapath_type={}'.format(datapath_type)]
     subprocess.check_call(cmd)

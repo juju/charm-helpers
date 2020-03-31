@@ -44,7 +44,7 @@ class TestOVS(test_utils.BaseTestCase):
             "add-br", 'test', "--", "set",
             "bridge", "test", "datapath_type=netdev",
         ])
-        self.assertTrue(self.log.call_count == 1)
+        self.assertTrue(self.log.call_count == 2)
 
         self.check_call.reset_mock()
         ovs.add_bridge('test', exclusive=True)
