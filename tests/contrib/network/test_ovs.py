@@ -157,47 +157,10 @@ class OVSHelpersTest(unittest.TestCase):
         })
 
     @patch('subprocess.check_call')
-    def test_add_bridge(self, check_call):
-        ovs.add_bridge('test')
-        check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
-                                       "add-br", 'test'])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_add_bridge_datapath_type(self, check_call):
-        ovs.add_bridge('test', datapath_type='netdev')
-        check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
-                                       "add-br", 'test', "--", "set",
-                                       "bridge", "test", "datapath_type=netdev"])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
     def test_del_bridge(self, check_call):
         ovs.del_bridge('test')
         check_call.assert_called_with(["ovs-vsctl", "--", "--if-exists",
                                        "del-br", 'test'])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_add_bridge_port(self, check_call):
-        ovs.add_bridge_port('test', 'eth1')
-        check_call.assert_has_calls([
-            call(["ovs-vsctl", "--", "--may-exist", "add-port",
-                  'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'up']),
-            call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
-        ])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_add_bridge_port_promisc(self, check_call):
-        ovs.add_bridge_port('test', 'eth1', promisc=True)
-        check_call.assert_has_calls([
-            call(["ovs-vsctl", "--", "--may-exist", "add-port",
-                  'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'up']),
-            call(['ip', 'link', 'set', 'eth1', 'promisc', 'on'])
-        ])
         self.assertTrue(self.log.call_count == 1)
 
     @patch('subprocess.check_call')
