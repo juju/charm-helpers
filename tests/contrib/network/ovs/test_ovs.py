@@ -103,3 +103,10 @@ class TestOVS(test_utils.BaseTestCase):
             mock.call(['ip', 'link', 'set', 'eth1', 'up']),
             mock.call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
         ])
+
+    def test_ovs_appctl(self):
+        self.patch_object(ovs.subprocess, 'check_output')
+        ovs.ovs_appctl('ovs-vswitchd', ('ofproto/list',))
+        self.check_output.assert_called_once_with(
+            ['ovs-appctl', '-t', 'ovs-vswitchd', 'ofproto/list'],
+            universal_newlines=True)

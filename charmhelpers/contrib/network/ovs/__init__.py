@@ -441,3 +441,21 @@ def port_to_br(port):
         ).decode('UTF-8').strip()
     except subprocess.CalledProcessError:
         return None
+
+
+def ovs_appctl(target, args):
+    """Run `ovs-appctl` for target with args and return output.
+
+    :param target: Name of daemon to contact.  Unless target begins with '/',
+                   `ovs-appctl` looks for a pidfile and will build the path to
+                   a /var/run/openvswitch/target.pid.ctl for you.
+    :type target: str
+    :param args: Command and arguments to pass to `ovs-appctl`
+    :type args: Tuple[str, ...]
+    :returns: Output from command
+    :rtype: str
+    :raises: subprocess.CalledProcessError
+    """
+    cmd = ['ovs-appctl', '-t', target]
+    cmd.extend(args)
+    return subprocess.check_output(cmd, universal_newlines=True)

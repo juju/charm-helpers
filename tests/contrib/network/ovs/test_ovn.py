@@ -38,28 +38,33 @@ NORTHD_STATUS_STANDBY = textwrap.dedent("""
     """)
 
 
-class TestOVSDB(test_utils.BaseTestCase):
+class TestOVN(test_utils.BaseTestCase):
 
-    def test_ovs_appctl(self):
+    def test_ovn_appctl(self):
         self.patch_object(ovn.utils, '_run')
-        ovn.ovs_appctl('ovn-northd', ('is-paused',))
-        self._run.assert_called_once_with('ovs-appctl', '-t', 'ovn-northd',
+        ovn.ovn_appctl('ovn-northd', ('is-paused',))
+        self._run.assert_called_once_with('ovn-appctl', '-t', 'ovn-northd',
                                           'is-paused')
         self._run.reset_mock()
-        ovn.ovs_appctl('ovnnb_db', ('cluster/status',))
+        ovn.ovn_appctl('ovnnb_db', ('cluster/status',))
+        self._run.assert_called_once_with('ovn-appctl', '-t',
+                                          '/var/run/ovn/ovnnb_db.ctl',
+                                          'cluster/status')
+        self._run.reset_mock()
+        ovn.ovn_appctl('ovnnb_db', ('cluster/status',), use_ovs_appctl=True)
         self._run.assert_called_once_with('ovs-appctl', '-t',
                                           '/var/run/ovn/ovnnb_db.ctl',
                                           'cluster/status')
         self._run.reset_mock()
-        ovn.ovs_appctl('ovnsb_db', ('cluster/status',),
+        ovn.ovn_appctl('ovnsb_db', ('cluster/status',),
                        rundir='/var/run/openvswitch')
-        self._run.assert_called_once_with('ovs-appctl', '-t',
+        self._run.assert_called_once_with('ovn-appctl', '-t',
                                           '/var/run/openvswitch/ovnsb_db.ctl',
                                           'cluster/status')
 
     def test_cluster_status(self):
-        self.patch_object(ovn, 'ovs_appctl')
-        self.ovs_appctl.return_value = CLUSTER_STATUS
+        self.patch_object(ovn, 'ovn_appctl')
+        self.ovn_appctl.return_value = CLUSTER_STATUS
         expect = ovn.OVNClusterStatus(
             'OVN_Northbound',
             uuid.UUID('f6a36e77-97bf-4740-b46a-705cbe4fef45'),
@@ -81,8 +86,9 @@ class TestOVSDB(test_utils.BaseTestCase):
                 ('22dd', 'ssl:10.219.3.137:6643'),
             ])
         self.assertEquals(ovn.cluster_status('ovnnb_db'), expect)
-        self.ovs_appctl.assert_called_once_with('ovnnb_db', 'cluster/status',
-                                                'OVN_Northbound')
+        self.ovn_appctl.assert_called_once_with('ovnnb_db', 'cluster/status',
+                                                'OVN_Northbound',
+                                                use_ovs_appctl=False)
         self.assertFalse(expect.is_cluster_leader)
         expect = ovn.OVNClusterStatus(
             'OVN_Northbound',
@@ -107,9 +113,9 @@ class TestOVSDB(test_utils.BaseTestCase):
         self.assertTrue(expect.is_cluster_leader)
 
     def test_is_northd_active(self):
-        self.patch_object(ovn, 'ovs_appctl')
-        self.ovs_appctl.return_value = NORTHD_STATUS_ACTIVE
+        self.patch_object(ovn, 'ovn_appctl')
+        self.ovn_appctl.return_value = NORTHD_STATUS_ACTIVE
         self.assertTrue(ovn.is_northd_active())
-        self.ovs_appctl.assert_called_once_with('ovn-northd', 'status')
-        self.ovs_appctl.return_value = NORTHD_STATUS_STANDBY
+        self.ovn_appctl.assert_called_once_with('ovn-northd', 'status')
+        self.ovn_appctl.return_value = NORTHD_STATUS_STANDBY
         self.assertFalse(ovn.is_northd_active())

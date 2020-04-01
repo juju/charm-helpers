@@ -22,18 +22,20 @@ OVN_RUNDIR = '/var/run/ovn'
 OVN_SYSCONFDIR = '/etc/ovn'
 
 
-# TODO: Make use of the new `ovn-appctl` if/when that makes sense
-def ovs_appctl(target, args, rundir=None):
-    """Run `ovs-appctl` for target with args and return output.
+def ovn_appctl(target, args, rundir=None, use_ovs_appctl=False):
+    """Run ovn/ovs-appctl for target with args and return output.
 
     :param target: Name of daemon to contact.  Unless target begins with '/',
-                   `ovs-appctl` looks for a pidfile and will build the path to
-                   a /var/run/openvswitch/target.pid.ctl for you.
+                   `ovn-appctl` looks for a pidfile and will build the path to
+                   a /var/run/ovn/target.pid.ctl for you.
     :type target: str
-    :param args: Command and arguments to pass to `ovs-appctl`
+    :param args: Command and arguments to pass to `ovn-appctl`
     :type args: Tuple[str, ...]
     :param rundir: Override path to sockets
     :type rundir: Optional[str]
+    :param use_ovs_appctl: The ``ovn-appctl`` command appeared in OVN 20.03,
+                           set this to True to use ``ovs-appctl`` instead.
+    :type use_ovs_appctl: bool
     :returns: Output from command
     :rtype: str
     :raises: subprocess.CalledProcessError
@@ -43,7 +45,13 @@ def ovs_appctl(target, args, rundir=None):
     # to pass the full path to the socket.
     if target in ('ovnnb_db', 'ovnsb_db',):
         target = os.path.join(rundir or OVN_RUNDIR, target + '.ctl')
-    return utils._run('ovs-appctl', '-t', target, *args)
+
+    if use_ovs_appctl:
+        tool = 'ovs-appctl'
+    else:
+        tool = 'ovn-appctl'
+
+    return utils._run(tool, '-t', target, *args)
 
 
 class OVNClusterStatus(object):
@@ -132,7 +140,7 @@ class OVNClusterStatus(object):
         return self.leader == 'self'
 
 
-def cluster_status(target, schema=None):
+def cluster_status(target, schema=None, use_ovs_appctl=False):
     """Retrieve status information from clustered OVSDB.
 
     :param target: Usually one of 'ovsdb-server', 'ovnnb_db', 'ovnsb_db', can
@@ -140,6 +148,9 @@ def cluster_status(target, schema=None):
     :type target: str
     :param schema: Database schema name, deduced from target if not provided
     :type schema: Optional[str]
+    :param use_ovs_appctl: The ``ovn-appctl`` command appeared in OVN 20.03,
+                           set this to True to use ``ovs-appctl`` instead.
+    :type use_ovs_appctl: bool
     :returns: cluster status data object
     :rtype: OVNClusterStatus
     :raises: subprocess.CalledProcessError, KeyError, RuntimeError
@@ -153,8 +164,9 @@ def cluster_status(target, schema=None):
 
     status = {}
     k = ''
-    for line in ovs_appctl(target, 'cluster/status',
-                           schema or schema_map[target]).splitlines():
+    for line in ovn_appctl(target, 'cluster/status',
+                           schema or schema_map[target],
+                           use_ovs_appctl=use_ovs_appctl).splitlines():
         if k and line.startswith(' '):
             # there is no key which means this is a instance of a multi-line/
             # multi-value item, populate the List which is already stored under
@@ -203,11 +215,14 @@ def cluster_status(target, schema=None):
 def is_northd_active():
     """Query `ovn-northd` for active status.
 
+    Note that the active status information for ovn-northd is available for
+    OVN 20.03 and onward.
+
     :returns: True if local `ovn-northd` instance is active, False otherwise
     :rtype: bool
     """
     try:
-        for line in ovs_appctl('ovn-northd', 'status').splitlines():
+        for line in ovn_appctl('ovn-northd', 'status').splitlines():
             if line.startswith('Status:') and 'active' in line:
                 return True
     except subprocess.CalledProcessError:
