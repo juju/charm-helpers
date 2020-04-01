@@ -83,13 +83,28 @@ class TestOVSDB(test_utils.BaseTestCase):
         self.assertEquals(ovn.cluster_status('ovnnb_db'), expect)
         self.ovs_appctl.assert_called_once_with('ovnnb_db', 'cluster/status',
                                                 'OVN_Northbound')
-
-    def test_is_cluster_leader(self):
-        self.patch_object(ovn, 'cluster_status')
-        self.cluster_status.return_value = {'leader': 'abcd'}
-        self.assertFalse(ovn.is_cluster_leader('ovnnb_db'))
-        self.cluster_status.return_value = {'leader': 'self'}
-        self.assertTrue(ovn.is_cluster_leader('ovnnb_db'))
+        self.assertFalse(expect.is_cluster_leader)
+        expect = ovn.OVNClusterStatus(
+            'OVN_Northbound',
+            uuid.UUID('f6a36e77-97bf-4740-b46a-705cbe4fef45'),
+            uuid.UUID('0ea6e785-c2bb-4640-b7a2-85104c11a2c1'),
+            'ssl:10.219.3.174:6643',
+            'cluster member',
+            'leader',
+            3,
+            'self',
+            'unknown',
+            1000,
+            '[2, 10]',
+            0,
+            0,
+            '->f6cf ->22dd <-22dd <-f6cf',
+            [
+                ('0ea6', 'ssl:10.219.3.174:6643'),
+                ('f6cf', 'ssl:10.219.3.64:6643'),
+                ('22dd', 'ssl:10.219.3.137:6643'),
+            ])
+        self.assertTrue(expect.is_cluster_leader)
 
     def test_is_northd_active(self):
         self.patch_object(ovn, 'ovs_appctl')

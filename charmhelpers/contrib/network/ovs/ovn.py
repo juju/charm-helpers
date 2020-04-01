@@ -122,6 +122,15 @@ class OVNClusterStatus(object):
             self.connections == other.connections and
             self.servers == other.servers)
 
+    @property
+    def is_cluster_leader(self):
+        """Retrieve status information from clustered OVSDB.
+
+        :returns: Whether target is cluster leader
+        :rtype: bool
+        """
+        return self.leader == 'self'
+
 
 def cluster_status(target, schema=None):
     """Retrieve status information from clustered OVSDB.
@@ -189,23 +198,6 @@ def cluster_status(target, schema=None):
         int(status['entries_not_yet_applied']),
         status['connections'],
         status['servers'])
-
-
-def is_cluster_leader(target, schema=None):
-    """Retrieve status information from clustered OVSDB.
-
-    :param target: Usually one of 'ovsdb-server', 'ovnnb_db', 'ovnsb_db', can
-                   also be full path to control socket.
-    :type target: str
-    :param schema: Database schema name, deduced from target if not provided
-    :type schema: Optional[str]
-    :returns: Whether target is cluster leader
-    :rtype: bool
-    """
-    try:
-        return cluster_status(target, schema=schema).get('leader') == 'self'
-    except subprocess.CalledProcessError:
-        return False
 
 
 def is_northd_active():
