@@ -258,12 +258,37 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
-def add_ovsbridge_linuxbridge(name, bridge):
-    ''' Add linux bridge to the named openvswitch bridge
+def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
+    """Add linux bridge to the named openvswitch bridge
+
     :param name: Name of ovs bridge to be added to Linux bridge
+    :type name: str
     :param bridge: Name of Linux bridge to be added to ovs bridge
+    :type name: str
+    :param ifdata: Additional data to attach to interface
+        The keys in the ifdata dictionary map directly to column names in the
+        OpenvSwitch Interface table as defined in DB-SCHEMA [0] referenced in
+        RFC 7047 [1]
+
+        There are some established conventions for keys in the external-ids
+        column of various tables, consult the OVS Integration Guide [2] for
+        more details.
+
+        NOTE(fnordahl): Technically the ``external-ids`` column is called
+        ``external_ids`` (with an underscore) and we rely on ``ovs-vsctl``'s
+        behaviour of transforming dashes to underscores for us [3] so we can
+        have a more pleasant data structure.
+
+        0: http://www.openvswitch.org/ovs-vswitchd.conf.db.5.pdf
+        1: https://tools.ietf.org/html/rfc7047
+        2: http://docs.openvswitch.org/en/latest/topics/integration/
+        3: https://github.com/openvswitch/ovs/blob/
+               20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
+                   lib/db-ctl-base.c#L189-L215
+    :type ifdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
     :returns: True if veth is added between ovs bridge and linux bridge,
-    False otherwise'''
+        False otherwise
+    """
     try:
         import netifaces
     except ImportError:
@@ -315,7 +340,7 @@ def add_ovsbridge_linuxbridge(name, bridge):
                                             bridge=bridge))
 
     subprocess.check_call(["ifup", linuxbridge_port])
-    add_bridge_port(name, linuxbridge_port)
+    add_bridge_port(name, linuxbridge_port, ifdata=ifdata)
 
 
 def is_linuxbridge_interface(port):
