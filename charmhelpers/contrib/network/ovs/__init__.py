@@ -258,6 +258,59 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
+def add_bridge_bond(bridge, port, interfaces, portdata=None, ifdatamap=None,
+                    exclusive=False):
+    """Add bonded port in bridge from interfaces.
+
+    :param bridge: Name of bridge to add bonded port to
+    :type bridge: str
+    :param port: Name of created port
+    :type port: str
+    :param interfaces: Underlying interfaces that make up the bonded port
+    :type interfaces: Iterator[str]
+    :param portdata: Additional data to attach to the created bond port
+        See _dict_to_vsctl_set() for detailed description.
+        Example:
+        {
+            'bond-mode': 'balance-tcp',
+            'lacp': 'active',
+            'other-config': {
+                'lacp-time': 'fast',
+            },
+        }
+    :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+    :param ifdatamap: Map of data to attach to created bond interfaces
+        See _dict_to_vsctl_set() for detailed description.
+        Example:
+        {
+            'eth0': {
+                'type': 'dpdk',
+                'mtu-request': '9000',
+                'options': {
+                    'dpdk-devargs': '0000:01:00.0',
+                },
+            },
+        }
+    :type ifdatamap: Optional[Dict[str,Dict[str,Union[str,Dict[str,str]]]]]
+    :param exclusive: If True, raise exception if port exists
+    :type exclusive: bool
+    :raises: subprocess.CalledProcessError
+    """
+    cmd = ['ovs-vsctl', '--']
+    if not exclusive:
+        cmd.append('--may-exist')
+    cmd.extend(('add-bond', bridge, port))
+    cmd.extend(interfaces)
+    if portdata:
+        for setcmd in _dict_to_vsctl_set(portdata, 'port', port):
+            cmd.extend(setcmd)
+    if ifdatamap:
+        for ifname, ifdata in ifdatamap.items():
+            for setcmd in _dict_to_vsctl_set(ifdata, 'Interface', ifname):
+                cmd.extend(setcmd)
+    subprocess.check_call(cmd)
+
+
 def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
     """Add linux bridge to the named openvswitch bridge
 
