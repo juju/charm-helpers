@@ -182,12 +182,15 @@ class OVSHelpersTest(unittest.TestCase):
                                        port_to_br):
         port_to_br.return_value = None
         with patch_open() as (mock_open, mock_file):
-            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1', ifdata={
+                'external-ids': {'mycharm': 'br-ex'}
+            })
 
         check_call.assert_called_with(['ifup', 'veth-br-eno1'])
         add_bridge_port.assert_called_with(
-            'br-ex',
-            'veth-br-eno1'
+            'br-ex', 'veth-br-eno1', ifdata={
+                'external-ids': {'mycharm': 'br-ex'}
+            }
         )
 
     @patch.object(ovs, 'port_to_br')
@@ -217,8 +220,7 @@ class OVSHelpersTest(unittest.TestCase):
 
         check_call.assert_called_with(['ifup', 'cvb12345678-10'])
         add_bridge_port.assert_called_with(
-            'br-ex',
-            'cvb12345678-10'
+            'br-ex', 'cvb12345678-10', ifdata=None
         )
 
     @patch('os.path.exists')
