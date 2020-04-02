@@ -286,8 +286,6 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
                20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
                    lib/db-ctl-base.c#L189-L215
     :type ifdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
-    :returns: True if veth is added between ovs bridge and linux bridge,
-        False otherwise
     """
     try:
         import netifaces
