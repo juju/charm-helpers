@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import collections
+import copy
+import enum
 import glob
 import json
 import math
@@ -20,6 +22,7 @@ import os
 import re
 import socket
 import time
+
 from base64 import b64decode
 from subprocess import check_call, CalledProcessError
 
@@ -109,6 +112,13 @@ from charmhelpers.contrib.openstack.utils import (
     os_release,
 )
 from charmhelpers.core.unitdata import kv
+
+try:
+    from sriov_netplan_shim import pci
+except ImportError:
+    # The use of the function and contexts that require the pci module is
+    # optional.
+    pass
 
 try:
     import psutil
@@ -2396,3 +2406,368 @@ class DHCPAgentContext(OSContextGenerator):
             return False
         else:
             return _config
+
+
+def resolve_pci_from_mapping_config(config_key):
+    """Resolve local PCI devices from MAC addresses in mapping config.
+
+    Note that this function keeps record of mac->PCI address lookups
+    in the local unit db as the devices will disappaear from the system
+    once bound.
+
+    :param config_key: Configuration option key to parse data from
+    :type config_key: str
+    :returns: PCI device address to enttiy map
+    :rtype: collections.OrderedDict[str,str]
+    """
+    devices = pci.PCINetDevices()
+    resolved_devices = collections.OrderedDict()
+    db = kv()
+    # Note that ``parse_data_port_mappings`` returns Dict regardless of input
+    for mac, entity in parse_data_port_mappings(config(config_key)).items():
+        pcidev = devices.get_device_from_mac(mac)
+        if pcidev:
+            # NOTE: store mac->pci allocation as post binding
+            #       it disappears from PCIDevices.
+            db.set(mac, pcidev.pci_address)
+            db.flush()
+
+        pci_address = db.get(mac)
+        if pci_address:
+            resolved_devices[pci_address] = entity
+
+    return resolved_devices
+
+
+class DPDKDeviceContext(OSContextGenerator):
+
+    def __init__(self, driver_key=None, bridges_key=None, bonds_key=None):
+        """Initialize DPDKDeviceContext.
+
+        :param driver_key: Key to use when retrieving driver config.
+        :type driver_key: str
+        :param bridges_key: Key to use when retrieving bridge config.
+        :type bridges_key: str
+        :param bonds_key: Key to use when retrieving bonds config.
+        :type bonds_key: str
+        """
+        self.driver_key = driver_key or 'dpdk-driver'
+        self.bridges_key = bridges_key or 'data-port'
+        self.bonds_key = bonds_key or 'dpdk-bond-mappings'
+
+    def __call__(self):
+        """Populate context.
+
+        :returns: context
+        :rtype: Dict[str,Union[str,collections.OrderedDict[str,str]]]
+        """
+        driver = config(self.driver_key)
+        if driver is None:
+            return {}
+        # Resolve PCI devices for both directly used devices (_bridges)
+        # and devices for use in dpdk bonds (_bonds)
+        pci_devices = resolve_pci_from_mapping_config(self.bridges_key)
+        pci_devices.update(resolve_pci_from_mapping_config(self.bonds_key))
+        return {'devices': pci_devices,
+                'driver': driver}
+
+
+class OVSDPDKDeviceContext(OSContextGenerator):
+
+    def __init__(self, bridges_key=None, bonds_key=None):
+        """Initialize OVSDPDKDeviceContext.
+
+        :param bridges_key: Key to use when retrieving bridge config.
+        :type bridges_key: str
+        :param bonds_key: Key to use when retrieving bonds config.
+        :type bonds_key: str
+        """
+        self.bridges_key = bridges_key or 'data-port'
+        self.bonds_key = bonds_key or 'dpdk-bond-mappings'
+
+    @staticmethod
+    def _parse_cpu_list(cpulist):
+        """Parses a linux cpulist for a numa node
+
+        :returns: list of cores
+        :rtype: List[int]
+        """
+        cores = []
+        ranges = cpulist.split(',')
+        for cpu_range in ranges:
+            if "-" in cpu_range:
+                cpu_min_max = cpu_range.split('-')
+                cores += range(int(cpu_min_max[0]),
+                               int(cpu_min_max[1]) + 1)
+            else:
+                cores.append(int(cpu_range))
+        return cores
+
+    def _numa_node_cores(self):
+        """Get map of numa node -> cpu core
+
+        :returns: map of numa node -> cpu core
+        :rtype: Dict[str,List[int]]
+        """
+        nodes = {}
+        node_regex = '/sys/devices/system/node/node*'
+        for node in glob.glob(node_regex):
+            index = node.lstrip('/sys/devices/system/node/node')
+            with open(os.path.join(node, 'cpulist')) as cpulist:
+                nodes[index] = self._parse_cpu_list(cpulist.read().strip())
+        return nodes
+
+    def cpu_mask(self):
+        """Get hex formatted CPU mask
+
+        The mask is based on using the first config:dpdk-socket-cores
+        cores of each NUMA node in the unit.
+        :returns: hex formatted CPU mask
+        :rtype: str
+        """
+        num_cores = config('dpdk-socket-cores')
+        mask = 0
+        for cores in self._numa_node_cores().values():
+            for core in cores[:num_cores]:
+                mask = mask | 1 << core
+        return format(mask, '#04x')
+
+    def socket_memory(self):
+        """Formatted list of socket memory configuration per NUMA node
+
+        :returns: socket memory configuration per NUMA node
+        :rtype: str
+        """
+        sm_size = config('dpdk-socket-memory')
+        node_regex = '/sys/devices/system/node/node*'
+        mem_list = [str(sm_size) for _ in glob.glob(node_regex)]
+        if mem_list:
+            return ','.join(mem_list)
+        else:
+            return str(sm_size)
+
+    def devices(self):
+        """List of PCI devices for use by DPDK
+
+        :returns: List of PCI devices for use by DPDK
+        :rtype: collections.OrderedDict[str,str]
+        """
+        pci_devices = resolve_pci_from_mapping_config(self.bridges_key)
+        pci_devices.update(resolve_pci_from_mapping_config(self.bonds_key))
+        return pci_devices
+
+    def _formatted_whitelist(self, flag):
+        """Flag formatted list of devices to whitelist
+
+        :param flag: flag format to use
+        :type flag: str
+        :rtype: str
+        """
+        whitelist = []
+        for device in self.devices():
+            whitelist.append(flag.format(device=device))
+        return ' '.join(whitelist)
+
+    def device_whitelist(self):
+        """Formatted list of devices to whitelist for dpdk
+
+        using the old style '-w' flag
+
+        :returns: devices to whitelist prefixed by '-w '
+        :rtype: str
+        """
+        return self._formatted_whitelist('-w {device}')
+
+    def pci_whitelist(self):
+        """Formatted list of devices to whitelist for dpdk
+
+        using the new style '--pci-whitelist' flag
+
+        :returns: devices to whitelist prefixed by '--pci-whitelist '
+        :rtype: str
+        """
+        return self._formatted_whitelist('--pci-whitelist {device}')
+
+    def __call__(self):
+        """Populate context.
+
+        :returns: context
+        :rtype: Dict[str,Union[bool,str]]
+        """
+        ctxt = {}
+        whitelist = self.device_whitelist()
+        if whitelist:
+            ctxt['dpdk_enabled'] = config('enable-dpdk')
+            ctxt['device_whitelist'] = self.device_whitelist()
+            ctxt['socket_memory'] = self.socket_memory()
+            ctxt['cpu_mask'] = self.cpu_mask()
+        return ctxt
+
+
+class BridgeBondMap(object):
+    """Container and helpers for a bridge bond interface map.
+
+    Note that in Open vSwith a bond will be represented by a port on a bridge
+    where the port is comprised of a set of interfaces.
+    """
+    class interface_type(enum.Enum):
+        """Supported interface types.
+
+        Supported interface types can be found in the ``iface_types`` column
+        in the ``Open_vSwitch`` table on a running system.
+        """
+        dpdk = 'dpdk'
+        internal = 'internal'
+        system = 'system'
+
+        def __str__(self):
+            """Return string representation of value.
+
+            :returns: string representation of value.
+            :rtype: str
+            """
+            return self.value
+
+    def __init__(self):
+        """Initialize empty map."""
+        self.map = collections.defaultdict(
+            lambda: collections.defaultdict(dict))
+
+    def add_interface(self, bridge, port, ifname, iftype,
+                      pci_address, mtu_request):
+        """Add an interface to the map.
+
+        :param bridge: Name of bridge on which the bond will be added
+        :type bridge: str
+        :param port: Name of port which will represent the bond on bridge
+        :type port: str
+        :param ifname: Name of interface that will make up the bonded port
+        :type ifname: str
+        :param iftype: Type of interface
+        :type iftype: BridgeBondMap.interface_type
+        :param pci_address: PCI address of interface
+        :type pci_address: str
+        :param mtu_request: MTU to request for interface
+        :type mtu_request: int
+        """
+        self.map[bridge][port][ifname] = {
+            'type': str(iftype),
+            'pci-address': pci_address,
+            'mtu-request': str(mtu_request),
+        }
+
+    def items(self):
+        return self.map.items()
+
+    def get_ifdatamap(self, bridge, port):
+        """Get structure suitable for charmhelpers.contrib.network.ovs helpers.
+
+        :param bridge: Name of bridge on which the bond will be added
+        :type bridge: str
+        :param port: Name of port which will represent the bond on bridge
+        :type port: str
+        :param mtu_request: Request specifc MTU for interface.
+        :type mtu_request: str
+        """
+        for br, bonds in self.items():
+            for bond, port_map in bonds.items():
+                if br == bridge and bond == port:
+                    return {
+                        name: {
+                            'type': data['type'],
+                            'mtu_request': data['mtu-request'],
+                            'options': {
+                                'dpdk-devargs': data['pci-address'],
+                            },
+                        }
+                        for name, data in port_map.items()
+                    }
+
+
+class BondConfig(object):
+    """Container and helpers for bond configuration options.
+
+    Data is put into a dictionary and a convenient config get interface is
+    provided.
+    """
+
+    DEFAULT_LACP_CONFIG = {
+        'mode': 'balance-tcp',
+        'lacp': 'active',
+        'lacp-time': 'fast'
+    }
+    ALL_BONDS = 'ALL_BONDS'
+
+    BOND_MODES = ['active-backup', 'balance-slb', 'balance-tcp']
+    BOND_LACP = ['active', 'passive', 'off']
+    BOND_LACP_TIME = ['fast', 'slow']
+
+    def __init__(self, config_key=None):
+        """Parse specified configuration option.
+
+        :param config_key: Configuration key to retrieve data from
+                           (default: ``dpdk-bond-config``)
+        :type config_key: Optional[str]
+        """
+        self.config_key = config_key or 'dpdk-bond-config'
+
+        self.lacp_config = {
+            self.ALL_BONDS: copy.deepcopy(self.DEFAULT_LACP_CONFIG)
+        }
+
+        lacp_config = config(self.config_key)
+        if lacp_config:
+            lacp_config_map = lacp_config.split()
+            for entry in lacp_config_map:
+                bond, entry = entry.partition(':')[0:3:2]
+                if not bond:
+                    bond = self.ALL_BONDS
+
+                mode, entry = entry.partition(':')[0:3:2]
+                if not mode:
+                    mode = self.DEFAULT_LACP_CONFIG['mode']
+                assert mode in self.BOND_MODES, \
+                    "Bond mode {} is invalid".format(mode)
+
+                lacp, entry = entry.partition(':')[0:3:2]
+                if not lacp:
+                    lacp = self.DEFAULT_LACP_CONFIG['lacp']
+                assert lacp in self.BOND_LACP, \
+                    "Bond lacp {} is invalid".format(lacp)
+
+                lacp_time, entry = entry.partition(':')[0:3:2]
+                if not lacp_time:
+                    lacp_time = self.DEFAULT_LACP_CONFIG['lacp-time']
+                assert lacp_time in self.BOND_LACP_TIME, \
+                    "Bond lacp-time {} is invalid".format(lacp_time)
+
+                self.lacp_config[bond] = {
+                    'mode': mode,
+                    'lacp': lacp,
+                    'lacp-time': lacp_time
+                }
+
+    def get_bond_config(self, bond):
+        """Get the LACP configuration for a bond
+
+        :param bond: the bond name
+        :return: a dictionary with the configuration of the bond
+        :rtype: Dict[str,Dict[str,str]]
+        """
+        return self.lacp_config.get(bond, self.lacp_config[self.ALL_BONDS])
+
+    def get_ovs_portdata(self, bond):
+        """Get structure suitable for charmhelpers.contrib.network.ovs helpers.
+
+        :param bond: the bond name
+        :return: a dictionary with the configuration of the bond
+        :rtype: Dict[str,Union[str,Dict[str,str]]]
+        """
+        bond_config = self.get_bond_config(bond)
+        return {
+            'bond_mode': bond_config['mode'],
+            'lacp': bond_config['lacp'],
+            'other_config': {
+                'lacp-time': bond_config['lacp-time'],
+            },
+        }
