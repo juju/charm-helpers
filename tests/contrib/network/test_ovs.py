@@ -176,10 +176,12 @@ class OVSHelpersTest(unittest.TestCase):
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
+    @patch('os.path.exists')
     @patch('subprocess.check_call')
-    def test_add_ovsbridge_linuxbridge(self, check_call,
+    def test_add_ovsbridge_linuxbridge(self, check_call, exists,
                                        add_bridge_port,
                                        port_to_br):
+        exists.return_value = True
         port_to_br.return_value = None
         if_and_port_data = {
             'external-ids': {'mycharm': 'br-ex'}
@@ -196,11 +198,13 @@ class OVSHelpersTest(unittest.TestCase):
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
+    @patch('os.path.exists')
     @patch('subprocess.check_call')
     def test_add_ovsbridge_linuxbridge_already_direct_wired(self,
-                                                            check_call,
+                                                            check_call, exists,
                                                             add_bridge_port,
                                                             port_to_br):
+        exists.return_value = True
         port_to_br.return_value = 'br-ex'
         ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
         check_call.assert_not_called()
@@ -208,10 +212,12 @@ class OVSHelpersTest(unittest.TestCase):
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
+    @patch('os.path.exists')
     @patch('subprocess.check_call')
-    def test_add_ovsbridge_linuxbridge_longname(self, check_call,
+    def test_add_ovsbridge_linuxbridge_longname(self, check_call, exists,
                                                 add_bridge_port,
                                                 port_to_br):
+        exists.return_value = True
         port_to_br.return_value = None
         mock_hasher = MagicMock()
         mock_hasher.hexdigest.return_value = '12345678901234578910'

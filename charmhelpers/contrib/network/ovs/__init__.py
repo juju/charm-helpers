@@ -325,24 +325,38 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
         ovsbridge_port = "cvo{}".format(base)
         linuxbridge_port = "cvb{}".format(base)
 
+    network_interface_already_exists = False
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         if interface == ovsbridge_port or interface == linuxbridge_port:
             log('Interface {} already exists'.format(interface), level=INFO)
-            return
+            network_interface_already_exists = True
+            break
 
     log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name),
         level=INFO)
 
-    check_for_eni_source()
+    if not network_interface_already_exists:
+        setup_eni()
 
-    with open('/etc/network/interfaces.d/{}.cfg'.format(
-            linuxbridge_port), 'w') as config:
-        config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port,
-                                            ovsbridge_port=ovsbridge_port,
-                                            bridge=bridge))
+        with open('/etc/network/interfaces.d/{}.cfg'.format(
+                linuxbridge_port), 'w') as config:
+            config.write(BRIDGE_TEMPLATE.format(
+                linuxbridge_port=linuxbridge_port,
+                ovsbridge_port=ovsbridge_port, bridge=bridge))
 
-    subprocess.check_call(["ifup", linuxbridge_port])
+        # NOTE(lourot): 'ifup <name>' can't be replaced by
+        # 'ip link set <name> up' as the latter won't parse
+        # /etc/network/interfaces*
+        ifup_cmd = ['ifup', linuxbridge_port]
+        try:
+            subprocess.check_call(ifup_cmd)
+        except FileNotFoundError:
+            # NOTE(lourot): on bionic and newer, 'ifup' isn't installed by
+            # default
+            apt_install('ifupdown', fatal=True)
+            subprocess.check_call(ifup_cmd)
+
     add_bridge_port(name, linuxbridge_port, ifdata=ifdata, exclusive=False,
                     portdata=portdata)
 
@@ -404,16 +418,26 @@ def get_certificate():
         return None
 
 
-def check_for_eni_source():
-    ''' Juju removes the source line when setting up interfaces,
-    replace if missing '''
+def setup_eni():
+    """Makes sure /etc/network/interfaces.d/ exists and will be parsed.
 
+    Indeed when setting up interfaces, Juju removes from
+    /etc/network/interfaces the line sourcing interfaces.d/
+    """
+    if not os.path.exists('/etc/network/interfaces.d'):
+        os.makedirs('/etc/network/interfaces.d', mode=0o755)
     with open('/etc/network/interfaces', 'r') as eni:
         for line in eni:
             if line == 'source /etc/network/interfaces.d/*':
                 return
     with open('/etc/network/interfaces', 'a') as eni:
         eni.write('\nsource /etc/network/interfaces.d/*')
+
+
+def check_for_eni_source():
+    """DEPRECATED: call setup_eni() instead."""
+    log('DEPRECATION WARNING: call setup_eni() instead.')
+    setup_eni()
 
 
 def full_restart():
