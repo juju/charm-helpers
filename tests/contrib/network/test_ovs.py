@@ -181,17 +181,18 @@ class OVSHelpersTest(unittest.TestCase):
                                        add_bridge_port,
                                        port_to_br):
         port_to_br.return_value = None
+        if_and_port_data = {
+            'external-ids': {'mycharm': 'br-ex'}
+        }
         with patch_open() as (mock_open, mock_file):
-            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1', ifdata={
-                'external-ids': {'mycharm': 'br-ex'}
-            })
+            ovs.add_ovsbridge_linuxbridge(
+                'br-ex', 'br-eno1', ifdata=if_and_port_data,
+                portdata=if_and_port_data)
 
         check_call.assert_called_with(['ifup', 'veth-br-eno1'])
         add_bridge_port.assert_called_with(
-            'br-ex', 'veth-br-eno1', ifdata={
-                'external-ids': {'mycharm': 'br-ex'}
-            }
-        )
+            'br-ex', 'veth-br-eno1', ifdata=if_and_port_data, exclusive=False,
+            portdata=if_and_port_data)
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
@@ -220,8 +221,8 @@ class OVSHelpersTest(unittest.TestCase):
 
         check_call.assert_called_with(['ifup', 'cvb12345678-10'])
         add_bridge_port.assert_called_with(
-            'br-ex', 'cvb12345678-10', ifdata=None
-        )
+            'br-ex', 'cvb12345678-10', ifdata=None, exclusive=False,
+            portdata=None)
 
     @patch('os.path.exists')
     def test_is_linuxbridge_interface_false(self, exists):

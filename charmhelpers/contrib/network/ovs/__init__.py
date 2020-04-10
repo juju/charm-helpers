@@ -185,7 +185,7 @@ def del_bridge(name):
 
 
 def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
-                    linkup=True):
+                    linkup=True, portdata=None):
     """Add port to bridge and optionally set/update interface data for it
 
     :param name: Name of bridge to attach port to
@@ -219,15 +219,18 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
     :type exclusive: bool
     :param linkup: Bring link up
     :type linkup: bool
+    :param portdata: Additional data to attach to port. Similar to ifdata.
+    :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
     :raises: subprocess.CalledProcessError
     """
     cmd = ['ovs-vsctl', '--']
     if not exclusive:
         cmd.append('--may-exist')
     cmd.extend(('add-port', name, port))
-    if ifdata:
-        for setcmd in _dict_to_vsctl_set(ifdata, 'Interface', port):
-            cmd.extend(setcmd)
+    for ovs_table, data in (('Interface', ifdata), ('Port', portdata)):
+        if data:
+            for setcmd in _dict_to_vsctl_set(data, ovs_table, port):
+                cmd.extend(setcmd)
 
     log('Adding port {} to bridge {}'.format(port, name))
     subprocess.check_call(cmd)
@@ -258,7 +261,7 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
-def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
+def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
     """Add linux bridge to the named openvswitch bridge
 
     :param name: Name of ovs bridge to be added to Linux bridge
@@ -286,6 +289,8 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
                20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
                    lib/db-ctl-base.c#L189-L215
     :type ifdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+    :param portdata: Additional data to attach to port. Similar to ifdata.
+    :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
     """
     try:
         import netifaces
@@ -338,7 +343,8 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
                                             bridge=bridge))
 
     subprocess.check_call(["ifup", linuxbridge_port])
-    add_bridge_port(name, linuxbridge_port, ifdata=ifdata)
+    add_bridge_port(name, linuxbridge_port, ifdata=ifdata, exclusive=False,
+                    portdata=portdata)
 
 
 def is_linuxbridge_interface(port):
