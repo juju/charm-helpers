@@ -131,18 +131,14 @@ class SimpleOVSDB(object):
         if tool not in self._tool_table_map:
             raise RuntimeError(
                 'tool must be one of "{}"'.format(self._tool_table_map.keys()))
-        self.tool = tool
         self._tool = tool
-        self._tableobject = {}
 
     def __getattr__(self, table):
         if table not in self._tool_table_map[self._tool]:
             raise AttributeError(
                 'table "{}" not known for use with "{}"'
                 .format(table, self._tool))
-        if table not in self._tableobject:
-            self._tableobject[table] = self.Table(self._tool, table)
-        return self._tableobject[table]
+        return self.Table(self._tool, table)
 
     class Table(object):
         """Methods to interact with contents of OVSDB tables.
