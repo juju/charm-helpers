@@ -71,11 +71,9 @@ class FakeRelation(object):
         self.relation_get.side_affect = relation.get
         passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
 
-    set_relation_context can be used to simulate being in a relation hook
-    context. This allows omitting a relation id or unit when calling relation
-    helpers as the related unit is present.
-
-    To set the context:
+    set_relation_context can be used to simulate being in relation hook
+    context, eg omitting a relation id or unit implies the query is against
+    the relation id and unit in the current hook context. To set the context:
 
         relation = FakeRelation(rel)
         relation.set_relation_context('mysql-svc2/0', 'shared-db:12')
