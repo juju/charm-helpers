@@ -2183,3 +2183,133 @@ def is_expected_scale(peer_relation_name='cluster'):
         return True
     juju_log('All checks have passed, unit is at expected scale', 'DEBUG')
     return True
+
+
+def get_peer_key(unit_name):
+    """Get the peer key for this unit.
+
+    The peer key is the key a unit uses to publish its status down the peer
+    relation
+
+    :param unit_name: Name of unit
+    :type unit_name: string
+    :returns: Peer key for given unit
+    :rtype: string
+    """
+    return 'unit-state-{}'.format(unit_name.replace('/', '-'))
+
+
+def inform_peers_unit_state(state, relation_name='cluster'):
+    """Inform peers of the state of this unit.
+
+    :param state: State of unit to publish
+    :type state: string
+    :param relation_name: Name of relation to publish state on
+    :type relation_name: string
+    """
+    for r_id in relation_ids(relation_name):
+        relation_set(relation_id=r_id,
+                     relation_settings={
+                         get_peer_key(local_unit()): state})
+
+
+UNIT_READY = 'READY'
+UNIT_NOTREADY = 'NOTREADY'
+UNIT_UNKNOWN = 'UNKNOWN'
+UNIT_STATES = [UNIT_READY, UNIT_NOTREADY, UNIT_UNKNOWN]
+
+
+def get_peers_unit_state(relation_name='cluster'):
+    """Get peers the state of all peers.
+
+    :param relation_name: Name of relation to check peers on.
+    :type relation_name: string
+    :returns: Unit states keyed on unit name.
+    :rtype: dict
+    :raises: ValueError
+    """
+    r_ids = relation_ids(relation_name)
+    rids_units = [(r, u) for r in r_ids for u in related_units(r)]
+    unit_states = {}
+    for r_id, unit in rids_units:
+        settings = relation_get(unit=unit, rid=r_id)
+        unit_states[unit] = settings.get(get_peer_key(unit), UNIT_UNKNOWN)
+        if unit_states[unit] not in UNIT_STATES:
+            raise ValueError(
+                "Unit in unknown state {}".format(unit_states[unit]))
+    return unit_states
+
+
+def is_peers_ready(relation_name='cluster'):
+    """Check if all peers are ready.
+
+    :param relation_name: Name of relation to check peers on.
+    :type relation_name: string
+    :returns: Whether all units are ready.
+    :rtype: bool
+    """
+    unit_states = get_peers_unit_state(relation_name)
+    return all(v == UNIT_READY for v in unit_states.values())
+
+
+def inform_peers_if_ready(check_unit_ready_func, relation_name='cluster'):
+    """If this unit is ready inform peers.
+
+    The check function should return a tuple (state, message). A state
+    of 'READY' indicates the unit is READY.
+
+    :param check_unit_ready_func: Function to run to check readiness
+    :type check_unit_ready_func: function
+    :param relation_name: Name of relation to check peers on.
+    :type relation_name: string
+    """
+    unit_ready, msg = check_unit_ready_func()
+    if unit_ready:
+        state = UNIT_READY
+    else:
+        state = UNIT_NOTREADY
+    juju_log('Telling peers this unit is: {}'.format(msg), 'DEBUG')
+    inform_peers_unit_state(state, relation_name)
+
+
+def check_api_unit_ready(check_db_ready=True):
+    """Check if this unit is ready.
+
+    :param check_db_ready: Include checks of database readiness.
+    :type check_db_ready: bool
+    :returns: Whether unit state is ready and status message
+    :rtype: (bool, str)
+    """
+    unit_ready = True
+    msg = ''
+    if is_db_maintenance_mode():
+        msg = 'Database in maintenance mode.'
+    elif is_unit_paused_set():
+        msg = 'Unit paused.'
+    elif check_db_ready and not is_db_ready():
+        msg = 'Allowed_units list provided but this unit not present'
+    elif not is_db_initialised():
+        msg = 'Database not initialised'
+    elif not is_expected_scale():
+        msg = 'Charm and its dependencies not yet at expected scale'
+    if msg:
+        unit_ready = False
+    else:
+        msg = 'Unit has passed checks and is ready'
+    juju_log(msg, 'DEBUG')
+    return unit_ready, msg
+
+
+def check_api_application_ready():
+    """Check if this application is ready.
+
+    :returns: Whether unit state is ready and status message
+    :rtype: (bool, str)
+    """
+    unit_ready, msg = check_api_unit_ready(check_db_ready=True)
+    if not unit_ready:
+        return unit_ready, msg
+    if is_peers_ready():
+        return True, 'All units have passed checks and are ready'
+    else:
+        return False, 'This unit is ready but peers are not'
