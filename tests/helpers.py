@@ -70,12 +70,43 @@ class FakeRelation(object):
         relation = FakeRelation(rel)
         self.relation_get.side_affect = relation.get
         passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
+
+    set_relation_context can be used to simulate being in a relation hook
+    context. This allows omitting a relation id or unit when calling relation
+    helpers as the related unit is present.
+
+    To set the context:
+
+        relation = FakeRelation(rel)
+        relation.set_relation_context('mysql-svc2/0', 'shared-db:12')
+
+    To clear it:
+
+        relation.clear_relation_context()
     '''
     def __init__(self, relation_data):
         self.relation_data = relation_data
+        self.remote_unit = None
+        self.current_relation_id = None
+
+    def set_relation_context(self, remote_unit, relation_id):
+        self.remote_unit = remote_unit
+        self.current_relation_id = relation_id
+
+    def clear_relation_context(self):
+        self.remote_unit = None
+        self.current_relation_id = None
 
     def get(self, attribute=None, unit=None, rid=None):
         if not rid or rid == 'foo:0':
+            if self.current_relation_id:
+                if not unit:
+                    unit = self.remote_unit
+                udata = self.relation_data[self.current_relation_id][unit]
+                if attribute:
+                    return udata[attribute]
+                else:
+                    return udata[unit]
             if attribute is None:
                 return self.relation_data
             elif attribute in self.relation_data:
@@ -92,8 +123,14 @@ class FakeRelation(object):
                 return relation[attribute]
             return relation
 
-    def relation_ids(self, relation=None):
-        return self.relation_data.keys()
+    def relation_id(self):
+        return self.current_relation_id
+
+    def relation_ids(self, reltype=None):
+        rids = self.relation_data.keys()
+        if reltype:
+            return [r for r in rids if r.split(':')[0] == reltype]
+        return rids
 
     def related_units(self, relid=None):
         try:
