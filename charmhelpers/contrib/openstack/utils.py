@@ -2220,7 +2220,7 @@ UNIT_STATES = [UNIT_READY, UNIT_NOTREADY, UNIT_UNKNOWN]
 
 
 def get_peers_unit_state(relation_name='cluster'):
-    """Get peers the state of all peers.
+    """Get the state of all peers.
 
     :param relation_name: Name of relation to check peers on.
     :type relation_name: string
