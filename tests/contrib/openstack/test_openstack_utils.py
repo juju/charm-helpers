@@ -3,7 +3,8 @@ import os
 import contextlib
 import unittest
 from copy import copy
-from tests.helpers import patch_open
+from tests.helpers import patch_open, FakeRelation
+
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
@@ -1992,6 +1993,185 @@ class OpenStackHelpersTestCase(TestCase):
             call('neutron-identity-service_3-keystone_1', '2aa6'),
             call('placement-identity-service_3-keystone_0', 'd5c3')]
         kv.set.assert_has_calls(kv_set_calls, any_order=True)
+
+
+class OpenStackUtilsAdditionalTests(TestCase):
+    SHARED_DB_RELATIONS = {
+        'shared-db:8': {
+            'mysql-svc1/0': {
+                'allowed_units': 'client/0',
+            },
+            'mysql-svc1/1': {},
+            'mysql-svc1/2': {
+                'allowed_units': 'client/0 client/1',
+            },
+        },
+        'shared-db:12': {
+            'mysql-svc2/0': {
+                'allowed_units': 'client/1',
+            },
+            'mysql-svc2/1': {
+                'allowed_units': 'client/3',
+            },
+            'mysql-svc2/2': {
+                'allowed_units': {},
+            },
+        }
+    }
+    SCALE_RELATIONS = {
+        'cluster:2': {
+            'keystone/1': {},
+            'keystone/2': {}},
+        'shared-db:12': {
+            'mysql-svc2/0': {
+                'allowed_units': 'client/1',
+            },
+            'mysql-svc2/1': {
+                'allowed_units': 'client/3',
+            },
+            'mysql-svc2/2': {
+                'allowed_units': {},
+            }},
+    }
+    SCALE_RELATIONS_HA = {
+        'cluster:2': {
+            'keystone/1': {},
+            'keystone/2': {}},
+        'shared-db:12': {
+            'mysql-svc2/0': {
+                'allowed_units': 'client/1',
+            },
+            'mysql-svc2/1': {
+                'allowed_units': 'client/3',
+            },
+            'mysql-svc2/2': {
+                'allowed_units': {},
+            }},
+        'ha:32': {
+            'hacluster-keystone/1': {}}
+    }
+
+    def setUp(self):
+        super(OpenStackUtilsAdditionalTests, self).setUp()
+        [self._patch(m) for m in [
+            'expect_ha',
+            'expected_peer_units',
+            'expected_related_units',
+            'juju_log',
+            'metadata',
+            'related_units',
+            'relation_get',
+            'relation_id',
+            'relation_ids',
+            'relation_set',
+            'local_unit',
+        ]]
+
+    def _patch(self, method):
+        _m = patch.object(openstack, method)
+        mock = _m.start()
+        self.addCleanup(_m.stop)
+        setattr(self, method, mock)
+
+    def setup_relation(self, relation_map):
+        relation = FakeRelation(relation_map)
+        self.relation_id.side_effect = relation.relation_id
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.related_units
+        return relation
+
+    def test_is_db_ready(self):
+        relation = self.setup_relation(self.SHARED_DB_RELATIONS)
+
+        # Check unit allowed in 1st relation
+        self.local_unit.return_value = 'client/0'
+        self.assertTrue(openstack.is_db_ready())
+
+        # Check unit allowed in 2nd relation
+        self.local_unit.return_value = 'client/3'
+        self.assertTrue(openstack.is_db_ready())
+
+        # Check unit not allowed in any list
+        self.local_unit.return_value = 'client/5'
+        self.assertFalse(openstack.is_db_ready())
+
+        # Check call with an invalid relation
+        self.local_unit.return_value = 'client/3'
+        # None returned if not in a relation context (eg update-status)
+        relation.clear_relation_context()
+        self.assertRaises(
+            Exception,
+            openstack.is_db_ready,
+            use_current_context=True)
+
+        # Check unit allowed using current relation context
+        relation.set_relation_context('mysql-svc2/0', 'shared-db:12')
+        self.local_unit.return_value = 'client/1'
+        self.assertTrue(openstack.is_db_ready(use_current_context=True))
+
+        # Check unit not allowed using current relation context
+        relation.set_relation_context('mysql-svc2/0', 'shared-db:12')
+        self.local_unit.return_value = 'client/0'
+        self.assertFalse(openstack.is_db_ready(use_current_context=True))
+
+    @patch.object(openstack, 'container_scoped_relations')
+    def test_is_expected_scale_noha(self, container_scoped_relations):
+        self.setup_relation(self.SCALE_RELATIONS)
+        self.expect_ha.return_value = False
+        eru = {
+            'shared-db': ['mysql/0', 'mysql/1', 'mysql/2']}
+
+        def _expected_related_units(reltype):
+            return eru[reltype]
+        self.expected_related_units.side_effect = _expected_related_units
+        container_scoped_relations.return_value = ['ha', 'domain-backend']
+
+        # All peer and db units are present
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertTrue(openstack.is_expected_scale())
+
+        # db units are present but a peer is missing
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2', 'keystone/3']
+        self.assertFalse(openstack.is_expected_scale())
+
+        # peer units are present but a db unit is missing
+        eru['shared-db'].append('mysql/3')
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertFalse(openstack.is_expected_scale())
+        eru['shared-db'].remove('mysql/3')
+
+        # Expect ha but ha unit is missing
+        self.expect_ha.return_value = True
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertFalse(openstack.is_expected_scale())
+
+    @patch.object(openstack, 'container_scoped_relations')
+    def test_is_expected_scale_ha(self, container_scoped_relations):
+        self.setup_relation(self.SCALE_RELATIONS_HA)
+        eru = {
+            'shared-db': ['mysql/0', 'mysql/1', 'mysql/2']}
+
+        def _expected_related_units(reltype):
+            return eru[reltype]
+        self.expected_related_units.side_effect = _expected_related_units
+        container_scoped_relations.return_value = ['ha', 'domain-backend']
+        self.expect_ha.return_value = True
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertTrue(openstack.is_expected_scale())
+
+    def test_container_scoped_relations(self):
+        _metadata = {
+            'provides': {
+                'amqp': {'interface': 'rabbitmq'},
+                'identity-service': {'interface': 'keystone'},
+                'ha': {
+                    'interface': 'hacluster',
+                    'scope': 'container'}},
+            'peers': {
+                'cluster': {'interface': 'openstack-ha'}}}
+        self.metadata.return_value = _metadata
+        self.assertEqual(openstack.container_scoped_relations(), ['ha'])
 
 
 if __name__ == '__main__':
