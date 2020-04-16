@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Common python helper functions used for OpenStack charms.
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from functools import wraps
 
 import subprocess
@@ -39,12 +39,16 @@ from charmhelpers.core.hookenv import (
     action_fail,
     action_set,
     config,
+    expected_peer_units,
+    expected_related_units,
     log as juju_log,
     charm_dir,
     INFO,
     ERROR,
+    metadata,
     related_units,
     relation_get,
+    relation_id,
     relation_ids,
     relation_set,
     status_set,
@@ -53,6 +57,7 @@ from charmhelpers.core.hookenv import (
     cached,
     leader_set,
     leader_get,
+    local_unit,
 )
 
 from charmhelpers.core.strutils import (
@@ -106,6 +111,10 @@ from charmhelpers.contrib.openstack.exceptions import OSContextError
 from charmhelpers.contrib.openstack.policyd import (
     policyd_status_message_prefix,
     POLICYD_CONFIG_NAME,
+)
+
+from charmhelpers.contrib.openstack.ha.utils import (
+    expect_ha,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
@@ -2046,3 +2055,131 @@ def is_db_maintenance_mode(relid=None):
                         'WARN')
                     pass
     return True in notifications
+
+
+@cached
+def container_scoped_relations():
+    """Get all the container scoped relations
+
+    :returns: List of relation names
+    :rtype: List
+    """
+    md = metadata()
+    relations = []
+    for relation_type in ('provides', 'requires', 'peers'):
+        for relation in md.get(relation_type, []):
+            if md[relation_type][relation].get('scope') == 'container':
+                relations.append(relation)
+    return relations
+
+
+def is_db_ready(use_current_context=False, rel_name=None):
+    """Check remote database is ready to be used.
+
+    Database relations are expected to provide a list of 'allowed' units to
+    confirm that the database is ready for use by those units.
+
+    If db relation has provided this information and local unit is a member,
+    returns True otherwise False.
+
+    :param use_current_context: Whether to limit checks to current hook
+                                context.
+    :type use_current_context: bool
+    :param rel_name: Name of relation to check
+    :type rel_name: string
+    :returns: Whether remote db is ready.
+    :rtype: bool
+    :raises: Exception
+    """
+    key = 'allowed_units'
+
+    rel_name = rel_name or 'shared-db'
+    this_unit = local_unit()
+
+    if use_current_context:
+        if relation_id() in relation_ids(rel_name):
+            rids_units = [(None, None)]
+        else:
+            raise Exception("use_current_context=True but not in {} "
+                            "rel hook contexts (currently in {})."
+                            .format(rel_name, relation_id()))
+    else:
+        rids_units = [(r_id, u)
+                      for r_id in relation_ids(rel_name)
+                      for u in related_units(r_id)]
+
+    for rid, unit in rids_units:
+        allowed_units = relation_get(rid=rid, unit=unit, attribute=key)
+        if allowed_units and this_unit in allowed_units.split():
+            juju_log("This unit ({}) is in allowed unit list from {}".format(
+                this_unit,
+                unit), 'DEBUG')
+            return True
+
+    juju_log("This unit was not found in any allowed unit list")
+    return False
+
+
+def is_expected_scale(peer_relation_name='cluster'):
+    """Query juju goal-state to determine whether our peer- and dependency-
+    relations are at the expected scale.
+
+    Useful for deferring per unit per relation housekeeping work until we are
+    ready to complete it successfully and without unnecessary repetiton.
+
+    Always returns True if version of juju used does not support goal-state.
+
+    :param peer_relation_name: Name of peer relation
+    :type rel_name: string
+    :returns: True or False
+    :rtype: bool
+    """
+    def _get_relation_id(rel_type):
+        return next((rid for rid in relation_ids(reltype=rel_type)), None)
+
+    Relation = namedtuple('Relation', 'rel_type rel_id')
+    peer_rid = _get_relation_id(peer_relation_name)
+    # Units with no peers should still have a peer relation.
+    if not peer_rid:
+        juju_log('Not at expected scale, no peer relation found', 'DEBUG')
+        return False
+    expected_relations = [
+        Relation(rel_type='shared-db', rel_id=_get_relation_id('shared-db'))]
+    if expect_ha():
+        expected_relations.append(
+            Relation(
+                rel_type='ha',
+                rel_id=_get_relation_id('ha')))
+    juju_log(
+        'Checking scale of {} relations'.format(
+            ','.join([r.rel_type for r in expected_relations])),
+        'DEBUG')
+    try:
+        if (len(related_units(relid=peer_rid)) <
+                len(list(expected_peer_units()))):
+            return False
+        for rel in expected_relations:
+            if not rel.rel_id:
+                juju_log(
+                    'Expected to find {} relation, but it is missing'.format(
+                        rel.rel_type),
+                    'DEBUG')
+                return False
+            # Goal state returns every unit even for container scoped
+            # relations but the charm only ever has a relation with
+            # the local unit.
+            if rel.rel_type in container_scoped_relations():
+                expected_count = 1
+            else:
+                expected_count = len(
+                    list(expected_related_units(reltype=rel.rel_type)))
+            if len(related_units(relid=rel.rel_id)) < expected_count:
+                juju_log(
+                    ('Not at expected scale, not enough units on {} '
+                     'relation'.format(rel.rel_type)),
+                    'DEBUG')
+                return False
+    except NotImplementedError:
+        return True
+    juju_log('All checks have passed, unit is at expected scale', 'DEBUG')
+    return True
