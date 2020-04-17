@@ -2199,6 +2199,12 @@ def get_peer_key(unit_name):
     return 'unit-state-{}'.format(unit_name.replace('/', '-'))
 
 
+UNIT_READY = 'READY'
+UNIT_NOTREADY = 'NOTREADY'
+UNIT_UNKNOWN = 'UNKNOWN'
+UNIT_STATES = [UNIT_READY, UNIT_NOTREADY, UNIT_UNKNOWN]
+
+
 def inform_peers_unit_state(state, relation_name='cluster'):
     """Inform peers of the state of this unit.
 
@@ -2207,16 +2213,13 @@ def inform_peers_unit_state(state, relation_name='cluster'):
     :param relation_name: Name of relation to publish state on
     :type relation_name: string
     """
+    if state not in UNIT_STATES:
+        raise ValueError(
+            "Setting invalid state {} for unit".format(state))
     for r_id in relation_ids(relation_name):
         relation_set(relation_id=r_id,
                      relation_settings={
                          get_peer_key(local_unit()): state})
-
-
-UNIT_READY = 'READY'
-UNIT_NOTREADY = 'NOTREADY'
-UNIT_UNKNOWN = 'UNKNOWN'
-UNIT_STATES = [UNIT_READY, UNIT_NOTREADY, UNIT_UNKNOWN]
 
 
 def get_peers_unit_state(relation_name='cluster'):
@@ -2240,7 +2243,7 @@ def get_peers_unit_state(relation_name='cluster'):
     return unit_states
 
 
-def is_peers_ready(relation_name='cluster'):
+def are_peers_ready(relation_name='cluster'):
     """Check if all peers are ready.
 
     :param relation_name: Name of relation to check peers on.
@@ -2253,7 +2256,7 @@ def is_peers_ready(relation_name='cluster'):
 
 
 def inform_peers_if_ready(check_unit_ready_func, relation_name='cluster'):
-    """If this unit is ready inform peers.
+    """Inform peers if this unit is ready.
 
     The check function should return a tuple (state, message). A state
     of 'READY' indicates the unit is READY.
@@ -2268,7 +2271,7 @@ def inform_peers_if_ready(check_unit_ready_func, relation_name='cluster'):
         state = UNIT_READY
     else:
         state = UNIT_NOTREADY
-    juju_log('Telling peers this unit is: {}'.format(msg), 'DEBUG')
+    juju_log('Telling peers this unit is: {}'.format(state), 'DEBUG')
     inform_peers_unit_state(state, relation_name)
 
 
@@ -2309,7 +2312,7 @@ def check_api_application_ready():
     unit_ready, msg = check_api_unit_ready(check_db_ready=True)
     if not unit_ready:
         return unit_ready, msg
-    if is_peers_ready():
+    if are_peers_ready():
         return True, 'All units have passed checks and are ready'
     else:
         return False, 'This unit is ready but peers are not'

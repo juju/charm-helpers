@@ -2204,11 +2204,11 @@ class OpenStackUtilsAdditionalTests(TestCase):
             openstack.get_peers_unit_state(),
             {'keystone/1': 'READY', 'keystone/2': 'UNKNOWN'})
 
-    def test_is_peers_ready(self):
+    def test_are_peers_ready(self):
         self.setup_relation(self.All_PEERS_READY)
-        self.assertTrue(openstack.is_peers_ready())
+        self.assertTrue(openstack.are_peers_ready())
         self.setup_relation(self.PEERS_NOT_READY)
-        self.assertFalse(openstack.is_peers_ready())
+        self.assertFalse(openstack.are_peers_ready())
 
     @patch.object(openstack, 'inform_peers_unit_state')
     def test_inform_peers_if_ready(self, inform_peers_unit_state):
