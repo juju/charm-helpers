@@ -8,6 +8,11 @@ import charmhelpers.contrib.network.ovs as ovs
 from tests.helpers import patch_open
 
 
+# NOTE(fnordahl): some functions drectly under the ``contrib.network.ovs``
+# module have their unit tests in the ``test_ovs.py`` module in the
+# ``tests.contrib.network.ovs`` package.
+
+
 GOOD_CERT = '''Certificate:
     Data:
         Version: 1 (0x0)
@@ -152,47 +157,10 @@ class OVSHelpersTest(unittest.TestCase):
         })
 
     @patch('subprocess.check_call')
-    def test_add_bridge(self, check_call):
-        ovs.add_bridge('test')
-        check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
-                                       "add-br", 'test'])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_add_bridge_datapath_type(self, check_call):
-        ovs.add_bridge('test', datapath_type='netdev')
-        check_call.assert_called_with(["ovs-vsctl", "--", "--may-exist",
-                                       "add-br", 'test', "--", "set",
-                                       "bridge", "test", "datapath_type=netdev"])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
     def test_del_bridge(self, check_call):
         ovs.del_bridge('test')
         check_call.assert_called_with(["ovs-vsctl", "--", "--if-exists",
                                        "del-br", 'test'])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_add_bridge_port(self, check_call):
-        ovs.add_bridge_port('test', 'eth1')
-        check_call.assert_has_calls([
-            call(["ovs-vsctl", "--", "--may-exist", "add-port",
-                  'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'up']),
-            call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
-        ])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_add_bridge_port_promisc(self, check_call):
-        ovs.add_bridge_port('test', 'eth1', promisc=True)
-        check_call.assert_has_calls([
-            call(["ovs-vsctl", "--", "--may-exist", "add-port",
-                  'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'up']),
-            call(['ip', 'link', 'set', 'eth1', 'promisc', 'on'])
-        ])
         self.assertTrue(self.log.call_count == 1)
 
     @patch('subprocess.check_call')
@@ -214,12 +182,15 @@ class OVSHelpersTest(unittest.TestCase):
                                        port_to_br):
         port_to_br.return_value = None
         with patch_open() as (mock_open, mock_file):
-            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
+            ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1', ifdata={
+                'external-ids': {'mycharm': 'br-ex'}
+            })
 
         check_call.assert_called_with(['ifup', 'veth-br-eno1'])
         add_bridge_port.assert_called_with(
-            'br-ex',
-            'veth-br-eno1'
+            'br-ex', 'veth-br-eno1', ifdata={
+                'external-ids': {'mycharm': 'br-ex'}
+            }
         )
 
     @patch.object(ovs, 'port_to_br')
@@ -249,8 +220,7 @@ class OVSHelpersTest(unittest.TestCase):
 
         check_call.assert_called_with(['ifup', 'cvb12345678-10'])
         add_bridge_port.assert_called_with(
-            'br-ex',
-            'cvb12345678-10'
+            'br-ex', 'cvb12345678-10', ifdata=None
         )
 
     @patch('os.path.exists')

@@ -42,14 +42,14 @@ userinstall:
 	dpkg-query -W -f='$${status}' gcc python-dev python-virtualenv 2>/dev/null | grep --invert-match "not-installed" || sudo apt-get install -y python-dev python-virtualenv
 	virtualenv .venv --system-site-packages
 	.venv/bin/pip install -U pip
-	.venv/bin/pip install -I -r test_requirements.txt
+	.venv/bin/pip install -I -r test-requirements.txt
 	.venv/bin/pip install bzr
 
 .venv3:
 	dpkg-query -W -f='$${status}' gcc python3-dev python-virtualenv python3-apt 2>/dev/null | grep --invert-match "not-installed" || sudo apt-get install -y python3-dev python-virtualenv python3-apt
 	virtualenv .venv3 --python=python3 --system-site-packages
 	.venv3/bin/pip install -U pip
-	.venv3/bin/pip install -I -r test_requirements.txt
+	.venv3/bin/pip install -I -r test-requirements.txt
 
 # Note we don't even attempt to run tests if lint isn't passing.
 test: lint test2 test3
@@ -70,9 +70,9 @@ ftest: lint
 
 lint: .venv .venv3
 	@echo Checking for Python syntax...
-	@.venv/bin/flake8 --ignore=E501,W504 $(PROJECT) $(TESTS) tools/ \
+	@.venv/bin/flake8 --ignore=E402,E501,W504 $(PROJECT) $(TESTS) tools/ \
 	    && echo Py2 OK
-	@.venv3/bin/flake8 --ignore=E501,W504 $(PROJECT) $(TESTS) tools/ \
+	@.venv3/bin/flake8 --ignore=E402,E501,W504 $(PROJECT) $(TESTS) tools/ \
 	    && echo Py3 OK
 
 docs:
