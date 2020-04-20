@@ -57,6 +57,17 @@ RANGE_WARNING = ('Passing NO_PROXY string that includes a cidr. '
                  'This may not be compatible with software you are '
                  'running in your shell.')
 
+WL_STATE_ACTIVE = 'active'
+WL_STATE_BLOCKED = 'blocked'
+WL_STATE_MAINTENANCE = 'maintenance'
+WL_STATE_WAITING = 'waiting'
+
+WL_STATES = [
+    WL_STATE_ACTIVE,
+    WL_STATE_BLOCKED,
+    WL_STATE_MAINTENANCE,
+    WL_STATE_WAITING]
+
 cache = {}
 
 
@@ -1088,22 +1099,26 @@ def function_tag():
     return os.environ.get('JUJU_FUNCTION_TAG') or action_tag()
 
 
-def status_set(workload_state, message):
+def status_set(workload_state, message, application_status=False):
     """Set the workload state with a message
 
     Use status-set to set the workload state with a message which is visible
     to the user via juju status. If the status-set command is not found then
     assume this is juju < 1.23 and juju-log the message instead.
 
-    workload_state -- valid juju workload state.
-    message        -- status update message
+    workload_state     -- valid juju workload state.
+    message            -- status update message
+    application_status -- Whether this is an application state set
     """
-    valid_states = ['maintenance', 'blocked', 'waiting', 'active']
-    if workload_state not in valid_states:
+    workload_state = workload_state.lower()
+    if workload_state not in WL_STATES:
         raise ValueError(
             '{!r} is not a valid workload state'.format(workload_state)
         )
-    cmd = ['status-set', workload_state, message]
+    cmd = ['status-set']
+    if application_status:
+        cmd.append('--application')
+    cmd.extend([workload_state, message])
     try:
         ret = subprocess.call(cmd)
         if ret == 0:
