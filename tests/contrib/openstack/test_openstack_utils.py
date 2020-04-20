@@ -2265,12 +2265,75 @@ class OpenStackUtilsAdditionalTests(TestCase):
         is_expected_scale.return_value = True
         self.assertTrue(openstack.check_api_unit_ready()[0])
 
+    @patch.object(openstack, 'is_expected_scale')
+    @patch.object(openstack, 'is_db_initialised')
+    @patch.object(openstack, 'is_db_ready')
+    @patch.object(openstack, 'is_unit_paused_set')
+    @patch.object(openstack, 'is_db_maintenance_mode')
+    def test_get_api_unit_status(self, is_db_maintenance_mode,
+                                 is_unit_paused_set, is_db_ready,
+                                 is_db_initialised, is_expected_scale):
+        is_db_maintenance_mode.return_value = True
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'maintenance')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = True
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'blocked')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = False
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'waiting')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = False
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'waiting')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = True
+        is_expected_scale.return_value = False
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'waiting')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = True
+        is_expected_scale.return_value = True
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'active')
+
     @patch.object(openstack, 'check_api_unit_ready')
     def test_check_api_application_ready(self, check_api_unit_ready):
         check_api_unit_ready.return_value = (True, 'Hurray')
         self.assertTrue(openstack.check_api_application_ready()[0])
         check_api_unit_ready.return_value = (False, ':-(')
         self.assertFalse(openstack.check_api_application_ready()[0])
+
+    @patch.object(openstack, 'check_api_unit_ready')
+    def test_get_api_application_status(self, check_api_unit_ready):
+        check_api_unit_ready.return_value = (True, 'Hurray')
+        self.assertEqual(
+            openstack.get_api_application_status()[0].value,
+            'active')
+        check_api_unit_ready.return_value = (False, ':-(')
+        self.assertEqual(
+            openstack.get_api_application_status()[0].value,
+            'waiting')
 
 
 if __name__ == '__main__':

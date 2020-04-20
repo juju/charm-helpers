@@ -36,6 +36,7 @@ from charmhelpers.contrib.network import ip
 from charmhelpers.core import unitdata
 
 from charmhelpers.core.hookenv import (
+    WL_STATES,
     action_fail,
     action_set,
     config,
@@ -1819,6 +1820,16 @@ def os_application_version_set(package):
         application_version_set(application_version)
 
 
+def os_application_status_set(check_function):
+    """Run the supplied function and set the application status accordingly.
+
+    :param check_function: Function to run to get app states and messages.
+    :type check_function: function
+    """
+    state, message = check_function()
+    status_set(state, message, application_status=True)
+
+
 def enable_memcache(source=None, release=None, package=None):
     """Determine if memcache should be enabled on the local unit
 
@@ -2283,36 +2294,60 @@ def check_api_unit_ready(check_db_ready=True):
     :returns: Whether unit state is ready and status message
     :rtype: (bool, str)
     """
-    unit_ready = True
-    msg = ''
+    unit_state, msg = get_api_unit_status(check_db_ready=check_db_ready)
+    return unit_state == WL_STATES.ACTIVE, msg
+
+
+def get_api_unit_status(check_db_ready=True):
+    """Return a workload status and message for this unit.
+
+    :param check_db_ready: Include checks of database readiness.
+    :type check_db_ready: bool
+    :returns: Workload state and message
+    :rtype: (bool, str)
+    """
+    unit_state = WL_STATES.ACTIVE
+    msg = 'Unit is ready'
     if is_db_maintenance_mode():
+        unit_state = WL_STATES.MAINTENANCE
         msg = 'Database in maintenance mode.'
     elif is_unit_paused_set():
+        unit_state = WL_STATES.BLOCKED
         msg = 'Unit paused.'
     elif check_db_ready and not is_db_ready():
+        unit_state = WL_STATES.WAITING
         msg = 'Allowed_units list provided but this unit not present'
     elif not is_db_initialised():
+        unit_state = WL_STATES.WAITING
         msg = 'Database not initialised'
     elif not is_expected_scale():
+        unit_state = WL_STATES.WAITING
         msg = 'Charm and its dependencies not yet at expected scale'
-    if msg:
-        unit_ready = False
-    else:
-        msg = 'Unit has passed checks and is ready'
     juju_log(msg, 'DEBUG')
-    return unit_ready, msg
+    return unit_state, msg
 
 
 def check_api_application_ready():
     """Check if this application is ready.
 
-    :returns: Whether unit state is ready and status message
+    :returns: Whether application state is ready and status message
+    :rtype: (bool, str)
+    """
+    app_state, msg = get_api_application_status()
+    return app_state == WL_STATES.ACTIVE, msg
+
+
+def get_api_application_status():
+    """Return a workload status and message for this application.
+
+    :returns: Workload state and message
     :rtype: (bool, str)
     """
     unit_ready, msg = check_api_unit_ready(check_db_ready=True)
-    if not unit_ready:
-        return unit_ready, msg
-    if are_peers_ready():
-        return True, 'All units have passed checks and are ready'
+    if unit_ready and are_peers_ready():
+        app_state = WL_STATES.ACTIVE
+        msg = 'Application is ready'
     else:
-        return False, 'This unit is ready but peers are not'
+        app_state = WL_STATES.WAITING
+        msg = 'Some units not ready'
+    return app_state, msg
