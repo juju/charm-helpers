@@ -2343,11 +2343,7 @@ def get_api_application_status():
     :returns: Workload state and message
     :rtype: (bool, str)
     """
-    unit_ready, msg = check_api_unit_ready(check_db_ready=True)
-    if unit_ready and are_peers_ready():
-        app_state = WL_STATES.ACTIVE
-        msg = 'Application is ready'
-    else:
-        app_state = WL_STATES.WAITING
-        msg = 'Some units not ready'
+    app_state, msg = get_api_unit_status()
+    if app_state == WL_STATES.ACTIVE and not are_peers_ready():
+        return WL_STATES.WAITING, 'Some units are not ready'
     return app_state, msg
