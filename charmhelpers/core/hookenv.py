@@ -21,6 +21,7 @@
 from __future__ import print_function
 import copy
 from distutils.version import LooseVersion
+from enum import Enum
 from functools import wraps
 from collections import namedtuple
 import glob
@@ -57,16 +58,13 @@ RANGE_WARNING = ('Passing NO_PROXY string that includes a cidr. '
                  'This may not be compatible with software you are '
                  'running in your shell.')
 
-WL_STATE_ACTIVE = 'active'
-WL_STATE_BLOCKED = 'blocked'
-WL_STATE_MAINTENANCE = 'maintenance'
-WL_STATE_WAITING = 'waiting'
 
-WL_STATES = [
-    WL_STATE_ACTIVE,
-    WL_STATE_BLOCKED,
-    WL_STATE_MAINTENANCE,
-    WL_STATE_WAITING]
+class WL_STATES(Enum):
+    ACTIVE = 'active'
+    BLOCKED = 'blocked'
+    MAINTENANCE = 'maintenance'
+    WAITING = 'waiting'
+
 
 cache = {}
 
@@ -1111,7 +1109,7 @@ def status_set(workload_state, message, application_status=False):
     application_status -- Whether this is an application state set
     """
     workload_state = workload_state.lower()
-    if workload_state not in WL_STATES:
+    if workload_state not in [s.lower() for s in WL_STATES.__members__.keys()]:
         raise ValueError(
             '{!r} is not a valid workload state'.format(workload_state)
         )
