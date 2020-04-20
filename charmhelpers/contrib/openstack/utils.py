@@ -2344,6 +2344,9 @@ def get_api_application_status():
     :rtype: (bool, str)
     """
     app_state, msg = get_api_unit_status()
-    if app_state == WL_STATES.ACTIVE and not are_peers_ready():
-        return WL_STATES.WAITING, 'Some units are not ready'
+    if app_state == WL_STATES.ACTIVE:
+        if are_peers_ready():
+            return WL_STATES.ACTIVE, 'Application Ready'
+        else:
+            return WL_STATES.WAITING, 'Some units are not ready'
     return app_state, msg
