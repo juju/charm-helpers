@@ -1869,6 +1869,12 @@ class HooksTest(TestCase):
         call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
 
     @patch('subprocess.call')
+    def test_status_enum(self, call):
+        call.return_value = 0
+        hookenv.status_set(hookenv.WL_STATES.ACTIVE, 'Everything is Awesome!')
+        call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
+
+    @patch('subprocess.call')
     def test_status_app(self, call):
         call.return_value = 0
         hookenv.status_set(

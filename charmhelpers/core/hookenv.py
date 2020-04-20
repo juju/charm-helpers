@@ -1104,10 +1104,15 @@ def status_set(workload_state, message, application_status=False):
     to the user via juju status. If the status-set command is not found then
     assume this is juju < 1.23 and juju-log the message instead.
 
-    workload_state     -- valid juju workload state.
+    workload_state     -- valid juju workload state. str or WL_STATES
     message            -- status update message
     application_status -- Whether this is an application state set
     """
+    # Extract the value if workload_state is an Enum
+    try:
+        workload_state = workload_state.value
+    except AttributeError:
+        pass
     workload_state = workload_state.lower()
     if workload_state not in [s.lower() for s in WL_STATES.__members__.keys()]:
         raise ValueError(
