@@ -4,6 +4,7 @@
 from charmhelpers.core.sysctl import create
 import io
 from mock import patch, MagicMock
+from subprocess import CalledProcessError
 import unittest
 import tempfile
 
@@ -19,6 +20,7 @@ __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 TO_PATCH = [
     'log',
     'check_call',
+    'is_container',
 ]
 
 
@@ -104,3 +106,29 @@ class SysctlTests(unittest.TestCase):
         self.log.assert_called_with(
             'Error parsing YAML sysctl_dict: {"kernel.max_pid": 1337 xxxx',
             level='ERROR')
+
+    @patch(builtin_open)
+    def test_create_raises(self, mock_open):
+        """CalledProcessErrors are propagated for non-container machines."""
+        _file = MagicMock(spec=io.FileIO)
+        mock_open.return_value = _file
+
+        self.is_container.return_value = False
+        self.check_call.side_effect = CalledProcessError(1, 'sysctl')
+
+        with self.assertRaises(CalledProcessError):
+            create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-sysctl.conf")
+
+    @patch(builtin_open)
+    def test_create_raises_container(self, mock_open):
+        """CalledProcessErrors are logged for containers."""
+        _file = MagicMock(spec=io.FileIO)
+        mock_open.return_value = _file
+
+        self.is_container.return_value = True
+        self.check_call.side_effect = CalledProcessError(1, 'sysctl', 'foo')
+
+        create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-sysctl.conf")
+        self.log.assert_called_with(
+            'Error setting some sysctl keys in this container: foo',
+            level='WARNING')
