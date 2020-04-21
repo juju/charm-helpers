@@ -25,9 +25,7 @@ from charmhelpers.core.hookenv import (
     ERROR,
 )
 
-from charmhelpers.core.host import (
-    is_containr,
-)
+from charmhelpers.core.host import is_container
 
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
@@ -70,6 +68,6 @@ def create(sysctl_dict, sysctl_file, ignore=False):
         check_call(call)
     except CalledProcessError as e:
         if is_container():
-            print ("Error setting some systcl keys in this container: {}".format(e.output))
+            print("Error setting some systcl keys in this container: {}".format(e.output))
         else:
             raise e
