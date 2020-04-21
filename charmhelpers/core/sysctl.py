@@ -23,6 +23,7 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     ERROR,
+    WARNING,
 )
 
 from charmhelpers.core.host import is_container
