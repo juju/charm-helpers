@@ -17,12 +17,16 @@
 
 import yaml
 
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     ERROR,
+)
+
+from charmhelpers.core.host import (
+    is_containr,
 )
 
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
@@ -62,4 +66,10 @@ def create(sysctl_dict, sysctl_file, ignore=False):
     if ignore:
         call.append("-e")
 
-    check_call(call)
+    try:
+        check_call(call)
+    except CalledProcessError as e:
+        if is_container():
+            print ("Error setting some systcl keys in this container: {}".format(e.output))
+        else:
+            raise e
