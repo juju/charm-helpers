@@ -16,6 +16,7 @@ import collections
 import copy
 import enum
 import glob
+import hashlib
 import json
 import math
 import os
@@ -2408,6 +2409,9 @@ class DHCPAgentContext(OSContextGenerator):
             return _config
 
 
+EntityMac = collections.namedtuple('EntityMac', ['entity', 'mac'])
+
+
 def resolve_pci_from_mapping_config(config_key):
     """Resolve local PCI devices from MAC addresses in mapping config.
 
@@ -2417,8 +2421,8 @@ def resolve_pci_from_mapping_config(config_key):
 
     :param config_key: Configuration option key to parse data from
     :type config_key: str
-    :returns: PCI device address to enttiy map
-    :rtype: collections.OrderedDict[str,str]
+    :returns: PCI device address to Tuple(entity, mac) map
+    :rtype: collections.OrderedDict[str,Tuple[str,str]]
     """
     devices = pci.PCINetDevices()
     resolved_devices = collections.OrderedDict()
@@ -2434,7 +2438,7 @@ def resolve_pci_from_mapping_config(config_key):
 
         pci_address = db.get(mac)
         if pci_address:
-            resolved_devices[pci_address] = entity
+            resolved_devices[pci_address] = EntityMac(entity, mac)
 
     return resolved_devices
 
@@ -2604,11 +2608,37 @@ class OVSDPDKDeviceContext(OSContextGenerator):
         return ctxt
 
 
-class BridgeBondMap(object):
-    """Container and helpers for a bridge bond interface map.
+class BridgePortInterfaceMap(object):
+    """Build a map of bridge ports and interaces from charm configuration.
 
-    Note that in Open vSwith a bond will be represented by a port on a bridge
-    where the port is comprised of a set of interfaces.
+    NOTE: the handling of this detail in the charm is pre-deprecated.
+
+    The long term goal is for network connectivity detail to be modelled in
+    the server provisioning layer (such as MAAS) which in turn will provide
+    a Netplan YAML description that will be used to drive Open vSwitch.
+
+    Until we get to that reality the charm will need to configure this
+    detail based on application level configuration options.
+
+    There is a established way of mapping interfaces to ports and bridges
+    in the ``neutron-openvswitch`` and ``neutron-gateway`` charms and we
+    will carry that forward.
+
+    The relationship between bridge, port and interface(s).
+             +--------+
+             | bridge |
+             +--------+
+                 |
+         +----------------+
+         | port aka. bond |
+         +----------------+
+               |   |
+              +-+ +-+
+              |i| |i|
+              |n| |n|
+              |t| |t|
+              |0| |N|
+              +-+ +-+
     """
     class interface_type(enum.Enum):
         """Supported interface types.
@@ -2628,10 +2658,188 @@ class BridgeBondMap(object):
             """
             return self.value
 
-    def __init__(self):
-        """Initialize empty map."""
-        self.map = collections.defaultdict(
+    def __init__(self, bridges_key=None, bonds_key=None, enable_dpdk_key=None,
+                 global_mtu=None):
+        """Initialize map.
+
+        :param bridges_key: Name of bridge:interface/port map config key
+                            (default: 'data-port')
+        :type bridges_key: Optional[str]
+        :param bonds_key: Name of port-name:interface map config key
+                          (default: 'dpdk-bond-mappings')
+        :type bonds_key: Optional[str]
+        :param enable_dpdk_key: Name of DPDK toggle config key
+                                (default: 'enable-dpdk')
+        :type enable_dpdk_key: Optional[str]
+        :param global_mtu: Set a MTU on all interfaces at map initialization.
+
+            The default is to have Open vSwitch get this from the underlying
+            interface as set up by bare metal provisioning.
+
+            Note that you can augment the MTU on an individual interface basis
+            like this:
+
+            ifdatamap = bpi.get_ifdatamap(bridge, port)
+            ifdatamap = {
+                port: {
+                    **ifdata,
+                    **{'mtu-request': my_individual_mtu_map[port]},
+                }
+                for port, ifdata in ifdatamap.items()
+            }
+        :type global_mtu: Optional[int]
+        """
+        bridges_key = bridges_key or 'data-port'
+        bonds_key = bonds_key or 'dpdk-bond-mappings'
+        enable_dpdk_key = enable_dpdk_key or 'enable-dpdk'
+        self._map = collections.defaultdict(
             lambda: collections.defaultdict(dict))
+        self._ifname_mac_map = collections.defaultdict(list)
+        self._mac_ifname_map = {}
+        self._mac_pci_address_map = {}
+
+        # First we iterate over the list of physical interfaces visible to the
+        # system and update interface name to mac and mac to interface name map
+        for ifname in list_nics():
+            if not is_phy_iface(ifname):
+                continue
+            mac = get_nic_hwaddr(ifname)
+            self._ifname_mac_map[ifname] = [mac]
+            self._mac_ifname_map[mac] = ifname
+
+        # In light of the pre-deprecation notice in the docstring of this
+        # class we will expose the ability to configure OVS bonds as a
+        # DPDK-only feature, but generally use the data structures internally.
+        if config(enable_dpdk_key):
+            # resolve PCI address of interfaces listed in the bridges and bonds
+            # charm configuration options.  Note that for already bound
+            # interfaces the helper will retrieve MAC address from the unit
+            # KV store as the information is no longer available in sysfs.
+            _pci_bridge_mac = resolve_pci_from_mapping_config(
+                bridges_key)
+            _pci_bond_mac = resolve_pci_from_mapping_config(
+                bonds_key)
+
+            for pci_address, bridge_mac in _pci_bridge_mac.items():
+                if bridge_mac.mac in self._mac_ifname_map:
+                    # if we already have the interface name in our map it is
+                    # visible to the system and therefore not bound to DPDK
+                    continue
+                ifname = 'dpdk-{}'.format(
+                    hashlib.sha1(
+                        pci_address.encode('UTF-8')).hexdigest()[:7])
+                self._ifname_mac_map[ifname] = [bridge_mac.mac]
+                self._mac_ifname_map[bridge_mac.mac] = ifname
+                self._mac_pci_address_map[bridge_mac.mac] = pci_address
+
+            for pci_address, bond_mac in _pci_bond_mac.items():
+                # for bonds we want to be able to get a list of macs from
+                # the bond name and also get at the interface name made up
+                # of the hash of the PCI address
+                ifname = 'dpdk-{}'.format(
+                    hashlib.sha1(
+                        pci_address.encode('UTF-8')).hexdigest()[:7])
+                self._ifname_mac_map[bond_mac.entity].append(bond_mac.mac)
+                self._mac_ifname_map[bond_mac.mac] = ifname
+                self._mac_pci_address_map[bond_mac.mac] = pci_address
+
+        config_bridges = config(bridges_key) or ''
+        for bridge, ifname_or_mac in (
+                pair.split(':', 1)
+                for pair in config_bridges.split()):
+            if ':' in ifname_or_mac:
+                try:
+                    ifname = self.ifname_from_mac(ifname_or_mac)
+                except KeyError:
+                    # The interface is destined for a different unit in the
+                    # deployment.
+                    continue
+                macs = [ifname_or_mac]
+            else:
+                ifname = ifname_or_mac
+                macs = self.macs_from_ifname(ifname_or_mac)
+
+            portname = ifname
+            for mac in macs:
+                try:
+                    pci_address = self.pci_address_from_mac(mac)
+                    iftype = self.interface_type.dpdk
+                    ifname = self.ifname_from_mac(mac)
+                except KeyError:
+                    pci_address = None
+                    iftype = self.interface_type.system
+
+                self.add_interface(
+                    bridge, portname, ifname, iftype, pci_address, global_mtu)
+
+    def __getitem__(self, key):
+        """Provide a Dict-like interface, get value of item.
+
+        :param key: Key to look up value from.
+        :type key: any
+        :returns: Value
+        :rtype: any
+        """
+        return self._map.__getitem__(key)
+
+    def __iter__(self):
+        """Provide a Dict-like interface, iterate over keys.
+
+        :returns: Iterator
+        :rtype: Iterator[any]
+        """
+        return self._map.__iter__()
+
+    def __len__(self):
+        """Provide a Dict-like interface, measure the length of internal map.
+
+        :returns: Length
+        :rtype: int
+        """
+        return len(self._map)
+
+    def items(self):
+        """Provide a Dict-like interface, iterate over items.
+
+        :returns: Key Value pairs
+        :rtype: Iterator[any, any]
+        """
+        return self._map.items()
+
+    def keys(self):
+        """Provide a Dict-like interface, iterate over keys.
+
+        :returns: Iterator
+        :rtype: Iterator[any]
+        """
+        return self._map.keys()
+
+    def ifname_from_mac(self, mac):
+        """
+        :returns: Name of interface
+        :rtype: str
+        :raises: KeyError
+        """
+        return (get_bond_master(self._mac_ifname_map[mac]) or
+                self._mac_ifname_map[mac])
+
+    def macs_from_ifname(self, ifname):
+        """
+        :returns: List of hardware address (MAC) of interface
+        :rtype: List[str]
+        :raises: KeyError
+        """
+        return self._ifname_mac_map[ifname]
+
+    def pci_address_from_mac(self, mac):
+        """
+        :param mac: Hardware address (MAC) of interface
+        :type mac: str
+        :returns: PCI address of device associated with mac
+        :rtype: str
+        :raises: KeyError
+        """
+        return self._mac_pci_address_map[mac]
 
     def add_interface(self, bridge, port, ifname, iftype,
                       pci_address, mtu_request):
@@ -2646,42 +2854,51 @@ class BridgeBondMap(object):
         :param iftype: Type of interface
         :type iftype: BridgeBondMap.interface_type
         :param pci_address: PCI address of interface
-        :type pci_address: str
+        :type pci_address: Optional[str]
         :param mtu_request: MTU to request for interface
-        :type mtu_request: int
+        :type mtu_request: Optional[int]
         """
-        self.map[bridge][port][ifname] = {
+        self._map[bridge][port][ifname] = {
             'type': str(iftype),
-            'pci-address': pci_address,
-            'mtu-request': str(mtu_request),
         }
-
-    def items(self):
-        return self.map.items()
+        if pci_address:
+            self._map[bridge][port][ifname].update({
+                'pci-address': pci_address,
+            })
+        if mtu_request is not None:
+            self._map[bridge][port][ifname].update({
+                'mtu-request': str(mtu_request)
+            })
 
     def get_ifdatamap(self, bridge, port):
         """Get structure suitable for charmhelpers.contrib.network.ovs helpers.
 
-        :param bridge: Name of bridge on which the bond will be added
+        :param bridge: Name of bridge on which the port will be added
         :type bridge: str
-        :param port: Name of port which will represent the bond on bridge
+        :param port: Name of port which will represent one or more interfaces
         :type port: str
-        :param mtu_request: Request specifc MTU for interface.
-        :type mtu_request: str
         """
-        for br, bonds in self.items():
-            for bond, port_map in bonds.items():
-                if br == bridge and bond == port:
-                    return {
-                        name: {
-                            'type': data['type'],
-                            'mtu_request': data['mtu-request'],
-                            'options': {
-                                'dpdk-devargs': data['pci-address'],
+        for _bridge, _ports in self.items():
+            for _port, _interfaces in _ports.items():
+                if _bridge == bridge and _port == port:
+                    ifdatamap = {}
+                    for name, data in _interfaces.items():
+                        ifdatamap.update({
+                            name: {
+                                'type': data['type'],
                             },
-                        }
-                        for name, data in port_map.items()
-                    }
+                        })
+                        if data.get('mtu-request') is not None:
+                            ifdatamap[name].update({
+                                'mtu_request': data['mtu-request'],
+                            })
+                        if data.get('pci-address'):
+                            ifdatamap[name].update({
+                                'options': {
+                                    'dpdk-devargs': data['pci-address'],
+                                },
+                            })
+                    return ifdatamap
 
 
 class BondConfig(object):

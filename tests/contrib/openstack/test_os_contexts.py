@@ -4285,14 +4285,24 @@ class TestDPDKUtils(tests.utils.BaseTestCase):
         _pci_devices.get_device_from_mac.side_effect = PCI_DEVICE_MAP.get
         self.patch_object(context, 'pci')
         self.pci.PCINetDevices.return_value = _pci_devices
-        self.assertEqual(
+        self.assertDictEqual(
             context.resolve_pci_from_mapping_config('data-port'),
-            {'0000:00:1c.0': 'br-phynet1', '0000:00:1d.0': 'br-phynet3'})
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'br-phynet1', 'fe:16:41:df:23:fd'),
+                '0000:00:1d.0': context.EntityMac(
+                    'br-phynet3', 'fe:16:41:df:23:fe'),
+            })
         self.config.assert_called_once_with('data-port')
         self.config.reset_mock()
-        self.assertEqual(
+        self.assertDictEqual(
             context.resolve_pci_from_mapping_config('dpdk-bond-mappings'),
-            {'0000:00:1c.0': 'bond0', '0000:00:1d.0': 'bond0'})
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'bond0', 'fe:16:41:df:23:fd'),
+                '0000:00:1d.0': context.EntityMac(
+                    'bond0', 'fe:16:41:df:23:fe'),
+            })
         self.config.assert_called_once_with('dpdk-bond-mappings')
 
 
@@ -4481,10 +4491,118 @@ class TestDPDKDeviceContext(tests.utils.BaseTestCase):
         self.config.assert_called_with('dpdk-driver')
 
 
-class TestBridgeBondMap(tests.utils.BaseTestCase):
+class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
+
+    def test__init__(self):
+        self.patch_object(context, 'config')
+        # system with three interfaces (eth0, eth1 and eth2) where
+        # eth0 and eth1 is part of linux bond bond0.
+        # Bridge mapping br-ex:eth2, br-provider1:bond0
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:00:00:5e:00:00:41 '
+                'br-provider1:00:00:5e:00:00:40'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        self.patch_object(context, 'resolve_pci_from_mapping_config')
+        self.resolve_pci_from_mapping_config.side_effect = [
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'br-ex', '00:00:5e:00:00:42'),
+            },
+            {},
+        ]
+        self.patch_object(context, 'list_nics')
+        self.list_nics.return_value = ['bond0', 'eth0', 'eth1', 'eth2']
+        self.patch_object(context, 'is_phy_iface')
+        self.is_phy_iface.return_value = True
+        self.patch_object(context, 'get_bond_master')
+        self.get_bond_master.side_effect = lambda x: 'bond0' if x in (
+            'eth0', 'eth1') else None
+        self.patch_object(context, 'get_nic_hwaddr')
+        self.get_nic_hwaddr.side_effect = lambda x: {
+            'bond0': '00:00:5e:00:00:24',
+            'eth0': '00:00:5e:00:00:40',
+            'eth1': '00:00:5e:00:00:41',
+            'eth2': '00:00:5e:00:00:42',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.maxDiff = None
+        self.assertDictEqual(bpi._map, {
+            'br-provider1': {
+                'bond0': {
+                    'bond0': {
+                        'type': 'system',
+                    },
+                },
+            },
+            'br-ex': {
+                'eth2': {
+                    'eth2': {
+                        'type': 'system',
+                    },
+                },
+            },
+        })
+        # system with three interfaces (eth0, eth1 and eth2) where we should
+        # enable DPDK and create OVS bond of eth0 and eth1.
+        # Bridge mapping br-ex:eth2 br-provider1:dpdk-bond0
+        self.config.side_effect = lambda x: {
+            'enable-dpdk': True,
+            'data-port': (
+                'br-ex:00:00:5e:00:00:42 '
+                'br-provider1:dpdk-bond0'),
+            'dpdk-bond-mappings': (
+                'dpdk-bond0:00:00:5e:00:00:40 '
+                'dpdk-bond0:00:00:5e:00:00:41'),
+        }.get(x)
+        self.resolve_pci_from_mapping_config.side_effect = [
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'br-ex', '00:00:5e:00:00:42'),
+            },
+            {
+                '0000:00:1d.0': context.EntityMac(
+                    'dpdk-bond0', '00:00:5e:00:00:40'),
+                '0000:00:1e.0': context.EntityMac(
+                    'dpdk-bond0', '00:00:5e:00:00:41'),
+            },
+        ]
+        # once devices are bound to DPDK they disappear from the system list
+        # of interfaces
+        self.list_nics.return_value = []
+        bpi = context.BridgePortInterfaceMap(global_mtu=1500)
+        self.assertDictEqual(bpi._map, {
+            'br-provider1': {
+                'dpdk-bond0': {
+                    'dpdk-600a59e': {
+                        'pci-address': '0000:00:1d.0',
+                        'type': 'dpdk',
+                        'mtu-request': '1500',
+                    },
+                    'dpdk-5fc1d91': {
+                        'pci-address': '0000:00:1e.0',
+                        'type': 'dpdk',
+                        'mtu-request': '1500',
+                    },
+                },
+            },
+            'br-ex': {
+                'dpdk-6204d33': {
+                    'dpdk-6204d33': {
+                        'pci-address': '0000:00:1c.0',
+                        'type': 'dpdk',
+                        'mtu-request': '1500',
+                    },
+                },
+            },
+        })
 
     def test_add_interface(self):
-        ctx = context.BridgeBondMap()
+        self.patch_object(context, 'config')
+        self.config.return_value = ''
+        ctx = context.BridgePortInterfaceMap()
         ctx.add_interface("br1", "bond1", "port1", ctx.interface_type.dpdk,
                           "00:00:00:00:00:01", 1500)
         ctx.add_interface("br1", "bond1", "port2", ctx.interface_type.dpdk,
