@@ -734,6 +734,9 @@ class MySQL8Helper(MySQLHelper):
             cursor.execute("GRANT SELECT ON "
                            "performance_schema.replication_group_member_stats "
                            "TO '{}'@'{}'".format(db_user, remote_ip))
+            cursor.execute("GRANT SELECT ON "
+                           "performance_schema.global_variables "
+                           "TO '{}'@'{}'".format(db_user, remote_ip))
         finally:
             cursor.close()
 

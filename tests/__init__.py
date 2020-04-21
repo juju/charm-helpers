@@ -1,6 +1,7 @@
 import sys
 import mock
 
+
 sys.modules['yum'] = mock.MagicMock()
 with mock.patch('charmhelpers.deprecate') as ch_deprecate:
     def mock_deprecate(warning, date=None, log=None):

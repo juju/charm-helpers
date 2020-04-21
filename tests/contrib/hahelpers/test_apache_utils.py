@@ -30,7 +30,7 @@ qw==
 '''
 
 IDENTITY_NEW_STYLE_CERTS = {
-    'identity:0': {
+    'identity-service:0': {
         'keystone/0': {
             'ssl_cert_test-cn': 'keystone_provided_cert',
             'ssl_key_test-cn': 'keystone_provided_key',
@@ -39,7 +39,7 @@ IDENTITY_NEW_STYLE_CERTS = {
 }
 
 IDENTITY_OLD_STYLE_CERTS = {
-    'identity:0': {
+    'identity-service:0': {
         'keystone/0': {
             'ssl_cert': 'keystone_provided_cert',
             'ssl_key': 'keystone_provided_key',

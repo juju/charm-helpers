@@ -140,9 +140,16 @@ def vault_relation_complete(backend=None):
     :ptype backend: string
     :returns: whether the relation to vault is complete
     :rtype: bool"""
-    vault_kv = VaultKVContext(secret_backend=backend or VAULTLOCKER_BACKEND)
-    vault_kv()
-    return vault_kv.complete
+    try:
+        import hvac
+    except ImportError:
+        return False
+    try:
+        vault_kv = VaultKVContext(secret_backend=backend or VAULTLOCKER_BACKEND)
+        vault_kv()
+        return vault_kv.complete
+    except hvac.exceptions.InvalidRequest:
+        return False
 
 
 # TODO: contrib a high level unwrap method to hvac that works
