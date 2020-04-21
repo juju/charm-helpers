@@ -68,7 +68,7 @@ def create(sysctl_dict, sysctl_file, ignore=False):
         check_call(call)
     except CalledProcessError as e:
         if is_container():
-            log("Error setting some systcl keys in this container: {}".format(e.output),
-                level=ERROR)
+            log("Error setting some sysctl keys in this container: {}".format(e.output),
+                level=WARNING)
         else:
             raise e
