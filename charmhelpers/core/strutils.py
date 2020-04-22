@@ -21,6 +21,7 @@ import re
 TRUTHY_STRINGS = {'y', 'yes', 'true', 't', 'on'}
 FALSEY_STRINGS = {'n', 'no', 'false', 'f', 'off'}
 
+
 def bool_from_string(value, truthy_strings=TRUTHY_STRINGS, falsey_strings=FALSEY_STRINGS, assume_false=False):
     """Interpret string value as boolean.
 
@@ -36,10 +37,7 @@ def bool_from_string(value, truthy_strings=TRUTHY_STRINGS, falsey_strings=FALSEY
 
     if value in truthy_strings:
         return True
-    elif value in falsey_strings:
-        return False
-    
-    if assume_false:
+    elif value in falsey_strings or assume_false:
         return False
 
     msg = "Unable to interpret string value '%s' as boolean" % (value)
