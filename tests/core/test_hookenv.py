@@ -6,6 +6,7 @@ import tempfile
 import types
 from mock import call, MagicMock, mock_open, patch, sentinel
 from testtools import TestCase
+from enum import Enum
 import yaml
 
 import six
@@ -1862,6 +1863,16 @@ class HooksTest(TestCase):
     def test_status_set_invalid_state(self):
         self.assertRaises(ValueError, hookenv.status_set, 'random', 'message')
 
+    def test_status_set_invalid_state_enum(self):
+
+        class RandomEnum(Enum):
+            FOO = 1
+        self.assertRaises(
+            ValueError,
+            hookenv.status_set,
+            RandomEnum.FOO,
+            'message')
+
     @patch('subprocess.call')
     def test_status(self, call):
         call.return_value = 0
@@ -1871,7 +1882,9 @@ class HooksTest(TestCase):
     @patch('subprocess.call')
     def test_status_enum(self, call):
         call.return_value = 0
-        hookenv.status_set(hookenv.WL_STATES.ACTIVE, 'Everything is Awesome!')
+        hookenv.status_set(
+            hookenv.WORKLOAD_STATES.ACTIVE,
+            'Everything is Awesome!')
         call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
 
     @patch('subprocess.call')
@@ -1880,7 +1893,7 @@ class HooksTest(TestCase):
         hookenv.status_set(
             'active',
             'Everything is Awesome!',
-            application_status=True)
+            application=True)
         call.assert_called_with([
             'status-set',
             '--application',

@@ -36,7 +36,7 @@ from charmhelpers.contrib.network import ip
 from charmhelpers.core import unitdata
 
 from charmhelpers.core.hookenv import (
-    WL_STATES,
+    WORKLOAD_STATES,
     action_fail,
     action_set,
     config,
@@ -1827,7 +1827,7 @@ def os_application_status_set(check_function):
     :type check_function: function
     """
     state, message = check_function()
-    status_set(state, message, application_status=True)
+    status_set(state, message, application=True)
 
 
 def enable_memcache(source=None, release=None, package=None):
@@ -2295,7 +2295,7 @@ def check_api_unit_ready(check_db_ready=True):
     :rtype: (bool, str)
     """
     unit_state, msg = get_api_unit_status(check_db_ready=check_db_ready)
-    return unit_state == WL_STATES.ACTIVE, msg
+    return unit_state == WORKLOAD_STATES.ACTIVE, msg
 
 
 def get_api_unit_status(check_db_ready=True):
@@ -2306,22 +2306,22 @@ def get_api_unit_status(check_db_ready=True):
     :returns: Workload state and message
     :rtype: (bool, str)
     """
-    unit_state = WL_STATES.ACTIVE
+    unit_state = WORKLOAD_STATES.ACTIVE
     msg = 'Unit is ready'
     if is_db_maintenance_mode():
-        unit_state = WL_STATES.MAINTENANCE
+        unit_state = WORKLOAD_STATES.MAINTENANCE
         msg = 'Database in maintenance mode.'
     elif is_unit_paused_set():
-        unit_state = WL_STATES.BLOCKED
+        unit_state = WORKLOAD_STATES.BLOCKED
         msg = 'Unit paused.'
     elif check_db_ready and not is_db_ready():
-        unit_state = WL_STATES.WAITING
+        unit_state = WORKLOAD_STATES.WAITING
         msg = 'Allowed_units list provided but this unit not present'
     elif not is_db_initialised():
-        unit_state = WL_STATES.WAITING
+        unit_state = WORKLOAD_STATES.WAITING
         msg = 'Database not initialised'
     elif not is_expected_scale():
-        unit_state = WL_STATES.WAITING
+        unit_state = WORKLOAD_STATES.WAITING
         msg = 'Charm and its dependencies not yet at expected scale'
     juju_log(msg, 'DEBUG')
     return unit_state, msg
@@ -2334,7 +2334,7 @@ def check_api_application_ready():
     :rtype: (bool, str)
     """
     app_state, msg = get_api_application_status()
-    return app_state == WL_STATES.ACTIVE, msg
+    return app_state == WORKLOAD_STATES.ACTIVE, msg
 
 
 def get_api_application_status():
@@ -2344,9 +2344,9 @@ def get_api_application_status():
     :rtype: (bool, str)
     """
     app_state, msg = get_api_unit_status()
-    if app_state == WL_STATES.ACTIVE:
+    if app_state == WORKLOAD_STATES.ACTIVE:
         if are_peers_ready():
-            return WL_STATES.ACTIVE, 'Application Ready'
+            return WORKLOAD_STATES.ACTIVE, 'Application Ready'
         else:
-            return WL_STATES.WAITING, 'Some units are not ready'
+            return WORKLOAD_STATES.WAITING, 'Some units are not ready'
     return app_state, msg
