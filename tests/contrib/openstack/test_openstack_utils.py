@@ -9,7 +9,7 @@ from testtools import TestCase
 from mock import MagicMock, patch, call
 
 from charmhelpers.fetch import ubuntu as fetch
-from charmhelpers.core.hookenv import WL_STATES, flush
+from charmhelpers.core.hookenv import WORKLOAD_STATES, flush
 
 import charmhelpers.contrib.openstack.utils as openstack
 
@@ -2319,18 +2319,18 @@ class OpenStackUtilsAdditionalTests(TestCase):
 
     @patch.object(openstack, 'get_api_unit_status')
     def test_check_api_application_ready(self, get_api_unit_status):
-        get_api_unit_status.return_value = (WL_STATES.ACTIVE, 'Hurray')
+        get_api_unit_status.return_value = (WORKLOAD_STATES.ACTIVE, 'Hurray')
         self.assertTrue(openstack.check_api_application_ready()[0])
-        get_api_unit_status.return_value = (WL_STATES.BLOCKED, ':-(')
+        get_api_unit_status.return_value = (WORKLOAD_STATES.BLOCKED, ':-(')
         self.assertFalse(openstack.check_api_application_ready()[0])
 
     @patch.object(openstack, 'get_api_unit_status')
     def test_get_api_application_status(self, get_api_unit_status):
-        get_api_unit_status.return_value = (WL_STATES.ACTIVE, 'Hurray')
+        get_api_unit_status.return_value = (WORKLOAD_STATES.ACTIVE, 'Hurray')
         self.assertEqual(
             openstack.get_api_application_status()[0].value,
             'active')
-        get_api_unit_status.return_value = (WL_STATES.BLOCKED, ':-(')
+        get_api_unit_status.return_value = (WORKLOAD_STATES.BLOCKED, ':-(')
         self.assertEqual(
             openstack.get_api_application_status()[0].value,
             'blocked')
