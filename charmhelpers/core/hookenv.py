@@ -59,7 +59,7 @@ RANGE_WARNING = ('Passing NO_PROXY string that includes a cidr. '
                  'running in your shell.')
 
 
-class WL_STATES(Enum):
+class WORKLOAD_STATES(Enum):
     ACTIVE = 'active'
     BLOCKED = 'blocked'
     MAINTENANCE = 'maintenance'
@@ -1097,31 +1097,33 @@ def function_tag():
     return os.environ.get('JUJU_FUNCTION_TAG') or action_tag()
 
 
-def status_set(workload_state, message, application_status=False):
+def status_set(workload_state, message, application=False):
     """Set the workload state with a message
 
     Use status-set to set the workload state with a message which is visible
     to the user via juju status. If the status-set command is not found then
     assume this is juju < 1.23 and juju-log the message instead.
 
-    workload_state     -- valid juju workload state. str or WL_STATES
-    message            -- status update message
-    application_status -- Whether this is an application state set
+    workload_state   -- valid juju workload state. str or WORKLOAD_STATES
+    message          -- status update message
+    application      -- Whether this is an application state set
     """
-    # Extract the value if workload_state is an Enum
-    try:
-        workload_state = workload_state.value
-    except AttributeError:
-        pass
-    workload_state = workload_state.lower()
-    if workload_state not in [s.lower() for s in WL_STATES.__members__.keys()]:
-        raise ValueError(
-            '{!r} is not a valid workload state'.format(workload_state)
-        )
+    bad_state_msg = '{!r} is not a valid workload state'
+
+    if isinstance(workload_state, str):
+        try:
+            # Convert string to enum.
+            workload_state = WORKLOAD_STATES[workload_state.upper()]
+        except KeyError:
+            raise ValueError(bad_state_msg.format(workload_state))
+
+    if workload_state not in WORKLOAD_STATES:
+        raise ValueError(bad_state_msg.format(workload_state))
+
     cmd = ['status-set']
-    if application_status:
+    if application:
         cmd.append('--application')
-    cmd.extend([workload_state, message])
+    cmd.extend([workload_state.value, message])
     try:
         ret = subprocess.call(cmd)
         if ret == 0:
@@ -1129,7 +1131,7 @@ def status_set(workload_state, message, application_status=False):
     except OSError as e:
         if e.errno != errno.ENOENT:
             raise
-    log_message = 'status-set failed: {} {}'.format(workload_state,
+    log_message = 'status-set failed: {} {}'.format(workload_state.value,
                                                     message)
     log(log_message, level='INFO')
 
