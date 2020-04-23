@@ -103,6 +103,17 @@ class TestOVS(test_utils.BaseTestCase):
             mock.call(['ip', 'link', 'set', 'eth1', 'up']),
             mock.call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
         ])
+        self._dict_to_vsctl_set.reset_mock()
+        self.check_call.reset_mock()
+        ovs.add_bridge_port('test', 'eth1', portdata={'fakeportinput': None})
+        self._dict_to_vsctl_set.assert_called_once_with(
+            {'fakeportinput': None}, 'Port', 'eth1')
+        self.check_call.assert_has_calls([
+            mock.call(['ovs-vsctl', '--', '--may-exist', 'add-port',
+                       'test', 'eth1', '--', 'fakeextradata']),
+            mock.call(['ip', 'link', 'set', 'eth1', 'up']),
+            mock.call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
+        ])
 
     def test_ovs_appctl(self):
         self.patch_object(ovs.subprocess, 'check_output')
