@@ -85,6 +85,16 @@ class TestOVS(test_utils.BaseTestCase):
         self.assertTrue(self.log.call_count == 1)
 
         self.check_call.reset_mock()
+        self.log.reset_mock()
+        ovs.add_bridge_port('test', 'eth1', promisc=None)
+        self.check_call.assert_has_calls([
+            mock.call(['ovs-vsctl', '--', '--may-exist', 'add-port',
+                       'test', 'eth1']),
+            mock.call(['ip', 'link', 'set', 'eth1', 'up']),
+        ])
+        self.assertTrue(self.log.call_count == 1)
+
+        self.check_call.reset_mock()
         ovs.add_bridge_port('test', 'eth1', exclusive=True, linkup=False)
         self.check_call.assert_has_calls([
             mock.call(['ovs-vsctl', '--', 'add-port', 'test', 'eth1']),

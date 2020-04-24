@@ -193,7 +193,8 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
     :param port: Name of port as represented in netdev
     :type port: str
     :param promisc: Whether to set promiscuous mode on interface
-    :type promisc: bool
+                    True=on, False=off, None leave untouched
+    :type promisc: Optional[bool]
     :param ifdata: Additional data to attach to interface
         The keys in the ifdata dictionary map directly to column names in the
         OpenvSwitch Interface table as defined in DB-SCHEMA [0] referenced in
@@ -241,7 +242,7 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
         subprocess.check_call(["ip", "link", "set", port, "up"])
     if promisc:
         subprocess.check_call(["ip", "link", "set", port, "promisc", "on"])
-    else:
+    elif promisc is False:
         subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
