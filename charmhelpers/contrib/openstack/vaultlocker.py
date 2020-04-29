@@ -163,7 +163,7 @@ def retrieve_secret_id(url, token):
     :returns: secret_id to use for Vault Access
     :rtype: str"""
     import hvac
-    client = hvac.Client(url=url, token=token)
+    client = hvac.Client(url=url, token=token, adapter=hvac.adapters.Request)
     response = client._post('/v1/sys/wrapping/unwrap')
     if response.status_code == 200:
         data = response.json()
