@@ -185,7 +185,7 @@ def del_bridge(name):
 
 
 def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
-                    linkup=True):
+                    linkup=True, portdata=None):
     """Add port to bridge and optionally set/update interface data for it
 
     :param name: Name of bridge to attach port to
@@ -193,7 +193,8 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
     :param port: Name of port as represented in netdev
     :type port: str
     :param promisc: Whether to set promiscuous mode on interface
-    :type promisc: bool
+                    True=on, False=off, None leave untouched
+    :type promisc: Optional[bool]
     :param ifdata: Additional data to attach to interface
         The keys in the ifdata dictionary map directly to column names in the
         OpenvSwitch Interface table as defined in DB-SCHEMA [0] referenced in
@@ -219,15 +220,18 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
     :type exclusive: bool
     :param linkup: Bring link up
     :type linkup: bool
+    :param portdata: Additional data to attach to port. Similar to ifdata.
+    :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
     :raises: subprocess.CalledProcessError
     """
     cmd = ['ovs-vsctl', '--']
     if not exclusive:
         cmd.append('--may-exist')
     cmd.extend(('add-port', name, port))
-    if ifdata:
-        for setcmd in _dict_to_vsctl_set(ifdata, 'Interface', port):
-            cmd.extend(setcmd)
+    for ovs_table, data in (('Interface', ifdata), ('Port', portdata)):
+        if data:
+            for setcmd in _dict_to_vsctl_set(data, ovs_table, port):
+                cmd.extend(setcmd)
 
     log('Adding port {} to bridge {}'.format(port, name))
     subprocess.check_call(cmd)
@@ -238,7 +242,7 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
         subprocess.check_call(["ip", "link", "set", port, "up"])
     if promisc:
         subprocess.check_call(["ip", "link", "set", port, "promisc", "on"])
-    else:
+    elif promisc is False:
         subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
@@ -256,6 +260,59 @@ def del_bridge_port(name, port):
                            name, port])
     subprocess.check_call(["ip", "link", "set", port, "down"])
     subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
+
+
+def add_bridge_bond(bridge, port, interfaces, portdata=None, ifdatamap=None,
+                    exclusive=False):
+    """Add bonded port in bridge from interfaces.
+
+    :param bridge: Name of bridge to add bonded port to
+    :type bridge: str
+    :param port: Name of created port
+    :type port: str
+    :param interfaces: Underlying interfaces that make up the bonded port
+    :type interfaces: Iterator[str]
+    :param portdata: Additional data to attach to the created bond port
+        See _dict_to_vsctl_set() for detailed description.
+        Example:
+        {
+            'bond-mode': 'balance-tcp',
+            'lacp': 'active',
+            'other-config': {
+                'lacp-time': 'fast',
+            },
+        }
+    :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+    :param ifdatamap: Map of data to attach to created bond interfaces
+        See _dict_to_vsctl_set() for detailed description.
+        Example:
+        {
+            'eth0': {
+                'type': 'dpdk',
+                'mtu-request': '9000',
+                'options': {
+                    'dpdk-devargs': '0000:01:00.0',
+                },
+            },
+        }
+    :type ifdatamap: Optional[Dict[str,Dict[str,Union[str,Dict[str,str]]]]]
+    :param exclusive: If True, raise exception if port exists
+    :type exclusive: bool
+    :raises: subprocess.CalledProcessError
+    """
+    cmd = ['ovs-vsctl', '--']
+    if not exclusive:
+        cmd.append('--may-exist')
+    cmd.extend(('add-bond', bridge, port))
+    cmd.extend(interfaces)
+    if portdata:
+        for setcmd in _dict_to_vsctl_set(portdata, 'port', port):
+            cmd.extend(setcmd)
+    if ifdatamap:
+        for ifname, ifdata in ifdatamap.items():
+            for setcmd in _dict_to_vsctl_set(ifdata, 'Interface', ifname):
+                cmd.extend(setcmd)
+    subprocess.check_call(cmd)
 
 
 def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
