@@ -23,7 +23,7 @@ from charmhelpers.fetch import apt_install
 
 
 from charmhelpers.core.hookenv import (
-    log, WARNING, INFO, DEBUG
+    log, ERROR, WARNING, INFO, DEBUG
 )
 from charmhelpers.core.host import (
     service
@@ -400,17 +400,19 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
                 linuxbridge_port=linuxbridge_port,
                 ovsbridge_port=ovsbridge_port, bridge=bridge))
 
-        # NOTE(lourot): 'ifup <name>' can't be replaced by
-        # 'ip link set <name> up' as the latter won't parse
-        # /etc/network/interfaces*
-        ifup_cmd = ['ifup', linuxbridge_port]
         try:
-            subprocess.check_call(ifup_cmd)
+            # NOTE(lourot): 'ifup <name>' can't be replaced by
+            # 'ip link set <name> up' as the latter won't parse
+            # /etc/network/interfaces*
+            subprocess.check_call(['ifup', linuxbridge_port])
         except FileNotFoundError:
             # NOTE(lourot): on bionic and newer, 'ifup' isn't installed by
-            # default
-            apt_install('ifupdown', fatal=True)
-            subprocess.check_call(ifup_cmd)
+            # default. It has been replaced by netplan.io but we can't use it
+            # yet because of lp:1876730. For the time being, charms using this
+            # have to install 'ifupdown' on bionic and newer.
+            log('ifup: command not found. Did this charm forget to install ' +
+                'ifupdown?', level=ERROR)
+            raise
 
     add_bridge_port(name, linuxbridge_port, ifdata=ifdata, exclusive=False,
                     portdata=portdata)
