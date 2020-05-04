@@ -274,6 +274,12 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql+pymysql'
                 }
+                # Port is being introduced with LP Bug #1876188
+                # but it not currently required and may not be set in all
+                # cases, particularly in classic charms.
+                port = rdata.get('db_port')
+                if port:
+                    ctxt['database_port'] = port
                 if CompareOpenStackReleases(rel) < 'queens':
                     ctxt['database_type'] = 'mysql'
                 if self.context_complete(ctxt):
