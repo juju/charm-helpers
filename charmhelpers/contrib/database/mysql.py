@@ -69,10 +69,11 @@ class MySQLHelper(object):
 
     def __init__(self, rpasswdf_template, upasswdf_template, host='localhost',
                  migrate_passwd_to_leader_storage=True,
-                 delete_ondisk_passwd_file=True, user="root", password=None):
+                 delete_ondisk_passwd_file=True, user="root", password=None, port=None):
         self.user = user
         self.host = host
         self.password = password
+        self.port = port
 
         # Password file path templates
         self.root_passwd_file_template = rpasswdf_template
@@ -83,17 +84,19 @@ class MySQLHelper(object):
         self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
         self.connection = None
 
-    def connect(self, user='root', password=None, host=None):
+    def connect(self, user='root', password=None, host=None, port=None):
         if user is None:
             user = self.user
         if password is None:
             password = self.password
         if host is None:
             host = self.host
+        if port is None:
+            port = self.port
 
         log("Opening db connection for %s@%s" % (user, host), level=DEBUG)
         self.connection = MySQLdb.connect(user=user, host=host,
-                                          passwd=password)
+                                          passwd=password, port=port)
 
     def database_exists(self, db_name):
         cursor = self.connection.cursor()
