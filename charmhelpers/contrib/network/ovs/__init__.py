@@ -346,6 +346,10 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
     :type ifdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
     :param portdata: Additional data to attach to port. Similar to ifdata.
     :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+
+    NOTE: the `ifup` command (NetworkManager) must be available on the system
+    for this to work. Before Ubuntu 18.04 this was shipped by default. On
+    Ubuntu 18.04 and newer you need to install the package `ifupdown`.
     """
     try:
         import netifaces
