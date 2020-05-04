@@ -85,6 +85,16 @@ class TestOVS(test_utils.BaseTestCase):
         self.assertTrue(self.log.call_count == 1)
 
         self.check_call.reset_mock()
+        self.log.reset_mock()
+        ovs.add_bridge_port('test', 'eth1', promisc=None)
+        self.check_call.assert_has_calls([
+            mock.call(['ovs-vsctl', '--', '--may-exist', 'add-port',
+                       'test', 'eth1']),
+            mock.call(['ip', 'link', 'set', 'eth1', 'up']),
+        ])
+        self.assertTrue(self.log.call_count == 1)
+
+        self.check_call.reset_mock()
         ovs.add_bridge_port('test', 'eth1', exclusive=True, linkup=False)
         self.check_call.assert_has_calls([
             mock.call(['ovs-vsctl', '--', 'add-port', 'test', 'eth1']),
@@ -103,6 +113,17 @@ class TestOVS(test_utils.BaseTestCase):
             mock.call(['ip', 'link', 'set', 'eth1', 'up']),
             mock.call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
         ])
+        self._dict_to_vsctl_set.reset_mock()
+        self.check_call.reset_mock()
+        ovs.add_bridge_port('test', 'eth1', portdata={'fakeportinput': None})
+        self._dict_to_vsctl_set.assert_called_once_with(
+            {'fakeportinput': None}, 'Port', 'eth1')
+        self.check_call.assert_has_calls([
+            mock.call(['ovs-vsctl', '--', '--may-exist', 'add-port',
+                       'test', 'eth1', '--', 'fakeextradata']),
+            mock.call(['ip', 'link', 'set', 'eth1', 'up']),
+            mock.call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
+        ])
 
     def test_ovs_appctl(self):
         self.patch_object(ovs.subprocess, 'check_output')
@@ -110,3 +131,44 @@ class TestOVS(test_utils.BaseTestCase):
         self.check_output.assert_called_once_with(
             ['ovs-appctl', '-t', 'ovs-vswitchd', 'ofproto/list'],
             universal_newlines=True)
+
+    def test_add_bridge_bond(self):
+        self.patch_object(ovs.subprocess, 'check_call')
+        self.patch_object(ovs, '_dict_to_vsctl_set')
+        self._dict_to_vsctl_set.return_value = [['--', 'fakekey=fakevalue']]
+        portdata = {
+            'bond-mode': 'balance-tcp',
+            'lacp': 'active',
+            'other-config': {
+                'lacp-time': 'fast',
+            },
+        }
+        ifdatamap = {
+            'eth0': {
+                'type': 'dpdk',
+                'mtu-request': '9000',
+                'options': {
+                    'dpdk-devargs': '0000:01:00.0',
+                },
+            },
+            'eth1': {
+                'type': 'dpdk',
+                'mtu-request': '9000',
+                'options': {
+                    'dpdk-devargs': '0000:02:00.0',
+                },
+            },
+        }
+        ovs.add_bridge_bond('br-ex', 'bond42', ['eth0', 'eth1'],
+                            portdata, ifdatamap)
+        self._dict_to_vsctl_set.assert_has_calls([
+            mock.call(portdata, 'port', 'bond42'),
+            mock.call(ifdatamap['eth0'], 'Interface', 'eth0'),
+            mock.call(ifdatamap['eth1'], 'Interface', 'eth1'),
+        ], any_order=True)
+        self.check_call.assert_called_once_with([
+            'ovs-vsctl',
+            '--', '--may-exist', 'add-bond', 'br-ex', 'bond42', 'eth0', 'eth1',
+            '--', 'fakekey=fakevalue',
+            '--', 'fakekey=fakevalue',
+            '--', 'fakekey=fakevalue'])

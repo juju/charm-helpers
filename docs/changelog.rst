@@ -1,6 +1,34 @@
 Changelog
 ---------
 
+0.20.11
+^^^^^^^
+Wednesday 29th April 2020
+
+* Handle older versions of hvac library (#467)
+* Fix exception from vaultlocker code due to upstream change (#466)
+* status_set refinements (#465)
+* Handle exceptions in containers when setting sysctl keys (#462)
+* ovs/ovsdb: Improve SimpleOVSDB API (#451)
+* non-active local unit state in application status (#458)
+* Small refactor of the status check functions (#457)
+* Add support for setting application status (#456)
+* Add methods for passing & rendering osd-setting (#444)
+* Add common functions for sharing unit state (#454)
+* Update mysql router permissions (#455)
+* Move state check from keystone (#453)
+* Add hook context to unit test helper (#452)
+* Fix add_ovsbridge_linuxbridge's return contract (#447)
+* Extend add_ovsbridge_linuxbridge with the possibility to set additional data to the corresponding port (#446)
+* Move OVS/OVN helpers from charm-layer-ovn (#443)
+* Be more defensive when checking Vault (#445)
+* Improve env_proxy_settings()'s documentation (#413)
+* Code has moved from launchpad to github (#414)
+* Handle loopback devices with deleted backing files (#441)
+* Change Ansible PPA to upstream PPA (#403)
+* replace ansible extra-vars parsing with json (#425)
+* Update Ansible docs and examples (#404)
+
 0.20.10
 ^^^^^^^
 Thursday 20th February 2020

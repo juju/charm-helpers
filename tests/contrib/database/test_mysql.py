@@ -820,6 +820,9 @@ class Mysql8Tests(unittest.TestCase):
                       "'{}'@'{}'".format(self.user, self.host)),
             mock.call("GRANT SELECT ON "
                       "performance_schema.replication_group_member_stats TO "
+                      "'{}'@'{}'".format(self.user, self.host)),
+            mock.call("GRANT SELECT ON "
+                      "performance_schema.global_variables TO "
                       "'{}'@'{}'".format(self.user, self.host))]
 
         self.cursor.execute.assert_has_calls(_calls)

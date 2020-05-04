@@ -1,5 +1,6 @@
 from mock import patch, call, mock_open
 
+import collections
 import six
 import errno
 from shutil import rmtree
@@ -210,6 +211,87 @@ class CephUtilsTests(TestCase):
         mock = _m.start()
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
+
+    def _get_osd_settings_test_helper(self, settings, expected=None):
+        units = {
+            'client:1': ['ceph-iscsi/1', 'ceph-iscsi/2'],
+            'client:3': ['cinder-ceph/0', 'cinder-ceph/3']}
+        self.relation_ids.return_value = units.keys()
+        self.related_units.side_effect = lambda x: units[x]
+        self.relation_get.side_effect = lambda x, y, z: settings[y]
+        if expected:
+            self.assertEqual(
+                ceph_utils.get_osd_settings('client'),
+                expected)
+        else:
+            ceph_utils.get_osd_settings('client'),
+
+    def test_get_osd_settings_all_unset(self):
+        settings = {
+            'ceph-iscsi/1': None,
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': None,
+            'cinder-ceph/3': None}
+        self._get_osd_settings_test_helper(settings, {})
+
+    def test_get_osd_settings_one_group_set(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd heartbeat grace": 5}',
+            'ceph-iscsi/2': '{"osd heartbeat grace": 5}',
+            'cinder-ceph/0': '{"osd heartbeat interval": 25}',
+            'cinder-ceph/3': '{"osd heartbeat interval": 25}'}
+        self._get_osd_settings_test_helper(
+            settings,
+            {'osd heartbeat interval': 25,
+             'osd heartbeat grace': 5})
+
+    def test_get_osd_settings_invalid_option(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd foobar": 5}',
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': None,
+            'cinder-ceph/3': None}
+        self.assertRaises(
+            ceph_utils.OSDSettingNotAllowed,
+            self._get_osd_settings_test_helper,
+            settings)
+
+    def test_get_osd_settings_conflicting_options(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd heartbeat grace": 5}',
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': '{"osd heartbeat grace": 6}',
+            'cinder-ceph/3': None}
+        self.assertRaises(
+            ceph_utils.OSDSettingConflict,
+            self._get_osd_settings_test_helper,
+            settings)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    def test_send_osd_settings(self, _get_osd_settings):
+        self.relation_ids.return_value = ['client:1', 'client:3']
+        _get_osd_settings.return_value = {
+            'osd heartbeat grace': 5,
+            'osd heartbeat interval': 25}
+        ceph_utils.send_osd_settings()
+        expected_calls = [
+            call(
+                relation_id='client:1',
+                relation_settings={
+                    'osd-settings': ('{"osd heartbeat grace": 5, '
+                                     '"osd heartbeat interval": 25}')}),
+            call(
+                relation_id='client:3',
+                relation_settings={
+                    'osd-settings': ('{"osd heartbeat grace": 5, '
+                                     '"osd heartbeat interval": 25}')})]
+        self.relation_set.assert_has_calls(expected_calls, any_order=True)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    def test_send_osd_settings_bad_settings(self, _get_osd_settings):
+        _get_osd_settings.side_effect = ceph_utils.OSDSettingConflict()
+        ceph_utils.send_osd_settings()
+        self.assertFalse(self.relation_set.called)
 
     def test_validator_valid(self):
         # 1 is an int
@@ -1597,6 +1679,22 @@ class CephUtilsTests(TestCase):
         mock_config.return_value = ("{'osd': {'foo': 1},"
                                     "'unknown': {'blah': 1}}")
         self.assertEqual({'osd': {'foo': 1}}, ctxt)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    @patch.object(ceph_utils, 'config')
+    def test_ceph_osd_conf_context_conflict(self, mock_config,
+                                            mock_get_osd_settings):
+        mock_config.return_value = "{'osd': {'osd heartbeat grace': 20}}"
+        mock_get_osd_settings.return_value = {
+            'osd heartbeat grace': 25,
+            'osd heartbeat interval': 5}
+        ctxt = ceph_utils.CephOSDConfContext()()
+        self.assertEqual(ctxt, {
+            'osd': collections.OrderedDict([('osd heartbeat grace', 20)]),
+            'osd_from_client': collections.OrderedDict(
+                [('osd heartbeat interval', 5)]),
+            'osd_from_client_conflict': collections.OrderedDict(
+                [('osd heartbeat grace', 25)])})
 
     @patch.object(ceph_utils, 'local_unit', lambda: "nova-compute/0")
     def test_is_broker_action_done(self):

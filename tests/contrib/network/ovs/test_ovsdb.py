@@ -44,10 +44,13 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
 
     def test___init__(self):
         with self.assertRaises(RuntimeError):
-            self.target = ovsdb.SimpleOVSDB('atool', 'atable')
+            self.target = ovsdb.SimpleOVSDB('atool')
+        with self.assertRaises(AttributeError):
+            self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
+            self.target.unknown_table.find()
 
     def test__find_tbl(self):
-        self.target = ovsdb.SimpleOVSDB('ovs-vsctl', 'atable')
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
         self.patch_object(ovsdb.utils, '_run')
         self._run.return_value = VSCTL_BRIDGE_TBL
         self.maxDiff = None
@@ -80,41 +83,41 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
             'status': {},
             'stp_enable': False}
         # this in effect also tests the __iter__ front end method
-        for el in self.target:
+        for el in self.target.bridge:
             self.assertDictEqual(el, expect)
             break
         self._run.assert_called_once_with(
-            'ovs-vsctl', '-f', 'json', 'find', 'atable')
+            'ovs-vsctl', '-f', 'json', 'find', 'bridge')
         self._run.reset_mock()
         # this in effect also tests the find front end method
-        for el in self.target.find(condition='name=br-test'):
+        for el in self.target.bridge.find(condition='name=br-test'):
             break
         self._run.assert_called_once_with(
-            'ovs-vsctl', '-f', 'json', 'find', 'atable', 'name=br-test')
+            'ovs-vsctl', '-f', 'json', 'find', 'bridge', 'name=br-test')
 
     def test_clear(self):
-        self.target = ovsdb.SimpleOVSDB('ovs-vsctl', 'atable')
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
         self.patch_object(ovsdb.utils, '_run')
-        self.target.clear('1e21ba48-61ff-4b32-b35e-cb80411da351',
-                          'external_ids')
+        self.target.interface.clear('1e21ba48-61ff-4b32-b35e-cb80411da351',
+                                    'external_ids')
         self._run.assert_called_once_with(
-            'ovs-vsctl', 'clear', 'atable',
+            'ovs-vsctl', 'clear', 'interface',
             '1e21ba48-61ff-4b32-b35e-cb80411da351', 'external_ids')
 
     def test_remove(self):
-        self.target = ovsdb.SimpleOVSDB('ovs-vsctl', 'atable')
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
         self.patch_object(ovsdb.utils, '_run')
-        self.target.remove('1e21ba48-61ff-4b32-b35e-cb80411da351',
-                           'external_ids', 'other')
+        self.target.interface.remove('1e21ba48-61ff-4b32-b35e-cb80411da351',
+                                     'external_ids', 'other')
         self._run.assert_called_once_with(
-            'ovs-vsctl', 'remove', 'atable',
+            'ovs-vsctl', 'remove', 'interface',
             '1e21ba48-61ff-4b32-b35e-cb80411da351', 'external_ids', 'other')
 
     def test_set(self):
-        self.target = ovsdb.SimpleOVSDB('ovs-vsctl', 'atable')
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
         self.patch_object(ovsdb.utils, '_run')
-        self.target.set('1e21ba48-61ff-4b32-b35e-cb80411da351',
-                        'external_ids:other', 'value')
+        self.target.interface.set('1e21ba48-61ff-4b32-b35e-cb80411da351',
+                                  'external_ids:other', 'value')
         self._run.assert_called_once_with(
-            'ovs-vsctl', 'set', 'atable',
+            'ovs-vsctl', 'set', 'interface',
             '1e21ba48-61ff-4b32-b35e-cb80411da351', 'external_ids:other=value')
