@@ -18,6 +18,7 @@ import subprocess
 import os
 import six
 
+from charmhelpers import deprecate
 from charmhelpers.fetch import apt_install
 
 
@@ -488,9 +489,8 @@ def setup_eni():
         eni.write('\nsource /etc/network/interfaces.d/*')
 
 
+@deprecate('use setup_eni() instead', '2021-01', log=log)
 def check_for_eni_source():
-    """DEPRECATED: call setup_eni() instead."""
-    log('DEPRECATION WARNING: call setup_eni() instead.')
     setup_eni()
 
 
