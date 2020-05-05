@@ -85,18 +85,19 @@ class MySQLHelper(object):
         self.connection = None
 
     def connect(self, user='root', password=None, host=None, port=None):
-        if user is None:
-            user = self.user
-        if password is None:
-            password = self.password
-        if host is None:
-            host = self.host
-        if port is None:
-            port = self.port
+        _connection_info = {
+            "user": user or self.user,
+            "passwd": password or self.password,
+            "host": host or self.host
+        }
+        # port cannot be None but we also do not want to specify it unless it
+        # has been explicit set.
+        port = port or self.port
+        if port is not None:
+            _connection_info["port"] = port
 
         log("Opening db connection for %s@%s" % (user, host), level=DEBUG)
-        self.connection = MySQLdb.connect(user=user, host=host,
-                                          passwd=password, port=port)
+        self.connection = MySQLdb.connect(**_connection_info)
 
     def database_exists(self, db_name):
         cursor = self.connection.cursor()
