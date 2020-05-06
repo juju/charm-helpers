@@ -4691,3 +4691,110 @@ class TestBondConfig(tests.utils.BaseTestCase):
                           'lacp': 'off',
                           'lacp-time': 'fast'
                           })
+
+
+class TestSRIOVContext(tests.utils.BaseTestCase):
+
+    class ObjectView(object):
+
+        def __init__(self, _dict):
+            self.__dict__ = _dict
+
+    def test___init__(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({
+            'pci_devices': [
+                self.ObjectView({
+                    'sriov': True,
+                    'interface_name': 'eth0',
+                    'sriov_totalvfs': 16,
+                }),
+                self.ObjectView({
+                    'sriov': True,
+                    'interface_name': 'eth1',
+                    'sriov_totalvfs': 32,
+                }),
+                self.ObjectView({
+                    'sriov': False,
+                    'interface_name': 'eth2',
+                }),
+            ]
+        })
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        # auto sets up numvfs = totalvfs
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+            'eth1': 32,
+        })
+        # when sriov-device-mappings is used only listed devices are set up
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+            'sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+        })
+        self.config.return_value = {
+            'sriov-numvfs': 'eth0:8',
+            'sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 8,
+        })
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:8',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 8,
+        })
+        # setting a numvfs value higher than a nic supports will revert to
+        # the nics max value
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:64',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 32,
+        })
+        # devices listed in sriov-numvfs have precedence over
+        # sriov-device-mappings and the limiter still works when both are used
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:64',
+            'sriov-device-mappings': 'physnet:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 32,
+        })
+        # alternate config keys have effect
+        self.config.return_value = {
+            'my-own-sriov-numvfs': 'auto',
+            'my-own-sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(
+            context.SRIOVContext(
+                numvfs_key='my-own-sriov-numvfs',
+                device_mappings_key='my-own-sriov-device-mappings')(),
+            {
+                'eth0': 16,
+            })
+        # blanket configuration works and respects limits
+        self.config.return_value = {
+            'sriov-numvfs': '24',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+            'eth1': 24,
+        })
+
+    def test___call__(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({'pci_devices': []})
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        self.config.return_value = {'sriov-numvfs': 'auto'}
+        ctxt_obj = context.SRIOVContext()
+        ctxt_obj._map = {}
+        self.assertDictEqual(ctxt_obj(), {})
