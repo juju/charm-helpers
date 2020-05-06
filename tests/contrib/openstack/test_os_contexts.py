@@ -97,6 +97,12 @@ SHARED_DB_RELATION = {
     'password': 'foo'
 }
 
+SHARED_DB_RELATION_W_PORT = {
+    'db_host': 'dbserver.local',
+    'password': 'foo',
+    'db_port': 3306,
+}
+
 SHARED_DB_RELATION_ALT_RID = {
     'mysql-alt:0': {
         'mysql-alt/0': {
@@ -816,6 +822,26 @@ class ContextTests(unittest.TestCase):
             'database_user': 'adam',
             'database_password': 'flump',
             'database_type': 'mysql+pymysql',
+        }
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_port(self, os_codename):
+        '''Test shared-db context with all required data'''
+        os_codename.return_value = 'queens'
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_W_PORT)
+        self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = ''
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
+        shared_db = context.SharedDBContext()
+        result = shared_db()
+        expected = {
+            'database_host': 'dbserver.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'foo',
+            'database_type': 'mysql+pymysql',
+            'database_port': 3306,
         }
         self.assertEquals(result, expected)
 

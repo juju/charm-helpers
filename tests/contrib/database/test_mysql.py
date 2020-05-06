@@ -30,6 +30,13 @@ class MysqlTests(unittest.TestCase):
         mysql.MySQLdb.connect.assert_called_with(
             passwd='password', host='localhost', user='user')
 
+    def test_connect_port_defined(self):
+        helper = mysql.MySQLHelper('foo', 'bar')
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', port=3316)
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user', port=3316)
+
     @mock.patch.object(mysql.MySQLHelper, 'normalize_address')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
     @mock.patch.object(mysql.MySQLHelper, 'grant_exists')
