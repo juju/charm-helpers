@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+0.20.13
+^^^^^^^
+Wednesday 6th May 2020
+
+ * openstack: Add context for SRIOV configuration (#468)
+
 0.20.12
 ^^^^^^^
 Wednesday 6th May 2020
