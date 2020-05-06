@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.20.12
+^^^^^^^
+Wednesday 6th May 2020
+
+ * Allow specifying port for mysql and shared-db context (#469)
+ * openstack: Move bridge port interface mapping to charm helpers (#448)
+
 0.20.11
 ^^^^^^^
 Wednesday 29th April 2020
