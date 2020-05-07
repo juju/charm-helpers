@@ -86,8 +86,9 @@ class TestOVN(test_utils.BaseTestCase):
                 ('22dd', 'ssl:10.219.3.137:6643'),
             ])
         self.assertEquals(ovn.cluster_status('ovnnb_db'), expect)
-        self.ovn_appctl.assert_called_once_with('ovnnb_db', 'cluster/status',
-                                                'OVN_Northbound',
+        self.ovn_appctl.assert_called_once_with('ovnnb_db', ('cluster/status',
+                                                'OVN_Northbound'),
+                                                rundir=None,
                                                 use_ovs_appctl=False)
         self.assertFalse(expect.is_cluster_leader)
         expect = ovn.OVNClusterStatus(
@@ -116,6 +117,6 @@ class TestOVN(test_utils.BaseTestCase):
         self.patch_object(ovn, 'ovn_appctl')
         self.ovn_appctl.return_value = NORTHD_STATUS_ACTIVE
         self.assertTrue(ovn.is_northd_active())
-        self.ovn_appctl.assert_called_once_with('ovn-northd', 'status')
+        self.ovn_appctl.assert_called_once_with('ovn-northd', ('status',))
         self.ovn_appctl.return_value = NORTHD_STATUS_STANDBY
         self.assertFalse(ovn.is_northd_active())
