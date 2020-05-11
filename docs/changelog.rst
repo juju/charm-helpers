@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.20.14
+^^^^^^^
+Monday 11th May 2020
+
+ * ceph autoscaler: set min pg num for pools (#471)
+ * ovn: Fix argument passing to ovn_appctl (#470)
+
 0.20.13
 ^^^^^^^
 Wednesday 6th May 2020
