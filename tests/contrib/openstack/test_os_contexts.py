@@ -1853,6 +1853,113 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_no_rbd_pool(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'testing-foo',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_rbd_pool(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded',
+            'rbd-pool': 'glance'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'glance',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_rbd_pool_name(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded',
+            'rbd-pool-name': 'nova'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'nova',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_rbd_cache(self, ensure_packages, mkdir, isdir,
                                          mock_config):
         isdir.return_value = False

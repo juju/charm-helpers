@@ -679,7 +679,8 @@ class ErasurePool(BasePool):
     """Default jerasure erasure coded pool."""
 
     def __init__(self, service, name=None, erasure_code_profile=None,
-                 percent_data=None, app_name=None, op=None):
+                 percent_data=None, app_name=None, op=None,
+                 allow_ec_overwrites=False):
         """Initialize ReplicatedPool object.
 
         Pool information is either initialized from individual keyword
@@ -708,6 +709,8 @@ class ErasurePool(BasePool):
             # We keep the class default when initialized from keyword arguments
             # to not break the API for any other consumers.
             self.erasure_code_profile = erasure_code_profile or 'default'
+
+        self.allow_ec_overwrites = allow_ec_overwrites
 
     def _create(self):
         # Try to find the erasure profile information in order to properly
@@ -750,6 +753,12 @@ class ErasurePool(BasePool):
                 'erasure', self.erasure_code_profile
             ]
         check_call(cmd)
+
+    def _post_create(self):
+        super(ErasurePool, self)._post_create()
+        if self.allow_ec_overwrites:
+            update_pool(self.service, self.name,
+                        {'allow_ec_overwrites': 'true'})
 
 
 def enabled_manager_modules():
@@ -1055,10 +1064,14 @@ def remove_erasure_profile(service, profile_name):
 
 def create_erasure_profile(service, profile_name,
                            erasure_plugin_name='jerasure',
-                           failure_domain='host',
+                           failure_domain=None,
                            data_chunks=2, coding_chunks=1,
                            locality=None, durability_estimator=None,
-                           device_class=None):
+                           helper_chunks=None,
+                           scalar_mds=None,
+                           crush_locality=None,
+                           device_class=None,
+                           erasure_plugin_technique=None):
     """Create a new erasure code profile if one does not already exist for it.
 
     Updates the profile if it exists. Please refer to [0] for more details.
@@ -1083,56 +1096,123 @@ def create_erasure_profile(service, profile_name,
     :type locality: int
     :param durability_estimator: Durability estimator.
     :type durability_estimator: int
+    :param helper_chunks: int
+    :type helper_chunks: int
     :param device_class: Restrict placement to devices of specific class.
     :type device_class: str
-    :raises: CalledProcessError
+    :param scalar_mds: one of ['isa', 'jerasure', 'shec']
+    :type scalar_mds: str
+    :param crush_locality: LRC locality faulure domain, one of:
+                           ('chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod',
+                            'rack', 'region', 'room', 'root', 'row') or unset.
+    :type crush_locaity: str
+    :param erasure_plugin_technique: Coding technique for EC plugin
+    :type erasure_plugin_technique: str
+    :return: None.  Can raise CalledProcessError, ValueError or AssertionError
     """
-    # Ensure this failure_domain is allowed by Ceph
-    validator(
-        failure_domain, six.string_types, [
-            'chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack',
-            'region', 'room', 'root', 'row'])
+    plugin_techniques = {
+        'jerasure': [
+            'reed_sol_van',
+            'reed_sol_r6_op',
+            'cauchy_orig',
+            'cauchy_good',
+            'liberation',
+            'blaum_roth',
+            'liber8tion'
+        ],
+        'lrc': [],
+        'isa': [
+            'reed_sol_van',
+            'cauchy',
+        ],
+        'shec': [
+            'single',
+            'multiple'
+        ],
+        'clay': [],
+    }
+    failure_domains = [
+        'chassis', 'datacenter',
+        'host', 'osd',
+        'pdu', 'pod',
+        'rack', 'region',
+        'room', 'root',
+        'row',
+    ]
+    device_classes = [
+        'ssd',
+        'hdd',
+        'nvme'
+    ]
+
+    validator(erasure_plugin_name, six.string_types,
+              list(plugin_techniques.keys()))
 
     cmd = [
         'ceph', '--id', service,
         'osd', 'erasure-code-profile', 'set', profile_name,
-        'plugin=' + erasure_plugin_name,
-        'k=' + str(data_chunks),
-        'm=' + str(coding_chunks)
+        'plugin={}'.format(erasure_plugin_name),
+        'k={}'.format(str(data_chunks)),
+        'm={}'.format(str(coding_chunks)),
     ]
-    if locality is not None and durability_estimator is not None:
-        raise ValueError("create_erasure_profile should be called with k, m "
-                         "and one of l or c but not both.")
+
+    if erasure_plugin_technique:
+        validator(erasure_plugin_technique, six.string_types,
+                  plugin_techniques[erasure_plugin_name])
+        cmd.append('technique={}'.format(erasure_plugin_technique))
 
     luminous_or_later = cmp_pkgrevno('ceph-common', '12.0.0') >= 0
-    # failure_domain changed in luminous
-    if luminous_or_later:
-        cmd.append('crush-failure-domain=' + failure_domain)
-    else:
-        cmd.append('ruleset-failure-domain=' + failure_domain)
+
+    # Set failure domain from options if not provided in args
+    if not failure_domain and config('customize-failure-domain'):
+        # Defaults to 'host' so just need to deal with
+        # setting 'rack' if feature is enabled
+        failure_domain = 'rack'
+
+    if failure_domain:
+        validator(failure_domain, six.string_types, failure_domains)
+        # failure_domain changed in luminous
+        if luminous_or_later:
+            cmd.append('crush-failure-domain={}'.format(failure_domain))
+        else:
+            cmd.append('ruleset-failure-domain={}'.format(failure_domain))
 
     # device class new in luminous
     if luminous_or_later and device_class:
+        validator(device_class, six.string_types, device_classes)
         cmd.append('crush-device-class={}'.format(device_class))
     else:
         log('Skipping device class configuration (ceph < 12.0.0)',
             level=DEBUG)
 
     # Add plugin specific information
-    if locality is not None:
-        # For local erasure codes
-        cmd.append('l=' + str(locality))
-    if durability_estimator is not None:
-        # For Shec erasure codes
-        cmd.append('c=' + str(durability_estimator))
+    if erasure_plugin_name == 'lrc':
+        # LRC mandatory configuration
+        if locality:
+            cmd.append('l={}'.format(str(locality)))
+        else:
+            raise ValueError("locality must be provided for lrc plugin")
+        # LRC optional configuration
+        if crush_locality:
+            validator(crush_locality, six.string_types, failure_domains)
+            cmd.append('crush-locality={}'.format(crush_locality))
+
+    if erasure_plugin_name == 'shec':
+        # SHEC optional configuration
+        if durability_estimator:
+            cmd.append('c={}'.format((durability_estimator)))
+
+    if erasure_plugin_name == 'clay':
+        # CLAY optional configuration
+        if helper_chunks:
+            cmd.append('d={}'.format(str(helper_chunks)))
+        if scalar_mds:
+            cmd.append('scalar-mds={}'.format(scalar_mds))
 
     if erasure_profile_exists(service, profile_name):
         cmd.append('--force')
 
-    try:
-        check_call(cmd)
-    except CalledProcessError:
-        raise
+    check_call(cmd)
 
 
 def rename_pool(service, old_name, new_name):
@@ -1788,7 +1868,8 @@ class CephBrokerRq(object):
 
         self.add_op(op)
 
-    def add_op_create_erasure_pool(self, name, erasure_profile=None, **kwargs):
+    def add_op_create_erasure_pool(self, name, erasure_profile=None,
+                                   allow_ec_overwrites=False, **kwargs):
         """Adds an operation to create a erasure coded pool.
 
         Refer to docstring for ``_partial_build_common_op_create`` for
@@ -1800,6 +1881,8 @@ class CephBrokerRq(object):
                                 set the ceph-mon unit handling the broker
                                 request will set its default value.
         :type erasure_profile: str
+        :param allow_ec_overwrites: allow EC pools to be overriden
+        :type allow_ec_overwrites: bool
         :raises: AssertionError if provided data is of invalid type/range
         """
         op = {
@@ -1807,6 +1890,7 @@ class CephBrokerRq(object):
             'name': name,
             'pool-type': 'erasure',
             'erasure-profile': erasure_profile,
+            'allow-ec-overwrites': allow_ec_overwrites,
         }
         op.update(self._partial_build_common_op_create(**kwargs))
 
@@ -1815,6 +1899,64 @@ class CephBrokerRq(object):
         pool.validate()
 
         self.add_op(op)
+
+    def add_op_create_erasure_profile(self, name,
+                                      erasure_type='jerasure',
+                                      erasure_technique=None,
+                                      k=None, m=None,
+                                      failure_domain=None,
+                                      lrc_locality=None,
+                                      shec_durability_estimator=None,
+                                      clay_helper_chunks=None,
+                                      device_class=None,
+                                      clay_scalar_mds=None,
+                                      lrc_crush_locality=None):
+        """Adds an operation to create a erasure coding profile.
+
+        :param name: Name of profile to create
+        :type name: str
+        :param erasure_type: Which of the erasure coding plugins should be used
+        :type erasure_type: string
+        :param erasure_technique: EC plugin technique to use
+        :type erasure_technique: string
+        :param k: Number of data chunks
+        :type k: int
+        :param m: Number of coding chunks
+        :type m: int
+        :param lrc_locality: Group the coding and data chunks into sets of size locality
+                             (lrc plugin)
+        :type lrc_locality: int
+        :param durability_estimator: The number of parity chuncks each of which includes
+                                     a data chunk in its calculation range (shec plugin)
+        :type durability_estimator: int
+        :param helper_chunks: The number of helper chunks to use for recovery operations
+                              (clay plugin)
+        :type: helper_chunks: int
+        :param failure_domain: Type of failure domain from Ceph bucket types
+                               to be used
+        :type failure_domain: string
+        :param device_class: Device class to use for profile (ssd, hdd)
+        :type device_class: string
+        :param clay_scalar_mds: Plugin to use for CLAY layered construction
+                                (jerasure|isa|shec)
+        :type clay_scaler_mds: string
+        :param lrc_crush_locality: Type of crush bucket in which set of chunks
+                                   defined by lrc_locality will be stored.
+        :type lrc_crush_locality: string
+        """
+        self.add_op({'op': 'create-erasure-profile',
+                     'name': name,
+                     'k': k,
+                     'm': m,
+                     'l': lrc_locality,
+                     'c': shec_durability_estimator,
+                     'd': clay_helper_chunks,
+                     'erasure-type': erasure_type,
+                     'erasure-technique': erasure_technique,
+                     'failure-domain': failure_domain,
+                     'device-class': device_class,
+                     'scalar-mds': clay_scalar_mds,
+                     'crush-locality': lrc_crush_locality})
 
     def set_ops(self, ops):
         """Set request ops to provided value.

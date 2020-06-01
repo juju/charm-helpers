@@ -680,7 +680,7 @@ class CephUtilsTests(TestCase):
             'm': '1',
             'plugin': 'jerasure'}
         p = ceph_utils.ErasurePool(name='test', service='admin',
-                                   percent_data=100)
+                                   percent_data=100, allow_ec_overwrites=True)
         p.create()
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -692,6 +692,8 @@ class CephUtilsTests(TestCase):
                   'application', 'enable', 'test', 'unknown']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'pg_autoscale_mode', 'on']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'allow_ec_overwrites', 'true']),
         ])
 
     def test_get_erasure_profile_none(self):
@@ -777,39 +779,120 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile(self, existing_profile):
         existing_profile.return_value = True
+        self.test_config.set('customize-failure-domain', False)
         self.cmp_pkgrevno.return_value = -1
-        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
-                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain='rack', data_chunks=10, coding_chunks=3,
+            device_class='ssd')
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset-failure-domain=' + 'rack', '--force']
+               'ruleset-failure-domain=' + 'rack',
+               '--force']
         self.check_call.assert_has_calls([call(cmd)])
 
         self.cmp_pkgrevno.return_value = 1
-        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
-                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain='rack', data_chunks=10, coding_chunks=3,
+            device_class='ssd')
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'crush-failure-domain=' + 'rack', '--force']
+               'crush-failure-domain=' + 'rack',
+               'crush-device-class=ssd',
+               '--force']
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
-    def test_create_erasure_profile_local(self, existing_profile):
+    def test_create_erasure_profile_failure_domain(self, existing_profile):
+        existing_profile.return_value = True
+        self.test_config.set('customize-failure-domain', True)
         self.cmp_pkgrevno.return_value = -1
-        existing_profile.return_value = False
-        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='local',
-                                          failure_domain='rack', data_chunks=10, coding_chunks=3, locality=1)
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain=None, data_chunks=10, coding_chunks=3,
+            device_class='ssd')
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
-               'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
-               'ruleset-failure-domain=' + 'rack', 'l=' + str(1)]
+               'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
+               'ruleset-failure-domain=' + 'rack',
+               '--force']
+        self.config.assert_called_once_with('customize-failure-domain')
         self.check_call.assert_has_calls([call(cmd)])
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_lrc(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='lrc',
+            failure_domain='host', data_chunks=10, coding_chunks=3, locality=1,
+            crush_locality='rack'
+        )
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'lrc', 'k=' + str(10), 'm=' + str(3),
+               'ruleset-failure-domain=' + 'host', 'l=' + str(1),
+               'crush-locality=rack']
+        self.check_call.assert_has_calls([call(cmd)])
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_lrc_no_locality(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            ValueError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='lrc',
+            failure_domain='rack', data_chunks=10, coding_chunks=3, locality=None
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_invalid_plugin(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            AssertionError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='foobar',
+            data_chunks=10, coding_chunks=3
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_invalid_technique(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            AssertionError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            data_chunks=10, coding_chunks=3,
+            erasure_plugin_technique='foobar'
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_invalid_failure_domain(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            AssertionError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            data_chunks=10, coding_chunks=3,
+            failure_domain='foobar',
+        )
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile_shec(self, existing_profile):
         self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
         existing_profile.return_value = False
         ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='shec',
                                           failure_domain='rack', data_chunks=10, coding_chunks=3,
@@ -2022,6 +2105,7 @@ class CephUtilsTests(TestCase):
 
     def test_add_op_create_erasure_pool(self):
         base_op = {'app-name': None,
+                   'allow-ec-overwrites': False,
                    'compression-algorithm': None,
                    'compression-max-blob-size': None,
                    'compression-max-blob-size-hdd': None,
