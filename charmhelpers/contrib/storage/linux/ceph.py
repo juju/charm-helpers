@@ -446,7 +446,7 @@ class ReplicatedPool(Pool):
 # Default jerasure erasure coded pool
 class ErasurePool(Pool):
     def __init__(self, service, name, erasure_code_profile="default",
-                 percent_data=10.0, app_name=None):
+                 percent_data=10.0, allow_ec_overwrite=False, app_name=None):
         super(ErasurePool, self).__init__(service=service, name=name)
         self.erasure_code_profile = erasure_code_profile
         self.percent_data = percent_data
@@ -454,6 +454,7 @@ class ErasurePool(Pool):
             self.app_name = app_name
         else:
             self.app_name = 'unknown'
+        self.allow_ec_overwrite=allow_ec_overwrite
 
     def create(self):
         if not pool_exists(self.service, self.name):
@@ -485,7 +486,7 @@ class ErasurePool(Pool):
                 cmd = [
                     'ceph', '--id', self.service, 'osd', 'pool', 'create',
                     '--pg-num-min={}'.format(
-                        min(AUTOSCALER_DEFAULT_PGS, pgs)
+                        min(AUTOSCALER_DEFAULT_PGS, pgs),
                     ),
                     self.name, str(pgs), str(pgs),
                     'erasure', self.erasure_code_profile
@@ -518,6 +519,18 @@ class ErasurePool(Pool):
                             self.name, e), level=WARNING)
             except CalledProcessError:
                 raise
+
+            if self.allow_ec_overwrite:
+                cmd = [
+                    'ceph', '--id', self.service, 'osd',
+                    'pool', 'set',
+                    self.name, 'allow_ec_overwrites', 'true',
+                    ]
+                try:
+                    check_call(cmd)
+                except:
+                    log("allow_ec_overwrite set but command failed.",
+                        level=WARNING)
 
     """Get an existing erasure code profile if it already exists.
        Returns json formatted output"""
@@ -819,6 +832,8 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     # Ensure this failure_domain is allowed by Ceph
     validator(failure_domain, six.string_types,
               ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
+    validator(erasure_plugin_name, six.string_types,
+              ['jerasure','lrc','isa','shec','clay'])
 
     cmd = ['ceph', '--id', service, 'osd', 'erasure-code-profile', 'set', profile_name,
            'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks)
@@ -1375,10 +1390,12 @@ class CephBrokerRq(object):
                      'replicas': replica_count, 'pg_num': pg_num,
                      'weight': weight, 'group': group,
                      'group-namespace': namespace, 'app-name': app_name,
-                     'max-bytes': max_bytes, 'max-objects': max_objects})
+                     'max-bytes': max_bytes,
+                     'max-objects': max_objects})
 
     def add_op_create_erasure_pool(self, name, erasure_profile=None,
                                    weight=None, group=None, app_name=None,
+                                   allow_ec_overwrite=False,
                                    max_bytes=None, max_objects=None):
         """Adds an operation to create a erasure coded pool.
 
@@ -1398,6 +1415,8 @@ class CephBrokerRq(object):
                          regard to meaningful application names to use.
                          Examples are ``rbd`` and ``rgw``.
         :type app_name: str
+        :param allow_ec_overwrite: allow EC pools to be overriden
+        :type allow_ec_overwrite: bool
         :param max_bytes: Maximum bytes quota to apply
         :type max_bytes: int
         :param max_objects: Maximum objects quota to apply
@@ -1408,7 +1427,33 @@ class CephBrokerRq(object):
                      'erasure-profile': erasure_profile,
                      'weight': weight,
                      'group': group, 'app-name': app_name,
+                     'allow_ec_overwrite': allow_ec_overwrite,
                      'max-bytes': max_bytes, 'max-objects': max_objects})
+
+    def add_op_create_erasure_profile(self, name, k=None, m=None, l=None,
+                                      erasure_type=None,
+                                      failure_domain=None):
+        """Adds an operation to create a erasure coded pool.
+
+        :param name: Name of pool to create
+        :type name: str
+        :param k: Number of data chunks
+        :type k: int
+        :param m: Number of coding chunks
+        :type m: int
+        :param l: Number of chunks to be placed locally
+        :type l: int
+        :param erasure_type: Which of the erasure coding plugins should be used
+        :type erasure_type: string
+        :param failure_domain: Type of failure domain from Ceph bucket types
+                               to be used
+        :type failure_domain: string
+        """
+        self.add_op({'op': 'create-erasure-profile', 'name': name,
+                     'k': k, 'm': m, 'l': l,
+                     'erasure-type': erasure_type,
+                     'failure-domain': failure_domain})
+
 
     def set_ops(self, ops):
         """Set request ops to provided value.

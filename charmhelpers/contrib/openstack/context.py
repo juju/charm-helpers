@@ -802,6 +802,17 @@ class CephContext(OSContextGenerator):
 
         ctxt['mon_hosts'] = ' '.join(sorted(mon_hosts))
 
+        # First check if the parameter even exists
+        if config('pool-type'):
+            # Now, we look for EC
+            if config('pool-type') == 'erasure':
+                # cinder-ceph uses rbd-pool-name instead
+                if not config('rbd-pool') and not config('rbd-pool-name'):
+                    log("No RBD pool name informed for EC pool", ERROR)
+                    raise Exception("No RBD pool name informed for EC pool")
+                ctxt['rbd_default_data_pool'] = config('ec-rbd-data-pool') or \
+                    "{}-{}".format(config('rbd-pool') or config('rbd-pool-name'), "data")
+
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
 
