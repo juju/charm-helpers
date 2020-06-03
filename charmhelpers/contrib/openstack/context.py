@@ -805,7 +805,7 @@ class CephContext(OSContextGenerator):
         # First check if the parameter even exists
         if config('pool-type'):
             # Now, we look for EC
-            if config('pool-type') == 'erasure':
+            if config('pool-type') == 'erasure-coded':
                 # cinder-ceph uses rbd-pool-name instead
                 if not config('rbd-pool') and not config('rbd-pool-name'):
                     log("No RBD pool name informed for EC pool", ERROR)
