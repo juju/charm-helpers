@@ -2714,6 +2714,19 @@ class BridgePortInterfaceMap(object):
             self._ifname_mac_map[ifname] = [mac]
             self._mac_ifname_map[mac] = ifname
 
+            # check if interface is part of a linux bond
+            _bond_name = get_bond_master(ifname)
+            if _bond_name and _bond_name != ifname:
+                log('Add linux bond "{}" to map for physical interface "{}" '
+                    'with mac "{}".'.format(_bond_name, ifname, mac),
+                    level=DEBUG)
+                # for bonds we want to be able to get a list of the mac
+                # addresses for the physical interfaces the bond is made up of.
+                if self._ifname_mac_map.get(_bond_name):
+                    self._ifname_mac_map[_bond_name].append(mac)
+                else:
+                    self._ifname_mac_map[_bond_name] = [mac]
+
         # In light of the pre-deprecation notice in the docstring of this
         # class we will expose the ability to configure OVS bonds as a
         # DPDK-only feature, but generally use the data structures internally.
