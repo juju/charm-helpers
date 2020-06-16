@@ -120,3 +120,6 @@ docs/_build
 .venv3
 .bzr
 .unit-state.db
+
+AUTHORS
+ChangeLog
