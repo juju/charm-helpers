@@ -454,7 +454,7 @@ class ErasurePool(Pool):
             self.app_name = app_name
         else:
             self.app_name = 'unknown'
-        self.allow_ec_overwrite=allow_ec_overwrite
+        self.allow_ec_overwrite = allow_ec_overwrite
 
     def create(self):
         if not pool_exists(self.service, self.name):
@@ -525,7 +525,7 @@ class ErasurePool(Pool):
                     'ceph', '--id', self.service, 'osd',
                     'pool', 'set',
                     self.name, 'allow_ec_overwrites', 'true',
-                    ]
+                ]
                 try:
                     check_call(cmd)
                 except:
@@ -830,10 +830,14 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     :return: None.  Can raise CalledProcessError
     """
     # Ensure this failure_domain is allowed by Ceph
-    validator(failure_domain, six.string_types,
-              ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
+    # If empty, fallback to default on crush-failure-domain
+    if failure_domain is None:
+        failure_domain = ''
+    else:
+        validator(failure_domain, six.string_types,
+                  ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
     validator(erasure_plugin_name, six.string_types,
-              ['jerasure','lrc','isa','shec','clay'])
+              ['jerasure', 'lrc', 'isa', 'shec', 'clay'])
 
     cmd = ['ceph', '--id', service, 'osd', 'erasure-code-profile', 'set', profile_name,
            'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks)
@@ -1427,7 +1431,7 @@ class CephBrokerRq(object):
                      'erasure-profile': erasure_profile,
                      'weight': weight,
                      'group': group, 'app-name': app_name,
-                     'allow_ec_overwrite': allow_ec_overwrite,
+                     'allow-ec-overwrite': allow_ec_overwrite,
                      'max-bytes': max_bytes, 'max-objects': max_objects})
 
     def add_op_create_erasure_profile(self, name, k=None, m=None, l=None,
@@ -1453,7 +1457,6 @@ class CephBrokerRq(object):
                      'k': k, 'm': m, 'l': l,
                      'erasure-type': erasure_type,
                      'failure-domain': failure_domain})
-
 
     def set_ops(self, ops):
         """Set request ops to provided value.

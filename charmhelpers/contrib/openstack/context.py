@@ -811,7 +811,7 @@ class CephContext(OSContextGenerator):
                     log("No RBD pool name informed for EC pool", ERROR)
                     raise Exception("No RBD pool name informed for EC pool")
                 ctxt['rbd_default_data_pool'] = config('ec-rbd-data-pool') or \
-                    "{}-{}".format(config('rbd-pool') or config('rbd-pool-name'), "data")
+                    (config('rbd-pool') or config('rbd-pool-name'))
 
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
