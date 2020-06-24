@@ -270,6 +270,10 @@ AMQP_AA_RELATION = {
         },
         'rabbitmq/1': {
             'private-address': 'rabbithost2',
+            'password': 'foobar',
+        },
+        'rabbitmq/2': {  # Should be ignored because password is missing.
+            'private-address': 'rabbithost3',
         }
     }
 }
