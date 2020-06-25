@@ -721,6 +721,12 @@ class AMQPContext(OSContextGenerator):
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     host = relation_get('private-address', rid=rid, unit=unit)
+                    if not relation_get('password', rid=rid, unit=unit):
+                        log(
+                            ("Skipping {} password not sent which indicates "
+                             "unit is not ready.".format(host)),
+                            level=DEBUG)
+                        continue
                     host = format_ipv6_addr(host) or host
                     rabbitmq_hosts.append(host)
 
