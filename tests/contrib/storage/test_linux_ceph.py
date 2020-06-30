@@ -469,19 +469,44 @@ class CephUtilsTests(TestCase):
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=50)
         p.create()
-
         # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '128']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                  'target_size_ratio', '0.5']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=32', 'test', '128']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '0.5']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on'])
+        ])
 
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                 'pg_autoscale_mode', 'on']),
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_autoscaler_small(self, get_osds):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
+        self.cmp_pkgrevno.return_value = 1
+        get_osds.return_value = range(1, 3)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=1)
+        p.create()
+        # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+
+        # at 100 PGs/OSD, the number of expected placement groups will be 128
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=2', 'test', '2']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '0.01']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -556,7 +581,8 @@ class CephUtilsTests(TestCase):
                                    percent_data=100)
         p.create()
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create',
+                  '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown'])
@@ -580,10 +606,15 @@ class CephUtilsTests(TestCase):
                                    percent_data=100)
         p.create()
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '1.0']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on']),
         ])
 
     def test_get_erasure_profile_none(self):

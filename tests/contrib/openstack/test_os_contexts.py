@@ -97,6 +97,12 @@ SHARED_DB_RELATION = {
     'password': 'foo'
 }
 
+SHARED_DB_RELATION_W_PORT = {
+    'db_host': 'dbserver.local',
+    'password': 'foo',
+    'db_port': 3306,
+}
+
 SHARED_DB_RELATION_ALT_RID = {
     'mysql-alt:0': {
         'mysql-alt/0': {
@@ -264,6 +270,10 @@ AMQP_AA_RELATION = {
         },
         'rabbitmq/1': {
             'private-address': 'rabbithost2',
+            'password': 'foobar',
+        },
+        'rabbitmq/2': {  # Should be ignored because password is missing.
+            'private-address': 'rabbithost3',
         }
     }
 }
@@ -816,6 +826,26 @@ class ContextTests(unittest.TestCase):
             'database_user': 'adam',
             'database_password': 'flump',
             'database_type': 'mysql+pymysql',
+        }
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_port(self, os_codename):
+        '''Test shared-db context with all required data'''
+        os_codename.return_value = 'queens'
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_W_PORT)
+        self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = ''
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
+        shared_db = context.SharedDBContext()
+        result = shared_db()
+        expected = {
+            'database_host': 'dbserver.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'foo',
+            'database_type': 'mysql+pymysql',
+            'database_port': 3306,
         }
         self.assertEquals(result, expected)
 
@@ -4494,6 +4524,7 @@ class TestDPDKDeviceContext(tests.utils.BaseTestCase):
 class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
 
     def test__init__(self):
+        self.maxDiff = None
         self.patch_object(context, 'config')
         # system with three interfaces (eth0, eth1 and eth2) where
         # eth0 and eth1 is part of linux bond bond0.
@@ -4516,7 +4547,8 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
         self.patch_object(context, 'list_nics')
         self.list_nics.return_value = ['bond0', 'eth0', 'eth1', 'eth2']
         self.patch_object(context, 'is_phy_iface')
-        self.is_phy_iface.return_value = True
+        self.is_phy_iface.side_effect = lambda x: True if not x.startswith(
+            'bond') else False
         self.patch_object(context, 'get_bond_master')
         self.get_bond_master.side_effect = lambda x: 'bond0' if x in (
             'eth0', 'eth1') else None
@@ -4529,7 +4561,7 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
         }.get(x)
         bpi = context.BridgePortInterfaceMap()
         self.maxDiff = None
-        self.assertDictEqual(bpi._map, {
+        expect = {
             'br-provider1': {
                 'bond0': {
                     'bond0': {
@@ -4544,7 +4576,43 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
                     },
                 },
             },
-        })
+        }
+        self.assertDictEqual(bpi._map, expect)
+        # do it again but this time use the linux bond name instead of mac
+        # addresses.
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
+        # and if a user asks for a purely virtual interface let's not stop them
+        expect = {
+            'br-provider1': {
+                'bond0.1234': {
+                    'bond0.1234': {
+                        'type': 'system',
+                    },
+                },
+            },
+            'br-ex': {
+                'eth2': {
+                    'eth2': {
+                        'type': 'system',
+                    },
+                },
+            },
+        }
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0.1234'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
         # system with three interfaces (eth0, eth1 and eth2) where we should
         # enable DPDK and create OVS bond of eth0 and eth1.
         # Bridge mapping br-ex:eth2 br-provider1:dpdk-bond0
@@ -4665,3 +4733,110 @@ class TestBondConfig(tests.utils.BaseTestCase):
                           'lacp': 'off',
                           'lacp-time': 'fast'
                           })
+
+
+class TestSRIOVContext(tests.utils.BaseTestCase):
+
+    class ObjectView(object):
+
+        def __init__(self, _dict):
+            self.__dict__ = _dict
+
+    def test___init__(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({
+            'pci_devices': [
+                self.ObjectView({
+                    'sriov': True,
+                    'interface_name': 'eth0',
+                    'sriov_totalvfs': 16,
+                }),
+                self.ObjectView({
+                    'sriov': True,
+                    'interface_name': 'eth1',
+                    'sriov_totalvfs': 32,
+                }),
+                self.ObjectView({
+                    'sriov': False,
+                    'interface_name': 'eth2',
+                }),
+            ]
+        })
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        # auto sets up numvfs = totalvfs
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+            'eth1': 32,
+        })
+        # when sriov-device-mappings is used only listed devices are set up
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+            'sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+        })
+        self.config.return_value = {
+            'sriov-numvfs': 'eth0:8',
+            'sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 8,
+        })
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:8',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 8,
+        })
+        # setting a numvfs value higher than a nic supports will revert to
+        # the nics max value
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:64',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 32,
+        })
+        # devices listed in sriov-numvfs have precedence over
+        # sriov-device-mappings and the limiter still works when both are used
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:64',
+            'sriov-device-mappings': 'physnet:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 32,
+        })
+        # alternate config keys have effect
+        self.config.return_value = {
+            'my-own-sriov-numvfs': 'auto',
+            'my-own-sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(
+            context.SRIOVContext(
+                numvfs_key='my-own-sriov-numvfs',
+                device_mappings_key='my-own-sriov-device-mappings')(),
+            {
+                'eth0': 16,
+            })
+        # blanket configuration works and respects limits
+        self.config.return_value = {
+            'sriov-numvfs': '24',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+            'eth1': 24,
+        })
+
+    def test___call__(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({'pci_devices': []})
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        self.config.return_value = {'sriov-numvfs': 'auto'}
+        ctxt_obj = context.SRIOVContext()
+        ctxt_obj._map = {}
+        self.assertDictEqual(ctxt_obj(), {})

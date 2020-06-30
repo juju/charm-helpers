@@ -50,7 +50,7 @@ class ExecDTestCase(TestCase):
                 f.write("#!/bin/bash\n"
                         "echo stdout_from_pre_install\n"
                         "echo stderr_from_pre_install >&2\n"
-                        "exit 1".format(pre_install_success_path))
+                        "exit 1")
 
         # ensure it is executable.
         perms = stat.S_IRUSR + stat.S_IXUSR
