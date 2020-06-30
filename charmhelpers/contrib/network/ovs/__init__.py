@@ -316,6 +316,7 @@ def add_bridge_bond(bridge, port, interfaces, portdata=None, ifdatamap=None,
     subprocess.check_call(cmd)
 
 
+@deprecate('see lp:1877594', '2021-01', log=log)
 def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
     """Add linux bridge to the named openvswitch bridge
 
@@ -347,9 +348,11 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
     :param portdata: Additional data to attach to port. Similar to ifdata.
     :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
 
-    NOTE: the `ifup` command (NetworkManager) must be available on the system
+    WARNING: the `ifup` command (NetworkManager) must be available on the system
     for this to work. Before Ubuntu 18.04 this was shipped by default. On
-    Ubuntu 18.04 and newer you need to install the package `ifupdown`.
+    Ubuntu 18.04 and newer you need to install the package `ifupdown`. This
+    might however cause issues when deploying to LXD, see lp:1877594, which is
+    why this isn't supported anymore.
     """
     try:
         import netifaces
@@ -413,7 +416,8 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
             # NOTE(lourot): on bionic and newer, 'ifup' isn't installed by
             # default. It has been replaced by netplan.io but we can't use it
             # yet because of lp:1876730. For the time being, charms using this
-            # have to install 'ifupdown' on bionic and newer.
+            # have to install 'ifupdown' on bionic and newer. This will however
+            # cause issues when deploying to LXD, see lp:1877594.
             log('ifup: command not found. Did this charm forget to install ' +
                 'ifupdown?', level=ERROR)
             raise
