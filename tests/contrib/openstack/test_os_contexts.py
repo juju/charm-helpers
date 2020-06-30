@@ -4524,6 +4524,7 @@ class TestDPDKDeviceContext(tests.utils.BaseTestCase):
 class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
 
     def test__init__(self):
+        self.maxDiff = None
         self.patch_object(context, 'config')
         # system with three interfaces (eth0, eth1 and eth2) where
         # eth0 and eth1 is part of linux bond bond0.
@@ -4583,6 +4584,31 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
             'data-port': (
                 'br-ex:eth2 '
                 'br-provider1:bond0'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
+        # and if a user asks for a purely virtual interface let's not stop them
+        expect = {
+            'br-provider1': {
+                'bond0.1234': {
+                    'bond0.1234': {
+                        'type': 'system',
+                    },
+                },
+            },
+            'br-ex': {
+                'eth2': {
+                    'eth2': {
+                        'type': 'system',
+                    },
+                },
+            },
+        }
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0.1234'),
             'dpdk-bond-mappings': '',
         }.get(x)
         bpi = context.BridgePortInterfaceMap()
