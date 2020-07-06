@@ -14,9 +14,10 @@
 
 ''' Helpers for interacting with OpenvSwitch '''
 import hashlib
-import subprocess
 import os
+import re
 import six
+import subprocess
 
 from charmhelpers import deprecate
 from charmhelpers.fetch import apt_install
@@ -418,9 +419,8 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
             # yet because of lp:1876730. For the time being, charms using this
             # have to install 'ifupdown' on bionic and newer. This will however
             # cause issues when deploying to LXD, see lp:1877594.
-            log('ifup: command not found. Did this charm forget to install ' +
-                'ifupdown?', level=ERROR)
-            raise
+            raise RuntimeError('ifup: command not found. Did this charm forget '
+                               'to install ifupdown?')
 
     add_bridge_port(name, linuxbridge_port, ifdata=ifdata, exclusive=False,
                     portdata=portdata)
@@ -486,14 +486,14 @@ def get_certificate():
 def setup_eni():
     """Makes sure /etc/network/interfaces.d/ exists and will be parsed.
 
-    Indeed when setting up interfaces, Juju removes from
+    When setting up interfaces, Juju removes from
     /etc/network/interfaces the line sourcing interfaces.d/
     """
     if not os.path.exists('/etc/network/interfaces.d'):
         os.makedirs('/etc/network/interfaces.d', mode=0o755)
     with open('/etc/network/interfaces', 'r') as eni:
         for line in eni:
-            if line == 'source /etc/network/interfaces.d/*':
+            if re.search('^\s*source\s+/etc/network/interfaces.d/\*\s*$', line):
                 return
     with open('/etc/network/interfaces', 'a') as eni:
         eni.write('\nsource /etc/network/interfaces.d/*')

@@ -338,3 +338,29 @@ class OVSHelpersTest(unittest.TestCase):
         check_call.assert_called_once_with(
             ['ovs-vsctl', 'clear', 'Bridge', 'br-int', 'ipfix']
         )
+
+    @patch('os.path.exists')
+    def test_setup_eni_sources_eni_folder(self, exists):
+        exists.return_value = True
+        with patch_open() as (_, mock_file):
+            # Mocked initial /etc/network/interfaces file content:
+            mock_file.__iter__.return_value = [
+                'some line',
+                'some other line']
+
+            ovs.setup_eni()
+            mock_file.write.assert_called_once_with(
+                '\nsource /etc/network/interfaces.d/*')
+
+    @patch('os.path.exists')
+    def test_setup_eni_wont_source_eni_folder_twice(self, exists):
+        exists.return_value = True
+        with patch_open() as (_, mock_file):
+            # Mocked initial /etc/network/interfaces file content:
+            mock_file.__iter__.return_value = [
+                'some line',
+                '  source    /etc/network/interfaces.d/*   ',
+                'some other line']
+
+            ovs.setup_eni()
+            self.assertFalse(mock_file.write.called)
