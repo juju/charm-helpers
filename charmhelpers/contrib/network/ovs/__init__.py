@@ -24,7 +24,7 @@ from charmhelpers.fetch import apt_install
 
 
 from charmhelpers.core.hookenv import (
-    log, ERROR, WARNING, INFO, DEBUG
+    log, WARNING, INFO, DEBUG
 )
 from charmhelpers.core.host import (
     service
@@ -493,7 +493,8 @@ def setup_eni():
         os.makedirs('/etc/network/interfaces.d', mode=0o755)
     with open('/etc/network/interfaces', 'r') as eni:
         for line in eni:
-            if re.search('^\s*source\s+/etc/network/interfaces.d/\*\s*$', line):
+            if re.search(r'^\s*source\s+/etc/network/interfaces.d/\*\s*$',
+                         line):
                 return
     with open('/etc/network/interfaces', 'a') as eni:
         eni.write('\nsource /etc/network/interfaces.d/*')
