@@ -13,10 +13,6 @@ Listen {{ ext_port }}
     SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
     SSLCipherSuite ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
     SSLHonorCipherOrder off
-    # SSLSessionTickets is supported by Apache 2.4.11 or later.
-    # The following line can be enabled when trusty support is dropped.
-    # https://httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessiontickets
-    # SSLSessionTickets off
 
     SSLCertificateFile /etc/apache2/ssl/{{ namespace }}/cert_{{ endpoint }}
     # See LP 1484489 - this is to support <= 2.4.7 and >= 2.4.8
