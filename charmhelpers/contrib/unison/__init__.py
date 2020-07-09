@@ -113,8 +113,8 @@ def create_private_key(user, priv_key_path, key_type='rsa'):
         check_call(cmd)
     else:
         log('SSH key already exists at %s.' % priv_key_path)
-    check_call(['chown', user, priv_key_path])
-    check_call(['chmod', '0600', priv_key_path])
+    os.chown(priv_key_path, pwd.getpwnam(user).pw_uid, -1)
+    os.chmod(priv_key_path, 0o600)
 
 
 def create_public_key(user, priv_key_path, pub_key_path):
@@ -124,7 +124,7 @@ def create_public_key(user, priv_key_path, pub_key_path):
         p = check_output(cmd).strip()
         with open(pub_key_path, 'wb') as out:
             out.write(p)
-    check_call(['chown', user, pub_key_path])
+    os.chown(pub_key_path, pwd.getpwnam(user).pw_uid, -1)
 
 
 def get_keypair(user):
@@ -157,7 +157,7 @@ def write_authorized_keys(user, keys):
     with open(auth_keys, 'w') as out:
         for k in keys:
             out.write('%s\n' % k)
-    check_call(['chown', user, auth_keys])
+    os.chown(auth_keys, pwd.getpwnam(user).pw_uid, -1)
 
 
 def write_known_hosts(user, hosts):
@@ -173,7 +173,7 @@ def write_known_hosts(user, hosts):
     with open(known_hosts, 'w') as out:
         for host in khosts:
             out.write('%s\n' % host)
-    check_call(['chown', user, known_hosts])
+    os.chown(known_hosts, pwd.getpwnam(user).pw_uid, -1)
 
 
 def ensure_user(user, group=None):
