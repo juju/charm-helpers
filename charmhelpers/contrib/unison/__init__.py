@@ -157,6 +157,7 @@ def write_authorized_keys(user, keys):
     with open(auth_keys, 'w') as out:
         for k in keys:
             out.write('%s\n' % k)
+    check_call(['chown', user, auth_keys])
 
 
 def write_known_hosts(user, hosts):
@@ -172,6 +173,7 @@ def write_known_hosts(user, hosts):
     with open(known_hosts, 'w') as out:
         for host in khosts:
             out.write('%s\n' % host)
+    check_call(['chown', user, known_hosts])
 
 
 def ensure_user(user, group=None):
