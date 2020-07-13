@@ -270,6 +270,10 @@ AMQP_AA_RELATION = {
         },
         'rabbitmq/1': {
             'private-address': 'rabbithost2',
+            'password': 'foobar',
+        },
+        'rabbitmq/2': {  # Should be ignored because password is missing.
+            'private-address': 'rabbithost3',
         }
     }
 }
@@ -4520,6 +4524,7 @@ class TestDPDKDeviceContext(tests.utils.BaseTestCase):
 class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
 
     def test__init__(self):
+        self.maxDiff = None
         self.patch_object(context, 'config')
         # system with three interfaces (eth0, eth1 and eth2) where
         # eth0 and eth1 is part of linux bond bond0.
@@ -4542,7 +4547,8 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
         self.patch_object(context, 'list_nics')
         self.list_nics.return_value = ['bond0', 'eth0', 'eth1', 'eth2']
         self.patch_object(context, 'is_phy_iface')
-        self.is_phy_iface.return_value = True
+        self.is_phy_iface.side_effect = lambda x: True if not x.startswith(
+            'bond') else False
         self.patch_object(context, 'get_bond_master')
         self.get_bond_master.side_effect = lambda x: 'bond0' if x in (
             'eth0', 'eth1') else None
@@ -4555,7 +4561,7 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
         }.get(x)
         bpi = context.BridgePortInterfaceMap()
         self.maxDiff = None
-        self.assertDictEqual(bpi._map, {
+        expect = {
             'br-provider1': {
                 'bond0': {
                     'bond0': {
@@ -4570,7 +4576,43 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
                     },
                 },
             },
-        })
+        }
+        self.assertDictEqual(bpi._map, expect)
+        # do it again but this time use the linux bond name instead of mac
+        # addresses.
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
+        # and if a user asks for a purely virtual interface let's not stop them
+        expect = {
+            'br-provider1': {
+                'bond0.1234': {
+                    'bond0.1234': {
+                        'type': 'system',
+                    },
+                },
+            },
+            'br-ex': {
+                'eth2': {
+                    'eth2': {
+                        'type': 'system',
+                    },
+                },
+            },
+        }
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0.1234'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
         # system with three interfaces (eth0, eth1 and eth2) where we should
         # enable DPDK and create OVS bond of eth0 and eth1.
         # Bridge mapping br-ex:eth2 br-provider1:dpdk-bond0
