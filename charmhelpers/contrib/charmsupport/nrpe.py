@@ -18,7 +18,6 @@
 # Authors:
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
-import errno
 import glob
 import grp
 import os
@@ -267,21 +266,9 @@ class NRPE(object):
         self.remove_check_queue = set()
 
     @classmethod
-    def can_write_nrpe_conf_dir(cls):
-        """Return True if can write to the nrpe_confdif directory."""
-        try:
-            test_file = os.path.join(cls.nrpe_confdir, "__test_write__")
-            with open(test_file, "wt") as f:
-                f.write("test write")
-            os.remove(test_file)
-        except EnvironmentError as e:
-            if e.errno != errno.ENOENT:
-                log("Unhandled error when checking if can write to {}: '{}'"
-                    .format(cls.nrpe_confdir, str(e)))
-            else:
-                log("Can't write to {} yet: nagios not installed?")
-            return False
-        return True
+    def does_nrpe_conf_dir_exist(cls):
+        """Return True if th nrpe_confdif directory exists."""
+        return os.path.isdir(cls.nrpe_confdir)
 
     def add_check(self, *args, **kwargs):
         shortname = None
@@ -331,7 +318,7 @@ class NRPE(object):
 
         # check that the charm can write to the conf dir.  If not, then nagios
         # probably isn't installed, and we can defer.
-        if not self.can_write_nrpe_conf_dir():
+        if not self.does_nrpe_conf_dir_exist():
             return
 
         for nrpecheck in self.checks:

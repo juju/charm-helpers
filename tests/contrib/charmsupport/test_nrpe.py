@@ -145,10 +145,9 @@ class NRPETestCase(NRPEBaseTestCase):
 
         self.assertEqual(None, checker.write())
 
-        self.assertEqual(3, self.patched['open'].call_count)
+        self.assertEqual(2, self.patched['open'].call_count)
         filename = 'check_myservice.cfg'
         expected = [
-            ('/etc/nagios/nrpe.d/__test_write__', 'wt'),
             ('/etc/nagios/nrpe.d/%s' % filename, 'w'),
             ('/var/lib/nagios/export/service__a-testunit_%s' % filename, 'w'),
         ]
@@ -168,7 +167,6 @@ define service {
 }
 """
         expected = [
-            'test write',
             '# check myservice\n',
             '# The following header was added automatically by juju\n',
             '# Modifying it will affect nagios monitoring and alerting\n',
@@ -189,7 +187,7 @@ define service {
         ]
         self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
-                               exists=4, open=3, listdir=1, relation_get=2,
+                               exists=4, open=2, listdir=1, relation_get=2,
                                relation_ids=3, relation_set=3)
 
 
