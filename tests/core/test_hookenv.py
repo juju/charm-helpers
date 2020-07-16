@@ -6,6 +6,7 @@ import tempfile
 import types
 from mock import call, MagicMock, mock_open, patch, sentinel
 from testtools import TestCase
+from enum import Enum
 import yaml
 
 import six
@@ -65,21 +66,26 @@ class ConfigTest(TestCase):
         d = dict(foo='bar')
         c = hookenv.Config(d)
 
-        with open(c.path, 'w') as f:
+        state_path = os.path.join(self.charm_dir, hookenv.Config.CONFIG_FILE_NAME)
+        with open(state_path, 'w') as f:
             f.close()
 
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c._prev_dict, None)
+        self.assertEqual(c.path, state_path)
 
     def test_init_invalid_state_file(self):
         d = dict(foo='bar')
-        c = hookenv.Config(d)
 
-        with open(c.path, 'w') as f:
+        state_path = os.path.join(self.charm_dir, hookenv.Config.CONFIG_FILE_NAME)
+        with open(state_path, 'w') as f:
             f.write('blah')
+
+        c = hookenv.Config(d)
 
         self.assertEqual(c['foo'], 'bar')
         self.assertEqual(c._prev_dict, None)
+        self.assertEqual(c.path, state_path)
 
     def test_load_previous(self):
         d = dict(foo='bar')
@@ -1862,11 +1868,42 @@ class HooksTest(TestCase):
     def test_status_set_invalid_state(self):
         self.assertRaises(ValueError, hookenv.status_set, 'random', 'message')
 
+    def test_status_set_invalid_state_enum(self):
+
+        class RandomEnum(Enum):
+            FOO = 1
+        self.assertRaises(
+            ValueError,
+            hookenv.status_set,
+            RandomEnum.FOO,
+            'message')
+
     @patch('subprocess.call')
     def test_status(self, call):
         call.return_value = 0
         hookenv.status_set('active', 'Everything is Awesome!')
         call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
+
+    @patch('subprocess.call')
+    def test_status_enum(self, call):
+        call.return_value = 0
+        hookenv.status_set(
+            hookenv.WORKLOAD_STATES.ACTIVE,
+            'Everything is Awesome!')
+        call.assert_called_with(['status-set', 'active', 'Everything is Awesome!'])
+
+    @patch('subprocess.call')
+    def test_status_app(self, call):
+        call.return_value = 0
+        hookenv.status_set(
+            'active',
+            'Everything is Awesome!',
+            application=True)
+        call.assert_called_with([
+            'status-set',
+            '--application',
+            'active',
+            'Everything is Awesome!'])
 
     @patch('subprocess.call')
     @patch.object(hookenv, 'log')

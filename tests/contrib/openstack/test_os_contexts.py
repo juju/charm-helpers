@@ -1,18 +1,24 @@
-import charmhelpers.contrib.openstack.context as context
 import collections
+import copy
 import json
+import mock
+import six
 import unittest
 import yaml
-from copy import copy, deepcopy
+
 from mock import (
     patch,
     Mock,
     MagicMock,
     call
 )
+
 from tests.helpers import patch_open
 
-import six
+import tests.utils
+
+import charmhelpers.contrib.openstack.context as context
+
 
 if not six.PY3:
     open_builtin = '__builtin__.open'
@@ -89,6 +95,12 @@ class FakeRelation(object):
 SHARED_DB_RELATION = {
     'db_host': 'dbserver.local',
     'password': 'foo'
+}
+
+SHARED_DB_RELATION_W_PORT = {
+    'db_host': 'dbserver.local',
+    'password': 'foo',
+    'db_port': 3306,
 }
 
 SHARED_DB_RELATION_ALT_RID = {
@@ -258,6 +270,10 @@ AMQP_AA_RELATION = {
         },
         'rabbitmq/1': {
             'private-address': 'rabbithost2',
+            'password': 'foobar',
+        },
+        'rabbitmq/2': {  # Should be ignored because password is missing.
+            'private-address': 'rabbithost3',
         }
     }
 }
@@ -813,6 +829,26 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    @patch.object(context, 'get_os_codename_install_source')
+    def test_shared_db_context_with_port(self, os_codename):
+        '''Test shared-db context with all required data'''
+        os_codename.return_value = 'queens'
+        relation = FakeRelation(relation_data=SHARED_DB_RELATION_W_PORT)
+        self.relation_get.side_effect = relation.get
+        self.get_address_in_network.return_value = ''
+        self.config.side_effect = fake_config(SHARED_DB_CONFIG)
+        shared_db = context.SharedDBContext()
+        result = shared_db()
+        expected = {
+            'database_host': 'dbserver.local',
+            'database': 'foodb',
+            'database_user': 'adam',
+            'database_password': 'foo',
+            'database_type': 'mysql+pymysql',
+            'database_port': 3306,
+        }
+        self.assertEquals(result, expected)
+
     @patch('os.path.exists')
     @patch(open_builtin)
     def test_db_ssl(self, _open, osexists):
@@ -847,7 +883,7 @@ class ContextTests(unittest.TestCase):
     def test_shared_db_context_with_missing_relation(self, os_codename):
         '''Test shared-db context missing relation data'''
         os_codename.return_value = 'stein'
-        incomplete_relation = copy(SHARED_DB_RELATION)
+        incomplete_relation = copy.copy(SHARED_DB_RELATION)
         incomplete_relation['password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
@@ -858,7 +894,7 @@ class ContextTests(unittest.TestCase):
 
     def test_shared_db_context_with_missing_config(self):
         '''Test shared-db context missing relation data'''
-        incomplete_config = copy(SHARED_DB_CONFIG)
+        incomplete_config = copy.copy(SHARED_DB_CONFIG)
         del incomplete_config['database-user']
         self.config.side_effect = fake_config(incomplete_config)
         relation = FakeRelation(relation_data=SHARED_DB_RELATION)
@@ -944,7 +980,7 @@ class ContextTests(unittest.TestCase):
 
     def test_postgresql_db_context_with_missing_relation(self):
         '''Test postgresql-db context missing relation data'''
-        incomplete_relation = copy(POSTGRESQL_DB_RELATION)
+        incomplete_relation = copy.copy(POSTGRESQL_DB_RELATION)
         incomplete_relation['password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
@@ -955,7 +991,7 @@ class ContextTests(unittest.TestCase):
 
     def test_postgresql_db_context_with_missing_config(self):
         '''Test postgresql-db context missing relation data'''
-        incomplete_config = copy(POSTGRESQL_DB_CONFIG)
+        incomplete_config = copy.copy(POSTGRESQL_DB_CONFIG)
         del incomplete_config['database']
         self.config.side_effect = fake_config(incomplete_config)
         relation = FakeRelation(relation_data=POSTGRESQL_DB_RELATION)
@@ -1209,7 +1245,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'os_release', return_value='rocky')
     def test_identity_service_context_with_missing_relation(self, *args):
         '''Test shared-db context missing relation data'''
-        incomplete_relation = copy(IDENTITY_SERVICE_RELATION_UNSET)
+        incomplete_relation = copy.copy(IDENTITY_SERVICE_RELATION_UNSET)
         incomplete_relation['service_password'] = None
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
@@ -1220,7 +1256,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'filter_installed_packages')
     @patch.object(context, 'os_release')
     def test_keystone_authtoken_www_authenticate_uri_stein_apiv3(self, mock_os_release, mock_filter_installed_packages):
-        relation_data = deepcopy(IDENTITY_SERVICE_RELATION_VERSIONED)
+        relation_data = copy.deepcopy(IDENTITY_SERVICE_RELATION_VERSIONED)
         relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
 
@@ -1348,7 +1384,7 @@ class ContextTests(unittest.TestCase):
 
     def test_amqp_context_with_data_clustered(self):
         '''Test amqp context with all required data with clustered rabbit'''
-        relation_data = copy(AMQP_RELATION)
+        relation_data = copy.copy(AMQP_RELATION)
         relation_data['clustered'] = 'yes'
         relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
@@ -1368,7 +1404,7 @@ class ContextTests(unittest.TestCase):
 
     def test_amqp_context_with_data_active_active(self):
         '''Test amqp context with required data with active/active rabbit'''
-        relation_data = copy(AMQP_AA_RELATION)
+        relation_data = copy.copy(AMQP_AA_RELATION)
         relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
@@ -1390,7 +1426,7 @@ class ContextTests(unittest.TestCase):
 
     def test_amqp_context_with_missing_relation(self):
         '''Test amqp context missing relation data'''
-        incomplete_relation = copy(AMQP_RELATION)
+        incomplete_relation = copy.copy(AMQP_RELATION)
         incomplete_relation['password'] = ''
         relation = FakeRelation(relation_data=incomplete_relation)
         self.relation_get.side_effect = relation.get
@@ -1401,7 +1437,7 @@ class ContextTests(unittest.TestCase):
 
     def test_amqp_context_with_missing_config(self):
         '''Test amqp context missing relation data'''
-        incomplete_config = copy(AMQP_CONFIG)
+        incomplete_config = copy.copy(AMQP_CONFIG)
         del incomplete_config['rabbit-user']
         relation = FakeRelation(relation_data=AMQP_RELATION)
         self.relation_get.side_effect = relation.get
@@ -1412,7 +1448,7 @@ class ContextTests(unittest.TestCase):
     @patch('charmhelpers.contrib.openstack.context.format_ipv6_addr')
     def test_amqp_context_with_ipv6(self, format_ipv6_addr):
         '''Test amqp context with ipv6'''
-        relation_data = copy(AMQP_AA_RELATION)
+        relation_data = copy.copy(AMQP_AA_RELATION)
         relation = FakeRelation(relation_data=relation_data)
         self.relation_get.side_effect = relation.get
         self.relation_ids.side_effect = relation.relation_ids
@@ -1580,7 +1616,7 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
-        relation = deepcopy(CEPH_RELATION)
+        relation = copy.deepcopy(CEPH_RELATION)
         for k, v in six.iteritems(relation):
             for u in six.iterkeys(v):
                 del relation[k][u]['auth']
@@ -1605,7 +1641,7 @@ class ContextTests(unittest.TestCase):
            last unit was returned so if a valid value was supplied from an
            earlier unit it would be ignored'''
         config.side_effect = fake_config({'use-syslog': 'True'})
-        relation = deepcopy(CEPH_RELATION)
+        relation = copy.deepcopy(CEPH_RELATION)
         for k, v in six.iteritems(relation):
             last_unit = sorted(six.iterkeys(v))[-1]
             unit_data = relation[k][last_unit]
@@ -1901,7 +1937,7 @@ class ContextTests(unittest.TestCase):
             return config_dict.get(key)
 
         mock_config.side_effect = fake_config
-        relation = deepcopy(CEPH_RELATION_WITH_PUBLIC_ADDR)
+        relation = copy.deepcopy(CEPH_RELATION_WITH_PUBLIC_ADDR)
         del relation['ceph:0']['ceph/0']['ceph-public-address']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
@@ -4239,3 +4275,568 @@ class ContextTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ctx_object.parse_ovs_use_veth()
             _bool_from_string.assert_called_with("Invalid")
+
+
+class MockPCIDevice(object):
+    """Simple wrapper to mock pci.PCINetDevice class"""
+    def __init__(self, address):
+        self.pci_address = address
+
+
+TEST_CPULIST_1 = "0-3"
+TEST_CPULIST_2 = "0-7,16-23"
+TEST_CPULIST_3 = "0,4,8,12,16,20,24"
+DPDK_DATA_PORTS = (
+    "br-phynet3:fe:16:41:df:23:fe "
+    "br-phynet1:fe:16:41:df:23:fd "
+    "br-phynet2:fe:f2:d0:45:dc:66"
+)
+BOND_MAPPINGS = (
+    "bond0:fe:16:41:df:23:fe "
+    "bond0:fe:16:41:df:23:fd "
+    "bond1:fe:f2:d0:45:dc:66"
+)
+PCI_DEVICE_MAP = {
+    'fe:16:41:df:23:fd': MockPCIDevice('0000:00:1c.0'),
+    'fe:16:41:df:23:fe': MockPCIDevice('0000:00:1d.0'),
+}
+
+
+class TestDPDKUtils(tests.utils.BaseTestCase):
+
+    def test_resolve_pci_from_mapping_config(self):
+        # FIXME: need to mock out the unit key value store
+        self.patch_object(context, 'config')
+        self.config.side_effect = lambda x: {
+            'data-port': DPDK_DATA_PORTS,
+            'dpdk-bond-mappings': BOND_MAPPINGS,
+        }.get(x)
+        _pci_devices = Mock()
+        _pci_devices.get_device_from_mac.side_effect = PCI_DEVICE_MAP.get
+        self.patch_object(context, 'pci')
+        self.pci.PCINetDevices.return_value = _pci_devices
+        self.assertDictEqual(
+            context.resolve_pci_from_mapping_config('data-port'),
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'br-phynet1', 'fe:16:41:df:23:fd'),
+                '0000:00:1d.0': context.EntityMac(
+                    'br-phynet3', 'fe:16:41:df:23:fe'),
+            })
+        self.config.assert_called_once_with('data-port')
+        self.config.reset_mock()
+        self.assertDictEqual(
+            context.resolve_pci_from_mapping_config('dpdk-bond-mappings'),
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'bond0', 'fe:16:41:df:23:fd'),
+                '0000:00:1d.0': context.EntityMac(
+                    'bond0', 'fe:16:41:df:23:fe'),
+            })
+        self.config.assert_called_once_with('dpdk-bond-mappings')
+
+
+DPDK_PATCH = [
+    'resolve_pci_from_mapping_config',
+    'glob',
+]
+
+NUMA_CORES_SINGLE = {
+    '0': [0, 1, 2, 3]
+}
+
+NUMA_CORES_MULTI = {
+    '0': [0, 1, 2, 3],
+    '1': [4, 5, 6, 7]
+}
+
+
+class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
+
+    def setUp(self):
+        super(TestOVSDPDKDeviceContext, self).setUp()
+        self.patch_object(context, 'config')
+        self.config.side_effect = lambda x: {
+            'enable-dpdk': True,
+        }
+        self.target = context.OVSDPDKDeviceContext()
+
+    def patch_target(self, attr, return_value=None):
+        mocked = mock.patch.object(self.target, attr)
+        self._patches[attr] = mocked
+        started = mocked.start()
+        started.return_value = return_value
+        self._patches_start[attr] = started
+        setattr(self, attr, started)
+
+    def test__parse_cpu_list(self):
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_1),
+                         [0, 1, 2, 3])
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_2),
+                         [0, 1, 2, 3, 4, 5, 6, 7,
+                          16, 17, 18, 19, 20, 21, 22, 23])
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_3),
+                         [0, 4, 8, 12, 16, 20, 24])
+
+    def test__numa_node_cores(self):
+        self.patch_target('_parse_cpu_list')
+        self._parse_cpu_list.return_value = [0, 1, 2, 3]
+        self.patch_object(context, 'glob')
+        self.glob.glob.return_value = [
+            '/sys/devices/system/node/node0'
+        ]
+        with patch_open() as (_, mock_file):
+            mock_file.read.return_value = TEST_CPULIST_1
+            self.target._numa_node_cores()
+            self.assertEqual(self.target._numa_node_cores(),
+                             {'0': [0, 1, 2, 3]})
+        self.glob.glob.assert_called_with('/sys/devices/system/node/node*')
+        self._parse_cpu_list.assert_called_with(TEST_CPULIST_1)
+
+    def test_device_whitelist(self):
+        """Test device whitelist generation"""
+        self.patch_object(
+            context, 'resolve_pci_from_mapping_config',
+            return_value=collections.OrderedDict(
+                sorted({
+                    '0000:00:1c.0': 'br-data',
+                    '0000:00:1d.0': 'br-data',
+                }.items())))
+        self.assertEqual(self.target.device_whitelist(),
+                         '-w 0000:00:1c.0 -w 0000:00:1d.0')
+        self.resolve_pci_from_mapping_config.assert_has_calls([
+            call('data-port'),
+            call('dpdk-bond-mappings'),
+        ])
+
+    def test_socket_memory(self):
+        """Test socket memory configuration"""
+        self.patch_object(context, 'glob')
+        self.patch_object(context, 'config')
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-memory': 1024,
+        }.get(x)
+        self.glob.glob.return_value = ['a']
+        self.assertEqual(self.target.socket_memory(),
+                         '1024')
+
+        self.glob.glob.return_value = ['a', 'b']
+        self.assertEqual(self.target.socket_memory(),
+                         '1024,1024')
+
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-memory': 2048,
+        }.get(x)
+        self.assertEqual(self.target.socket_memory(),
+                         '2048,2048')
+
+    def test_cpu_mask(self):
+        """Test generation of hex CPU masks"""
+        self.patch_target('_numa_node_cores')
+        self._numa_node_cores.return_value = NUMA_CORES_SINGLE
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 1,
+        }.get(x)
+        self.assertEqual(self.target.cpu_mask(), '0x01')
+
+        self._numa_node_cores.return_value = NUMA_CORES_MULTI
+        self.assertEqual(self.target.cpu_mask(), '0x11')
+
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 2,
+        }.get(x)
+        self.assertEqual(self.target.cpu_mask(), '0x33')
+
+    def test_context_no_devices(self):
+        """Ensure that DPDK is disable when no devices detected"""
+        self.patch_object(context, 'resolve_pci_from_mapping_config')
+        self.resolve_pci_from_mapping_config.return_value = {}
+        self.assertEqual(self.target(), {})
+        self.resolve_pci_from_mapping_config.assert_has_calls([
+            call('data-port'),
+            call('dpdk-bond-mappings'),
+        ])
+
+    def test_context_devices(self):
+        """Ensure DPDK is enabled when devices are detected"""
+        self.patch_target('_numa_node_cores')
+        self.patch_target('devices')
+        self.devices.return_value = collections.OrderedDict(sorted({
+            '0000:00:1c.0': 'br-data',
+            '0000:00:1d.0': 'br-data',
+        }.items()))
+        self._numa_node_cores.return_value = NUMA_CORES_SINGLE
+        self.patch_object(context, 'glob')
+        self.glob.glob.return_value = ['a']
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 1,
+            'dpdk-socket-memory': 1024,
+            'enable-dpdk': True,
+        }.get(x)
+        self.assertEqual(self.target(), {
+            'cpu_mask': '0x01',
+            'device_whitelist': '-w 0000:00:1c.0 -w 0000:00:1d.0',
+            'dpdk_enabled': True,
+            'socket_memory': '1024'
+        })
+
+
+class TestDPDKDeviceContext(tests.utils.BaseTestCase):
+
+    _dpdk_bridges = {
+        '0000:00:1c.0': 'br-data',
+        '0000:00:1d.0': 'br-physnet1',
+    }
+    _dpdk_bonds = {
+        '0000:00:1c.1': 'dpdk-bond0',
+        '0000:00:1d.1': 'dpdk-bond0',
+    }
+
+    def setUp(self):
+        super(TestDPDKDeviceContext, self).setUp()
+        self.target = context.DPDKDeviceContext()
+        self.patch_object(context, 'resolve_pci_from_mapping_config')
+        self.resolve_pci_from_mapping_config.side_effect = [
+            self._dpdk_bridges,
+            self._dpdk_bonds,
+        ]
+
+    def test_context(self):
+        self.patch_object(context, 'config')
+        self.config.side_effect = lambda x: {
+            'dpdk-driver': 'uio_pci_generic',
+        }.get(x)
+        devices = copy.deepcopy(self._dpdk_bridges)
+        devices.update(self._dpdk_bonds)
+        self.assertEqual(self.target(), {
+            'devices': devices,
+            'driver': 'uio_pci_generic'
+        })
+        self.config.assert_called_with('dpdk-driver')
+
+    def test_context_none_driver(self):
+        self.patch_object(context, 'config')
+        self.config.return_value = None
+        self.assertEqual(self.target(), {})
+        self.config.assert_called_with('dpdk-driver')
+
+
+class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
+
+    def test__init__(self):
+        self.maxDiff = None
+        self.patch_object(context, 'config')
+        # system with three interfaces (eth0, eth1 and eth2) where
+        # eth0 and eth1 is part of linux bond bond0.
+        # Bridge mapping br-ex:eth2, br-provider1:bond0
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:00:00:5e:00:00:41 '
+                'br-provider1:00:00:5e:00:00:40'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        self.patch_object(context, 'resolve_pci_from_mapping_config')
+        self.resolve_pci_from_mapping_config.side_effect = [
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'br-ex', '00:00:5e:00:00:42'),
+            },
+            {},
+        ]
+        self.patch_object(context, 'list_nics')
+        self.list_nics.return_value = ['bond0', 'eth0', 'eth1', 'eth2']
+        self.patch_object(context, 'is_phy_iface')
+        self.is_phy_iface.side_effect = lambda x: True if not x.startswith(
+            'bond') else False
+        self.patch_object(context, 'get_bond_master')
+        self.get_bond_master.side_effect = lambda x: 'bond0' if x in (
+            'eth0', 'eth1') else None
+        self.patch_object(context, 'get_nic_hwaddr')
+        self.get_nic_hwaddr.side_effect = lambda x: {
+            'bond0': '00:00:5e:00:00:24',
+            'eth0': '00:00:5e:00:00:40',
+            'eth1': '00:00:5e:00:00:41',
+            'eth2': '00:00:5e:00:00:42',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.maxDiff = None
+        expect = {
+            'br-provider1': {
+                'bond0': {
+                    'bond0': {
+                        'type': 'system',
+                    },
+                },
+            },
+            'br-ex': {
+                'eth2': {
+                    'eth2': {
+                        'type': 'system',
+                    },
+                },
+            },
+        }
+        self.assertDictEqual(bpi._map, expect)
+        # do it again but this time use the linux bond name instead of mac
+        # addresses.
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
+        # and if a user asks for a purely virtual interface let's not stop them
+        expect = {
+            'br-provider1': {
+                'bond0.1234': {
+                    'bond0.1234': {
+                        'type': 'system',
+                    },
+                },
+            },
+            'br-ex': {
+                'eth2': {
+                    'eth2': {
+                        'type': 'system',
+                    },
+                },
+            },
+        }
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0.1234'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        bpi = context.BridgePortInterfaceMap()
+        self.assertDictEqual(bpi._map, expect)
+        # system with three interfaces (eth0, eth1 and eth2) where we should
+        # enable DPDK and create OVS bond of eth0 and eth1.
+        # Bridge mapping br-ex:eth2 br-provider1:dpdk-bond0
+        self.config.side_effect = lambda x: {
+            'enable-dpdk': True,
+            'data-port': (
+                'br-ex:00:00:5e:00:00:42 '
+                'br-provider1:dpdk-bond0'),
+            'dpdk-bond-mappings': (
+                'dpdk-bond0:00:00:5e:00:00:40 '
+                'dpdk-bond0:00:00:5e:00:00:41'),
+        }.get(x)
+        self.resolve_pci_from_mapping_config.side_effect = [
+            {
+                '0000:00:1c.0': context.EntityMac(
+                    'br-ex', '00:00:5e:00:00:42'),
+            },
+            {
+                '0000:00:1d.0': context.EntityMac(
+                    'dpdk-bond0', '00:00:5e:00:00:40'),
+                '0000:00:1e.0': context.EntityMac(
+                    'dpdk-bond0', '00:00:5e:00:00:41'),
+            },
+        ]
+        # once devices are bound to DPDK they disappear from the system list
+        # of interfaces
+        self.list_nics.return_value = []
+        bpi = context.BridgePortInterfaceMap(global_mtu=1500)
+        self.assertDictEqual(bpi._map, {
+            'br-provider1': {
+                'dpdk-bond0': {
+                    'dpdk-600a59e': {
+                        'pci-address': '0000:00:1d.0',
+                        'type': 'dpdk',
+                        'mtu-request': '1500',
+                    },
+                    'dpdk-5fc1d91': {
+                        'pci-address': '0000:00:1e.0',
+                        'type': 'dpdk',
+                        'mtu-request': '1500',
+                    },
+                },
+            },
+            'br-ex': {
+                'dpdk-6204d33': {
+                    'dpdk-6204d33': {
+                        'pci-address': '0000:00:1c.0',
+                        'type': 'dpdk',
+                        'mtu-request': '1500',
+                    },
+                },
+            },
+        })
+
+    def test_add_interface(self):
+        self.patch_object(context, 'config')
+        self.config.return_value = ''
+        ctx = context.BridgePortInterfaceMap()
+        ctx.add_interface("br1", "bond1", "port1", ctx.interface_type.dpdk,
+                          "00:00:00:00:00:01", 1500)
+        ctx.add_interface("br1", "bond1", "port2", ctx.interface_type.dpdk,
+                          "00:00:00:00:00:02", 1500)
+        ctx.add_interface("br1", "bond2", "port3", ctx.interface_type.dpdk,
+                          "00:00:00:00:00:03", 1500)
+        ctx.add_interface("br1", "bond2", "port4", ctx.interface_type.dpdk,
+                          "00:00:00:00:00:04", 1500)
+
+        expected = (
+            'br1', {
+                'bond1': {
+                    'port1': {
+                        'type': 'dpdk',
+                        'pci-address': '00:00:00:00:00:01',
+                        'mtu-request': '1500',
+                    },
+                    'port2': {
+                        'type': 'dpdk',
+                        'pci-address': '00:00:00:00:00:02',
+                        'mtu-request': '1500',
+                    },
+                },
+                'bond2': {
+                    'port3': {
+                        'type': 'dpdk',
+                        'pci-address': '00:00:00:00:00:03',
+                        'mtu-request': '1500',
+                    },
+                    'port4': {
+                        'type': 'dpdk',
+                        'pci-address': '00:00:00:00:00:04',
+                        'mtu-request': '1500',
+                    },
+                },
+            },
+        )
+        for br, bonds in ctx.items():
+            self.maxDiff = None
+            self.assertEqual(br, expected[0])
+            self.assertDictEqual(bonds, expected[1])
+
+
+class TestBondConfig(tests.utils.BaseTestCase):
+
+    def test_get_bond_config(self):
+        self.patch_object(context, 'config')
+        self.config.side_effect = lambda x: {
+            'dpdk-bond-config': ':active-backup bond1:balance-slb:off',
+        }.get(x)
+        bonds_config = context.BondConfig()
+
+        self.assertEqual(bonds_config.get_bond_config('bond0'),
+                         {'mode': 'active-backup',
+                          'lacp': 'active',
+                          'lacp-time': 'fast'
+                          })
+        self.assertEqual(bonds_config.get_bond_config('bond1'),
+                         {'mode': 'balance-slb',
+                          'lacp': 'off',
+                          'lacp-time': 'fast'
+                          })
+
+
+class TestSRIOVContext(tests.utils.BaseTestCase):
+
+    class ObjectView(object):
+
+        def __init__(self, _dict):
+            self.__dict__ = _dict
+
+    def test___init__(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({
+            'pci_devices': [
+                self.ObjectView({
+                    'sriov': True,
+                    'interface_name': 'eth0',
+                    'sriov_totalvfs': 16,
+                }),
+                self.ObjectView({
+                    'sriov': True,
+                    'interface_name': 'eth1',
+                    'sriov_totalvfs': 32,
+                }),
+                self.ObjectView({
+                    'sriov': False,
+                    'interface_name': 'eth2',
+                }),
+            ]
+        })
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        # auto sets up numvfs = totalvfs
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+            'eth1': 32,
+        })
+        # when sriov-device-mappings is used only listed devices are set up
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+            'sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+        })
+        self.config.return_value = {
+            'sriov-numvfs': 'eth0:8',
+            'sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 8,
+        })
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:8',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 8,
+        })
+        # setting a numvfs value higher than a nic supports will revert to
+        # the nics max value
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:64',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 32,
+        })
+        # devices listed in sriov-numvfs have precedence over
+        # sriov-device-mappings and the limiter still works when both are used
+        self.config.return_value = {
+            'sriov-numvfs': 'eth1:64',
+            'sriov-device-mappings': 'physnet:eth0',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth1': 32,
+        })
+        # alternate config keys have effect
+        self.config.return_value = {
+            'my-own-sriov-numvfs': 'auto',
+            'my-own-sriov-device-mappings': 'physnet1:eth0',
+        }
+        self.assertDictEqual(
+            context.SRIOVContext(
+                numvfs_key='my-own-sriov-numvfs',
+                device_mappings_key='my-own-sriov-device-mappings')(),
+            {
+                'eth0': 16,
+            })
+        # blanket configuration works and respects limits
+        self.config.return_value = {
+            'sriov-numvfs': '24',
+        }
+        self.assertDictEqual(context.SRIOVContext()(), {
+            'eth0': 16,
+            'eth1': 24,
+        })
+
+    def test___call__(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({'pci_devices': []})
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        self.config.return_value = {'sriov-numvfs': 'auto'}
+        ctxt_obj = context.SRIOVContext()
+        ctxt_obj._map = {}
+        self.assertDictEqual(ctxt_obj(), {})

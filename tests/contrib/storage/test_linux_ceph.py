@@ -1,5 +1,6 @@
 from mock import patch, call, mock_open
 
+import collections
 import six
 import errno
 from shutil import rmtree
@@ -211,6 +212,87 @@ class CephUtilsTests(TestCase):
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
 
+    def _get_osd_settings_test_helper(self, settings, expected=None):
+        units = {
+            'client:1': ['ceph-iscsi/1', 'ceph-iscsi/2'],
+            'client:3': ['cinder-ceph/0', 'cinder-ceph/3']}
+        self.relation_ids.return_value = units.keys()
+        self.related_units.side_effect = lambda x: units[x]
+        self.relation_get.side_effect = lambda x, y, z: settings[y]
+        if expected:
+            self.assertEqual(
+                ceph_utils.get_osd_settings('client'),
+                expected)
+        else:
+            ceph_utils.get_osd_settings('client'),
+
+    def test_get_osd_settings_all_unset(self):
+        settings = {
+            'ceph-iscsi/1': None,
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': None,
+            'cinder-ceph/3': None}
+        self._get_osd_settings_test_helper(settings, {})
+
+    def test_get_osd_settings_one_group_set(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd heartbeat grace": 5}',
+            'ceph-iscsi/2': '{"osd heartbeat grace": 5}',
+            'cinder-ceph/0': '{"osd heartbeat interval": 25}',
+            'cinder-ceph/3': '{"osd heartbeat interval": 25}'}
+        self._get_osd_settings_test_helper(
+            settings,
+            {'osd heartbeat interval': 25,
+             'osd heartbeat grace': 5})
+
+    def test_get_osd_settings_invalid_option(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd foobar": 5}',
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': None,
+            'cinder-ceph/3': None}
+        self.assertRaises(
+            ceph_utils.OSDSettingNotAllowed,
+            self._get_osd_settings_test_helper,
+            settings)
+
+    def test_get_osd_settings_conflicting_options(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd heartbeat grace": 5}',
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': '{"osd heartbeat grace": 6}',
+            'cinder-ceph/3': None}
+        self.assertRaises(
+            ceph_utils.OSDSettingConflict,
+            self._get_osd_settings_test_helper,
+            settings)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    def test_send_osd_settings(self, _get_osd_settings):
+        self.relation_ids.return_value = ['client:1', 'client:3']
+        _get_osd_settings.return_value = {
+            'osd heartbeat grace': 5,
+            'osd heartbeat interval': 25}
+        ceph_utils.send_osd_settings()
+        expected_calls = [
+            call(
+                relation_id='client:1',
+                relation_settings={
+                    'osd-settings': ('{"osd heartbeat grace": 5, '
+                                     '"osd heartbeat interval": 25}')}),
+            call(
+                relation_id='client:3',
+                relation_settings={
+                    'osd-settings': ('{"osd heartbeat grace": 5, '
+                                     '"osd heartbeat interval": 25}')})]
+        self.relation_set.assert_has_calls(expected_calls, any_order=True)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    def test_send_osd_settings_bad_settings(self, _get_osd_settings):
+        _get_osd_settings.side_effect = ceph_utils.OSDSettingConflict()
+        ceph_utils.send_osd_settings()
+        self.assertFalse(self.relation_set.called)
+
     def test_validator_valid(self):
         # 1 is an int
         ceph_utils.validator(value=1,
@@ -387,19 +469,44 @@ class CephUtilsTests(TestCase):
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=50)
         p.create()
-
         # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '128']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                  'target_size_ratio', '0.5']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=32', 'test', '128']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '0.5']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on'])
+        ])
 
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                 'pg_autoscale_mode', 'on']),
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_autoscaler_small(self, get_osds):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
+        self.cmp_pkgrevno.return_value = 1
+        get_osds.return_value = range(1, 3)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=1)
+        p.create()
+        # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+
+        # at 100 PGs/OSD, the number of expected placement groups will be 128
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=2', 'test', '2']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '0.01']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -474,7 +581,8 @@ class CephUtilsTests(TestCase):
                                    percent_data=100)
         p.create()
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create',
+                  '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown'])
@@ -498,10 +606,15 @@ class CephUtilsTests(TestCase):
                                    percent_data=100)
         p.create()
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '1.0']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on']),
         ])
 
     def test_get_erasure_profile_none(self):
@@ -1597,6 +1710,22 @@ class CephUtilsTests(TestCase):
         mock_config.return_value = ("{'osd': {'foo': 1},"
                                     "'unknown': {'blah': 1}}")
         self.assertEqual({'osd': {'foo': 1}}, ctxt)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    @patch.object(ceph_utils, 'config')
+    def test_ceph_osd_conf_context_conflict(self, mock_config,
+                                            mock_get_osd_settings):
+        mock_config.return_value = "{'osd': {'osd heartbeat grace': 20}}"
+        mock_get_osd_settings.return_value = {
+            'osd heartbeat grace': 25,
+            'osd heartbeat interval': 5}
+        ctxt = ceph_utils.CephOSDConfContext()()
+        self.assertEqual(ctxt, {
+            'osd': collections.OrderedDict([('osd heartbeat grace', 20)]),
+            'osd_from_client': collections.OrderedDict(
+                [('osd heartbeat interval', 5)]),
+            'osd_from_client_conflict': collections.OrderedDict(
+                [('osd heartbeat grace', 25)])})
 
     @patch.object(ceph_utils, 'local_unit', lambda: "nova-compute/0")
     def test_is_broker_action_done(self):

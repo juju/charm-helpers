@@ -3,12 +3,13 @@ import os
 import contextlib
 import unittest
 from copy import copy
-from tests.helpers import patch_open
+from tests.helpers import patch_open, FakeRelation
+
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
 from charmhelpers.fetch import ubuntu as fetch
-from charmhelpers.core.hookenv import flush
+from charmhelpers.core.hookenv import WORKLOAD_STATES, flush
 
 import charmhelpers.contrib.openstack.utils as openstack
 
@@ -1992,6 +1993,347 @@ class OpenStackHelpersTestCase(TestCase):
             call('neutron-identity-service_3-keystone_1', '2aa6'),
             call('placement-identity-service_3-keystone_0', 'd5c3')]
         kv.set.assert_has_calls(kv_set_calls, any_order=True)
+
+
+class OpenStackUtilsAdditionalTests(TestCase):
+    SHARED_DB_RELATIONS = {
+        'shared-db:8': {
+            'mysql-svc1/0': {
+                'allowed_units': 'client/0',
+            },
+            'mysql-svc1/1': {},
+            'mysql-svc1/2': {
+                'allowed_units': 'client/0 client/1',
+            },
+        },
+        'shared-db:12': {
+            'mysql-svc2/0': {
+                'allowed_units': 'client/1',
+            },
+            'mysql-svc2/1': {
+                'allowed_units': 'client/3',
+            },
+            'mysql-svc2/2': {
+                'allowed_units': {},
+            },
+        }
+    }
+    SCALE_RELATIONS = {
+        'cluster:2': {
+            'keystone/1': {},
+            'keystone/2': {}},
+        'shared-db:12': {
+            'mysql-svc2/0': {
+                'allowed_units': 'client/1',
+            },
+            'mysql-svc2/1': {
+                'allowed_units': 'client/3',
+            },
+            'mysql-svc2/2': {
+                'allowed_units': {},
+            }},
+    }
+    SCALE_RELATIONS_HA = {
+        'cluster:2': {
+            'keystone/1': {'unit-state-keystone-1': 'READY'},
+            'keystone/2': {}},
+        'shared-db:12': {
+            'mysql-svc2/0': {
+                'allowed_units': 'client/1',
+            },
+            'mysql-svc2/1': {
+                'allowed_units': 'client/3',
+            },
+            'mysql-svc2/2': {
+                'allowed_units': {},
+            }},
+        'ha:32': {
+            'hacluster-keystone/1': {}}
+    }
+    All_PEERS_READY = {
+        'cluster:2': {
+            'keystone/1': {'unit-state-keystone-1': 'READY'},
+            'keystone/2': {'unit-state-keystone-2': 'READY'}}}
+    PEERS_NOT_READY = {
+        'cluster:2': {
+            'keystone/1': {'unit-state-keystone-1': 'READY'},
+            'keystone/2': {}}}
+
+    def setUp(self):
+        super(OpenStackUtilsAdditionalTests, self).setUp()
+        [self._patch(m) for m in [
+            'expect_ha',
+            'expected_peer_units',
+            'expected_related_units',
+            'juju_log',
+            'metadata',
+            'related_units',
+            'relation_get',
+            'relation_id',
+            'relation_ids',
+            'relation_set',
+            'local_unit',
+        ]]
+
+    def _patch(self, method):
+        _m = patch.object(openstack, method)
+        mock = _m.start()
+        self.addCleanup(_m.stop)
+        setattr(self, method, mock)
+
+    def setup_relation(self, relation_map):
+        relation = FakeRelation(relation_map)
+        self.relation_id.side_effect = relation.relation_id
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.related_units
+        return relation
+
+    def test_is_db_ready(self):
+        relation = self.setup_relation(self.SHARED_DB_RELATIONS)
+
+        # Check unit allowed in 1st relation
+        self.local_unit.return_value = 'client/0'
+        self.assertTrue(openstack.is_db_ready())
+
+        # Check unit allowed in 2nd relation
+        self.local_unit.return_value = 'client/3'
+        self.assertTrue(openstack.is_db_ready())
+
+        # Check unit not allowed in any list
+        self.local_unit.return_value = 'client/5'
+        self.assertFalse(openstack.is_db_ready())
+
+        # Check call with an invalid relation
+        self.local_unit.return_value = 'client/3'
+        # None returned if not in a relation context (eg update-status)
+        relation.clear_relation_context()
+        self.assertRaises(
+            Exception,
+            openstack.is_db_ready,
+            use_current_context=True)
+
+        # Check unit allowed using current relation context
+        relation.set_relation_context('mysql-svc2/0', 'shared-db:12')
+        self.local_unit.return_value = 'client/1'
+        self.assertTrue(openstack.is_db_ready(use_current_context=True))
+
+        # Check unit not allowed using current relation context
+        relation.set_relation_context('mysql-svc2/0', 'shared-db:12')
+        self.local_unit.return_value = 'client/0'
+        self.assertFalse(openstack.is_db_ready(use_current_context=True))
+
+    @patch.object(openstack, 'container_scoped_relations')
+    def test_is_expected_scale_noha(self, container_scoped_relations):
+        self.setup_relation(self.SCALE_RELATIONS)
+        self.expect_ha.return_value = False
+        eru = {
+            'shared-db': ['mysql/0', 'mysql/1', 'mysql/2']}
+
+        def _expected_related_units(reltype):
+            return eru[reltype]
+        self.expected_related_units.side_effect = _expected_related_units
+        container_scoped_relations.return_value = ['ha', 'domain-backend']
+
+        # All peer and db units are present
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertTrue(openstack.is_expected_scale())
+
+        # db units are present but a peer is missing
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2', 'keystone/3']
+        self.assertFalse(openstack.is_expected_scale())
+
+        # peer units are present but a db unit is missing
+        eru['shared-db'].append('mysql/3')
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertFalse(openstack.is_expected_scale())
+        eru['shared-db'].remove('mysql/3')
+
+        # Expect ha but ha unit is missing
+        self.expect_ha.return_value = True
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertFalse(openstack.is_expected_scale())
+
+    @patch.object(openstack, 'container_scoped_relations')
+    def test_is_expected_scale_ha(self, container_scoped_relations):
+        self.setup_relation(self.SCALE_RELATIONS_HA)
+        eru = {
+            'shared-db': ['mysql/0', 'mysql/1', 'mysql/2']}
+
+        def _expected_related_units(reltype):
+            return eru[reltype]
+        self.expected_related_units.side_effect = _expected_related_units
+        container_scoped_relations.return_value = ['ha', 'domain-backend']
+        self.expect_ha.return_value = True
+        self.expected_peer_units.return_value = ['keystone/0', 'keystone/2']
+        self.assertTrue(openstack.is_expected_scale())
+
+    def test_container_scoped_relations(self):
+        _metadata = {
+            'provides': {
+                'amqp': {'interface': 'rabbitmq'},
+                'identity-service': {'interface': 'keystone'},
+                'ha': {
+                    'interface': 'hacluster',
+                    'scope': 'container'}},
+            'peers': {
+                'cluster': {'interface': 'openstack-ha'}}}
+        self.metadata.return_value = _metadata
+        self.assertEqual(openstack.container_scoped_relations(), ['ha'])
+
+    def test_get_peer_key(self):
+        self.assertEqual(
+            openstack.get_peer_key('cinder/0'),
+            'unit-state-cinder-0')
+
+    def test_inform_peers_unit_state(self):
+        self.local_unit.return_value = 'client/0'
+        self.setup_relation(self.All_PEERS_READY)
+        openstack.inform_peers_unit_state('READY')
+        self.relation_set.assert_called_once_with(
+            relation_id='cluster:2',
+            relation_settings={'unit-state-client-0': 'READY'})
+
+    def test_get_peers_unit_state(self):
+        self.setup_relation(self.All_PEERS_READY)
+        self.assertEqual(
+            openstack.get_peers_unit_state(),
+            {'keystone/1': 'READY', 'keystone/2': 'READY'})
+        self.setup_relation(self.PEERS_NOT_READY)
+        self.assertEqual(
+            openstack.get_peers_unit_state(),
+            {'keystone/1': 'READY', 'keystone/2': 'UNKNOWN'})
+
+    def test_are_peers_ready(self):
+        self.setup_relation(self.All_PEERS_READY)
+        self.assertTrue(openstack.are_peers_ready())
+        self.setup_relation(self.PEERS_NOT_READY)
+        self.assertFalse(openstack.are_peers_ready())
+
+    @patch.object(openstack, 'inform_peers_unit_state')
+    def test_inform_peers_if_ready(self, inform_peers_unit_state):
+        self.setup_relation(self.All_PEERS_READY)
+
+        def _not_ready():
+            return False, "Its all gone wrong"
+
+        def _ready():
+            return True, "Hurray!"
+        openstack.inform_peers_if_ready(_not_ready)
+        inform_peers_unit_state.assert_called_once_with('NOTREADY', 'cluster')
+        inform_peers_unit_state.reset_mock()
+        openstack.inform_peers_if_ready(_ready)
+        inform_peers_unit_state.assert_called_once_with('READY', 'cluster')
+
+    @patch.object(openstack, 'is_expected_scale')
+    @patch.object(openstack, 'is_db_initialised')
+    @patch.object(openstack, 'is_db_ready')
+    @patch.object(openstack, 'is_unit_paused_set')
+    @patch.object(openstack, 'is_db_maintenance_mode')
+    def test_check_api_unit_ready(self, is_db_maintenance_mode,
+                                  is_unit_paused_set, is_db_ready,
+                                  is_db_initialised, is_expected_scale):
+        is_db_maintenance_mode.return_value = True
+        self.assertFalse(openstack.check_api_unit_ready()[0])
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = True
+        self.assertFalse(openstack.check_api_unit_ready()[0])
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = False
+        self.assertFalse(openstack.check_api_unit_ready()[0])
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = False
+        self.assertFalse(openstack.check_api_unit_ready()[0])
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = True
+        is_expected_scale.return_value = False
+        self.assertFalse(openstack.check_api_unit_ready()[0])
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = True
+        is_expected_scale.return_value = True
+        self.assertTrue(openstack.check_api_unit_ready()[0])
+
+    @patch.object(openstack, 'is_expected_scale')
+    @patch.object(openstack, 'is_db_initialised')
+    @patch.object(openstack, 'is_db_ready')
+    @patch.object(openstack, 'is_unit_paused_set')
+    @patch.object(openstack, 'is_db_maintenance_mode')
+    def test_get_api_unit_status(self, is_db_maintenance_mode,
+                                 is_unit_paused_set, is_db_ready,
+                                 is_db_initialised, is_expected_scale):
+        is_db_maintenance_mode.return_value = True
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'maintenance')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = True
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'blocked')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = False
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'waiting')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = False
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'waiting')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = True
+        is_expected_scale.return_value = False
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'waiting')
+
+        is_db_maintenance_mode.return_value = False
+        is_unit_paused_set.return_value = False
+        is_db_ready.return_value = True
+        is_db_initialised.return_value = True
+        is_expected_scale.return_value = True
+        self.assertEqual(
+            openstack.get_api_unit_status()[0].value,
+            'active')
+
+    @patch.object(openstack, 'get_api_unit_status')
+    def test_check_api_application_ready(self, get_api_unit_status):
+        get_api_unit_status.return_value = (WORKLOAD_STATES.ACTIVE, 'Hurray')
+        self.assertTrue(openstack.check_api_application_ready()[0])
+        get_api_unit_status.return_value = (WORKLOAD_STATES.BLOCKED, ':-(')
+        self.assertFalse(openstack.check_api_application_ready()[0])
+
+    @patch.object(openstack, 'get_api_unit_status')
+    def test_get_api_application_status(self, get_api_unit_status):
+        get_api_unit_status.return_value = (WORKLOAD_STATES.ACTIVE, 'Hurray')
+        self.assertEqual(
+            openstack.get_api_application_status()[0].value,
+            'active')
+        get_api_unit_status.return_value = (WORKLOAD_STATES.BLOCKED, ':-(')
+        self.assertEqual(
+            openstack.get_api_application_status()[0].value,
+            'blocked')
 
 
 if __name__ == '__main__':

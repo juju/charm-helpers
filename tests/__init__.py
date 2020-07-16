@@ -1,7 +1,10 @@
 import sys
 import mock
 
+
 sys.modules['yum'] = mock.MagicMock()
+sys.modules['sriov_netplan_shim'] = mock.MagicMock()
+sys.modules['sriov_netplan_shim.pci'] = mock.MagicMock()
 with mock.patch('charmhelpers.deprecate') as ch_deprecate:
     def mock_deprecate(warning, date=None, log=None):
         def mock_wrap(f):

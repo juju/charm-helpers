@@ -1,4 +1,4 @@
-# Copyright 2016 Canonical Ltd
+# Copyright 2019 Canonical Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import subprocess
 
-import setuptools
 
-# In python < 2.7.4, a lazy loading of package `pbr` will break
-# setuptools if some other modules registered functions in `atexit`.
-# solution from: http://bugs.python.org/issue15881#msg170215
-try:
-    import multiprocessing  # noqa
-except ImportError:
-    pass
+def _run(*args):
+    """Run a process, check result, capture decoded output from STDOUT.
 
-setuptools.setup(
-    setup_requires=['pbr>=2.0.0'],
-    pbr=True)
+    :param args: Command and arguments to run
+    :type args: Tuple[str, ...]
+    :returns: Information about the completed process
+    :rtype: str
+    :raises subprocess.CalledProcessError
+    """
+    return subprocess.check_output(args, universal_newlines=True)
