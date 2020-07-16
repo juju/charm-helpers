@@ -246,20 +246,23 @@ def add_bridge_port(name, port, promisc=False, ifdata=None, exclusive=False,
         subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
-def del_bridge_port(name, port):
+def del_bridge_port(name, port, linkdown=True):
     """Delete a port from the named openvswitch bridge
 
     :param name: Name of bridge to remove port from
     :type name: str
     :param port: Name of port to remove
     :type port: str
+    :param linkdown: Whether to set link down on interface (default: True)
+    :type linkdown: bool
     :raises: subprocess.CalledProcessError
     """
     log('Deleting port {} from bridge {}'.format(port, name))
     subprocess.check_call(["ovs-vsctl", "--", "--if-exists", "del-port",
                            name, port])
-    subprocess.check_call(["ip", "link", "set", port, "down"])
-    subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
+    if linkdown:
+        subprocess.check_call(["ip", "link", "set", port, "down"])
+        subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
 def add_bridge_bond(bridge, port, interfaces, portdata=None, ifdatamap=None,
