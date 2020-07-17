@@ -411,7 +411,7 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
         upstart_init = '/etc/init/%s.conf' % svc
         sysv_init = '/etc/init.d/%s' % svc
 
-        if host.init_is_systemd():
+        if host.init_is_systemd(service_name=svc):
             nrpe.add_check(
                 shortname=svc,
                 description='process check {%s}' % unit_name,

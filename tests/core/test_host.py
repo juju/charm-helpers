@@ -80,6 +80,19 @@ link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
 
 
 class HelpersTest(TestCase):
+    @patch('charmhelpers.core.host.lsb_release')
+    @patch('os.path')
+    def test_init_is_systemd_service_snap(self, path, lsb_release):
+        #If Service begins with 'snap.' it should be True
+        service_name = "snap.package.service"
+        self.assertTrue(host.init_is_systemd(service_name=service_name))
+
+        #If service doesn't begin with snap. use normal evaluation.
+        service_name = "package.service"
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'whatever'}
+        path.isdir.return_value = True
+        self.assertTrue(host.init_is_systemd(service_name=service_name))
+        path.isdir.assert_called_with('/run/systemd/system')
 
     @patch('charmhelpers.core.host.lsb_release')
     @patch('os.path')
