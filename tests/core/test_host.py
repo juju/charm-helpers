@@ -83,11 +83,11 @@ class HelpersTest(TestCase):
     @patch('charmhelpers.core.host.lsb_release')
     @patch('os.path')
     def test_init_is_systemd_service_snap(self, path, lsb_release):
-        #If Service begins with 'snap.' it should be True
+        # If Service begins with 'snap.' it should be True
         service_name = "snap.package.service"
         self.assertTrue(host.init_is_systemd(service_name=service_name))
 
-        #If service doesn't begin with snap. use normal evaluation.
+        # If service doesn't begin with snap. use normal evaluation.
         service_name = "package.service"
         lsb_release.return_value = {'DISTRIB_CODENAME': 'whatever'}
         path.isdir.return_value = True
