@@ -1,7 +1,7 @@
 import subprocess
 import unittest
 
-from mock import patch, call, MagicMock
+from mock import patch, MagicMock
 
 import charmhelpers.contrib.network.ovs as ovs
 
@@ -161,17 +161,6 @@ class OVSHelpersTest(unittest.TestCase):
         ovs.del_bridge('test')
         check_call.assert_called_with(["ovs-vsctl", "--", "--if-exists",
                                        "del-br", 'test'])
-        self.assertTrue(self.log.call_count == 1)
-
-    @patch('subprocess.check_call')
-    def test_del_bridge_port(self, check_call):
-        ovs.del_bridge_port('test', 'eth1')
-        check_call.assert_has_calls([
-            call(["ovs-vsctl", "--", "--if-exists", "del-port",
-                  'test', 'eth1']),
-            call(['ip', 'link', 'set', 'eth1', 'down']),
-            call(['ip', 'link', 'set', 'eth1', 'promisc', 'off'])
-        ])
         self.assertTrue(self.log.call_count == 1)
 
     @patch.object(ovs, 'port_to_br')
