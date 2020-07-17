@@ -27,6 +27,8 @@ from charmhelpers.core.hookenv import (
     log, WARNING, INFO, DEBUG
 )
 from charmhelpers.core.host import (
+    CompareHostReleases,
+    lsb_release,
     service
 )
 
@@ -352,11 +354,14 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
     :param portdata: Additional data to attach to port. Similar to ifdata.
     :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
 
-    WARNING: the `ifup` command (NetworkManager) must be available on the system
-    for this to work. Before Ubuntu 18.04 this was shipped by default. On
-    Ubuntu 18.04 and newer you need to install the package `ifupdown`. This
-    might however cause issues when deploying to LXD, see lp:1877594, which is
-    why this isn't supported anymore.
+    WARNINGS:
+    * The `ifup` command (NetworkManager) must be available on the system for
+      this to work. Before bionic this was shipped by default. On bionic and
+      newer you need to install the package `ifupdown`. This might however cause
+      issues when deploying to LXD, see lp:1877594, which is why this function
+      isn't supported anymore.
+    * On focal and newer this function won't even try to run `ifup` and raise
+      directly.
     """
     try:
         import netifaces
@@ -403,7 +408,7 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
         level=INFO)
 
     if not network_interface_already_exists:
-        setup_eni()
+        setup_eni()  # will raise on focal+
 
         with open('/etc/network/interfaces.d/{}.cfg'.format(
                 linuxbridge_port), 'w') as config:
@@ -486,12 +491,19 @@ def get_certificate():
         return None
 
 
+@deprecate('see lp:1877594', '2021-01', log=log)
 def setup_eni():
     """Makes sure /etc/network/interfaces.d/ exists and will be parsed.
 
     When setting up interfaces, Juju removes from
     /etc/network/interfaces the line sourcing interfaces.d/
+
+    WARNING: Not supported on focal and newer anymore. Will raise.
     """
+    release = CompareHostReleases(lsb_release()['DISTRIB_CODENAME'])
+    if release >= 'focal':
+        raise RuntimeError("NetworkManager isn't supported anymore")
+
     if not os.path.exists('/etc/network/interfaces.d'):
         os.makedirs('/etc/network/interfaces.d', mode=0o755)
     with open('/etc/network/interfaces', 'r') as eni:

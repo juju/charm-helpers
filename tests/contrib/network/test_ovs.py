@@ -165,12 +165,14 @@ class OVSHelpersTest(unittest.TestCase):
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
+    @patch.object(ovs, 'lsb_release')
     @patch('os.path.exists')
     @patch('subprocess.check_call')
-    def test_add_ovsbridge_linuxbridge(self, check_call, exists,
+    def test_add_ovsbridge_linuxbridge(self, check_call, exists, lsb_release,
                                        add_bridge_port,
                                        port_to_br):
         exists.return_value = True
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         port_to_br.return_value = None
         if_and_port_data = {
             'external-ids': {'mycharm': 'br-ex'}
@@ -187,13 +189,13 @@ class OVSHelpersTest(unittest.TestCase):
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
+    @patch.object(ovs, 'lsb_release')
     @patch('os.path.exists')
     @patch('subprocess.check_call')
-    def test_add_ovsbridge_linuxbridge_already_direct_wired(self,
-                                                            check_call, exists,
-                                                            add_bridge_port,
-                                                            port_to_br):
+    def test_add_ovsbridge_linuxbridge_already_direct_wired(
+            self, check_call, exists, lsb_release, add_bridge_port, port_to_br):
         exists.return_value = True
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         port_to_br.return_value = 'br-ex'
         ovs.add_ovsbridge_linuxbridge('br-ex', 'br-eno1')
         check_call.assert_not_called()
@@ -201,12 +203,14 @@ class OVSHelpersTest(unittest.TestCase):
 
     @patch.object(ovs, 'port_to_br')
     @patch.object(ovs, 'add_bridge_port')
+    @patch.object(ovs, 'lsb_release')
     @patch('os.path.exists')
     @patch('subprocess.check_call')
     def test_add_ovsbridge_linuxbridge_longname(self, check_call, exists,
-                                                add_bridge_port,
+                                                lsb_release, add_bridge_port,
                                                 port_to_br):
         exists.return_value = True
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         port_to_br.return_value = None
         mock_hasher = MagicMock()
         mock_hasher.hexdigest.return_value = '12345678901234578910'
@@ -328,9 +332,11 @@ class OVSHelpersTest(unittest.TestCase):
             ['ovs-vsctl', 'clear', 'Bridge', 'br-int', 'ipfix']
         )
 
+    @patch.object(ovs, 'lsb_release')
     @patch('os.path.exists')
-    def test_setup_eni_sources_eni_folder(self, exists):
+    def test_setup_eni_sources_eni_folder(self, exists, lsb_release):
         exists.return_value = True
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         with patch_open() as (_, mock_file):
             # Mocked initial /etc/network/interfaces file content:
             mock_file.__iter__.return_value = [
@@ -341,9 +347,11 @@ class OVSHelpersTest(unittest.TestCase):
             mock_file.write.assert_called_once_with(
                 '\nsource /etc/network/interfaces.d/*')
 
+    @patch.object(ovs, 'lsb_release')
     @patch('os.path.exists')
-    def test_setup_eni_wont_source_eni_folder_twice(self, exists):
+    def test_setup_eni_wont_source_eni_folder_twice(self, exists, lsb_release):
         exists.return_value = True
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         with patch_open() as (_, mock_file):
             # Mocked initial /etc/network/interfaces file content:
             mock_file.__iter__.return_value = [
@@ -353,3 +361,8 @@ class OVSHelpersTest(unittest.TestCase):
 
             ovs.setup_eni()
             self.assertFalse(mock_file.write.called)
+
+    @patch.object(ovs, 'lsb_release')
+    def test_setup_eni_raises_on_focal(self, lsb_release):
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'focal'}
+        self.assertRaises(RuntimeError, ovs.setup_eni)
