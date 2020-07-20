@@ -38,7 +38,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
         self.mock_relations.return_value = {
             'wsgi-file': {},
             'website': {},
-            'nrpe-external-master': {},
+            'nrpe-external-main': {},
         }
         self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
@@ -81,12 +81,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
             "relations_full": {
                 'wsgi-file': {},
                 'website': {},
-                'nrpe-external-master': {},
+                'nrpe-external-main': {},
             },
             "relations": {
                 'wsgi-file': [],
                 'website': [],
-                'nrpe-external-master': [],
+                'nrpe-external-main': [],
             },
             "local_unit": "click-index/3",
             "unit_private_address": "10.0.3.2",
@@ -146,7 +146,7 @@ class JujuState2YamlTestCase(unittest.TestCase):
                 },
             },
             'website': {},
-            'nrpe-external-master': {},
+            'nrpe-external-main': {},
         }
         self.mock_local_unit.return_value = "click-index/3"
 

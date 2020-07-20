@@ -52,7 +52,7 @@ class GitUrlFetchHandlerTest(TestCase):
     @patch.object(giturl, 'check_output')
     def test_clone(self, check_output):
         dest_path = "/destination/path"
-        branch = "master"
+        branch = "main"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()

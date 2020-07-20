@@ -50,12 +50,12 @@ ID="centos"
 '''
 
 IP_LINE_ETH0 = b"""
-2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
+2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq main bond0 state UP qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
 """
 
 IP_LINE_ETH100 = b"""
-2: eth100: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
+2: eth100: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq main bond0 state UP qlen 1000
     link/ether e4:11:5b:ab:a7:3d brd ff:ff:ff:ff:ff:ff
 """
 
@@ -1699,7 +1699,7 @@ class HelpersTest(TestCase):
     @patch('os.path.exists')
     @patch('os.path.realpath')
     @patch('os.path.isdir')
-    def test_get_bond_master(self, mock_isdir, mock_realpath, mock_exists):
+    def test_get_bond_main(self, mock_isdir, mock_realpath, mock_exists):
         mock_isdir.return_value = True
 
         def fake_realpath(soft):
@@ -1708,7 +1708,7 @@ class HelpersTest(TestCase):
                         '/0000:02:00.1/net/eth0')
             elif soft.endswith('/br0'):
                 return '/sys/devices/virtual/net/br0'
-            elif soft.endswith('/master'):
+            elif soft.endswith('/main'):
                 return '/sys/devices/virtual/net/bond0'
 
             return None
@@ -1718,8 +1718,8 @@ class HelpersTest(TestCase):
 
         mock_exists.side_effect = fake_exists
         mock_realpath.side_effect = fake_realpath
-        self.assertEqual(host.get_bond_master('eth0'), 'bond0')
-        self.assertIsNone(host.get_bond_master('br0'))
+        self.assertEqual(host.get_bond_main('eth0'), 'bond0')
+        self.assertIsNone(host.get_bond_main('br0'))
 
     @patch('subprocess.check_output')
     def test_list_nics(self, check_output):

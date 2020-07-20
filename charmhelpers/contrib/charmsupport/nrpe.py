@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Compatibility with the nrpe-external-master charm"""
+"""Compatibility with the nrpe-external-main charm"""
 # Copyright 2012 Canonical Ltd.
 #
 # Authors:
@@ -42,15 +42,15 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.host import service
 from charmhelpers.core import host
 
-# This module adds compatibility with the nrpe-external-master and plain nrpe
+# This module adds compatibility with the nrpe-external-main and plain nrpe
 # subordinate charms. To use it in your charm:
 #
 # 1. Update metadata.yaml
 #
 #   provides:
 #     (...)
-#     nrpe-external-master:
-#       interface: nrpe-external-master
+#     nrpe-external-main:
+#       interface: nrpe-external-main
 #       scope: container
 #
 #   and/or
@@ -81,7 +81,7 @@ from charmhelpers.core import host
 #        A comma-separated list of nagios servicegroups.
 #        If left empty, the nagios_context will be used as the servicegroup
 #
-# 3. Add custom checks (Nagios plugins) to files/nrpe-external-master
+# 3. Add custom checks (Nagios plugins) to files/nrpe-external-main
 #
 # 4. Update your hooks.py with something like this:
 #
@@ -105,7 +105,7 @@ from charmhelpers.core import host
 #        (...)
 #        update_nrpe_config()
 #
-#    def nrpe_external_master_relation_changed():
+#    def nrpe_external_main_relation_changed():
 #        update_nrpe_config()
 #
 #    def local_monitors_relation_changed():
@@ -118,7 +118,7 @@ from charmhelpers.core import host
 #    def update_nrpe_config():
 #        nrpe_compat = NRPE(primary=False)
 #
-# 5. ln -s hooks.py nrpe-external-master-relation-changed
+# 5. ln -s hooks.py nrpe-external-main-relation-changed
 #    ln -s hooks.py local-monitors-relation-changed
 
 
@@ -257,8 +257,8 @@ class NRPE(object):
             else:
                 self.hostname = "{}-{}".format(self.nagios_context, self.unit_name)
         self.checks = []
-        # Iff in an nrpe-external-master relation hook, set primary status
-        relation = relation_ids('nrpe-external-master')
+        # Iff in an nrpe-external-main relation hook, set primary status
+        relation = relation_ids('nrpe-external-main')
         if relation:
             log("Setting charm primary status {}".format(primary))
             for rid in relation:
@@ -336,7 +336,7 @@ class NRPE(object):
             service('restart', 'nagios-nrpe-server')
 
         monitor_ids = relation_ids("local-monitors") + \
-            relation_ids("nrpe-external-master")
+            relation_ids("nrpe-external-main")
         for rid in monitor_ids:
             reldata = relation_get(unit=local_unit(), rid=rid)
             if 'monitors' in reldata:
@@ -358,7 +358,7 @@ class NRPE(object):
         self.remove_check_queue.clear()
 
 
-def get_nagios_hostcontext(relation_name='nrpe-external-master'):
+def get_nagios_hostcontext(relation_name='nrpe-external-main'):
     """
     Query relation with nrpe subordinate, return the nagios_host_context
 
@@ -369,7 +369,7 @@ def get_nagios_hostcontext(relation_name='nrpe-external-master'):
             return rel['nagios_host_context']
 
 
-def get_nagios_hostname(relation_name='nrpe-external-master'):
+def get_nagios_hostname(relation_name='nrpe-external-main'):
     """
     Query relation with nrpe subordinate, return the nagios_hostname
 
@@ -380,7 +380,7 @@ def get_nagios_hostname(relation_name='nrpe-external-master'):
             return rel['nagios_hostname']
 
 
-def get_nagios_unit_name(relation_name='nrpe-external-master'):
+def get_nagios_unit_name(relation_name='nrpe-external-main'):
     """
     Return the nagios unit name prepended with host_context if needed
 

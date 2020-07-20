@@ -63,7 +63,7 @@ from charmhelpers.core.strutils import bool_from_string
 from charmhelpers.contrib.openstack.exceptions import OSContextError
 
 from charmhelpers.core.host import (
-    get_bond_master,
+    get_bond_main,
     is_phy_iface,
     list_nics,
     get_nic_hwaddr,
@@ -1329,14 +1329,14 @@ class NeutronPortContext(OSContextGenerator):
         extant_nics = list_nics()
 
         for nic in extant_nics:
-            # Ignore virtual interfaces (bond masters will be identified from
-            # their slaves)
+            # Ignore virtual interfaces (bond mains will be identified from
+            # their subordinates)
             if not is_phy_iface(nic):
                 continue
 
-            _nic = get_bond_master(nic)
+            _nic = get_bond_main(nic)
             if _nic:
-                log("Replacing iface '%s' with bond master '%s'" % (nic, _nic),
+                log("Replacing iface '%s' with bond main '%s'" % (nic, _nic),
                     level=DEBUG)
                 nic = _nic
 
@@ -2721,7 +2721,7 @@ class BridgePortInterfaceMap(object):
             self._mac_ifname_map[mac] = ifname
 
             # check if interface is part of a linux bond
-            _bond_name = get_bond_master(ifname)
+            _bond_name = get_bond_main(ifname)
             if _bond_name and _bond_name != ifname:
                 log('Add linux bond "{}" to map for physical interface "{}" '
                     'with mac "{}".'.format(_bond_name, ifname, mac),
@@ -2857,7 +2857,7 @@ class BridgePortInterfaceMap(object):
         :rtype: str
         :raises: KeyError
         """
-        return (get_bond_master(self._mac_ifname_map[mac]) or
+        return (get_bond_main(self._mac_ifname_map[mac]) or
                 self._mac_ifname_map[mac])
 
     def macs_from_ifname(self, ifname):

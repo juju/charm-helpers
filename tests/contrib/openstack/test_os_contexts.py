@@ -4549,8 +4549,8 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
         self.patch_object(context, 'is_phy_iface')
         self.is_phy_iface.side_effect = lambda x: True if not x.startswith(
             'bond') else False
-        self.patch_object(context, 'get_bond_master')
-        self.get_bond_master.side_effect = lambda x: 'bond0' if x in (
+        self.patch_object(context, 'get_bond_main')
+        self.get_bond_main.side_effect = lambda x: 'bond0' if x in (
             'eth0', 'eth1') else None
         self.patch_object(context, 'get_nic_hwaddr')
         self.get_nic_hwaddr.side_effect = lambda x: {
