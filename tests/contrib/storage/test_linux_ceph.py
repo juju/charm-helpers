@@ -1813,7 +1813,9 @@ class CephUtilsTests(TestCase):
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_replicated_pool('apool')
-        self.assertEqual(rq.ops, [base_op])
+        self.assertDictEqual(rq.ops[0], base_op)
+        self.assertRaises(
+            ValueError, rq.add_op_create_pool, 'apool', pg_num=51, weight=100)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('apool', replica_count=42)
         op = base_op.copy()
@@ -1859,6 +1861,7 @@ class CephUtilsTests(TestCase):
         base_op = {'app-name': None,
                    'erasure-profile': None,
                    'group': None,
+                   'group-namespace': None,
                    'max-bytes': None,
                    'max-objects': None,
                    'name': 'apool',
@@ -1867,7 +1870,7 @@ class CephUtilsTests(TestCase):
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_erasure_pool('apool')
-        self.assertEqual(rq.ops, [base_op])
+        self.assertDictEqual(rq.ops[0], base_op)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_erasure_pool('apool', weight=42)
         op = base_op.copy()
