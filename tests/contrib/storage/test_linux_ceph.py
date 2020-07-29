@@ -585,6 +585,8 @@ class CephUtilsTests(TestCase):
                   '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '1.0']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown'])
         ])
 
@@ -610,9 +612,9 @@ class CephUtilsTests(TestCase):
                   'create', '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
-                  'application', 'enable', 'test', 'unknown']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'target_size_ratio', '1.0']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'pg_autoscale_mode', 'on']),
         ])

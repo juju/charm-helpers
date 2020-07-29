@@ -39,6 +39,7 @@ from subprocess import (
     check_output,
     CalledProcessError,
 )
+from charmhelpers import deprecate
 from charmhelpers.core.hookenv import (
     config,
     service_name,
@@ -231,22 +232,69 @@ class PoolCreationError(Exception):
         super(PoolCreationError, self).__init__(message)
 
 
-class Pool(object):
+class BasePool(object):
     """An object oriented approach to Ceph pool creation.
 
     This base class is inherited by ReplicatedPool and ErasurePool. Do not call
-    create() on this base class as it will not do anything. Instantiate a child
-    class and call create().
+    create() on this base class as it will raise an exception.
+
+    Instantiate a child class and call create().
     """
 
     def __init__(self, service, name):
         self.service = service
         self.name = name
+        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
 
-    # Create the pool if it doesn't exist already
-    # To be implemented by subclasses
+    def _create(self):
+        """Perform the pool creation, method MUST be overridden by child class.
+        """
+        raise NotImplementedError
+
+    def _post_create(self):
+        """Perform common post pool creation tasks.
+
+        Do not add calls for a specific pool type here, those should go into
+        one of the pool specific classes.
+        """
+        if self.nautilus_or_later:
+            # Ensure we set the expected pool ratio
+            update_pool(
+                client=self.service,
+                pool=self.name,
+                settings={
+                    'target_size_ratio': str(
+                        self.percent_data / 100.0),
+                })
+        try:
+            set_app_name_for_pool(client=self.service,
+                                  pool=self.name,
+                                  name=self.app_name)
+        except CalledProcessError:
+            log('Could not set app name for pool {}'
+                .format(self.name),
+                level=WARNING)
+        if 'pg_autoscaler' in enabled_manager_modules():
+            try:
+                enable_pg_autoscale(self.service, self.name)
+            except CalledProcessError as e:
+                log('Could not configure auto scaling for pool {}: {}'
+                    .format(self.name, e),
+                    level=WARNING)
+
     def create(self):
-        pass
+        """Create pool and perform any post pool creation tasks.
+
+        To allow for sharing of common code among pool specific classes the
+        processing has been broken out into the private methods ``_create``
+        and ``_post_create``.
+
+        Do not add any pool type specific handling here, that should go into
+        one of the pool specific classes.
+        """
+        if not pool_exists(self.service, self.name):
+            self._create()
+            self._post_create()
 
     def add_cache_tier(self, cache_pool, mode):
         """Adds a new cache tier to an existing pool.
@@ -425,7 +473,15 @@ class Pool(object):
             return int(nearest)
 
 
-class ReplicatedPool(Pool):
+@deprecate('The ``Pool`` baseclass has been replaced by ``BasePool`` class.')
+class Pool(BasePool):
+    """Compability shim for any descendents external to this library."""
+
+    def create(self):
+        pass
+
+
+class ReplicatedPool(BasePool):
     def __init__(self, service, name, pg_num=None, replicas=2,
                  percent_data=10.0, app_name=None):
         super(ReplicatedPool, self).__init__(service=service, name=name)
@@ -443,60 +499,35 @@ class ReplicatedPool(Pool):
         else:
             self.app_name = 'unknown'
 
-    def create(self):
-        if not pool_exists(self.service, self.name):
-            nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
-            # Create it
-            if nautilus_or_later:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    '--pg-num-min={}'.format(
-                        min(AUTOSCALER_DEFAULT_PGS, self.pg_num)
-                    ),
-                    self.name, str(self.pg_num)
-                ]
-            else:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    self.name, str(self.pg_num)
-                ]
+    def _create(self):
+        # Create it
+        if self.nautilus_or_later:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                '--pg-num-min={}'.format(
+                    min(AUTOSCALER_DEFAULT_PGS, self.pg_num)
+                ),
+                self.name, str(self.pg_num)
+            ]
+        else:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                self.name, str(self.pg_num)
+            ]
+        check_call(cmd)
 
-            try:
-                check_call(cmd)
-                # Set the pool replica size
-                update_pool(client=self.service,
-                            pool=self.name,
-                            settings={'size': str(self.replicas)})
-                if nautilus_or_later:
-                    # Ensure we set the expected pool ratio
-                    update_pool(
-                        client=self.service,
-                        pool=self.name,
-                        settings={
-                            'target_size_ratio': str(
-                                self.percent_data / 100.0),
-                        })
-                try:
-                    set_app_name_for_pool(client=self.service,
-                                          pool=self.name,
-                                          name=self.app_name)
-                except CalledProcessError:
-                    log('Could not set app name for pool {}'
-                        .format(self.name),
-                        level=WARNING)
-                if 'pg_autoscaler' in enabled_manager_modules():
-                    try:
-                        enable_pg_autoscale(self.service, self.name)
-                    except CalledProcessError as e:
-                        log('Could not configure auto scaling for pool {}: {}'
-                            .format(self.name, e),
-                            level=WARNING)
-            except CalledProcessError:
-                raise
+    def _post_create(self):
+        # Set the pool replica size
+        update_pool(client=self.service,
+                    pool=self.name,
+                    settings={'size': str(self.replicas)})
+        # Perform other common post pool creation tasks
+        super(ReplicatedPool, self)._post_create()
 
 
-# Default jerasure erasure coded pool
-class ErasurePool(Pool):
+class ErasurePool(BasePool):
+    """Default jerasure erasure coded pool."""
+
     def __init__(self, service, name, erasure_code_profile="default",
                  percent_data=10.0, app_name=None):
         super(ErasurePool, self).__init__(service=service, name=name)
@@ -507,75 +538,47 @@ class ErasurePool(Pool):
         else:
             self.app_name = 'unknown'
 
-    def create(self):
-        if not pool_exists(self.service, self.name):
-            # Try to find the erasure profile information in order to properly
-            # size the number of placement groups. The size of an erasure
-            # coded placement group is calculated as k+m.
-            erasure_profile = get_erasure_profile(self.service,
-                                                  self.erasure_code_profile)
+    def _create(self):
+        # Try to find the erasure profile information in order to properly
+        # size the number of placement groups. The size of an erasure
+        # coded placement group is calculated as k+m.
+        erasure_profile = get_erasure_profile(self.service,
+                                              self.erasure_code_profile)
 
-            # Check for errors
-            if erasure_profile is None:
-                msg = ("Failed to discover erasure profile named "
-                       "{}".format(self.erasure_code_profile))
-                log(msg, level=ERROR)
-                raise PoolCreationError(msg)
-            if 'k' not in erasure_profile or 'm' not in erasure_profile:
-                # Error
-                msg = ("Unable to find k (data chunks) or m (coding chunks) "
-                       "in erasure profile {}".format(erasure_profile))
-                log(msg, level=ERROR)
-                raise PoolCreationError(msg)
+        # Check for errors
+        if erasure_profile is None:
+            msg = ("Failed to discover erasure profile named "
+                   "{}".format(self.erasure_code_profile))
+            log(msg, level=ERROR)
+            raise PoolCreationError(msg)
+        if 'k' not in erasure_profile or 'm' not in erasure_profile:
+            # Error
+            msg = ("Unable to find k (data chunks) or m (coding chunks) "
+                   "in erasure profile {}".format(erasure_profile))
+            log(msg, level=ERROR)
+            raise PoolCreationError(msg)
 
-            k = int(erasure_profile['k'])
-            m = int(erasure_profile['m'])
-            pgs = self.get_pgs(k + m, self.percent_data)
-            nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
-            # Create it
-            if nautilus_or_later:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    '--pg-num-min={}'.format(
-                        min(AUTOSCALER_DEFAULT_PGS, pgs)
-                    ),
-                    self.name, str(pgs), str(pgs),
-                    'erasure', self.erasure_code_profile
-                ]
-            else:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    self.name, str(pgs), str(pgs),
-                    'erasure', self.erasure_code_profile
-                ]
-
-            try:
-                check_call(cmd)
-                try:
-                    set_app_name_for_pool(client=self.service,
-                                          pool=self.name,
-                                          name=self.app_name)
-                except CalledProcessError:
-                    log('Could not set app name for pool {}'.format(self.name),
-                        level=WARNING)
-                if nautilus_or_later:
-                    # Ensure we set the expected pool ratio
-                    update_pool(
-                        client=self.service,
-                        pool=self.name,
-                        settings={
-                            'target_size_ratio': str(
-                                self.percent_data / 100.0),
-                        })
-                if 'pg_autoscaler' in enabled_manager_modules():
-                    try:
-                        enable_pg_autoscale(self.service, self.name)
-                    except CalledProcessError as e:
-                        log('Could not configure auto scaling for pool {}: {}'
-                            .format(self.name, e),
-                            level=WARNING)
-            except CalledProcessError:
-                raise
+        k = int(erasure_profile['k'])
+        m = int(erasure_profile['m'])
+        pgs = self.get_pgs(k + m, self.percent_data)
+        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        # Create it
+        if self.nautilus_or_later:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                '--pg-num-min={}'.format(
+                    min(AUTOSCALER_DEFAULT_PGS, pgs)
+                ),
+                self.name, str(pgs), str(pgs),
+                'erasure', self.erasure_code_profile
+            ]
+        else:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                self.name, str(pgs), str(pgs),
+                'erasure', self.erasure_code_profile
+            ]
+        check_call(cmd)
 
 
 def enabled_manager_modules():
