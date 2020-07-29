@@ -1800,8 +1800,71 @@ class CephUtilsTests(TestCase):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
+    def test__partial_build_common_op_create(self):
+        self.maxDiff = None
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            AssertionError,
+            rq._partial_build_common_op_create,
+            **{'compression_algorithm': 'invalid'})
+        self.assertRaises(
+            AssertionError,
+            rq._partial_build_common_op_create,
+            **{'compression_mode': 'invalid'})
+        for subject in (
+                'compression_required_ratio',
+                'compression_min_blob_size',
+                'compression_min_blob_size_hdd',
+                'compression_min_blob_size_ssd',
+                'compression_max_blob_size',
+                'compression_max_blob_size_hdd',
+                'compression_max_blob_size_ssd'):
+            # these parameters should be float / int
+            self.assertRaises(
+                AssertionError,
+                rq._partial_build_common_op_create,
+                **{subject: '1'})
+        expect = {
+            'app-name': None,
+            'compression-algorithm': 'lz4',
+            'compression-mode': 'passive',
+            'compression-required-ratio': 0.85,
+            'compression-min-blob-size': 131072,
+            'compression-min-blob-size-hdd': 131072,
+            'compression-min-blob-size-ssd': 8192,
+            'compression-max-blob-size': 524288,
+            'compression-max-blob-size-hdd': 524288,
+            'compression-max-blob-size-ssd': 65536,
+            'group': None,
+            'max-bytes': None,
+            'max-objects': None,
+            'group-namespace': None,
+            'weight': None,
+        }
+        self.assertDictEqual(
+            rq._partial_build_common_op_create(
+                compression_algorithm='lz4',
+                compression_mode='passive',
+                compression_required_ratio=0.85,
+                compression_min_blob_size=131072,
+                compression_min_blob_size_hdd=131072,
+                compression_min_blob_size_ssd=8192,
+                compression_max_blob_size=524288,
+                compression_max_blob_size_hdd=524288,
+                compression_max_blob_size_ssd=65536),
+            expect)
+
     def test_add_op_create_replicated_pool(self):
         base_op = {'app-name': None,
+                   'compression-algorithm': None,
+                   'compression-max-blob-size': None,
+                   'compression-max-blob-size-hdd': None,
+                   'compression-max-blob-size-ssd': None,
+                   'compression-min-blob-size': None,
+                   'compression-min-blob-size-hdd': None,
+                   'compression-min-blob-size-ssd': None,
+                   'compression-mode': None,
+                   'compression-required-ratio': None,
                    'group': None,
                    'group-namespace': None,
                    'max-bytes': None,
@@ -1859,6 +1922,15 @@ class CephUtilsTests(TestCase):
 
     def test_add_op_create_erasure_pool(self):
         base_op = {'app-name': None,
+                   'compression-algorithm': None,
+                   'compression-max-blob-size': None,
+                   'compression-max-blob-size-hdd': None,
+                   'compression-max-blob-size-ssd': None,
+                   'compression-min-blob-size': None,
+                   'compression-min-blob-size-hdd': None,
+                   'compression-min-blob-size-ssd': None,
+                   'compression-mode': None,
+                   'compression-required-ratio': None,
                    'erasure-profile': None,
                    'group': None,
                    'group-namespace': None,

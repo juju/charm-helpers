@@ -182,7 +182,8 @@ def validator(value, valid_type, valid_range=None):
     """Helper function for type validation.
 
     Used to validate these:
-    http://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+    https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+    https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
 
     Example input:
         validator(value=1,
@@ -196,14 +197,17 @@ def validator(value, valid_type, valid_range=None):
     :param valid_type: The type that value should be.
     :type valid_type: any
     :param valid_range: A range of values that value can assume.
-    :type valid_range: Optional[any]
+    :type valid_range: Optional[Union[List,Tuple]]
     :raises: AssertionError, ValueError
     """
     assert isinstance(value, valid_type), (
         "{} is not a {}".format(value, valid_type))
     if valid_range is not None:
-        assert isinstance(valid_range, list), (
-            "valid_range must be a list, was given {}".format(valid_range))
+        assert isinstance(
+            valid_range, list) or isinstance(valid_range, tuple), (
+                "valid_range must be of type List or Tuple, "
+                "was given {} of type {}"
+                .format(valid_range, type(valid_range)))
         # If we're dealing with strings
         if isinstance(value, six.string_types):
             assert value in valid_range, (
@@ -1451,12 +1455,28 @@ class CephBrokerRq(object):
             group=group, namespace=namespace, app_name=app_name,
             max_bytes=max_bytes, max_objects=max_objects)
 
+    # Use function parameters and docstring to define types in a compatible
+    # manner.
+    #
     # NOTE: Our caller should always use a kwarg Dict when calling us so
-    # no need to maintain fixed order/position for arguments. Please keep them
+    # no need to maintain fixed order/position for parameters. Please keep them
     # sorted by name when adding new ones.
-    def _partial_build_common_op_create(self, app_name=None, group=None,
-                                        max_bytes=None, max_objects=None,
-                                        namespace=None, weight=None):
+    def _partial_build_common_op_create(self,
+                                        app_name=None,
+                                        compression_algorithm=None,
+                                        compression_mode=None,
+                                        compression_required_ratio=None,
+                                        compression_min_blob_size=None,
+                                        compression_min_blob_size_hdd=None,
+                                        compression_min_blob_size_ssd=None,
+                                        compression_max_blob_size=None,
+                                        compression_max_blob_size_hdd=None,
+                                        compression_max_blob_size_ssd=None,
+                                        group=None,
+                                        max_bytes=None,
+                                        max_objects=None,
+                                        namespace=None,
+                                        weight=None):
         """Build common part of a create pool operation.
 
         :param app_name: Tag pool with application name. Note that there is
@@ -1464,6 +1484,48 @@ class CephBrokerRq(object):
                          meaningful application names to use.
                          Examples are 'rbd' and 'rgw'.
         :type app_name: Optional[str]
+        :param compression_algorithm: Compressor to use, one of:
+                                      ('lz4', 'snappy', 'zlib', 'zstd')
+        :type compression_algorithm: Optional[str]
+        :param compression_mode: When to compress data, one of:
+                                 ('none', 'passive', 'aggressive', 'force')
+        :type compression_mode: Optional[str]
+        :param compression_required_ratio: Minimum compression ratio for data
+                                           chunk, if the requested ratio is not
+                                           achieved the compressed version will
+                                           be thrown away and the original
+                                           stored.
+        :type compression_required_ratio: Optional[float]
+        :param compression_min_blob_size: Chunks smaller than this are never
+                                          compressed (unit: bytes).
+        :type compression_min_blob_size: Optional[int]
+        :param compression_min_blob_size_hdd: Chunks smaller than this are not
+                                              compressed when destined to
+                                              rotational media (unit: bytes).
+        :type compression_min_blob_size_hdd: Optional[int]
+        :param compression_min_blob_size_ssd: Chunks smaller than this are not
+                                              compressed when destined to flash
+                                              media (unit: bytes).
+        :type compression_min_blob_size_ssd: Optional[int]
+        :param compression_max_blob_size: Chunks larger than this are broken
+                                          into N * compression_max_blob_size
+                                          chunks before being compressed
+                                          (unit: bytes).
+        :type compression_max_blob_size: Optional[int]
+        :param compression_max_blob_size_hdd: Chunks larger than this are
+                                              broken into
+                                              N * compression_max_blob_size_hdd
+                                              chunks before being compressed
+                                              when destined for rotational
+                                              media (unit: bytes)
+        :type compression_max_blob_size_hdd: Optional[int]
+        :param compression_max_blob_size_ssd: Chunks larger than this are
+                                              broken into
+                                              N * compression_max_blob_size_ssd
+                                              chunks before being compressed
+                                              when destined for flash media
+                                              (unit: bytes).
+        :type compression_max_blob_size_ssd: Optional[int]
         :param group: Group to add pool to
         :type group: Optional[str]
         :param max_bytes: Maximum bytes quota to apply
@@ -1479,9 +1541,37 @@ class CephBrokerRq(object):
         :type weight: Optional[float]
         :returns: Dictionary with kwarg name as key.
         :rtype: Dict[str,any]
+        :raises: AssertionError
         """
+        # List of Tuples with param name, valid type, valid range
+        param_values = [
+            ('compression_algorithm', str, ('lz4', 'snappy', 'zlib', 'zstd')),
+            ('compression_mode', str,
+                ('none', 'passive', 'aggressive', 'force')),
+            ('compression_required_ratio', float, None),
+            ('compression_min_blob_size', int, None),
+            ('compression_min_blob_size_hdd', int, None),
+            ('compression_min_blob_size_ssd', int, None),
+            ('compression_max_blob_size', int, None),
+            ('compression_max_blob_size_hdd', int, None),
+            ('compression_max_blob_size_ssd', int, None),
+        ]
+        # check that value of supplied parameters are valid
+        for param, valid_type, valid_range in param_values:
+            subject = eval(param)
+            if subject is not None:
+                validator(subject, valid_type, valid_range)
         return {
             'app-name': app_name,
+            'compression-algorithm': compression_algorithm,
+            'compression-mode': compression_mode,
+            'compression-required-ratio': compression_required_ratio,
+            'compression-min-blob-size': compression_min_blob_size,
+            'compression-min-blob-size-hdd': compression_min_blob_size_hdd,
+            'compression-min-blob-size-ssd': compression_min_blob_size_ssd,
+            'compression-max-blob-size': compression_max_blob_size,
+            'compression-max-blob-size-hdd': compression_max_blob_size_hdd,
+            'compression-max-blob-size-ssd': compression_max_blob_size_ssd,
             'group': group,
             'max-bytes': max_bytes,
             'max-objects': max_objects,
