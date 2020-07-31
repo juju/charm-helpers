@@ -1407,13 +1407,33 @@ class CephBrokerRq(object):
     The API is versioned and defaults to version 1.
     """
 
-    def __init__(self, api_version=1, request_id=None):
-        self.api_version = api_version
-        if request_id:
-            self.request_id = request_id
+    def __init__(self, api_version=1, request_id=None, raw_request_data=None):
+        """Initialize CephBrokerRq object.
+
+        Builds a new empty request or rebuilds a request from on-wire JSON
+        data.
+
+        :param api_version: API version for request (default: 1).
+        :type api_version: Optional[int]
+        :param request_id: Unique identifier for request.
+                           (default: string representation of generated UUID)
+        :type request_id: Optional[str]
+        :param raw_request_data: JSON-encoded string to build request from.
+        :type raw_request_data: Optional[str]
+        :raises: KeyError
+        """
+        if raw_request_data:
+            request_data = json.loads(raw_request_data)
+            self.api_version = request_data['api-version']
+            self.request_id = request_data['request-id']
+            self.set_ops(request_data['ops'])
         else:
-            self.request_id = str(uuid.uuid1())
-        self.ops = []
+            self.api_version = api_version
+            if request_id:
+                self.request_id = request_id
+            else:
+                self.request_id = str(uuid.uuid1())
+            self.ops = []
 
     def add_op(self, op):
         """Add an op if it is not already in the list.
@@ -1740,18 +1760,15 @@ class CephBrokerRsp(object):
 def get_previous_request(rid):
     """Return the last ceph broker request sent on a given relation
 
-    @param rid: Relation id to query for request
+    :param rid: Relation id to query for request
+    :type rid: str
+    :returns: CephBrokerRq object or None if relation data not found.
+    :rtype: Optional[CephBrokerRq]
     """
-    request = None
     broker_req = relation_get(attribute='broker_req', rid=rid,
                               unit=local_unit())
     if broker_req:
-        request_data = json.loads(broker_req)
-        request = CephBrokerRq(api_version=request_data['api-version'],
-                               request_id=request_data['request-id'])
-        request.set_ops(request_data['ops'])
-
-    return request
+        return CephBrokerRq(raw_request_data=broker_req)
 
 
 def get_request_states(request, relation='ceph'):

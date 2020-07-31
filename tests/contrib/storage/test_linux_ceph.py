@@ -1968,3 +1968,33 @@ class CephUtilsTests(TestCase):
         op = base_op.copy()
         op['max-objects'] = 42
         self.assertEqual(rq.ops, [op])
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_get_previous_request(self, _local_unit):
+        raw_request = CEPH_CLIENT_RELATION['ceph:8']['glance/0']['broker_req']
+        self.relation_get.return_value = raw_request
+        req = ceph_utils.get_previous_request('aRid')
+        self.assertDictEqual(json.loads(req.request), json.loads(raw_request))
+        self.relation_get.assert_called_once_with(
+            attribute='broker_req', rid='aRid', unit=_local_unit())
+
+    @patch.object(ceph_utils, 'uuid')
+    def test_CephBrokerRq__init__(self, _uuid):
+        raw_request = CEPH_CLIENT_RELATION['ceph:8']['glance/0']['broker_req']
+        request = json.loads(raw_request)
+        req1 = ceph_utils.CephBrokerRq(api_version=request['api-version'],
+                                       request_id=request['request-id'])
+        req1.set_ops(request['ops'])
+        req2 = ceph_utils.CephBrokerRq(raw_request_data=raw_request)
+        self.assertDictEqual(
+            json.loads(req1.request),
+            json.loads(req2.request))
+        _uuid.uuid1.return_value = 'fake-uuid'
+        new_req = ceph_utils.CephBrokerRq()
+        expect = {
+            'api-version': 1,
+            'request-id': 'fake-uuid',
+            'ops': [],
+        }
+        self.assertDictEqual(
+            json.loads(new_req.request), expect)
