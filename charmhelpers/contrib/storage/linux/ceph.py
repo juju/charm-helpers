@@ -270,6 +270,7 @@ class BasePool(object):
         """
         self.service = service
         self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        self.op = op or {}
 
         if op:
             # When initializing from op the `name` attribute is required and we
@@ -293,6 +294,9 @@ class BasePool(object):
 
     def _post_create(self):
         """Perform common post pool creation tasks.
+
+        Note that pool properties subject to change during the lifetime of a
+        pool / deployment should go into the ``update`` method.
 
         Do not add calls for a specific pool type here, those should go into
         one of the pool specific classes.
@@ -335,6 +339,48 @@ class BasePool(object):
         if not pool_exists(self.service, self.name):
             self._create()
             self._post_create()
+            self.update()
+
+    def set_quota(self):
+        """Set a quota if requested.
+
+        :raises: CalledProcessError
+        """
+        max_bytes = self.op.get('max-bytes')
+        max_objects = self.op.get('max-objects')
+        if max_bytes or max_objects:
+            set_pool_quota(service=self.service, pool_name=self.name,
+                           max_bytes=max_bytes, max_objects=max_objects)
+
+    def set_compression(self):
+        """Set compression properties if requested.
+
+        :raises: CalledProcessError
+        """
+        compression_properties = {
+            key.replace('-', '_'): value
+            for key, value in self.op.items()
+            if key in (
+                'compression-algorithm',
+                'compression-mode',
+                'compression-required-ratio',
+                'compression-min-blob-size',
+                'compression-min-blob-size-hdd',
+                'compression-min-blob-size-ssd',
+                'compression-max-blob-size',
+                'compression-max-blob-size-hdd',
+                'compression-max-blob-size-ssd') and value}
+        if compression_properties:
+            update_pool(self.service, self.name, compression_properties)
+
+    def update(self):
+        """Update properties for an already existing pool.
+
+        Do not add calls for a specific pool type here, those should go into
+        one of the pool specific classes.
+        """
+        self.set_quota()
+        self.set_compression()
 
     def add_cache_tier(self, cache_pool, mode):
         """Adds a new cache tier to an existing pool.

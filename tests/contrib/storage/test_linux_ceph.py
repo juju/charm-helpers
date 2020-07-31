@@ -328,6 +328,81 @@ class CephUtilsTests(TestCase):
                              valid_type=str,
                              valid_range=["foo"])
 
+    def test_pool_set_quota(self):
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'max-bytes': 'fake-byte-quota',
+        })
+        p.set_quota()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd',
+            'pool', 'set-quota', 'fake-pool', 'max_bytes', 'fake-byte-quota'])
+        self.check_call.reset_mock()
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'max-objects': 'fake-object-count-quota',
+        })
+        p.set_quota()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd',
+            'pool', 'set-quota', 'fake-pool', 'max_objects',
+            'fake-object-count-quota'])
+        self.check_call.reset_mock()
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'max-bytes': 'fake-byte-quota',
+            'max-objects': 'fake-object-count-quota',
+        })
+        p.set_quota()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd',
+            'pool', 'set-quota', 'fake-pool', 'max_bytes', 'fake-byte-quota',
+            'max_objects', 'fake-object-count-quota'])
+
+    def test_pool_set_compression(self):
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'compression-algorithm': 'lz4',
+        })
+        p.set_compression()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+            'compression_algorithm', 'lz4'])
+        self.check_call.reset_mock()
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'compression-algorithm': 'lz4',
+            'compression-mode': 'fake-mode',
+            'compression-required-ratio': 'fake-ratio',
+            'compression-min-blob-size': 'fake-min-blob-size',
+            'compression-min-blob-size-hdd': 'fake-min-blob-size-hdd',
+            'compression-min-blob-size-ssd': 'fake-min-blob-size-ssd',
+            'compression-max-blob-size': 'fake-max-blob-size',
+            'compression-max-blob-size-hdd': 'fake-max-blob-size-hdd',
+            'compression-max-blob-size-ssd': 'fake-max-blob-size-ssd',
+        })
+        p.set_compression()
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_algorithm', 'lz4']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_mode', 'fake-mode']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_required_ratio', 'fake-ratio']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_min_blob_size', 'fake-min-blob-size']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_min_blob_size_hdd', 'fake-min-blob-size-hdd']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_min_blob_size_ssd', 'fake-min-blob-size-ssd']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_max_blob_size', 'fake-max-blob-size']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_max_blob_size_hdd', 'fake-max-blob-size-hdd']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_max_blob_size_ssd', 'fake-max-blob-size-ssd']),
+        ], any_order=True)
+
     def test_pool_add_cache_tier(self):
         p = ceph_utils.Pool(name='test', service='admin')
         p.add_cache_tier('cacher', 'readonly')
