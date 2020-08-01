@@ -245,10 +245,46 @@ class BasePool(object):
     Instantiate a child class and call create().
     """
 
-    def __init__(self, service, name):
+    def __init__(self, service, name=None, percent_data=None, app_name=None,
+                 op=None):
+        """Initialize BasePool object.
+
+        Pool information is either initialized from individual keyword
+        arguments or from a individual CephBrokerRq operation Dict.
+
+        :param service: The Ceph user name to run commands under.
+        :type service: str
+        :param name: Name of pool to operate on.
+        :type name: str
+        :param percent_data: The expected pool size in relation to all
+                             available resources in the Ceph cluster. Will be
+                             used to set the ``target_size_ratio`` pool
+                             property. (default: 10.0)
+        :type percent_data: Optional[float]
+        :param app_name: Ceph application name, usually one of:
+                         ('cephfs', 'rbd', 'rgw') (default: 'unknown')
+        :type app_name: Optional[str]
+        :param op: Broker request Op to compile pool data from.
+        :type op: Optional[Dict[str,any]]
+        :raises: KeyError
+        """
         self.service = service
-        self.name = name
         self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+
+        if op:
+            # When initializing from op the `name` attribute is required and we
+            # will fail with KeyError if it is not provided.
+            self.name = op['name']
+            self.percent_data = op.get('weight')
+            self.app_name = op.get('app-name')
+        else:
+            self.name = name
+            self.percent_data = percent_data
+            self.app_name = app_name
+
+        # Set defaults for these if they are not provided
+        self.percent_data = self.percent_data or 10.0
+        self.app_name = self.app_name or 'unknown'
 
     def _create(self):
         """Perform the pool creation, method MUST be overridden by child class.
@@ -477,31 +513,56 @@ class BasePool(object):
             return int(nearest)
 
 
-@deprecate('The ``Pool`` baseclass has been replaced by ``BasePool`` class.')
 class Pool(BasePool):
     """Compability shim for any descendents external to this library."""
+
+    @deprecate(
+        'The ``Pool`` baseclass has been replaced by ``BasePool`` class.')
+    def __init__(self, service, name):
+        super(Pool, self).__init__(service, name=name)
 
     def create(self):
         pass
 
 
 class ReplicatedPool(BasePool):
-    def __init__(self, service, name, pg_num=None, replicas=2,
-                 percent_data=10.0, app_name=None):
-        super(ReplicatedPool, self).__init__(service=service, name=name)
-        self.replicas = replicas
-        self.percent_data = percent_data
-        if pg_num:
+    def __init__(self, service, name=None, pg_num=None, replicas=None,
+                 percent_data=None, app_name=None, op=None):
+        """Initialize ReplicatedPool object.
+
+        Pool information is either initialized from individual keyword
+        arguments or from a individual CephBrokerRq operation Dict.
+
+        Please refer to the docstring of the ``BasePool`` class for
+        documentation of the common parameters.
+
+        :param pg_num:
+        :type pg_num:
+        :param replicas:
+        :type replicas:
+        :raises: KeyError
+        """
+        # The common parameters are handled in our parents initializer
+        super(ReplicatedPool, self).__init__(
+            service=service, name=name, percent_data=percent_data,
+            app_name=app_name, op=op)
+
+        if op:
+            # When initializing from op `replicas` is a required attribute, and
+            # we will fail with KeyError if it is not provided.
+            self.replicas = op['replicas']
+            self.pg_num = op.get('pg_num')
+        else:
+            self.replicas = replicas or 2
+            self.pg_num = pg_num
+
+        if self.pg_num:
             # Since the number of placement groups were specified, ensure
             # that there aren't too many created.
             max_pgs = self.get_pgs(self.replicas, 100.0)
-            self.pg_num = min(pg_num, max_pgs)
+            self.pg_num = min(self.pg_num, max_pgs)
         else:
-            self.pg_num = self.get_pgs(self.replicas, percent_data)
-        if app_name:
-            self.app_name = app_name
-        else:
-            self.app_name = 'unknown'
+            self.pg_num = self.get_pgs(self.replicas, self.percent_data)
 
     def _create(self):
         # Create it
@@ -532,15 +593,33 @@ class ReplicatedPool(BasePool):
 class ErasurePool(BasePool):
     """Default jerasure erasure coded pool."""
 
-    def __init__(self, service, name, erasure_code_profile="default",
-                 percent_data=10.0, app_name=None):
-        super(ErasurePool, self).__init__(service=service, name=name)
-        self.erasure_code_profile = erasure_code_profile
-        self.percent_data = percent_data
-        if app_name:
-            self.app_name = app_name
+    def __init__(self, service, name=None, erasure_code_profile=None,
+                 percent_data=None, app_name=None, op=None):
+        """Initialize ReplicatedPool object.
+
+        Pool information is either initialized from individual keyword
+        arguments or from a individual CephBrokerRq operation Dict.
+
+        Please refer to the docstring of the ``BasePool`` class for
+        documentation of the common parameters.
+
+        :param erasure_code_profile: EC Profile to use (default: 'default')
+        :type erasure_code_profile: Optional[str]
+        """
+        # The common parameters are handled in our parents initializer
+        super(ErasurePool, self).__init__(
+            service=service, name=name, percent_data=percent_data,
+            app_name=app_name, op=op)
+
+        if op:
+            # Note that the different default when initializing from op stems
+            # from different handling of this in the `charms.ceph` library.
+            self.erasure_code_profile = op.get('erasure-profile',
+                                               'default-canonical')
         else:
-            self.app_name = 'unknown'
+            # We keep the class default when initialized from keyword arguments
+            # to not break the API for any other consumers.
+            self.erasure_code_profile = erasure_code_profile or 'default'
 
     def _create(self):
         # Try to find the erasure profile information in order to properly
