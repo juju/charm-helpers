@@ -1878,27 +1878,6 @@ class CephUtilsTests(TestCase):
     def test__partial_build_common_op_create(self):
         self.maxDiff = None
         rq = ceph_utils.CephBrokerRq()
-        self.assertRaises(
-            AssertionError,
-            rq._partial_build_common_op_create,
-            **{'compression_algorithm': 'invalid'})
-        self.assertRaises(
-            AssertionError,
-            rq._partial_build_common_op_create,
-            **{'compression_mode': 'invalid'})
-        for subject in (
-                'compression_required_ratio',
-                'compression_min_blob_size',
-                'compression_min_blob_size_hdd',
-                'compression_min_blob_size_ssd',
-                'compression_max_blob_size',
-                'compression_max_blob_size_hdd',
-                'compression_max_blob_size_ssd'):
-            # these parameters should be float / int
-            self.assertRaises(
-                AssertionError,
-                rq._partial_build_common_op_create,
-                **{subject: '1'})
         expect = {
             'app-name': None,
             'compression-algorithm': 'lz4',
@@ -1954,6 +1933,52 @@ class CephUtilsTests(TestCase):
         self.assertDictEqual(rq.ops[0], base_op)
         self.assertRaises(
             ValueError, rq.add_op_create_pool, 'apool', pg_num=51, weight=100)
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_algorithm='invalid')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_mode='invalid')
+        # these parameters should be float / int
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_required_ratio='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_min_blob_size='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_min_blob_size_hdd='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_min_blob_size_ssd='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_max_blob_size='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_max_blob_size_hdd='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_max_blob_size_ssd='1')
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('apool', replica_count=42)
         op = base_op.copy()

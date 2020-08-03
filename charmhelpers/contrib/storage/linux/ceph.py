@@ -244,6 +244,19 @@ class BasePool(object):
 
     Instantiate a child class and call create().
     """
+    # Dictionary that maps pool operation properties to Tuples with valid type
+    # and valid range
+    op_validation_map = {
+        'compression-algorithm': (str, ('lz4', 'snappy', 'zlib', 'zstd')),
+        'compression-mode': (str, ('none', 'passive', 'aggressive', 'force')),
+        'compression-required-ratio': (float, None),
+        'compression-min-blob-size': (int, None),
+        'compression-min-blob-size-hdd': (int, None),
+        'compression-min-blob-size-ssd': (int, None),
+        'compression-max-blob-size': (int, None),
+        'compression-max-blob-size-hdd': (int, None),
+        'compression-max-blob-size-ssd': (int, None),
+    }
 
     def __init__(self, service, name=None, percent_data=None, app_name=None,
                  op=None):
@@ -268,6 +281,8 @@ class BasePool(object):
         :type op: Optional[Dict[str,any]]
         :raises: KeyError
         """
+        # NOTE: Do not perform initialization steps that require live data from
+        # a running cluster here. The *Pool classes may be used for validation.
         self.service = service
         self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
         self.op = op or {}
@@ -286,6 +301,21 @@ class BasePool(object):
         # Set defaults for these if they are not provided
         self.percent_data = self.percent_data or 10.0
         self.app_name = self.app_name or 'unknown'
+
+    def validate(self):
+        """Check that value of supplied operation parameters are valid.
+
+        :raises: ValueError
+        """
+        for op_key, op_value in self.op.items():
+            if op_key in self.op_validation_map and op_value is not None:
+                valid_type, valid_range = self.op_validation_map[op_key]
+                try:
+                    validator(op_value, valid_type, valid_range)
+                except (AssertionError, ValueError) as e:
+                    # Normalize on ValueError, also add information about which
+                    # variable we had an issue with.
+                    raise ValueError("'{}': {}".format(op_key, str(e)))
 
     def _create(self):
         """Perform the pool creation, method MUST be overridden by child class.
@@ -337,6 +367,7 @@ class BasePool(object):
         one of the pool specific classes.
         """
         if not pool_exists(self.service, self.name):
+            self.validate()
             self._create()
             self._post_create()
             self.update()
@@ -379,6 +410,7 @@ class BasePool(object):
         Do not add calls for a specific pool type here, those should go into
         one of the pool specific classes.
         """
+        self.validate()
         self.set_quota()
         self.set_compression()
 
@@ -582,12 +614,18 @@ class ReplicatedPool(BasePool):
         Please refer to the docstring of the ``BasePool`` class for
         documentation of the common parameters.
 
-        :param pg_num:
-        :type pg_num:
-        :param replicas:
-        :type replicas:
+        :param pg_num: Express wish for number of Placement Groups (this value
+                       is subject to validation against a running cluster prior
+                       to use to avoid creating a pool with too many PGs)
+        :type pg_num: int
+        :param replicas: Number of copies there should be of each object added
+                         to this replicated pool.
+        :type replicas: int
         :raises: KeyError
         """
+        # NOTE: Do not perform initialization steps that require live data from
+        # a running cluster here. The *Pool classes may be used for validation.
+
         # The common parameters are handled in our parents initializer
         super(ReplicatedPool, self).__init__(
             service=service, name=name, percent_data=percent_data,
@@ -602,6 +640,8 @@ class ReplicatedPool(BasePool):
             self.replicas = replicas or 2
             self.pg_num = pg_num
 
+    def _create(self):
+        # Do extra validation on pg_num with data from live cluster
         if self.pg_num:
             # Since the number of placement groups were specified, ensure
             # that there aren't too many created.
@@ -610,7 +650,6 @@ class ReplicatedPool(BasePool):
         else:
             self.pg_num = self.get_pgs(self.replicas, self.percent_data)
 
-    def _create(self):
         # Create it
         if self.nautilus_or_later:
             cmd = [
@@ -652,6 +691,9 @@ class ErasurePool(BasePool):
         :param erasure_code_profile: EC Profile to use (default: 'default')
         :type erasure_code_profile: Optional[str]
         """
+        # NOTE: Do not perform initialization steps that require live data from
+        # a running cluster here. The *Pool classes may be used for validation.
+
         # The common parameters are handled in our parents initializer
         super(ErasurePool, self).__init__(
             service=service, name=name, percent_data=percent_data,
@@ -1695,24 +1737,6 @@ class CephBrokerRq(object):
         :rtype: Dict[str,any]
         :raises: AssertionError
         """
-        # List of Tuples with param name, valid type, valid range
-        param_values = [
-            ('compression_algorithm', str, ('lz4', 'snappy', 'zlib', 'zstd')),
-            ('compression_mode', str,
-                ('none', 'passive', 'aggressive', 'force')),
-            ('compression_required_ratio', float, None),
-            ('compression_min_blob_size', int, None),
-            ('compression_min_blob_size_hdd', int, None),
-            ('compression_min_blob_size_ssd', int, None),
-            ('compression_max_blob_size', int, None),
-            ('compression_max_blob_size_hdd', int, None),
-            ('compression_max_blob_size_ssd', int, None),
-        ]
-        # check that value of supplied parameters are valid
-        for param, valid_type, valid_range in param_values:
-            subject = eval(param)
-            if subject is not None:
-                validator(subject, valid_type, valid_range)
         return {
             'app-name': app_name,
             'compression-algorithm': compression_algorithm,
@@ -1745,6 +1769,7 @@ class CephBrokerRq(object):
         :param pg_num: Request specific number of Placement Groups to create
                        for pool.
         :type pg_num: int
+        :raises: AssertionError if provided data is of invalid type/range
         """
         if pg_num and kwargs.get('weight'):
             raise ValueError('pg_num and weight are mutually exclusive')
@@ -1756,6 +1781,11 @@ class CephBrokerRq(object):
             'pg_num': pg_num,
         }
         op.update(self._partial_build_common_op_create(**kwargs))
+
+        # Initialize Pool-object to validate type and range of ops.
+        pool = ReplicatedPool('dummy-service', op=op)
+        pool.validate()
+
         self.add_op(op)
 
     def add_op_create_erasure_pool(self, name, erasure_profile=None, **kwargs):
@@ -1770,6 +1800,7 @@ class CephBrokerRq(object):
                                 set the ceph-mon unit handling the broker
                                 request will set its default value.
         :type erasure_profile: str
+        :raises: AssertionError if provided data is of invalid type/range
         """
         op = {
             'op': 'create-pool',
@@ -1778,6 +1809,11 @@ class CephBrokerRq(object):
             'erasure-profile': erasure_profile,
         }
         op.update(self._partial_build_common_op_create(**kwargs))
+
+        # Initialize Pool-object to validate type and range of ops.
+        pool = ErasurePool('dummy-service', op)
+        pool.validate()
+
         self.add_op(op)
 
     def set_ops(self, ops):
