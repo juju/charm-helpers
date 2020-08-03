@@ -1998,3 +1998,19 @@ class CephUtilsTests(TestCase):
         }
         self.assertDictEqual(
             json.loads(new_req.request), expect)
+
+    def test_update_pool(self):
+        ceph_utils.update_pool('aUser', 'aPool', {'aKey': 'aValue'})
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'aUser', 'osd', 'pool', 'set',
+            'aPool', 'aKey', 'aValue'])
+        self.check_call.reset_mock()
+        ceph_utils.update_pool('aUser', 'aPool', {
+            'aKey': 'aValue',
+            'anotherKey': 'anotherValue'})
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'aUser', 'osd', 'pool', 'set',
+                  'aPool', 'aKey', 'aValue']),
+            call(['ceph', '--id', 'aUser', 'osd', 'pool', 'set',
+                  'aPool', 'anotherKey', 'anotherValue']),
+        ], any_order=True)

@@ -1176,12 +1176,19 @@ def create_rbd_image(service, pool, image, sizemb):
 
 
 def update_pool(client, pool, settings):
+    """Update pool properties.
+
+    :param client: Client/User-name to authenticate with.
+    :type client: str
+    :param pool: Name of pool to operate on
+    :type pool: str
+    :param settings: Dictionary with key/value pairs to set.
+    :type settings: Dict[str, str]
+    :raises: CalledProcessError
+    """
     cmd = ['ceph', '--id', client, 'osd', 'pool', 'set', pool]
     for k, v in six.iteritems(settings):
-        cmd.append(k)
-        cmd.append(v)
-
-    check_call(cmd)
+        check_call(cmd + [k, v])
 
 
 def set_app_name_for_pool(client, pool, name):
