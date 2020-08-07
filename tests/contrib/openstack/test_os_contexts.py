@@ -4840,3 +4840,52 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
         ctxt_obj = context.SRIOVContext()
         ctxt_obj._map = {}
         self.assertDictEqual(ctxt_obj(), {})
+
+
+class TestCephBlueStoreContext(tests.utils.BaseTestCase):
+
+    def setUp(self):
+        super(TestCephBlueStoreContext, self,).setUp()
+        self.expected_config_map = {
+            'bluestore-compression-algorithm': 'fake-bca',
+            'bluestore-compression-mode': 'fake-bcm',
+            'bluestore-compression-required-ratio': 'fake-bcrr',
+            'bluestore-compression-min-blob-size': 'fake-bcmibs',
+            'bluestore-compression-min-blob-size-hdd': 'fake-bcmibsh',
+            'bluestore-compression-min-blob-size-ssd': 'fake-bcmibss',
+            'bluestore-compression-max-blob-size': 'fake-bcmabs',
+            'bluestore-compression-max-blob-size-hdd': 'fake-bcmabsh',
+            'bluestore-compression-max-blob-size-ssd': 'fake-bcmabss',
+        }
+        self.expected_op = {
+            key.replace('bluestore-', ''): value
+            for key, value in self.expected_config_map.items()
+        }
+        self.patch_object(context, 'config')
+        self.config.return_value = self.expected_config_map
+
+    def test___call__(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        self.assertDictEqual(ctxt(), {
+            key.replace('-', '_'): value
+            for key, value in self.expected_config_map.items()
+        })
+
+    def test_get_op(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        self.assertDictEqual(ctxt.get_op(), self.expected_op)
+
+    def test_validate(self):
+        self.patch_object(context.ch_ceph, 'BasePool')
+        pool = MagicMock()
+        self.BasePool.return_value = pool
+        ctxt = context.CephBlueStoreCompressionContext()
+        ctxt.validate()
+        # the order for the Dict argument is unpredictable, match on ANY and
+        # do separate check against call_args_list with assertDictEqual.
+        self.BasePool.assert_called_once_with('dummy-service', op=mock.ANY)
+        expected_op = self.expected_op.copy()
+        expected_op.update({'name': 'dummy-name'})
+        self.assertDictEqual(
+            self.BasePool.call_args_list[0][1]['op'], expected_op)
+        pool.validate.assert_called_once_with()

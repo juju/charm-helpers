@@ -29,6 +29,8 @@ from subprocess import check_call, CalledProcessError
 
 import six
 
+import charmhelpers.contrib.storage.linux.ceph as ch_ceph
+
 from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
     _config_ini as config_ini
 )
@@ -3175,3 +3177,78 @@ class SRIOVContext(OSContextGenerator):
         :rtype: Dict[str,int]
         """
         return self._map
+
+
+class CephBlueStoreCompressionContext(OSContextGenerator):
+    """Ceph BlueStore compression options."""
+
+    # Tuple with Tuples that map configuration option name to CephBrokerRq op
+    # property name
+    options = (
+        ('bluestore-compression-algorithm',
+            'compression-algorithm'),
+        ('bluestore-compression-mode',
+            'compression-mode'),
+        ('bluestore-compression-required-ratio',
+            'compression-required-ratio'),
+        ('bluestore-compression-min-blob-size',
+            'compression-min-blob-size'),
+        ('bluestore-compression-min-blob-size-hdd',
+            'compression-min-blob-size-hdd'),
+        ('bluestore-compression-min-blob-size-ssd',
+            'compression-min-blob-size-ssd'),
+        ('bluestore-compression-max-blob-size',
+            'compression-max-blob-size'),
+        ('bluestore-compression-max-blob-size-hdd',
+            'compression-max-blob-size-hdd'),
+        ('bluestore-compression-max-blob-size-ssd',
+            'compression-max-blob-size-ssd'),
+    )
+
+    def __init__(self):
+        """Initialize context by loading values from charm config.
+
+        We keep two maps, one suitable for use with CephBrokerRq's and one
+        suitable for template generation.
+        """
+        charm_config = config()
+
+        # CephBrokerRq op map
+        self.op = {}
+        # Context exposed for template generation
+        self.ctxt = {}
+        for config_key, op_key in self.options:
+            value = charm_config.get(config_key)
+            self.ctxt.update({config_key.replace('-', '_'): value})
+            self.op.update({op_key: value})
+
+    def __call__(self):
+        """Get context.
+
+        :returns: Context
+        :rtype: Dict[str,any]
+        """
+        return self.ctxt
+
+    def get_op(self):
+        """Get values for use in CephBrokerRq op.
+
+        :returns: Context values with CephBrokerRq op property name as key.
+        :rtype: Dict[str,any]
+        """
+        return self.op
+
+    def validate(self):
+        """Validate options.
+
+        :raises: AssertionError
+        """
+        # We slip in a dummy name on class instantiation to allow validation of
+        # the other options. It will not affect further use.
+        #
+        # NOTE: once we retire Python 3.5 we can fold this into a in-line
+        # dictionary comprehension in the call to the initializer.
+        dummy_op = {'name': 'dummy-name'}
+        dummy_op.update(self.op)
+        pool = ch_ceph.BasePool('dummy-service', op=dummy_op)
+        pool.validate()

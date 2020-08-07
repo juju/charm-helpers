@@ -39,6 +39,7 @@ from subprocess import (
     check_output,
     CalledProcessError,
 )
+from charmhelpers import deprecate
 from charmhelpers.core.hookenv import (
     config,
     service_name,
@@ -181,7 +182,8 @@ def validator(value, valid_type, valid_range=None):
     """Helper function for type validation.
 
     Used to validate these:
-    http://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+    https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+    https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
 
     Example input:
         validator(value=1,
@@ -195,14 +197,17 @@ def validator(value, valid_type, valid_range=None):
     :param valid_type: The type that value should be.
     :type valid_type: any
     :param valid_range: A range of values that value can assume.
-    :type valid_range: Optional[any]
+    :type valid_range: Optional[Union[List,Tuple]]
     :raises: AssertionError, ValueError
     """
     assert isinstance(value, valid_type), (
         "{} is not a {}".format(value, valid_type))
     if valid_range is not None:
-        assert isinstance(valid_range, list), (
-            "valid_range must be a list, was given {}".format(valid_range))
+        assert isinstance(
+            valid_range, list) or isinstance(valid_range, tuple), (
+                "valid_range must be of type List or Tuple, "
+                "was given {} of type {}"
+                .format(valid_range, type(valid_range)))
         # If we're dealing with strings
         if isinstance(value, six.string_types):
             assert value in valid_range, (
@@ -231,22 +236,183 @@ class PoolCreationError(Exception):
         super(PoolCreationError, self).__init__(message)
 
 
-class Pool(object):
+class BasePool(object):
     """An object oriented approach to Ceph pool creation.
 
     This base class is inherited by ReplicatedPool and ErasurePool. Do not call
-    create() on this base class as it will not do anything. Instantiate a child
-    class and call create().
+    create() on this base class as it will raise an exception.
+
+    Instantiate a child class and call create().
     """
+    # Dictionary that maps pool operation properties to Tuples with valid type
+    # and valid range
+    op_validation_map = {
+        'compression-algorithm': (str, ('lz4', 'snappy', 'zlib', 'zstd')),
+        'compression-mode': (str, ('none', 'passive', 'aggressive', 'force')),
+        'compression-required-ratio': (float, None),
+        'compression-min-blob-size': (int, None),
+        'compression-min-blob-size-hdd': (int, None),
+        'compression-min-blob-size-ssd': (int, None),
+        'compression-max-blob-size': (int, None),
+        'compression-max-blob-size-hdd': (int, None),
+        'compression-max-blob-size-ssd': (int, None),
+    }
 
-    def __init__(self, service, name):
+    def __init__(self, service, name=None, percent_data=None, app_name=None,
+                 op=None):
+        """Initialize BasePool object.
+
+        Pool information is either initialized from individual keyword
+        arguments or from a individual CephBrokerRq operation Dict.
+
+        :param service: The Ceph user name to run commands under.
+        :type service: str
+        :param name: Name of pool to operate on.
+        :type name: str
+        :param percent_data: The expected pool size in relation to all
+                             available resources in the Ceph cluster. Will be
+                             used to set the ``target_size_ratio`` pool
+                             property. (default: 10.0)
+        :type percent_data: Optional[float]
+        :param app_name: Ceph application name, usually one of:
+                         ('cephfs', 'rbd', 'rgw') (default: 'unknown')
+        :type app_name: Optional[str]
+        :param op: Broker request Op to compile pool data from.
+        :type op: Optional[Dict[str,any]]
+        :raises: KeyError
+        """
+        # NOTE: Do not perform initialization steps that require live data from
+        # a running cluster here. The *Pool classes may be used for validation.
         self.service = service
-        self.name = name
+        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        self.op = op or {}
 
-    # Create the pool if it doesn't exist already
-    # To be implemented by subclasses
+        if op:
+            # When initializing from op the `name` attribute is required and we
+            # will fail with KeyError if it is not provided.
+            self.name = op['name']
+            self.percent_data = op.get('weight')
+            self.app_name = op.get('app-name')
+        else:
+            self.name = name
+            self.percent_data = percent_data
+            self.app_name = app_name
+
+        # Set defaults for these if they are not provided
+        self.percent_data = self.percent_data or 10.0
+        self.app_name = self.app_name or 'unknown'
+
+    def validate(self):
+        """Check that value of supplied operation parameters are valid.
+
+        :raises: ValueError
+        """
+        for op_key, op_value in self.op.items():
+            if op_key in self.op_validation_map and op_value is not None:
+                valid_type, valid_range = self.op_validation_map[op_key]
+                try:
+                    validator(op_value, valid_type, valid_range)
+                except (AssertionError, ValueError) as e:
+                    # Normalize on ValueError, also add information about which
+                    # variable we had an issue with.
+                    raise ValueError("'{}': {}".format(op_key, str(e)))
+
+    def _create(self):
+        """Perform the pool creation, method MUST be overridden by child class.
+        """
+        raise NotImplementedError
+
+    def _post_create(self):
+        """Perform common post pool creation tasks.
+
+        Note that pool properties subject to change during the lifetime of a
+        pool / deployment should go into the ``update`` method.
+
+        Do not add calls for a specific pool type here, those should go into
+        one of the pool specific classes.
+        """
+        if self.nautilus_or_later:
+            # Ensure we set the expected pool ratio
+            update_pool(
+                client=self.service,
+                pool=self.name,
+                settings={
+                    'target_size_ratio': str(
+                        self.percent_data / 100.0),
+                })
+        try:
+            set_app_name_for_pool(client=self.service,
+                                  pool=self.name,
+                                  name=self.app_name)
+        except CalledProcessError:
+            log('Could not set app name for pool {}'
+                .format(self.name),
+                level=WARNING)
+        if 'pg_autoscaler' in enabled_manager_modules():
+            try:
+                enable_pg_autoscale(self.service, self.name)
+            except CalledProcessError as e:
+                log('Could not configure auto scaling for pool {}: {}'
+                    .format(self.name, e),
+                    level=WARNING)
+
     def create(self):
-        pass
+        """Create pool and perform any post pool creation tasks.
+
+        To allow for sharing of common code among pool specific classes the
+        processing has been broken out into the private methods ``_create``
+        and ``_post_create``.
+
+        Do not add any pool type specific handling here, that should go into
+        one of the pool specific classes.
+        """
+        if not pool_exists(self.service, self.name):
+            self.validate()
+            self._create()
+            self._post_create()
+            self.update()
+
+    def set_quota(self):
+        """Set a quota if requested.
+
+        :raises: CalledProcessError
+        """
+        max_bytes = self.op.get('max-bytes')
+        max_objects = self.op.get('max-objects')
+        if max_bytes or max_objects:
+            set_pool_quota(service=self.service, pool_name=self.name,
+                           max_bytes=max_bytes, max_objects=max_objects)
+
+    def set_compression(self):
+        """Set compression properties if requested.
+
+        :raises: CalledProcessError
+        """
+        compression_properties = {
+            key.replace('-', '_'): value
+            for key, value in self.op.items()
+            if key in (
+                'compression-algorithm',
+                'compression-mode',
+                'compression-required-ratio',
+                'compression-min-blob-size',
+                'compression-min-blob-size-hdd',
+                'compression-min-blob-size-ssd',
+                'compression-max-blob-size',
+                'compression-max-blob-size-hdd',
+                'compression-max-blob-size-ssd') and value}
+        if compression_properties:
+            update_pool(self.service, self.name, compression_properties)
+
+    def update(self):
+        """Update properties for an already existing pool.
+
+        Do not add calls for a specific pool type here, those should go into
+        one of the pool specific classes.
+        """
+        self.validate()
+        self.set_quota()
+        self.set_compression()
 
     def add_cache_tier(self, cache_pool, mode):
         """Adds a new cache tier to an existing pool.
@@ -425,157 +591,165 @@ class Pool(object):
             return int(nearest)
 
 
-class ReplicatedPool(Pool):
-    def __init__(self, service, name, pg_num=None, replicas=2,
-                 percent_data=10.0, app_name=None):
-        super(ReplicatedPool, self).__init__(service=service, name=name)
-        self.replicas = replicas
-        self.percent_data = percent_data
-        if pg_num:
+class Pool(BasePool):
+    """Compability shim for any descendents external to this library."""
+
+    @deprecate(
+        'The ``Pool`` baseclass has been replaced by ``BasePool`` class.')
+    def __init__(self, service, name):
+        super(Pool, self).__init__(service, name=name)
+
+    def create(self):
+        pass
+
+
+class ReplicatedPool(BasePool):
+    def __init__(self, service, name=None, pg_num=None, replicas=None,
+                 percent_data=None, app_name=None, op=None):
+        """Initialize ReplicatedPool object.
+
+        Pool information is either initialized from individual keyword
+        arguments or from a individual CephBrokerRq operation Dict.
+
+        Please refer to the docstring of the ``BasePool`` class for
+        documentation of the common parameters.
+
+        :param pg_num: Express wish for number of Placement Groups (this value
+                       is subject to validation against a running cluster prior
+                       to use to avoid creating a pool with too many PGs)
+        :type pg_num: int
+        :param replicas: Number of copies there should be of each object added
+                         to this replicated pool.
+        :type replicas: int
+        :raises: KeyError
+        """
+        # NOTE: Do not perform initialization steps that require live data from
+        # a running cluster here. The *Pool classes may be used for validation.
+
+        # The common parameters are handled in our parents initializer
+        super(ReplicatedPool, self).__init__(
+            service=service, name=name, percent_data=percent_data,
+            app_name=app_name, op=op)
+
+        if op:
+            # When initializing from op `replicas` is a required attribute, and
+            # we will fail with KeyError if it is not provided.
+            self.replicas = op['replicas']
+            self.pg_num = op.get('pg_num')
+        else:
+            self.replicas = replicas or 2
+            self.pg_num = pg_num
+
+    def _create(self):
+        # Do extra validation on pg_num with data from live cluster
+        if self.pg_num:
             # Since the number of placement groups were specified, ensure
             # that there aren't too many created.
             max_pgs = self.get_pgs(self.replicas, 100.0)
-            self.pg_num = min(pg_num, max_pgs)
+            self.pg_num = min(self.pg_num, max_pgs)
         else:
-            self.pg_num = self.get_pgs(self.replicas, percent_data)
-        if app_name:
-            self.app_name = app_name
+            self.pg_num = self.get_pgs(self.replicas, self.percent_data)
+
+        # Create it
+        if self.nautilus_or_later:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                '--pg-num-min={}'.format(
+                    min(AUTOSCALER_DEFAULT_PGS, self.pg_num)
+                ),
+                self.name, str(self.pg_num)
+            ]
         else:
-            self.app_name = 'unknown'
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                self.name, str(self.pg_num)
+            ]
+        check_call(cmd)
 
-    def create(self):
-        if not pool_exists(self.service, self.name):
-            nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
-            # Create it
-            if nautilus_or_later:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    '--pg-num-min={}'.format(
-                        min(AUTOSCALER_DEFAULT_PGS, self.pg_num)
-                    ),
-                    self.name, str(self.pg_num)
-                ]
-            else:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    self.name, str(self.pg_num)
-                ]
-
-            try:
-                check_call(cmd)
-                # Set the pool replica size
-                update_pool(client=self.service,
-                            pool=self.name,
-                            settings={'size': str(self.replicas)})
-                if nautilus_or_later:
-                    # Ensure we set the expected pool ratio
-                    update_pool(
-                        client=self.service,
-                        pool=self.name,
-                        settings={
-                            'target_size_ratio': str(
-                                self.percent_data / 100.0),
-                        })
-                try:
-                    set_app_name_for_pool(client=self.service,
-                                          pool=self.name,
-                                          name=self.app_name)
-                except CalledProcessError:
-                    log('Could not set app name for pool {}'
-                        .format(self.name),
-                        level=WARNING)
-                if 'pg_autoscaler' in enabled_manager_modules():
-                    try:
-                        enable_pg_autoscale(self.service, self.name)
-                    except CalledProcessError as e:
-                        log('Could not configure auto scaling for pool {}: {}'
-                            .format(self.name, e),
-                            level=WARNING)
-            except CalledProcessError:
-                raise
+    def _post_create(self):
+        # Set the pool replica size
+        update_pool(client=self.service,
+                    pool=self.name,
+                    settings={'size': str(self.replicas)})
+        # Perform other common post pool creation tasks
+        super(ReplicatedPool, self)._post_create()
 
 
-# Default jerasure erasure coded pool
-class ErasurePool(Pool):
-    def __init__(self, service, name, erasure_code_profile="default",
-                 percent_data=10.0, app_name=None):
-        super(ErasurePool, self).__init__(service=service, name=name)
-        self.erasure_code_profile = erasure_code_profile
-        self.percent_data = percent_data
-        if app_name:
-            self.app_name = app_name
+class ErasurePool(BasePool):
+    """Default jerasure erasure coded pool."""
+
+    def __init__(self, service, name=None, erasure_code_profile=None,
+                 percent_data=None, app_name=None, op=None):
+        """Initialize ReplicatedPool object.
+
+        Pool information is either initialized from individual keyword
+        arguments or from a individual CephBrokerRq operation Dict.
+
+        Please refer to the docstring of the ``BasePool`` class for
+        documentation of the common parameters.
+
+        :param erasure_code_profile: EC Profile to use (default: 'default')
+        :type erasure_code_profile: Optional[str]
+        """
+        # NOTE: Do not perform initialization steps that require live data from
+        # a running cluster here. The *Pool classes may be used for validation.
+
+        # The common parameters are handled in our parents initializer
+        super(ErasurePool, self).__init__(
+            service=service, name=name, percent_data=percent_data,
+            app_name=app_name, op=op)
+
+        if op:
+            # Note that the different default when initializing from op stems
+            # from different handling of this in the `charms.ceph` library.
+            self.erasure_code_profile = op.get('erasure-profile',
+                                               'default-canonical')
         else:
-            self.app_name = 'unknown'
+            # We keep the class default when initialized from keyword arguments
+            # to not break the API for any other consumers.
+            self.erasure_code_profile = erasure_code_profile or 'default'
 
-    def create(self):
-        if not pool_exists(self.service, self.name):
-            # Try to find the erasure profile information in order to properly
-            # size the number of placement groups. The size of an erasure
-            # coded placement group is calculated as k+m.
-            erasure_profile = get_erasure_profile(self.service,
-                                                  self.erasure_code_profile)
+    def _create(self):
+        # Try to find the erasure profile information in order to properly
+        # size the number of placement groups. The size of an erasure
+        # coded placement group is calculated as k+m.
+        erasure_profile = get_erasure_profile(self.service,
+                                              self.erasure_code_profile)
 
-            # Check for errors
-            if erasure_profile is None:
-                msg = ("Failed to discover erasure profile named "
-                       "{}".format(self.erasure_code_profile))
-                log(msg, level=ERROR)
-                raise PoolCreationError(msg)
-            if 'k' not in erasure_profile or 'm' not in erasure_profile:
-                # Error
-                msg = ("Unable to find k (data chunks) or m (coding chunks) "
-                       "in erasure profile {}".format(erasure_profile))
-                log(msg, level=ERROR)
-                raise PoolCreationError(msg)
+        # Check for errors
+        if erasure_profile is None:
+            msg = ("Failed to discover erasure profile named "
+                   "{}".format(self.erasure_code_profile))
+            log(msg, level=ERROR)
+            raise PoolCreationError(msg)
+        if 'k' not in erasure_profile or 'm' not in erasure_profile:
+            # Error
+            msg = ("Unable to find k (data chunks) or m (coding chunks) "
+                   "in erasure profile {}".format(erasure_profile))
+            log(msg, level=ERROR)
+            raise PoolCreationError(msg)
 
-            k = int(erasure_profile['k'])
-            m = int(erasure_profile['m'])
-            pgs = self.get_pgs(k + m, self.percent_data)
-            nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
-            # Create it
-            if nautilus_or_later:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    '--pg-num-min={}'.format(
-                        min(AUTOSCALER_DEFAULT_PGS, pgs)
-                    ),
-                    self.name, str(pgs), str(pgs),
-                    'erasure', self.erasure_code_profile
-                ]
-            else:
-                cmd = [
-                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                    self.name, str(pgs), str(pgs),
-                    'erasure', self.erasure_code_profile
-                ]
-
-            try:
-                check_call(cmd)
-                try:
-                    set_app_name_for_pool(client=self.service,
-                                          pool=self.name,
-                                          name=self.app_name)
-                except CalledProcessError:
-                    log('Could not set app name for pool {}'.format(self.name),
-                        level=WARNING)
-                if nautilus_or_later:
-                    # Ensure we set the expected pool ratio
-                    update_pool(
-                        client=self.service,
-                        pool=self.name,
-                        settings={
-                            'target_size_ratio': str(
-                                self.percent_data / 100.0),
-                        })
-                if 'pg_autoscaler' in enabled_manager_modules():
-                    try:
-                        enable_pg_autoscale(self.service, self.name)
-                    except CalledProcessError as e:
-                        log('Could not configure auto scaling for pool {}: {}'
-                            .format(self.name, e),
-                            level=WARNING)
-            except CalledProcessError:
-                raise
+        k = int(erasure_profile['k'])
+        m = int(erasure_profile['m'])
+        pgs = self.get_pgs(k + m, self.percent_data)
+        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        # Create it
+        if self.nautilus_or_later:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                '--pg-num-min={}'.format(
+                    min(AUTOSCALER_DEFAULT_PGS, pgs)
+                ),
+                self.name, str(pgs), str(pgs),
+                'erasure', self.erasure_code_profile
+            ]
+        else:
+            cmd = [
+                'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                self.name, str(pgs), str(pgs),
+                'erasure', self.erasure_code_profile
+            ]
+        check_call(cmd)
 
 
 def enabled_manager_modules():
@@ -1090,12 +1264,19 @@ def create_rbd_image(service, pool, image, sizemb):
 
 
 def update_pool(client, pool, settings):
+    """Update pool properties.
+
+    :param client: Client/User-name to authenticate with.
+    :type client: str
+    :param pool: Name of pool to operate on
+    :type pool: str
+    :param settings: Dictionary with key/value pairs to set.
+    :type settings: Dict[str, str]
+    :raises: CalledProcessError
+    """
     cmd = ['ceph', '--id', client, 'osd', 'pool', 'set', pool]
     for k, v in six.iteritems(settings):
-        cmd.append(k)
-        cmd.append(v)
-
-    check_call(cmd)
+        check_call(cmd + [k, v])
 
 
 def set_app_name_for_pool(client, pool, name):
@@ -1400,13 +1581,33 @@ class CephBrokerRq(object):
     The API is versioned and defaults to version 1.
     """
 
-    def __init__(self, api_version=1, request_id=None):
-        self.api_version = api_version
-        if request_id:
-            self.request_id = request_id
+    def __init__(self, api_version=1, request_id=None, raw_request_data=None):
+        """Initialize CephBrokerRq object.
+
+        Builds a new empty request or rebuilds a request from on-wire JSON
+        data.
+
+        :param api_version: API version for request (default: 1).
+        :type api_version: Optional[int]
+        :param request_id: Unique identifier for request.
+                           (default: string representation of generated UUID)
+        :type request_id: Optional[str]
+        :param raw_request_data: JSON-encoded string to build request from.
+        :type raw_request_data: Optional[str]
+        :raises: KeyError
+        """
+        if raw_request_data:
+            request_data = json.loads(raw_request_data)
+            self.api_version = request_data['api-version']
+            self.request_id = request_data['request-id']
+            self.set_ops(request_data['ops'])
         else:
-            self.request_id = str(uuid.uuid1())
-        self.ops = []
+            self.api_version = api_version
+            if request_id:
+                self.request_id = request_id
+            else:
+                self.request_id = str(uuid.uuid1())
+            self.ops = []
 
     def add_op(self, op):
         """Add an op if it is not already in the list.
@@ -1448,11 +1649,118 @@ class CephBrokerRq(object):
             group=group, namespace=namespace, app_name=app_name,
             max_bytes=max_bytes, max_objects=max_objects)
 
+    # Use function parameters and docstring to define types in a compatible
+    # manner.
+    #
+    # NOTE: Our caller should always use a kwarg Dict when calling us so
+    # no need to maintain fixed order/position for parameters. Please keep them
+    # sorted by name when adding new ones.
+    def _partial_build_common_op_create(self,
+                                        app_name=None,
+                                        compression_algorithm=None,
+                                        compression_mode=None,
+                                        compression_required_ratio=None,
+                                        compression_min_blob_size=None,
+                                        compression_min_blob_size_hdd=None,
+                                        compression_min_blob_size_ssd=None,
+                                        compression_max_blob_size=None,
+                                        compression_max_blob_size_hdd=None,
+                                        compression_max_blob_size_ssd=None,
+                                        group=None,
+                                        max_bytes=None,
+                                        max_objects=None,
+                                        namespace=None,
+                                        weight=None):
+        """Build common part of a create pool operation.
+
+        :param app_name: Tag pool with application name. Note that there is
+                         certain protocols emerging upstream with regard to
+                         meaningful application names to use.
+                         Examples are 'rbd' and 'rgw'.
+        :type app_name: Optional[str]
+        :param compression_algorithm: Compressor to use, one of:
+                                      ('lz4', 'snappy', 'zlib', 'zstd')
+        :type compression_algorithm: Optional[str]
+        :param compression_mode: When to compress data, one of:
+                                 ('none', 'passive', 'aggressive', 'force')
+        :type compression_mode: Optional[str]
+        :param compression_required_ratio: Minimum compression ratio for data
+                                           chunk, if the requested ratio is not
+                                           achieved the compressed version will
+                                           be thrown away and the original
+                                           stored.
+        :type compression_required_ratio: Optional[float]
+        :param compression_min_blob_size: Chunks smaller than this are never
+                                          compressed (unit: bytes).
+        :type compression_min_blob_size: Optional[int]
+        :param compression_min_blob_size_hdd: Chunks smaller than this are not
+                                              compressed when destined to
+                                              rotational media (unit: bytes).
+        :type compression_min_blob_size_hdd: Optional[int]
+        :param compression_min_blob_size_ssd: Chunks smaller than this are not
+                                              compressed when destined to flash
+                                              media (unit: bytes).
+        :type compression_min_blob_size_ssd: Optional[int]
+        :param compression_max_blob_size: Chunks larger than this are broken
+                                          into N * compression_max_blob_size
+                                          chunks before being compressed
+                                          (unit: bytes).
+        :type compression_max_blob_size: Optional[int]
+        :param compression_max_blob_size_hdd: Chunks larger than this are
+                                              broken into
+                                              N * compression_max_blob_size_hdd
+                                              chunks before being compressed
+                                              when destined for rotational
+                                              media (unit: bytes)
+        :type compression_max_blob_size_hdd: Optional[int]
+        :param compression_max_blob_size_ssd: Chunks larger than this are
+                                              broken into
+                                              N * compression_max_blob_size_ssd
+                                              chunks before being compressed
+                                              when destined for flash media
+                                              (unit: bytes).
+        :type compression_max_blob_size_ssd: Optional[int]
+        :param group: Group to add pool to
+        :type group: Optional[str]
+        :param max_bytes: Maximum bytes quota to apply
+        :type max_bytes: Optional[int]
+        :param max_objects: Maximum objects quota to apply
+        :type max_objects: Optional[int]
+        :param namespace: Group namespace
+        :type namespace: Optional[str]
+        :param weight: The percentage of data that is expected to be contained
+                       in the pool from the total available space on the OSDs.
+                       Used to calculate number of Placement Groups to create
+                       for pool.
+        :type weight: Optional[float]
+        :returns: Dictionary with kwarg name as key.
+        :rtype: Dict[str,any]
+        :raises: AssertionError
+        """
+        return {
+            'app-name': app_name,
+            'compression-algorithm': compression_algorithm,
+            'compression-mode': compression_mode,
+            'compression-required-ratio': compression_required_ratio,
+            'compression-min-blob-size': compression_min_blob_size,
+            'compression-min-blob-size-hdd': compression_min_blob_size_hdd,
+            'compression-min-blob-size-ssd': compression_min_blob_size_ssd,
+            'compression-max-blob-size': compression_max_blob_size,
+            'compression-max-blob-size-hdd': compression_max_blob_size_hdd,
+            'compression-max-blob-size-ssd': compression_max_blob_size_ssd,
+            'group': group,
+            'max-bytes': max_bytes,
+            'max-objects': max_objects,
+            'group-namespace': namespace,
+            'weight': weight,
+        }
+
     def add_op_create_replicated_pool(self, name, replica_count=3, pg_num=None,
-                                      weight=None, group=None, namespace=None,
-                                      app_name=None, max_bytes=None,
-                                      max_objects=None):
+                                      **kwargs):
         """Adds an operation to create a replicated pool.
+
+        Refer to docstring for ``_partial_build_common_op_create`` for
+        documentation of keyword arguments.
 
         :param name: Name of pool to create
         :type name: str
@@ -1461,38 +1769,30 @@ class CephBrokerRq(object):
         :param pg_num: Request specific number of Placement Groups to create
                        for pool.
         :type pg_num: int
-        :param weight: The percentage of data that is expected to be contained
-                       in the pool from the total available space on the OSDs.
-                       Used to calculate number of Placement Groups to create
-                       for pool.
-        :type weight: float
-        :param group: Group to add pool to
-        :type group: str
-        :param namespace: Group namespace
-        :type namespace: str
-        :param app_name: (Optional) Tag pool with application name.  Note that
-                         there is certain protocols emerging upstream with
-                         regard to meaningful application names to use.
-                         Examples are ``rbd`` and ``rgw``.
-        :type app_name: str
-        :param max_bytes: Maximum bytes quota to apply
-        :type max_bytes: int
-        :param max_objects: Maximum objects quota to apply
-        :type max_objects: int
+        :raises: AssertionError if provided data is of invalid type/range
         """
-        if pg_num and weight:
+        if pg_num and kwargs.get('weight'):
             raise ValueError('pg_num and weight are mutually exclusive')
 
-        self.add_op({'op': 'create-pool', 'name': name,
-                     'replicas': replica_count, 'pg_num': pg_num,
-                     'weight': weight, 'group': group,
-                     'group-namespace': namespace, 'app-name': app_name,
-                     'max-bytes': max_bytes, 'max-objects': max_objects})
+        op = {
+            'op': 'create-pool',
+            'name': name,
+            'replicas': replica_count,
+            'pg_num': pg_num,
+        }
+        op.update(self._partial_build_common_op_create(**kwargs))
 
-    def add_op_create_erasure_pool(self, name, erasure_profile=None,
-                                   weight=None, group=None, app_name=None,
-                                   max_bytes=None, max_objects=None):
+        # Initialize Pool-object to validate type and range of ops.
+        pool = ReplicatedPool('dummy-service', op=op)
+        pool.validate()
+
+        self.add_op(op)
+
+    def add_op_create_erasure_pool(self, name, erasure_profile=None, **kwargs):
         """Adds an operation to create a erasure coded pool.
+
+        Refer to docstring for ``_partial_build_common_op_create`` for
+        documentation of keyword arguments.
 
         :param name: Name of pool to create
         :type name: str
@@ -1500,27 +1800,21 @@ class CephBrokerRq(object):
                                 set the ceph-mon unit handling the broker
                                 request will set its default value.
         :type erasure_profile: str
-        :param weight: The percentage of data that is expected to be contained
-                       in the pool from the total available space on the OSDs.
-        :type weight: float
-        :param group: Group to add pool to
-        :type group: str
-        :param app_name: (Optional) Tag pool with application name.  Note that
-                         there is certain protocols emerging upstream with
-                         regard to meaningful application names to use.
-                         Examples are ``rbd`` and ``rgw``.
-        :type app_name: str
-        :param max_bytes: Maximum bytes quota to apply
-        :type max_bytes: int
-        :param max_objects: Maximum objects quota to apply
-        :type max_objects: int
+        :raises: AssertionError if provided data is of invalid type/range
         """
-        self.add_op({'op': 'create-pool', 'name': name,
-                     'pool-type': 'erasure',
-                     'erasure-profile': erasure_profile,
-                     'weight': weight,
-                     'group': group, 'app-name': app_name,
-                     'max-bytes': max_bytes, 'max-objects': max_objects})
+        op = {
+            'op': 'create-pool',
+            'name': name,
+            'pool-type': 'erasure',
+            'erasure-profile': erasure_profile,
+        }
+        op.update(self._partial_build_common_op_create(**kwargs))
+
+        # Initialize Pool-object to validate type and range of ops.
+        pool = ErasurePool('dummy-service', op)
+        pool.validate()
+
+        self.add_op(op)
 
     def set_ops(self, ops):
         """Set request ops to provided value.
@@ -1634,18 +1928,15 @@ class CephBrokerRsp(object):
 def get_previous_request(rid):
     """Return the last ceph broker request sent on a given relation
 
-    @param rid: Relation id to query for request
+    :param rid: Relation id to query for request
+    :type rid: str
+    :returns: CephBrokerRq object or None if relation data not found.
+    :rtype: Optional[CephBrokerRq]
     """
-    request = None
     broker_req = relation_get(attribute='broker_req', rid=rid,
                               unit=local_unit())
     if broker_req:
-        request_data = json.loads(broker_req)
-        request = CephBrokerRq(api_version=request_data['api-version'],
-                               request_id=request_data['request-id'])
-        request.set_ops(request_data['ops'])
-
-    return request
+        return CephBrokerRq(raw_request_data=broker_req)
 
 
 def get_request_states(request, relation='ceph'):
