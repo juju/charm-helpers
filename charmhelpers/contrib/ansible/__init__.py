@@ -199,6 +199,9 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
 
     # we want ansible's log output to be unbuffered
     env = os.environ.copy()
+    proxy_settings = charmhelpers.core.hookenv.env_proxy_settings()
+    if proxy_settings:
+        env.update(proxy_settings)
     env['PYTHONUNBUFFERED'] = "1"
     call = [
         'ansible-playbook',
