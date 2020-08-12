@@ -2348,29 +2348,25 @@ class OpenStackUtilsAdditionalTests(TestCase):
                                  is_db_initialised, is_expected_scale):
         is_db_maintenance_mode.return_value = True
         self.assertEqual(
-            openstack.get_api_unit_status()[0].value,
-            'maintenance')
+            openstack.get_api_unit_status()[0], 'maintenance')
 
         is_db_maintenance_mode.return_value = False
         is_unit_paused_set.return_value = True
         self.assertEqual(
-            openstack.get_api_unit_status()[0].value,
-            'blocked')
+            openstack.get_api_unit_status()[0], 'blocked')
 
         is_db_maintenance_mode.return_value = False
         is_unit_paused_set.return_value = False
         is_db_ready.return_value = False
         self.assertEqual(
-            openstack.get_api_unit_status()[0].value,
-            'waiting')
+            openstack.get_api_unit_status()[0], 'waiting')
 
         is_db_maintenance_mode.return_value = False
         is_unit_paused_set.return_value = False
         is_db_ready.return_value = True
         is_db_initialised.return_value = False
         self.assertEqual(
-            openstack.get_api_unit_status()[0].value,
-            'waiting')
+            openstack.get_api_unit_status()[0], 'waiting')
 
         is_db_maintenance_mode.return_value = False
         is_unit_paused_set.return_value = False
@@ -2378,8 +2374,7 @@ class OpenStackUtilsAdditionalTests(TestCase):
         is_db_initialised.return_value = True
         is_expected_scale.return_value = False
         self.assertEqual(
-            openstack.get_api_unit_status()[0].value,
-            'waiting')
+            openstack.get_api_unit_status()[0], 'waiting')
 
         is_db_maintenance_mode.return_value = False
         is_unit_paused_set.return_value = False
@@ -2387,8 +2382,7 @@ class OpenStackUtilsAdditionalTests(TestCase):
         is_db_initialised.return_value = True
         is_expected_scale.return_value = True
         self.assertEqual(
-            openstack.get_api_unit_status()[0].value,
-            'active')
+            openstack.get_api_unit_status()[0], 'active')
 
     @patch.object(openstack, 'get_api_unit_status')
     def test_check_api_application_ready(self, get_api_unit_status):
@@ -2401,12 +2395,10 @@ class OpenStackUtilsAdditionalTests(TestCase):
     def test_get_api_application_status(self, get_api_unit_status):
         get_api_unit_status.return_value = (WORKLOAD_STATES.ACTIVE, 'Hurray')
         self.assertEqual(
-            openstack.get_api_application_status()[0].value,
-            'active')
+            openstack.get_api_application_status()[0], 'active')
         get_api_unit_status.return_value = (WORKLOAD_STATES.BLOCKED, ':-(')
         self.assertEqual(
-            openstack.get_api_application_status()[0].value,
-            'blocked')
+            openstack.get_api_application_status()[0], 'blocked')
 
 
 if __name__ == '__main__':
