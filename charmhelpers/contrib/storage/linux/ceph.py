@@ -705,12 +705,12 @@ class ErasurePool(BasePool):
             # from different handling of this in the `charms.ceph` library.
             self.erasure_code_profile = op.get('erasure-profile',
                                                'default-canonical')
+            self.allow_ec_overwrites = op.get('allow-ec-overwrites')
         else:
             # We keep the class default when initialized from keyword arguments
             # to not break the API for any other consumers.
             self.erasure_code_profile = erasure_code_profile or 'default'
-
-        self.allow_ec_overwrites = allow_ec_overwrites
+            self.allow_ec_overwrites = allow_ec_overwrites
 
     def _create(self):
         # Try to find the erasure profile information in order to properly
