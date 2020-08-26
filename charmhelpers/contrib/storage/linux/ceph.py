@@ -1972,12 +1972,14 @@ class CephBrokerRq(object):
                            'request-id': self.request_id})
 
     def _ops_equal(self, other):
+        keys_to_compare = [
+            'replicas', 'name', 'op', 'pg_num', 'group-permission',
+            'object-prefix-permissions',
+        ]
+        keys_to_compare += list(self._partial_build_common_op_create().keys())
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in [
-                        'replicas', 'name', 'op', 'pg_num', 'weight',
-                        'group', 'group-namespace', 'group-permission',
-                        'object-prefix-permissions']:
+                for key in keys_to_compare:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:

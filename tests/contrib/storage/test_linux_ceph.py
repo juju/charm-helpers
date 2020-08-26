@@ -1578,6 +1578,17 @@ class CephUtilsTests(TestCase):
         rq2.add_op_request_access_to_group(name='objects',
                                            permission='r')
         self.assertFalse(rq1 == rq2)
+        # now check equality check for common properties
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_replicated_pool('pool1')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_replicated_pool('pool1')
+        self.assertTrue(rq1 == rq2)
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_replicated_pool('pool1', compression_mode='none')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_replicated_pool('pool1', compression_mode='passive')
+        self.assertFalse(rq1 == rq2)
 
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
