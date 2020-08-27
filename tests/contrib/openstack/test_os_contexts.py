@@ -4982,6 +4982,14 @@ class TestCephBlueStoreContext(tests.utils.BaseTestCase):
         ctxt = context.CephBlueStoreCompressionContext()
         self.assertDictEqual(ctxt.get_op(), self.expected_op)
 
+    def test_get_kwargs(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        expect = {
+            k.replace('-', '_'): v
+            for k, v in self.expected_op.items()
+        }
+        self.assertDictEqual(ctxt.get_kwargs(), expect)
+
     def test_validate(self):
         self.patch_object(context.ch_ceph, 'BasePool')
         pool = MagicMock()
