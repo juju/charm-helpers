@@ -4984,11 +4984,8 @@ class TestCephBlueStoreContext(tests.utils.BaseTestCase):
 
     def test_get_kwargs(self):
         ctxt = context.CephBlueStoreCompressionContext()
-        expect = {
-            k.replace('-', '_'): v
-            for k, v in self.expected_op.items()
-        }
-        self.assertDictEqual(ctxt.get_kwargs(), expect)
+        for arg in ctxt.get_kwargs().keys():
+            self.assertNotIn('-', arg, "get_kwargs() returned '-' in the key")
 
     def test_validate(self):
         self.patch_object(context.ch_ceph, 'BasePool')
