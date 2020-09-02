@@ -653,5 +653,7 @@ def patch_ports_on_bridge(bridge):
             raise ValueError('Port for interface named "{}" does unexpectedly '
                              'not exist.'.format(interface['name']))
     else:
-        # Allow our caller to handle no patch ports found gracefully
-        raise StopIteration
+        # Allow our caller to handle no patch ports found gracefully, in
+        # reference to PEP479 just doing a return will provide a emtpy iterator
+        # and not None.
+        return

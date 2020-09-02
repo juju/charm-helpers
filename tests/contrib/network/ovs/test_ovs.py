@@ -1,4 +1,5 @@
 import mock
+import types
 import uuid
 
 import charmhelpers.contrib.network.ovs as ovs
@@ -257,3 +258,5 @@ class TestOVS(test_utils.BaseTestCase):
         ovsdb.interface.find.return_value = []
         for patch in ovs.patch_ports_on_bridge('fake-bridge'):
             assert 0, 'Expected generator to provide empty iterator'
+        self.assertTrue(isinstance(
+            ovs.patch_ports_on_bridge('fake-bridge'), types.GeneratorType))
