@@ -649,6 +649,11 @@ def patch_ports_on_bridge(bridge):
                         interface['options']['peer'])),
                     interface['options']['peer'])
                 yield(Patch(this_end, other_end))
+            # We expect one result and it is ok if it turns out to be a port
+            # for a different bridge. However we need a break here to satisfy
+            # the for/else check which is in place to detect interface refering
+            # to non-existent port.
+            break
         else:
             raise ValueError('Port for interface named "{}" does unexpectedly '
                              'not exist.'.format(interface['name']))

@@ -219,8 +219,15 @@ class TestOVS(test_utils.BaseTestCase):
     def test_patch_ports_on_bridge(self):
         self.patch_object(ovs.ch_ovsdb, 'SimpleOVSDB')
         self.patch_object(ovs, 'bridge_for_port')
+        self.patch_object(ovs, 'uuid_for_port')
         ovsdb = mock.MagicMock()
         ovsdb.interface.find.return_value = [
+            {
+                'name': 'fake-interface-with-port-for-other-bridge',
+                'options': {
+                    'peer': 'fake-peer'
+                },
+            },
             {
                 'name': 'fake-interface',
                 'options': {
@@ -229,14 +236,18 @@ class TestOVS(test_utils.BaseTestCase):
             },
         ]
         port_uuid = uuid.UUID('0d43905b-f80e-4eaa-9feb-a9017da8c6bc')
-        ovsdb.port.find.return_value = [
-            {
+        ovsdb.port.find.side_effect = [
+            [{
+                '_uuid': port_uuid,
+                'name': 'port-on-other-bridge',
+            }],
+            [{
                 '_uuid': port_uuid,
                 'name': 'fake-port',
-            },
+            }],
         ]
         self.SimpleOVSDB.return_value = ovsdb
-        self.bridge_for_port.side_effect = ['fake-bridge', 'fake-peer-bridge']
+        self.bridge_for_port.side_effect = ['some-other-bridge', 'fake-bridge', 'fake-peer-bridge']
         for patch in ovs.patch_ports_on_bridge('fake-bridge'):
             self.assertEquals(
                 patch,
@@ -251,6 +262,7 @@ class TestOVS(test_utils.BaseTestCase):
             break
         else:
             assert 0, 'Expected generator to provide output'
+        ovsdb.port.find.side_effect = None
         ovsdb.port.find.return_value = []
         with self.assertRaises(ValueError):
             for patch in ovs.patch_ports_on_bridge('fake-bridge'):
