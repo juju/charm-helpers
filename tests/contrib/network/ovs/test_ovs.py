@@ -1,4 +1,6 @@
 import mock
+import types
+import uuid
 
 import charmhelpers.contrib.network.ovs as ovs
 
@@ -189,3 +191,72 @@ class TestOVS(test_utils.BaseTestCase):
             '--', 'fakekey=fakevalue',
             '--', 'fakekey=fakevalue',
             '--', 'fakekey=fakevalue'])
+
+    def test_uuid_for_port(self):
+        self.patch_object(ovs.ch_ovsdb, 'SimpleOVSDB')
+        fake_uuid = uuid.UUID('efdce2cf-cd66-4060-a9f8-1db0e9a06216')
+        ovsdb = mock.MagicMock()
+        ovsdb.port.find.return_value = [
+            {'_uuid': fake_uuid},
+        ]
+        self.SimpleOVSDB.return_value = ovsdb
+        self.assertEquals(ovs.uuid_for_port('fake-port'), fake_uuid)
+        ovsdb.port.find.assert_called_once_with('name=fake-port')
+
+    def test_bridge_for_port(self):
+        self.patch_object(ovs.ch_ovsdb, 'SimpleOVSDB')
+        fake_uuid = uuid.UUID('818d03dd-efb8-44be-aba3-bde423bf1cc9')
+        ovsdb = mock.MagicMock()
+        ovsdb.bridge.__iter__.return_value = [
+            {
+                'name': 'fake-bridge',
+                'ports': [fake_uuid],
+            },
+        ]
+        self.SimpleOVSDB.return_value = ovsdb
+        self.assertEquals(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
+
+    def test_patch_ports_on_bridge(self):
+        self.patch_object(ovs.ch_ovsdb, 'SimpleOVSDB')
+        self.patch_object(ovs, 'bridge_for_port')
+        ovsdb = mock.MagicMock()
+        ovsdb.interface.find.return_value = [
+            {
+                'name': 'fake-interface',
+                'options': {
+                    'peer': 'fake-peer'
+                },
+            },
+        ]
+        port_uuid = uuid.UUID('0d43905b-f80e-4eaa-9feb-a9017da8c6bc')
+        ovsdb.port.find.return_value = [
+            {
+                '_uuid': port_uuid,
+                'name': 'fake-port',
+            },
+        ]
+        self.SimpleOVSDB.return_value = ovsdb
+        self.bridge_for_port.side_effect = ['fake-bridge', 'fake-peer-bridge']
+        for patch in ovs.patch_ports_on_bridge('fake-bridge'):
+            self.assertEquals(
+                patch,
+                ovs.Patch(
+                    this_end=ovs.PatchPort(
+                        bridge='fake-bridge',
+                        port='fake-port'),
+                    other_end=ovs.PatchPort(
+                        bridge='fake-peer-bridge',
+                        port='fake-peer'))
+            )
+            break
+        else:
+            assert 0, 'Expected generator to provide output'
+        ovsdb.port.find.return_value = []
+        with self.assertRaises(ValueError):
+            for patch in ovs.patch_ports_on_bridge('fake-bridge'):
+                pass
+        ovsdb.interface.find.return_value = []
+        for patch in ovs.patch_ports_on_bridge('fake-bridge'):
+            assert 0, 'Expected generator to provide empty iterator'
+        self.assertTrue(isinstance(
+            ovs.patch_ports_on_bridge('fake-bridge'), types.GeneratorType))
