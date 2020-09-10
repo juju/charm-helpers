@@ -618,7 +618,11 @@ def bridge_for_port(port_uuid):
     """
     for bridge in ch_ovsdb.SimpleOVSDB(
             'ovs-vsctl').bridge:
-        if port_uuid in bridge['ports']:
+        # If there is a single port on a bridge the ports property will not be
+        # a list. ref: juju/charm-helpers#510
+        if (isinstance(bridge['ports'], list) and
+                port_uuid in bridge['ports'] or
+                port_uuid == bridge['ports']):
             return bridge['name']
 
 

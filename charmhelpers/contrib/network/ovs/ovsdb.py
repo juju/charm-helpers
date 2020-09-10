@@ -36,6 +36,11 @@ class SimpleOVSDB(object):
     for br in ovsdb.bridge:
         if br['name'] == 'br-test':
             ovsdb.bridge.set(br['uuid'], 'external_ids:charm', 'managed')
+
+    WARNING: If a list type field only have one item `ovs-vsctl` will present
+    it as a single item. Since we do not know the schema we have no way of
+    knowing what fields should be de-serialized as lists so the caller has
+    to be careful of checking the type of values returned from this library.
     """
 
     # For validation we keep a complete map of currently known good tool and
