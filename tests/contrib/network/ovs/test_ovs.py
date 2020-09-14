@@ -215,6 +215,15 @@ class TestOVS(test_utils.BaseTestCase):
         ]
         self.SimpleOVSDB.return_value = ovsdb
         self.assertEquals(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
+        # If there is a single port on a bridge the ports property will not be
+        # a list. ref: juju/charm-helpers#510
+        ovsdb.bridge.__iter__.return_value = [
+            {
+                'name': 'fake-bridge',
+                'ports': fake_uuid,
+            },
+        ]
+        self.assertEquals(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
 
     def test_patch_ports_on_bridge(self):
         self.patch_object(ovs.ch_ovsdb, 'SimpleOVSDB')
