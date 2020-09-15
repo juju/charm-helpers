@@ -1853,6 +1853,113 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_no_rbd_pool(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'testing-foo',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_rbd_pool(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded',
+            'rbd-pool': 'glance'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'glance',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_rbd_pool_name(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded',
+            'rbd-pool-name': 'nova'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'nova',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_rbd_cache(self, ensure_packages, mkdir, isdir,
                                          mock_config):
         isdir.return_value = False
@@ -4840,3 +4947,57 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
         ctxt_obj = context.SRIOVContext()
         ctxt_obj._map = {}
         self.assertDictEqual(ctxt_obj(), {})
+
+
+class TestCephBlueStoreContext(tests.utils.BaseTestCase):
+
+    def setUp(self):
+        super(TestCephBlueStoreContext, self,).setUp()
+        self.expected_config_map = {
+            'bluestore-compression-algorithm': 'fake-bca',
+            'bluestore-compression-mode': 'fake-bcm',
+            'bluestore-compression-required-ratio': 'fake-bcrr',
+            'bluestore-compression-min-blob-size': 'fake-bcmibs',
+            'bluestore-compression-min-blob-size-hdd': 'fake-bcmibsh',
+            'bluestore-compression-min-blob-size-ssd': 'fake-bcmibss',
+            'bluestore-compression-max-blob-size': 'fake-bcmabs',
+            'bluestore-compression-max-blob-size-hdd': 'fake-bcmabsh',
+            'bluestore-compression-max-blob-size-ssd': 'fake-bcmabss',
+        }
+        self.expected_op = {
+            key.replace('bluestore-', ''): value
+            for key, value in self.expected_config_map.items()
+        }
+        self.patch_object(context, 'config')
+        self.config.return_value = self.expected_config_map
+
+    def test___call__(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        self.assertDictEqual(ctxt(), {
+            key.replace('-', '_'): value
+            for key, value in self.expected_config_map.items()
+        })
+
+    def test_get_op(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        self.assertDictEqual(ctxt.get_op(), self.expected_op)
+
+    def test_get_kwargs(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        for arg in ctxt.get_kwargs().keys():
+            self.assertNotIn('-', arg, "get_kwargs() returned '-' in the key")
+
+    def test_validate(self):
+        self.patch_object(context.ch_ceph, 'BasePool')
+        pool = MagicMock()
+        self.BasePool.return_value = pool
+        ctxt = context.CephBlueStoreCompressionContext()
+        ctxt.validate()
+        # the order for the Dict argument is unpredictable, match on ANY and
+        # do separate check against call_args_list with assertDictEqual.
+        self.BasePool.assert_called_once_with('dummy-service', op=mock.ANY)
+        expected_op = self.expected_op.copy()
+        expected_op.update({'name': 'dummy-name'})
+        self.assertDictEqual(
+            self.BasePool.call_args_list[0][1]['op'], expected_op)
+        pool.validate.assert_called_once_with()
