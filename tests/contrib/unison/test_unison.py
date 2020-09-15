@@ -73,18 +73,21 @@ class UnisonHelperTests(TestCase):
         for _call in calls:
             self.assertIn(call(_call), self.check_call.call_args_list)
 
+    @patch('os.chmod')
+    @patch('os.chown')
     @patch('os.path.isfile')
-    def test_create_private_key_rsa(self, isfile):
+    @patch('pwd.getpwnam')
+    def test_create_private_key_rsa(self, pwnam, isfile, chown, chmod):
+        fake_user = MagicMock()
+        fake_user.pw_uid = 3133
+        pwnam.return_value = fake_user
         create_cmd = [
             'ssh-keygen', '-q', '-N', '', '-t', 'rsa', '-b', '2048',
             '-f', '/home/foo/.ssh/id_rsa']
 
         def _ensure_perms():
-            cmds = [
-                ['chown', 'foo', '/home/foo/.ssh/id_rsa'],
-                ['chmod', '0600', '/home/foo/.ssh/id_rsa'],
-            ]
-            self._ensure_calls_in(cmds)
+            chown.assert_called_with('/home/foo/.ssh/id_rsa', 3133, -1)
+            chmod.assert_called_with('/home/foo/.ssh/id_rsa', 0o600)
 
         isfile.return_value = False
         unison.create_private_key(
@@ -93,24 +96,29 @@ class UnisonHelperTests(TestCase):
         _ensure_perms()
         self.check_call.call_args_list = []
 
+        chown.reset_mock()
+        chmod.reset_mock()
         isfile.return_value = True
         unison.create_private_key(
             user='foo', priv_key_path='/home/foo/.ssh/id_rsa')
         self.assertNotIn(call(create_cmd), self.check_call.call_args_list)
         _ensure_perms()
 
+    @patch('os.chmod')
+    @patch('os.chown')
     @patch('os.path.isfile')
-    def test_create_private_key_ecdsa(self, isfile):
+    @patch('pwd.getpwnam')
+    def test_create_private_key_ecdsa(self, pwnam, isfile, chown, chmod):
+        fake_user = MagicMock()
+        fake_user.pw_uid = 3133
+        pwnam.return_value = fake_user
         create_cmd = [
             'ssh-keygen', '-q', '-N', '', '-t', 'ecdsa', '-b', '521',
             '-f', '/home/foo/.ssh/id_ecdsa']
 
         def _ensure_perms():
-            cmds = [
-                ['chown', 'foo', '/home/foo/.ssh/id_ecdsa'],
-                ['chmod', '0600', '/home/foo/.ssh/id_ecdsa'],
-            ]
-            self._ensure_calls_in(cmds)
+            chown.assert_called_with('/home/foo/.ssh/id_ecdsa', 3133, -1)
+            chmod.assert_called_with('/home/foo/.ssh/id_ecdsa', 0o600)
 
         isfile.return_value = False
         unison.create_private_key(
@@ -121,6 +129,8 @@ class UnisonHelperTests(TestCase):
         _ensure_perms()
         self.check_call.call_args_list = []
 
+        chown.reset_mock()
+        chmod.reset_mock()
         isfile.return_value = True
         unison.create_private_key(
             user='foo',
@@ -129,14 +139,24 @@ class UnisonHelperTests(TestCase):
         self.assertNotIn(call(create_cmd), self.check_call.call_args_list)
         _ensure_perms()
 
+    @patch('os.chown')
     @patch('os.path.isfile')
-    def test_create_public_key(self, isfile):
+    @patch('pwd.getpwnam')
+    def test_create_public_key(self, pwnam, isfile, chown):
+        fake_user = MagicMock()
+        fake_user.pw_uid = 3133
+        pwnam.return_value = fake_user
         create_cmd = ['ssh-keygen', '-y', '-f', '/home/foo/.ssh/id_rsa']
+
+        def _ensure_perms():
+            chown.assert_called_with('/home/foo/.ssh/id_rsa.pub', 3133, -1)
+
         isfile.return_value = True
         unison.create_public_key(
             user='foo', priv_key_path='/home/foo/.ssh/id_rsa',
             pub_key_path='/home/foo/.ssh/id_rsa.pub')
         self.assertNotIn(call(create_cmd), self.check_output.call_args_list)
+        _ensure_perms()
 
         isfile.return_value = False
         with patch_open() as (_open, _file):
@@ -145,6 +165,7 @@ class UnisonHelperTests(TestCase):
                 user='foo', priv_key_path='/home/foo/.ssh/id_rsa',
                 pub_key_path='/home/foo/.ssh/id_rsa.pub')
             self.assertIn(call(create_cmd), self.check_output.call_args_list)
+            _ensure_perms()
             _open.assert_called_with('/home/foo/.ssh/id_rsa.pub', 'wb')
             _file.write.assert_called_with(b'fookey')
 
@@ -168,31 +189,51 @@ class UnisonHelperTests(TestCase):
         self.assertEquals(pub, 'foopub')
 
     @patch.object(unison, 'get_homedir')
-    def test_write_auth_keys(self, get_homedir):
+    @patch('os.chown')
+    @patch('pwd.getpwnam')
+    def test_write_auth_keys(self, pwnam, chown, get_homedir):
+        fake_user = MagicMock()
+        fake_user.pw_uid = 3133
+        pwnam.return_value = fake_user
         get_homedir.return_value = '/home/foo'
         keys = [
             'ssh-rsa AAAB3Nz adam',
             'ssh-rsa ALKJFz adam@whereschuck.org',
         ]
+
+        def _ensure_perms():
+            chown.assert_called_with('/home/foo/.ssh/authorized_keys', 3133, -1)
+
         with patch_open() as (_open, _file):
             unison.write_authorized_keys('foo', keys)
             _open.assert_called_with('/home/foo/.ssh/authorized_keys', 'w')
             for k in keys:
                 self.assertIn(call('%s\n' % k), _file.write.call_args_list)
+            _ensure_perms()
 
     @patch.object(unison, 'get_homedir')
-    def test_write_known_hosts(self, get_homedir):
+    @patch('os.chown')
+    @patch('pwd.getpwnam')
+    def test_write_known_hosts(self, pwnam, chown, get_homedir):
+        fake_user = MagicMock()
+        fake_user.pw_uid = 3133
+        pwnam.return_value = fake_user
         get_homedir.return_value = '/home/foo'
         keys = [
             '10.0.0.1 ssh-rsa KJDSJF=',
             '10.0.0.2 ssh-rsa KJDSJF=',
         ]
         self.check_output.side_effect = keys
+
+        def _ensure_perms():
+            chown.assert_called_with('/home/foo/.ssh/known_hosts', 3133, -1)
+
         with patch_open() as (_open, _file):
             unison.write_known_hosts('foo', ['10.0.0.1', '10.0.0.2'])
             _open.assert_called_with('/home/foo/.ssh/known_hosts', 'w')
             for k in keys:
                 self.assertIn(call('%s\n' % k), _file.write.call_args_list)
+            _ensure_perms()
 
     @patch.object(unison, 'remove_password_expiry')
     @patch.object(unison, 'pwgen')
