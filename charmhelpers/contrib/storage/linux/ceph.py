@@ -41,6 +41,7 @@ from subprocess import (
 )
 from charmhelpers import deprecate
 from charmhelpers.core.hookenv import (
+    application_name,
     config,
     service_name,
     local_unit,
@@ -160,6 +161,17 @@ def get_osd_settings(relation_name):
                 else:
                     osd_settings[key] = value
     return _order_dict_by_key(osd_settings)
+
+
+def send_application_name(relid=None):
+    """Send the application name down the relation.
+
+    :param relid: Relation id to set application name in.
+    :type relid: str
+    """
+    relation_set(
+        relation_id=relid,
+        relation_settings={'application-name': application_name()})
 
 
 def send_osd_settings():
