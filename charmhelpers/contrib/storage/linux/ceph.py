@@ -1114,6 +1114,8 @@ def create_erasure_profile(service, profile_name,
     :return: None.  Can raise CalledProcessError, ValueError or AssertionError
     """
     if erasure_profile_exists(service, profile_name):
+        log('EC profile {} exists, skipping update'.format(profile_name),
+            level=WARNING)
         return
 
     plugin_techniques = {
