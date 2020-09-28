@@ -1086,7 +1086,10 @@ def create_erasure_profile(service, profile_name,
                            erasure_plugin_technique=None):
     """Create a new erasure code profile if one does not already exist for it.
 
-    Updates the profile if it exists. Please refer to [0] for more details.
+    Profiles are considered immutable so will not be updated if the named
+    profile already exists.
+
+    Please refer to [0] for more details.
 
     0: http://docs.ceph.com/docs/master/rados/operations/erasure-code-profile/
 
@@ -1122,6 +1125,11 @@ def create_erasure_profile(service, profile_name,
     :type erasure_plugin_technique: str
     :return: None.  Can raise CalledProcessError, ValueError or AssertionError
     """
+    if erasure_profile_exists(service, profile_name):
+        log('EC profile {} exists, skipping update'.format(profile_name),
+            level=WARNING)
+        return
+
     plugin_techniques = {
         'jerasure': [
             'reed_sol_van',
@@ -1220,9 +1228,6 @@ def create_erasure_profile(service, profile_name,
             cmd.append('d={}'.format(str(helper_chunks)))
         if scalar_mds:
             cmd.append('scalar-mds={}'.format(scalar_mds))
-
-    if erasure_profile_exists(service, profile_name):
-        cmd.append('--force')
 
     check_call(cmd)
 

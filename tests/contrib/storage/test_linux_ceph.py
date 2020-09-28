@@ -791,7 +791,7 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile(self, existing_profile):
-        existing_profile.return_value = True
+        existing_profile.return_value = False
         self.test_config.set('customize-failure-domain', False)
         self.cmp_pkgrevno.return_value = -1
         ceph_utils.create_erasure_profile(
@@ -801,8 +801,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset-failure-domain=' + 'rack',
-               '--force']
+               'ruleset-failure-domain=' + 'rack']
         self.check_call.assert_has_calls([call(cmd)])
 
         self.cmp_pkgrevno.return_value = 1
@@ -814,13 +813,22 @@ class CephUtilsTests(TestCase):
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
                'crush-failure-domain=' + 'rack',
-               'crush-device-class=ssd',
-               '--force']
+               'crush-device-class=ssd']
         self.check_call.assert_has_calls([call(cmd)])
+
+        existing_profile.return_value = True
+        self.check_call.reset_mock()
+
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain='rack', data_chunks=10, coding_chunks=3,
+            device_class='ssd')
+
+        self.check_call.assert_not_called()
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile_failure_domain(self, existing_profile):
-        existing_profile.return_value = True
+        existing_profile.return_value = False
         self.test_config.set('customize-failure-domain', True)
         self.cmp_pkgrevno.return_value = -1
         ceph_utils.create_erasure_profile(
@@ -830,8 +838,7 @@ class CephUtilsTests(TestCase):
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset-failure-domain=' + 'rack',
-               '--force']
+               'ruleset-failure-domain=' + 'rack']
         self.config.assert_called_once_with('customize-failure-domain')
         self.check_call.assert_has_calls([call(cmd)])
 
