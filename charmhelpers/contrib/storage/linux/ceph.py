@@ -2215,6 +2215,7 @@ def send_request_if_needed(request, relation='ceph'):
         for rid in relation_ids(relation):
             log('Sending request {}'.format(request.request_id), level=DEBUG)
             relation_set(relation_id=rid, broker_req=request.request)
+            relation_set(relation_id=rid, relation_settings={'unit-name': local_unit()})
 
 
 def has_broker_rsp(rid=None, unit=None):
