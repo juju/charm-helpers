@@ -924,9 +924,10 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
     for root, dirs, files in os.walk(path, followlinks=follow_links):
         for name in dirs + files:
             full = os.path.join(root, name)
-            broken_symlink = os.path.lexists(full) and not os.path.exists(full)
-            if not broken_symlink:
+            try:
                 chown(full, uid, gid)
+            except FileNotFoundError:
+                pass
 
 
 def lchownr(path, owner, group):
