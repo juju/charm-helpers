@@ -187,7 +187,7 @@ class CertUtilsTests(unittest.TestCase):
             mock.call('/etc/ssl/cert_public.openstack.local', '/etc/ssl/cert_10.20.0.3'),
             mock.call('/etc/ssl/key_public.openstack.local', '/etc/ssl/key_10.20.0.3')]
         cert_utils.create_ip_cert_links('/etc/ssl')
-        symlink.assert_has_calls(expected)
+        symlink.assert_has_calls(expected, any_order=True)
         # Customer hostname
         symlink.reset_mock()
         get_hostname.return_value = 'juju-unit-2'
@@ -198,7 +198,7 @@ class CertUtilsTests(unittest.TestCase):
             mock.call('/etc/ssl/cert_juju-unit-2', '/etc/ssl/cert_funky-name'),
             mock.call('/etc/ssl/key_juju-unit-2', '/etc/ssl/key_funky-name'),
         ])
-        symlink.assert_has_calls(expected)
+        symlink.assert_has_calls(expected, any_order=True)
 
     @mock.patch.object(cert_utils, 'write_file')
     def test_install_certs(self, write_file):
