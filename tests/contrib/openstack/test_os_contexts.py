@@ -1853,6 +1853,40 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
+    def test_ceph_context_with_mirror_image(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context in host with rbd_mirroring_mode  set to "image"
+        We expect rbd_features to not be set'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'rbd-mirroring-mode': 'image'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': "true"
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
     def test_ceph_context_ec_pool_no_rbd_pool(
             self, ensure_packages, mkdir, isdir, mock_config):
         '''Test ceph context with erasure coded pools'''
