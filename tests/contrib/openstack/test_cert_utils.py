@@ -243,6 +243,7 @@ class CertUtilsTests(unittest.TestCase):
         ]
         write_file.assert_has_calls(expected)
 
+    @mock.patch.object(cert_utils, 'remote_service_name')
     @mock.patch.object(cert_utils, 'local_unit')
     @mock.patch.object(cert_utils, 'create_ip_cert_links')
     @mock.patch.object(cert_utils, 'install_certs')
@@ -251,7 +252,8 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'relation_get')
     def test_process_certificates(self, relation_get, mkdir, install_ca_cert,
                                   install_certs, create_ip_cert_links,
-                                  local_unit):
+                                  local_unit, remote_service_name):
+        remote_service_name.return_value = 'vault'
         local_unit.return_value = 'devnull/2'
         certs = {
             'admin.openstack.local': {
@@ -274,7 +276,9 @@ class CertUtilsTests(unittest.TestCase):
             'certificates:2',
             'vault/0',
             custom_hostname_link='funky-name'))
-        install_ca_cert.assert_called_once_with(b'ROOTCA')
+        install_ca_cert.assert_called_once_with(
+            b'ROOTCA',
+            name='vault_juju_ca_cert')
         install_certs.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
             {'admin.openstack.local': {

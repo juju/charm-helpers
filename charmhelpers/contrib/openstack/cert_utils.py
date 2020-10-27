@@ -28,6 +28,7 @@ from charmhelpers.core.hookenv import (
     related_units,
     relation_get,
     relation_ids,
+    remote_service_name,
     unit_get,
     NoNetworkBinding,
     log,
@@ -44,12 +45,9 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.core.host import (
+    install_ca_cert,
     mkdir,
     write_file,
-)
-
-from charmhelpers.contrib.hahelpers.apache import (
-    install_ca_cert
 )
 
 
@@ -298,7 +296,10 @@ def process_certificates(service_name, relation_id, unit,
     ca = data.get('ca')
     if certs:
         certs = json.loads(certs)
-        install_ca_cert(ca.encode())
+        install_ca_cert(
+            ca.encode(),
+            name='{}_juju_ca_cert'.format(
+                remote_service_name(relid=relation_id)))
         install_certs(ssl_dir, certs, chain, user=user, group=group)
         create_ip_cert_links(
             ssl_dir,
