@@ -329,6 +329,27 @@ CEPH_RELATION = {
     }
 }
 
+CEPH_REPLICATION_DEVICE_RELATION = {
+    'ceph-replication-device:0': {
+        'ceph/0': {
+            'private-address': 'ceph_node1',
+            'auth': 'foo',
+            'key': 'bar',
+            'rbd-pool': 'test1',
+            'pool-type': 'replicated',
+            'rbd-mirroring-mode': 'pool'
+        },
+        'ceph/1': {
+            'private-address': 'ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'rbd-pool': 'test2',
+            'pool-type': 'replicated',
+            'rbd-mirroring-mode': 'image'
+        }
+    }
+}
+
 CEPH_RELATION_WITH_PUBLIC_ADDR = {
     'ceph:0': {
         'ceph/0': {
@@ -1582,6 +1603,34 @@ class ContextTests(unittest.TestCase):
         ceph = context.CephContext()
         result = ceph()
         self.assertEquals(result, {})
+
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'config')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_rel_replication_device(self, ensure_packages, mock_config, mkdir, isdir):
+        '''Test ceph context with ceph-replication-device relation'''
+        config_dict = {'use-syslog': True}
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        isdir.return_value = True
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REPLICATION_DEVICE_RELATION)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext(ceph_relation='ceph-replication-device')
+        result = ceph()
+        expected = {
+            'auth': 'foo',
+            'key': 'bar',
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'use_syslog': 'true'
+        }
+        self.assertEquals(result, expected)
+        self.assertEquals(ceph.interfaces, ['ceph-replication-device'])
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
