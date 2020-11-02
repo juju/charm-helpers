@@ -164,6 +164,11 @@ class OpenStackHelpersTestCase(TestCase):
     def setUp(self):
         super(OpenStackHelpersTestCase, self).setUp()
         self.patch(fetch, 'get_apt_dpkg_env', lambda: {})
+        # Make sleep() and log() into noops for testing
+        for funcname in ('charmhelpers.core.decorators.log', 'charmhelpers.core.decorators.time.sleep'):
+            patcher = patch(funcname, return_value=None)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def _apt_cache(self):
         # mocks out the apt cache
@@ -1513,6 +1518,17 @@ class OpenStackHelpersTestCase(TestCase):
         except Exception as e:
             self.assertEquals(e.args[0],
                               "Couldn't pause: assess_status_func failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_pause_unit_retry_port_check_retries(
+            self, port_has_listener, set_unit_paused, service_pause):
+        service_pause.return_value = True
+        port_has_listener.side_effect = [True, False]
+        wait_for_ports_func = openstack.make_wait_for_ports_barrier([77])
+        openstack.pause_unit(None, services=['service1'], ports=[77], charm_func=wait_for_ports_func)
+        port_has_listener.assert_has_calls([call('0.0.0.0', 77), call('0.0.0.0', 77)])
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
