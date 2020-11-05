@@ -116,8 +116,16 @@ class CertRequest(object):
 
 
 def get_certificate_request(json_encode=True, bindings=None):
-    """Generate a certificatee requests based on the network confioguration
+    """Generate a certificate requests based on the network configuration
 
+    :param json_encode: Encode request in JSON or not. Used for setting
+                        directly on a relation.
+    :type json_encode: boolean
+    :param bindings: List of bindings to check in addition to default api
+                     bindings.
+    :type bindings: list of strings
+    :returns: CertRequest request as dictionary or JSON string.
+    :rtype: Union[dict, json]
     """
     if bindings:
         # Add default API bindings to bindings list
