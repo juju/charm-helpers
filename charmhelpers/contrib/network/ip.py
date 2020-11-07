@@ -519,7 +519,10 @@ def get_hostname(address, fqdn=True):
             import dns.reversename
 
         rev = dns.reversename.from_address(address)
-        result = ns_query(rev)
+        try:
+            result = ns_query(rev)
+        except:
+            result = None
 
         if not result:
             try:
