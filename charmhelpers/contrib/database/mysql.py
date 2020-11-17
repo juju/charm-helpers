@@ -416,7 +416,7 @@ class MySQLHelper(object):
         # Otherwise assume localhost
         return '127.0.0.1'
 
-    def get_allowed_units(self, database, username, relation_id=None):
+    def get_allowed_units(self, database, username, relation_id=None, prefix=None):
         """Get list of units with access grants for database with username.
 
         This is typically used to provide shared-db relations with a list of
@@ -425,10 +425,12 @@ class MySQLHelper(object):
         if not self.connection:
             self.connect(password=self.get_mysql_root_password())
         allowed_units = set()
+        if not prefix:
+            prefix = database
         for unit in related_units(relation_id):
             settings = relation_get(rid=relation_id, unit=unit)
             # First check for setting with prefix, then without
-            for attr in ["%s_hostname" % (database), 'hostname']:
+            for attr in ["%s_hostname" % (prefix), 'hostname']:
                 hosts = settings.get(attr, None)
                 if hosts:
                     break
