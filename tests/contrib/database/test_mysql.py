@@ -64,7 +64,10 @@ class MysqlTests(unittest.TestCase):
             elif unit == 'unit/2':
                 # No hostname
                 d = {'private-address': '10.0.0.3'}
-
+            elif unit == 'unit/3':
+                # Prefixed hostname
+                d = {'private-address': '10.0.0.4',
+                     'PRE_hostname': json.dumps(['10.0.0.4', '2001:db8:1::4'])}
             return d
 
         mock_relation_get.side_effect = mock_rel_get
@@ -80,6 +83,19 @@ class MysqlTests(unittest.TestCase):
 
         helper.grant_exists.assert_has_calls(calls, any_order=True)
         self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2']))
+
+        # With prefix
+        calls = [mock.call('dbB', 'userB', 'hostA'),
+                 mock.call('dbB', 'userB', '10.0.0.2'),
+                 mock.call('dbB', 'userB', '10.0.0.3'),
+                 mock.call('dbB', 'userB', '2001:db8:1::4'),
+                 mock.call('dbB', 'userB', '10.0.0.4')]
+
+        mock_related_units.return_value = [
+            'unit/0', 'unit/1', 'unit/2', 'unit/3']
+        units = helper.get_allowed_units('dbB', 'userB', prefix="PRE")
+        helper.grant_exists.assert_has_calls(calls, any_order=True)
+        self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2', 'unit/3']))
 
     @mock.patch('charmhelpers.contrib.network.ip.log',
                 lambda *args, **kwargs: None)
