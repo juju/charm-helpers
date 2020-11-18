@@ -19,6 +19,7 @@
 #  Nick Moffitt <nick.moffitt@canonical.com>
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
+import errno
 import os
 import re
 import pwd
@@ -677,7 +678,7 @@ def check_hash(path, checksum, hash_type='md5'):
 
     :param str checksum: Value of the checksum used to validate the file.
     :param str hash_type: Hash algorithm used to generate `checksum`.
-        Can be any hash alrgorithm supported by :mod:`hashlib`,
+        Can be any hash algorithm supported by :mod:`hashlib`,
         such as md5, sha1, sha256, sha512, etc.
     :raises ChecksumError: If the file fails the checksum
 
@@ -889,7 +890,7 @@ def get_nic_hwaddr(nic):
 def chdir(directory):
     """Change the current working directory to a different directory for a code
     block and return the previous directory after the block exits. Useful to
-    run commands from a specificed directory.
+    run commands from a specified directory.
 
     :param str directory: The directory path to change to for this context.
     """
@@ -924,9 +925,13 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
     for root, dirs, files in os.walk(path, followlinks=follow_links):
         for name in dirs + files:
             full = os.path.join(root, name)
-            broken_symlink = os.path.lexists(full) and not os.path.exists(full)
-            if not broken_symlink:
+            try:
                 chown(full, uid, gid)
+            except (IOError, OSError) as e:
+                # Intended to ignore "file not found". Catching both to be
+                # compatible with both Python 2.7 and 3.x.
+                if e.errno == errno.ENOENT:
+                    pass
 
 
 def lchownr(path, owner, group):
