@@ -138,7 +138,7 @@ CEPH_CLIENT_RELATION = {
             'private-address': '10.5.44.105',
         },
         'glance/0': {
-            'broker_req': '{"api-version": 1, "request-id": "0bc7dc54", "ops": [{"replicas": 3, "name": "glance", "op": "create-pool"}]}',
+            'broker_req': '{"api-version": 1, "request-id": "0bc7dc54", "ops": [{"replicas": 3, "name": "glance", "op": "create-pool", "rbd-mirroring-mode": "pool"}]}',
             'private-address': '10.5.44.109',
         },
     }
@@ -2007,6 +2007,7 @@ class CephUtilsTests(TestCase):
             'max-bytes': None,
             'max-objects': None,
             'group-namespace': None,
+            'rbd-mirroring-mode': 'pool',
             'weight': None,
         }
         self.assertDictEqual(
@@ -2040,6 +2041,7 @@ class CephUtilsTests(TestCase):
                    'name': 'apool',
                    'op': 'create-pool',
                    'pg_num': None,
+                   'rbd-mirroring-mode': 'pool',
                    'replicas': 3,
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
@@ -2133,6 +2135,16 @@ class CephUtilsTests(TestCase):
         op = base_op.copy()
         op['max-objects'] = 42
         self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_replicated_pool('apool', rbd_mirroring_mode='pool')
+        op = base_op.copy()
+        op['rbd-mirroring-mode'] = 'pool'
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_replicated_pool('apool', rbd_mirroring_mode='image')
+        op = base_op.copy()
+        op['rbd-mirroring-mode'] = 'image'
+        self.assertEqual(rq.ops, [op])
 
     def test_add_op_create_erasure_pool(self):
         base_op = {'app-name': None,
@@ -2154,6 +2166,7 @@ class CephUtilsTests(TestCase):
                    'name': 'apool',
                    'op': 'create-pool',
                    'pool-type': 'erasure',
+                   'rbd-mirroring-mode': 'pool',
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_erasure_pool('apool')
