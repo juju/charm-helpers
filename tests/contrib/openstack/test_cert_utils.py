@@ -243,6 +243,7 @@ class CertUtilsTests(unittest.TestCase):
         ]
         write_file.assert_has_calls(expected)
 
+    @mock.patch.object(cert_utils, '_manage_ca_certs')
     @mock.patch.object(cert_utils, 'remote_service_name')
     @mock.patch.object(cert_utils, 'local_unit')
     @mock.patch.object(cert_utils, 'create_ip_cert_links')
@@ -252,7 +253,8 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'relation_get')
     def test_process_certificates(self, relation_get, mkdir, install_ca_cert,
                                   install_certs, create_ip_cert_links,
-                                  local_unit, remote_service_name):
+                                  local_unit, remote_service_name,
+                                  _manage_ca_certs):
         remote_service_name.return_value = 'vault'
         local_unit.return_value = 'devnull/2'
         certs = {
@@ -276,9 +278,8 @@ class CertUtilsTests(unittest.TestCase):
             'certificates:2',
             'vault/0',
             custom_hostname_link='funky-name'))
-        install_ca_cert.assert_called_once_with(
-            b'ROOTCA',
-            name='vault_juju_ca_cert')
+        _manage_ca_certs.assert_called_once_with(
+            'ROOTCA', 'certificates:2')
         install_certs.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
             {'admin.openstack.local': {
@@ -287,6 +288,45 @@ class CertUtilsTests(unittest.TestCase):
         create_ip_cert_links.assert_called_once_with(
             '/etc/apache2/ssl/myservice',
             custom_hostname_link='funky-name')
+
+    @mock.patch.object(cert_utils, 'remote_service_name')
+    @mock.patch.object(cert_utils.os, 'remove')
+    @mock.patch.object(cert_utils.os.path, 'exists')
+    @mock.patch.object(cert_utils, 'config')
+    @mock.patch.object(cert_utils, 'install_ca_cert')
+    def test__manage_ca_certs(self, install_ca_cert, config, os_exists,
+                              os_remove, remote_service_name):
+        remote_service_name.return_value = 'vault'
+        _config = {}
+        config.side_effect = lambda x: _config.get(x)
+        os_exists.return_value = False
+        cert_utils._manage_ca_certs('CA', 'certificates:2')
+        install_ca_cert.assert_called_once_with(
+            b'CA',
+            name='vault_juju_ca_cert')
+        self.assertFalse(os_remove.called)
+        # Test old cert removed.
+        install_ca_cert.reset_mock()
+        os_exists.reset_mock()
+        os_exists.return_value = True
+        cert_utils._manage_ca_certs('CA', 'certificates:2')
+        install_ca_cert.assert_called_once_with(
+            b'CA',
+            name='vault_juju_ca_cert')
+        os_remove.assert_called_once_with(
+            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt')
+        # Test cert is installed from config
+        _config['ssl_ca'] = 'Q0FGUk9NQ09ORklHCg=='
+        install_ca_cert.reset_mock()
+        os_remove.reset_mock()
+        os_exists.reset_mock()
+        os_exists.return_value = True
+        cert_utils._manage_ca_certs('CA', 'certificates:2')
+        expected = [
+            mock.call(b'CAFROMCONFIG', name='keystone_juju_ca_cert'),
+            mock.call(b'CA', name='vault_juju_ca_cert')]
+        install_ca_cert.assert_has_calls(expected)
+        self.assertFalse(os_remove.called)
 
     @mock.patch.object(cert_utils, 'local_unit')
     @mock.patch.object(cert_utils, 'related_units')
