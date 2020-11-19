@@ -777,13 +777,10 @@ class AMQPContext(OSContextGenerator):
 
 class CephContext(OSContextGenerator):
     """Generates context for /etc/ceph/ceph.conf templates."""
-
-    def __init__(self, ceph_relation='ceph'):
-        self._ceph_relation = ceph_relation
-        self.interfaces = [ceph_relation]
+    interfaces = ['ceph']
 
     def __call__(self):
-        if not relation_ids(self._ceph_relation):
+        if not relation_ids('ceph'):
             return {}
 
         log('Generating template context for ceph', level=DEBUG)
@@ -791,14 +788,13 @@ class CephContext(OSContextGenerator):
         ctxt = {
             'use_syslog': str(config('use-syslog')).lower()
         }
-        rbd_mirroring_mode = config('rbd-mirroring-mode')
-        for rid in relation_ids(self._ceph_relation):
+        for rid in relation_ids('ceph'):
             for unit in related_units(rid):
                 if not ctxt.get('auth'):
                     ctxt['auth'] = relation_get('auth', rid=rid, unit=unit)
                 if not ctxt.get('key'):
                     ctxt['key'] = relation_get('key', rid=rid, unit=unit)
-                if rbd_mirroring_mode != "image" and not ctxt.get('rbd_features'):
+                if not ctxt.get('rbd_features'):
                     default_features = relation_get('rbd-features', rid=rid, unit=unit)
                     if default_features is not None:
                         ctxt['rbd_features'] = default_features
