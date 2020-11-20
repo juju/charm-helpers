@@ -826,7 +826,8 @@ def list_nics(nic_type=None):
     if nic_type:
         for int_type in int_types:
             cmd = ['ip', 'addr', 'show', 'label', int_type + '*']
-            ip_output = subprocess.check_output(cmd).decode('UTF-8')
+            ip_output = subprocess.check_output(
+                cmd).decode('UTF-8', errors='replace')
             ip_output = ip_output.split('\n')
             ip_output = (line for line in ip_output if line)
             for line in ip_output:
@@ -842,7 +843,8 @@ def list_nics(nic_type=None):
                         interfaces.append(iface)
     else:
         cmd = ['ip', 'a']
-        ip_output = subprocess.check_output(cmd).decode('UTF-8').split('\n')
+        ip_output = subprocess.check_output(
+            cmd).decode('UTF-8', errors='replace').split('\n')
         ip_output = (line.strip() for line in ip_output if line)
 
         key = re.compile(r'^[0-9]+:\s+(.+):')
@@ -866,7 +868,8 @@ def set_nic_mtu(nic, mtu):
 def get_nic_mtu(nic):
     """Return the Maximum Transmission Unit (MTU) for a network interface."""
     cmd = ['ip', 'addr', 'show', nic]
-    ip_output = subprocess.check_output(cmd).decode('UTF-8').split('\n')
+    ip_output = subprocess.check_output(
+        cmd).decode('UTF-8', errors='replace').split('\n')
     mtu = ""
     for line in ip_output:
         words = line.split()
@@ -878,7 +881,7 @@ def get_nic_mtu(nic):
 def get_nic_hwaddr(nic):
     """Return the Media Access Control (MAC) for a network interface."""
     cmd = ['ip', '-o', '-0', 'addr', 'show', nic]
-    ip_output = subprocess.check_output(cmd).decode('UTF-8')
+    ip_output = subprocess.check_output(cmd).decode('UTF-8', errors='replace')
     hwaddr = ""
     words = ip_output.split()
     if 'link/ether' in words:
