@@ -595,6 +595,7 @@ SUB_CONFIG_RELATION = {
                 yaml.safe_load(CINDER_SUB_CONFIG2)),
         },
     },
+    'empty:0': {},
 }
 
 SUB_CONFIG_RELATION2 = {
@@ -3105,6 +3106,11 @@ class ContextTests(unittest.TestCase):
             config_file='/etc/foo/foo.conf',
             interface='foo-subordinate',
         )
+        empty_sub_ctxt = context.SubordinateConfigContext(
+            service='empty',
+            config_file='/etc/foo/foo.conf',
+            interface='empty-subordinate',
+        )
         self.assertEquals(
             nova_sub_ctxt(),
             {'sections': {
@@ -3131,13 +3137,18 @@ class ContextTests(unittest.TestCase):
 
             }, 'not-a-section': 1234}
         )
+        self.assertTrue(
+            cinder_sub_ctxt.context_complete(cinder_sub_ctxt()))
 
         # subrodinate supplies nothing for given config
         glance_sub_ctxt.config_file = '/etc/glance/glance-api-paste.ini'
-        self.assertEquals(glance_sub_ctxt(), {'sections': {}})
+        self.assertEquals(glance_sub_ctxt(), {})
 
         # subordinate supplies bad input
-        self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+        self.assertEquals(foo_sub_ctxt(), {})
+        self.assertEquals(empty_sub_ctxt(), {})
+        self.assertFalse(
+            empty_sub_ctxt.context_complete(empty_sub_ctxt()))
 
     def test_os_subordinate_config_context_multiple(self):
         relation = FakeRelation(relation_data=SUB_CONFIG_RELATION2)
