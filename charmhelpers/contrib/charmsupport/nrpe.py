@@ -142,7 +142,7 @@ define service {{
 }}
 """)
 
-    def __init__(self, shortname, description, check_cmd):
+    def __init__(self, shortname, description, check_cmd, max_check_attempts=None):
         super(Check, self).__init__()
         # XXX: could be better to calculate this from the service name
         if not re.match(self.shortname_re, shortname):
@@ -155,6 +155,7 @@ define service {{
         # The default is: illegal_object_name_chars=`~!$%^&*"|'<>?,()=
         self.description = description
         self.check_cmd = self._locate_cmd(check_cmd)
+        self.max_check_attempts = max_check_attempts
 
     def _get_check_filename(self):
         return os.path.join(NRPE.nrpe_confdir, '{}.cfg'.format(self.command))
@@ -327,6 +328,11 @@ class NRPE(object):
             nrpe_monitors[nrpecheck.shortname] = {
                 "command": nrpecheck.command,
             }
+            # If we were passed max_check_attempts, add that to the relation data
+            try:
+                nrpe_monitors[nrpecheck.shortname]['max_check_attempts'] = nrpecheck.max_check_attempts
+            except AttributeError:
+                pass
 
         # update-status hooks are configured to firing every 5 minutes by
         # default. When nagios-nrpe-server is restarted, the nagios server
