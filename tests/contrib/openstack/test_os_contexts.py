@@ -4565,6 +4565,17 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
         }.get(x)
         self.assertEqual(self.target.cpu_mask(), '0x33')
 
+    def test_cpu_masks(self):
+        self.patch_target('_numa_node_cores')
+        self._numa_node_cores.return_value = NUMA_CORES_MULTI
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 1,
+            'pmd-socket-cores': 2,
+        }.get(x)
+        self.assertEqual(
+            self.target.cpu_masks(),
+            {'dpdk_lcore_mask': '0x11', 'pmd_cpu_mask': '0x66'})
+
     def test_context_no_devices(self):
         """Ensure that DPDK is disable when no devices detected"""
         self.patch_object(context, 'resolve_pci_from_mapping_config')
