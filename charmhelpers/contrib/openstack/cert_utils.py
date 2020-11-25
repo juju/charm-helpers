@@ -44,12 +44,9 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.core.host import (
+    install_ca_cert,
     mkdir,
     write_file,
-)
-
-from charmhelpers.contrib.hahelpers.apache import (
-    install_ca_cert
 )
 
 
@@ -298,13 +295,19 @@ def process_certificates(service_name, relation_id, unit,
     ca = data.get('ca')
     if certs:
         certs = json.loads(certs)
-        install_ca_cert(ca.encode())
+        _install_ca_cert(ca.encode())
         install_certs(ssl_dir, certs, chain, user=user, group=group)
         create_ip_cert_links(
             ssl_dir,
             custom_hostname_link=custom_hostname_link)
         return True
     return False
+
+
+# This function is being copied in here to remove a circular
+# dependency between cert_utils and hahelpers.apache.
+def _install_ca_cert(ca_cert):
+    install_ca_cert(ca_cert, 'keystone_juju_ca_cert')
 
 
 def get_requests_for_local_unit(relation_name=None):

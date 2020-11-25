@@ -47,6 +47,14 @@ IDENTITY_OLD_STYLE_CERTS = {
     }
 }
 
+CERTIFICATES_RELATION_STYLE_CERTS = {
+    'certificates:0': {
+        'vault/0': {
+
+        }
+    }
+}
+
 
 class ApacheUtilsTests(TestCase):
     def setUp(self):
@@ -111,6 +119,41 @@ class ApacheUtilsTests(TestCase):
         self.relation_ids.assert_has_calls([call('identity-service'),
                                             call('identity-credentials')])
         self.assertEquals('keystone_provided_ca',
+                          result)
+
+    @patch.object(apache_utils.cert_utils, 'get_requests_for_local_unit')
+    def test_get_cert_from_certificates_relation(self, get_requests_for_local_unit):
+        self.config_get.return_value = None
+        self.relation_ids.return_value = []
+        get_requests_for_local_unit.return_value = [{
+            'ca': 'ROOTCA',
+            'certs': {
+                'juju-cd4bb3-5.lxd': {
+                    'cert': 'BASECERT',
+                    'key': 'BASEKEY'}, },
+            'chain': 'MYCHAIN'}]
+        result = apache_utils.get_cert()
+        get_requests_for_local_unit.assert_called_once_with()
+        self.assertEquals(('BASECERT', 'BASEKEY'),
+                          result)
+
+    @patch.object(apache_utils.cert_utils, 'get_requests_for_local_unit')
+    def test_get_ca_from_certificates_relation(self, get_requests_for_local_unit):
+        self.config_get.return_value = None
+        self.relation_ids.return_value = []
+        get_requests_for_local_unit.return_value = [{
+            'ca': 'ROOTCA',
+            'certs': {
+                'juju-cd4bb3-5.lxd': {
+                    'cert': 'BASECERT',
+                    'key': 'BASEKEY'},
+                'juju-cd4bb3-5.internal': {
+                    'cert': 'INTERNALCERT',
+                    'key': 'INTERNALKEY'}},
+            'chain': 'MYCHAIN'}]
+        result = apache_utils.get_ca_cert()
+        get_requests_for_local_unit.assert_called_once_with()
+        self.assertEquals('ROOTCA',
                           result)
 
     @patch.object(apache_utils.os.path, 'isfile')

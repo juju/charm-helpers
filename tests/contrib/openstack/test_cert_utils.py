@@ -246,7 +246,7 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'local_unit')
     @mock.patch.object(cert_utils, 'create_ip_cert_links')
     @mock.patch.object(cert_utils, 'install_certs')
-    @mock.patch.object(cert_utils, 'install_ca_cert')
+    @mock.patch.object(cert_utils, '_install_ca_cert')
     @mock.patch.object(cert_utils, 'mkdir')
     @mock.patch.object(cert_utils, 'relation_get')
     def test_process_certificates(self, relation_get, mkdir, install_ca_cert,

@@ -33,6 +33,7 @@ from charmhelpers.core.hookenv import (
     log,
     INFO,
 )
+import charmhelpers.contrib.openstack.cert_utils as cert_utils
 
 
 def get_cert(cn=None):
@@ -57,6 +58,11 @@ def get_cert(cn=None):
                 if not key:
                     key = relation_get(ssl_key_attr,
                                        rid=r_id, unit=unit)
+    if not (cert and key):
+        entries = cert_utils.get_requests_for_local_unit()
+        for entry in entries:
+            for _cn, bundle in entry['certs'].items():
+                return (bundle['cert'], bundle['key'])
     return (cert, key)
 
 
@@ -71,6 +77,10 @@ def get_ca_cert():
                 if ca_cert is None:
                     ca_cert = relation_get('ca_cert',
                                            rid=r_id, unit=unit)
+    if ca_cert is None:
+        entries = cert_utils.get_requests_for_local_unit()
+        for entry in entries:
+            return entry['ca']
     return ca_cert
 
 
