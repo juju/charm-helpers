@@ -54,7 +54,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
-    KEYSTONE_CA_CERT_FILE,
+    CONFIG_CA_CERT_FILE,
 )
 
 
@@ -288,13 +288,13 @@ def _manage_ca_certs(ca, cert_relation_id):
     :type cert_relation_id: str
     """
     config_ssl_ca = config('ssl_ca')
-    config_cert_file = '{}/{}.crt'.format(CA_CERT_DIR, KEYSTONE_CA_CERT_FILE)
+    config_cert_file = '{}/{}.crt'.format(CA_CERT_DIR, CONFIG_CA_CERT_FILE)
     if config_ssl_ca:
         log("Installing CA certificate from charm ssl_ca config to {}".format(
             config_cert_file), INFO)
         install_ca_cert(
             b64decode(config_ssl_ca).rstrip(),
-            name=KEYSTONE_CA_CERT_FILE)
+            name=CONFIG_CA_CERT_FILE)
     elif os.path.exists(config_cert_file):
         log("Removing CA certificate {}".format(config_cert_file), INFO)
         os.remove(config_cert_file)
