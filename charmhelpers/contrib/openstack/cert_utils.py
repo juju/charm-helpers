@@ -16,6 +16,7 @@
 
 import os
 import json
+from base64 import b64decode
 
 from charmhelpers.contrib.network.ip import (
     get_hostname,
@@ -28,10 +29,12 @@ from charmhelpers.core.hookenv import (
     related_units,
     relation_get,
     relation_ids,
+    remote_service_name,
     unit_get,
     NoNetworkBinding,
     log,
     WARNING,
+    INFO,
 )
 from charmhelpers.contrib.openstack.ip import (
     resolve_address,
@@ -44,12 +47,14 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.core.host import (
+    CA_CERT_DIR,
+    install_ca_cert,
     mkdir,
     write_file,
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
-    install_ca_cert
+    CONFIG_CA_CERT_FILE,
 )
 
 
@@ -274,6 +279,32 @@ def install_certs(ssl_dir, certs, chain=None, user='root', group='root'):
             content=bundle['key'], perms=0o640)
 
 
+def _manage_ca_certs(ca, cert_relation_id):
+    """Manage CA certs.
+
+    :param ca: CA Certificate from certificate relation.
+    :type ca: str
+    :param cert_relation_id: Relation id providing the certs
+    :type cert_relation_id: str
+    """
+    config_ssl_ca = config('ssl_ca')
+    config_cert_file = '{}/{}.crt'.format(CA_CERT_DIR, CONFIG_CA_CERT_FILE)
+    if config_ssl_ca:
+        log("Installing CA certificate from charm ssl_ca config to {}".format(
+            config_cert_file), INFO)
+        install_ca_cert(
+            b64decode(config_ssl_ca).rstrip(),
+            name=CONFIG_CA_CERT_FILE)
+    elif os.path.exists(config_cert_file):
+        log("Removing CA certificate {}".format(config_cert_file), INFO)
+        os.remove(config_cert_file)
+    log("Installing CA certificate from certificate relation", INFO)
+    install_ca_cert(
+        ca.encode(),
+        name='{}_juju_ca_cert'.format(
+            remote_service_name(relid=cert_relation_id)))
+
+
 def process_certificates(service_name, relation_id, unit,
                          custom_hostname_link=None, user='root', group='root'):
     """Process the certificates supplied down the relation
@@ -298,7 +329,7 @@ def process_certificates(service_name, relation_id, unit,
     ca = data.get('ca')
     if certs:
         certs = json.loads(certs)
-        install_ca_cert(ca.encode())
+        _manage_ca_certs(ca, relation_id)
         install_certs(ssl_dir, certs, chain, user=user, group=group)
         create_ip_cert_links(
             ssl_dir,
