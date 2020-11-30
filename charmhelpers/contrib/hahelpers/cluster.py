@@ -404,11 +404,25 @@ def distributed_wait(modulo=None, wait=None, operation_name='operation'):
         # will still wait
         calculated_wait = modulo_distribution(modulo=modulo, wait=wait,
                                               non_zero_wait=True)
-    msg = "Waiting {} seconds for {} ...".format(calculated_wait,
-                                                 operation_name)
-    log(msg, DEBUG)
-    status_set('maintenance', msg)
-    time.sleep(calculated_wait)
+
+    # update status every 60 seconds with wait time elapsed
+    remaining_wait = calculated_wait
+    elapsed = 0
+    while remaining_wait:
+        if elapsed == 0:
+            msg = "Waiting {} seconds for {} ...".format(calculated_wait,
+                                                         operation_name)
+        else:
+            msg = ("Waiting {} seconds for {} ..."
+                   "elapsed: {} seconds".format(calculated_wait,
+                                                operation_name,
+                                                elapsed))
+        log(msg, DEBUG)
+        status_set('maintenance', msg)
+        next_sleep = max(remaining_wait, 60)
+        time.sleep(next_sleep)
+        elapsed += next_sleep
+        remaining_wait = calculated_wait - elapsed
 
 
 def get_managed_services_and_ports(services, external_ports,

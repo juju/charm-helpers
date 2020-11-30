@@ -531,7 +531,7 @@ class ClusterUtilsTests(TestCase):
         is_leader.return_value = True
         cluster_utils.distributed_wait(modulo=9, wait=23)
         modulo_distribution.assert_not_called()
-        sleep.assert_called_with(0)
+        sleep.assert_not_called(0)
 
         # The rest of the tests are non-leader units
         is_leader.return_value = False
