@@ -319,6 +319,7 @@ class MysqlTests(unittest.TestCase):
                           helper.set_mysql_password,
                           username='root', password='1234')
 
+    @mock.patch.object(mysql, 'lsb_release')
     @mock.patch.object(mysql, 'leader_get')
     @mock.patch.object(mysql, 'leader_set')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
@@ -326,7 +327,8 @@ class MysqlTests(unittest.TestCase):
     def test_set_mysql_password_fail_to_connect2(self, mock_connect,
                                                  mock_get_passwd,
                                                  mock_leader_set,
-                                                 mock_leader_get):
+                                                 mock_leader_get,
+                                                 mock_lsb_release):
 
         class FakeOperationalError(Exception):
             def __str__(self):
@@ -345,6 +347,9 @@ class MysqlTests(unittest.TestCase):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         helper.connection = mock.MagicMock()
         mock_connect.side_effect = fake_connect
+        mock_lsb_release.return_value = {
+            'DISTRIB_CODENAME': 'bionic',
+        }
         with self.assertRaises(mysql.MySQLSetPasswordError) as cm:
             helper.set_mysql_password(username='root', password='1234')
 

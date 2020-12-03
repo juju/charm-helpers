@@ -437,15 +437,23 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_version_package('foo', fatal=False)
             )
 
+    @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_codename_package')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_os_release_uncached(self, config, get_cn):
+    def test_os_release_uncached(self, config, get_cn, mock_lsb_release):
         openstack._os_rel = None
         get_cn.return_value = 'folsom'
+        mock_lsb_release.return_value = {
+            'DISTRIB_CODENAME': 'bionic',
+        }
         self.assertEquals('folsom', openstack.os_release('nova-common'))
 
-    def test_os_release_cached(self):
+    @patch.object(openstack, 'lsb_release')
+    def test_os_release_cached(self, mock_lsb_release):
         openstack._os_rel = 'foo'
+        mock_lsb_release.return_value = {
+            'DISTRIB_CODENAME': 'bionic',
+        }
         self.assertEquals('foo', openstack.os_release('nova-common'))
 
     @patch.object(openstack, 'juju_log')
