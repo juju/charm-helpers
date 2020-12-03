@@ -139,6 +139,7 @@ define service {{
                         """{description}
     check_command                   check_nrpe!{command}
     servicegroups                   {nagios_servicegroup}
+{service_config_overrides}
 }}
 """)
 
@@ -217,12 +218,19 @@ define service {{
                              nagios_servicegroups):
         self._remove_service_files()
 
+        if self.max_check_attempts:
+            service_config_overrides = '    max_check_attempts              {}'.format(
+                self.max_check_attempts
+            )  # Note indentation is here rather than in the template to avoid trailing spaces
+        else:
+            service_config_overrides = ''  # empty string to avoid printing 'None'
         templ_vars = {
             'nagios_hostname': hostname,
             'nagios_servicegroup': nagios_servicegroups,
             'description': self.description,
             'shortname': self.shortname,
             'command': self.command,
+            'service_config_overrides': service_config_overrides,
         }
         nrpe_service_text = Check.service_template.format(**templ_vars)
         nrpe_service_file = self._get_service_filename(hostname)
