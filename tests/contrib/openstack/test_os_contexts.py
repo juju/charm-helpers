@@ -4865,16 +4865,19 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
         pci_devices = self.ObjectView({
             'pci_devices': [
                 self.ObjectView({
+                    'pci_address': '0000:81:00.0',
                     'sriov': True,
                     'interface_name': 'eth0',
                     'sriov_totalvfs': 16,
                 }),
                 self.ObjectView({
+                    'pci_address': '0000:81:00.1',
                     'sriov': True,
                     'interface_name': 'eth1',
                     'sriov_totalvfs': 32,
                 }),
                 self.ObjectView({
+                    'pci_address': '0000:3:00.0',
                     'sriov': False,
                     'interface_name': 'eth2',
                 }),
@@ -4958,6 +4961,41 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
         ctxt_obj = context.SRIOVContext()
         ctxt_obj._map = {}
         self.assertDictEqual(ctxt_obj(), {})
+
+    def test_get_map(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({
+            'pci_devices': [
+                self.ObjectView({
+                    'pci_address': '0000:81:00.0',
+                    'sriov': True,
+                    'interface_name': 'eth0',
+                    'sriov_totalvfs': 16,
+                }),
+                self.ObjectView({
+                    'pci_address': '0000:81:00.1',
+                    'sriov': True,
+                    'interface_name': 'eth1',
+                    'sriov_totalvfs': 32,
+                }),
+                self.ObjectView({
+                    'pci_address': '0000:3:00.0',
+                    'sriov': False,
+                    'interface_name': 'eth2',
+                }),
+            ]
+        })
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+        }
+        self.assertDictEqual(context.SRIOVContext().get_map, {
+            '0000:81:00.0': context.SRIOVContext.PCIDeviceNumVFs(
+                mock.ANY, 16),
+            '0000:81:00.1': context.SRIOVContext.PCIDeviceNumVFs(
+                mock.ANY, 32),
+        })
 
 
 class TestCephBlueStoreContext(tests.utils.BaseTestCase):
