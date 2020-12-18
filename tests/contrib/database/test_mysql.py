@@ -21,21 +21,40 @@ class MysqlTests(unittest.TestCase):
         with mock.patch.object(mysql, 'log'):
             helper.connect(user='user', password='password', host='1.1.1.1')
         mysql.MySQLdb.connect.assert_called_with(
-            passwd='password', host='1.1.1.1', user='user')
+            passwd='password', host='1.1.1.1', user='user', connect_timeout=30)
 
     def test_connect_host_not_defined(self):
         helper = mysql.MySQLHelper('foo', 'bar')
         with mock.patch.object(mysql, 'log'):
             helper.connect(user='user', password='password')
         mysql.MySQLdb.connect.assert_called_with(
-            passwd='password', host='localhost', user='user')
+            passwd='password', host='localhost', user='user',
+            connect_timeout=30)
 
     def test_connect_port_defined(self):
         helper = mysql.MySQLHelper('foo', 'bar')
         with mock.patch.object(mysql, 'log'):
             helper.connect(user='user', password='password', port=3316)
         mysql.MySQLdb.connect.assert_called_with(
-            passwd='password', host='localhost', user='user', port=3316)
+            passwd='password', host='localhost', user='user', port=3316,
+            connect_timeout=30)
+
+    def test_connect_new_default_timeout(self):
+        helper = mysql.MySQLHelper('foo', 'bar', connect_timeout=10)
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', port=3316)
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user', port=3316,
+            connect_timeout=10)
+
+    def test_connect_new_default_override(self):
+        helper = mysql.MySQLHelper('foo', 'bar', connect_timeout=10)
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', port=3316,
+                           connect_timeout=20)
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user', port=3316,
+            connect_timeout=20)
 
     @mock.patch.object(mysql.MySQLHelper, 'normalize_address')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
