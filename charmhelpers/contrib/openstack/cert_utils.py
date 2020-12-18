@@ -120,7 +120,7 @@ class CertRequest(object):
         return req
 
 
-def get_certificate_request(json_encode=True, bindings=None):
+def get_certificate_request(json_encode=True, bindings=None, address_map=None):
     """Generate a certificate requests based on the network configuration
 
     :param json_encode: Encode request in JSON or not. Used for setting
@@ -129,9 +129,13 @@ def get_certificate_request(json_encode=True, bindings=None):
     :param bindings: List of bindings to check in addition to default api
                      bindings.
     :type bindings: list of strings
+    :param address_map: A collection of dictionaries specifying how different
+                        bindings should be handled.
+    :type address_map: Dict[str, Dict[str, str]]
     :returns: CertRequest request as dictionary or JSON string.
     :rtype: Union[dict, json]
     """
+    address_map = address_map or ADDRESS_MAP
     if bindings:
         # Add default API bindings to bindings list
         bindings = set(bindings + get_default_api_bindings())
@@ -141,15 +145,19 @@ def get_certificate_request(json_encode=True, bindings=None):
     req = CertRequest(json_encode=json_encode)
     req.add_hostname_cn()
     # Add os-hostname entries
-    _sans = get_certificate_sans()
-
+    _sans = get_certificate_sans(bindings=bindings, address_map=address_map)
     # Handle specific hostnames per binding
     for binding in bindings:
-        hostname_override = config(ADDRESS_MAP[binding]['override'])
+        hostname_override = None
+        override = address_map[binding].get('override')
+        if override:
+            hostname_override = config(override)
         try:
-            net_addr = resolve_address(endpoint_type=binding)
+            net_addr = resolve_address(
+                endpoint_type=binding,
+                address_map=address_map)
             ip = network_get_primary_address(
-                ADDRESS_MAP[binding]['binding'])
+                address_map[binding]['binding'])
             addresses = [net_addr, ip]
             vip = get_vip_in_network(resolve_network_cidr(ip))
             if vip:
@@ -160,12 +168,12 @@ def get_certificate_request(json_encode=True, bindings=None):
                     binding,
                     hostname_override,
                     addresses)
-            # Remove hostname specific addresses from _sans
-            for addr in addresses:
-                try:
-                    _sans.remove(addr)
-                except (ValueError, KeyError):
-                    pass
+                # Remove hostname specific addresses from _sans
+                for addr in addresses:
+                    try:
+                        _sans.remove(addr)
+                    except (ValueError, KeyError):
+                        pass
 
         except NoNetworkBinding:
             log("Skipping request for certificate for ip in {} space, no "
@@ -177,13 +185,23 @@ def get_certificate_request(json_encode=True, bindings=None):
     return req.get_request()
 
 
-def get_certificate_sans(bindings=None):
+def get_certificate_sans(bindings=None, address_map=None):
     """Get all possible IP addresses for certificate SANs.
+
+    :param bindings: List of bindings to check in addition to default api
+                     bindings.
+    :type bindings: list of strings
+    :param address_map: A collection of dictionaries specifying how different
+                        bindings should be handled.
+    :type address_map: Dict[str, Dict[str, str]]
+    :returns: Set of IP addresses to include as SANs
+    :rtype: Set[str]
     """
+    address_map = address_map or ADDRESS_MAP
     _sans = [unit_get('private-address')]
     if bindings:
         # Add default API bindings to bindings list
-        bindings = set(bindings + get_default_api_bindings())
+        bindings = set(list(bindings) + get_default_api_bindings())
     else:
         # Use default API bindings
         bindings = get_default_api_bindings()
@@ -191,13 +209,15 @@ def get_certificate_sans(bindings=None):
     for binding in bindings:
         # Check for config override
         try:
-            net_config = config(ADDRESS_MAP[binding]['config'])
+            net_config = config(address_map[binding]['config'])
         except KeyError:
             # There is no configuration network for this binding name
             net_config = None
         # Using resolve_address is likely redundant. Keeping it here in
         # case there is an edge case it handles.
-        net_addr = resolve_address(endpoint_type=binding)
+        net_addr = resolve_address(
+            endpoint_type=binding,
+            address_map=address_map)
         ip = get_relation_ip(binding, cidr_network=net_config)
         _sans = _sans + [net_addr, ip]
         vip = get_vip_in_network(resolve_network_cidr(ip))
@@ -206,16 +226,27 @@ def get_certificate_sans(bindings=None):
     return set(_sans)
 
 
-def create_ip_cert_links(ssl_dir, custom_hostname_link=None):
+def create_ip_cert_links(ssl_dir, custom_hostname_link=None,
+                         bindings=None, address_map=None):
     """Create symlinks for SAN records
 
     :param ssl_dir: str Directory to create symlinks in
     :param custom_hostname_link: str Additional link to be created
+    :param bindings: List of bindings to check in addition to default api
+                     bindings.
+    :type bindings: list of strings
+    :param address_map: A collection of dictionaries specifying how different
+                        bindings should be handled.
+    :type address_map: Dict[str, Dict[str, str]]
     """
 
+    address_map = address_map or ADDRESS_MAP
     # This includes the hostname cert and any specific bindng certs:
     # admin, internal, public
-    req = get_certificate_request(json_encode=False)["cert_requests"]
+    req = get_certificate_request(
+        json_encode=False,
+        bindings=bindings,
+        address_map=address_map)["cert_requests"]
     # Specific certs
     for cert_req in req.keys():
         requested_cert = os.path.join(

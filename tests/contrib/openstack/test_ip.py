@@ -46,6 +46,23 @@ class IPTestCase(TestCase):
         self.addCleanup(_m.stop)
         return mock
 
+    def test__get_address_override(self):
+        self.assertIsNone(ip._get_address_override())
+        self.test_config.set('os-public-hostname', 'public.example.com')
+        self.assertEqual(
+            ip._get_address_override(),
+            'public.example.com')
+        self.assertEqual(
+            ip._get_address_override(
+                endpoint_type='db-router',
+                address_map={'db-router': {'override': 'os-public-hostname'}}),
+            'public.example.com')
+        # If the address map does not specify an 'override' then return None
+        self.assertIsNone(
+            ip._get_address_override(
+                endpoint_type='db-router',
+                address_map={'db-router': {}}))
+
     def test_resolve_address_default(self):
         self.is_clustered.return_value = False
         self.unit_get.return_value = 'unit1'
@@ -125,6 +142,23 @@ class IPTestCase(TestCase):
         self.test_config.set('prefer-ipv6', True)
         self.is_clustered.return_value = False
         self.assertEqual(ip.resolve_address(), '::1')
+
+    def test_resolve_address_bespoke_ep(self):
+        self.test_config.set('prefer-ipv6', False)
+        self.is_clustered.return_value = False
+        self.unit_get.return_value = '10.0.0.1'
+        self.network_get_primary_address.side_effect = None
+        self.network_get_primary_address.return_value = '192.168.1.20'
+        address_map = {
+            'db-router': {
+                'binding': 'db-router',
+                'fallback': 'private-address'}}
+        self.assertEqual(
+            ip.resolve_address(
+                endpoint_type='db-router',
+                address_map=address_map),
+            '192.168.1.20')
+        self.network_get_primary_address.assert_called_once_with('db-router')
 
     @patch.object(ip, 'resolve_address')
     def test_canonical_url_http(self, resolve_address):

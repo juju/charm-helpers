@@ -1,7 +1,9 @@
+import copy
 import json
 import mock
 import unittest
 
+from charmhelpers.contrib.openstack.ip import ADDRESS_MAP
 import charmhelpers.contrib.openstack.cert_utils as cert_utils
 
 
@@ -124,9 +126,29 @@ class CertUtilsTests(unittest.TestCase):
         resolve_network_cidr.side_effect = lambda x: _resolve_nets.get(x)
         network_get_primary_address.side_effect = lambda x: _npa.get(x)
         resolve_address.side_effect = \
-            lambda endpoint_type: _resolve_address[endpoint_type]
+            lambda endpoint_type, address_map=None: _resolve_address[endpoint_type]
         output = json.loads(
             cert_utils.get_certificate_request()['cert_requests'])
+        self.assertEqual(
+            output,
+            expect)
+
+        # Test an ip associated with a bespoke binding is picked up.
+        address_map = copy.deepcopy(ADDRESS_MAP)
+        address_map.update({
+            'db-router': {
+                'binding': 'db-router',
+                'fallback': 'private-address',
+            }})
+        _resolve_address['db-router'] = '10.30.0.2'
+        expect['juju-unit-2']['sans'].append('10.30.0.2')
+        get_certificate_sans.return_value = set(
+            list(_resolve_address.values()) +
+            list(_npa.values()) +
+            list(_vips.values()))
+        output = json.loads(cert_utils.get_certificate_request(
+            bindings=['db-router'],
+            address_map=address_map)['cert_requests'])
         self.assertEqual(
             output,
             expect)
@@ -436,5 +458,22 @@ class CertUtilsTests(unittest.TestCase):
         resolve_network_cidr.side_effect = lambda x: _resolve_nets.get(x)
         get_relation_ip.side_effect = lambda x, cidr_network: _npa.get(x)
         resolve_address.side_effect = \
-            lambda endpoint_type: _resolve_address[endpoint_type]
+            lambda endpoint_type, address_map=None: _resolve_address[endpoint_type]
         self.assertEqual(cert_utils.get_certificate_sans(), expect)
+
+        # Test a bespoke binding is included in the sans
+        address_map = copy.deepcopy(ADDRESS_MAP)
+        address_map.update({
+            'db-router': {
+                'binding': 'db-router',
+                'fallback': 'private-address',
+            }})
+        _resolve_address['db-router'] = '10.30.0.2'
+        _npa['db-router'] = '10.30.0.2'
+        expect2 = list(expect)
+        expect2.append('10.30.0.2')
+        self.assertEqual(
+            cert_utils.get_certificate_sans(
+                bindings=['db-router'],
+                address_map=address_map),
+            set(expect2))

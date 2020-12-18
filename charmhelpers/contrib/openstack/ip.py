@@ -103,7 +103,7 @@ def _get_scheme(configs):
     return scheme
 
 
-def _get_address_override(endpoint_type=PUBLIC):
+def _get_address_override(endpoint_type=PUBLIC, address_map=None):
     """Returns any address overrides that the user has defined based on the
     endpoint type.
 
@@ -112,18 +112,25 @@ def _get_address_override(endpoint_type=PUBLIC):
 
     :param endpoint_type: the type of endpoint to retrieve the override
                           value for.
+    :type endpoint_type: str
+    :param address_map: A collection of dictionaries specifying how different
+                        bindings should be handled.
+    :type address_map: Dict[str, Dict[str, str]]
     :returns: any endpoint address or hostname that the user has overridden
               or None if an override is not present.
+    :rtype: str
     """
-    override_key = ADDRESS_MAP[endpoint_type]['override']
-    addr_override = config(override_key)
-    if not addr_override:
-        return None
-    else:
-        return addr_override.format(service_name=service_name())
+    _override = None
+    address_map = address_map or ADDRESS_MAP
+    override_key = address_map[endpoint_type].get('override')
+    if override_key:
+        addr_override = config(override_key)
+        if addr_override:
+            _override = addr_override.format(service_name=service_name())
+    return _override
 
 
-def resolve_address(endpoint_type=PUBLIC, override=True):
+def resolve_address(endpoint_type=PUBLIC, override=True, address_map=None):
     """Return unit address depending on net config.
 
     If unit is clustered with vip(s) and has net splits defined, return vip on
@@ -132,12 +139,20 @@ def resolve_address(endpoint_type=PUBLIC, override=True):
     If not clustered, return unit address ensuring address is on configured net
     split if one is configured, or a Juju 2.0 extra-binding has been used.
 
-    :param endpoint_type: Network endpoing type
+    :param endpoint_type: Network endpoint type
+    :type endpoint_type: str
     :param override: Accept hostname overrides or not
+    :type override: bool
+    :param address_map: A collection of dictionaries specifying how different
+                        bindings should be handled.
+    :type address_map: Dict[str, Dict[str, str]]
+    :returns: Unit address depending on net config
+    :rtype: str
     """
+    address_map = address_map or ADDRESS_MAP
     resolved_address = None
     if override:
-        resolved_address = _get_address_override(endpoint_type)
+        resolved_address = _get_address_override(endpoint_type, address_map=address_map)
         if resolved_address:
             return resolved_address
 
@@ -145,10 +160,12 @@ def resolve_address(endpoint_type=PUBLIC, override=True):
     if vips:
         vips = vips.split()
 
-    net_type = ADDRESS_MAP[endpoint_type]['config']
-    net_addr = config(net_type)
-    net_fallback = ADDRESS_MAP[endpoint_type]['fallback']
-    binding = ADDRESS_MAP[endpoint_type]['binding']
+    net_addr = None
+    net_type = address_map[endpoint_type].get('config')
+    if net_type:
+        net_addr = config(net_type)
+    net_fallback = address_map[endpoint_type]['fallback']
+    binding = address_map[endpoint_type]['binding']
     clustered = is_clustered()
 
     if clustered and vips:
