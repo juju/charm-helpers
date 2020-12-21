@@ -1581,7 +1581,8 @@ class BindHostContext(OSContextGenerator):
             return {'bind_host': '0.0.0.0'}
 
 
-MAX_DEFAULT_WORKERS = 4
+MAX_DEFAULT_WORKERS = 16
+MAX_DEFAULT_WORKERS_CONTAINER = 4
 DEFAULT_MULTIPLIER = 2
 
 
@@ -1607,13 +1608,16 @@ def _calculate_workers():
         # assign at least one worker
         count = 1
 
-    if config('worker-multiplier') is None and is_container():
+    if config('worker-multiplier') is None:
         # NOTE(jamespage): Limit unconfigured worker-multiplier
         #                  to MAX_DEFAULT_WORKERS to avoid insane
         #                  worker configuration in LXD containers
         #                  on large servers
         # Reference: https://pad.lv/1665270
-        count = min(count, MAX_DEFAULT_WORKERS)
+        if is_container():
+            count = min(count, MAX_DEFAULT_WORKERS_CONTAINER)
+        else:
+            count = min(count, MAX_DEFAULT_WORKERS)
 
     return count
 

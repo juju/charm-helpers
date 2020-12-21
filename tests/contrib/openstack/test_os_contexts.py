@@ -3384,7 +3384,7 @@ class ContextTests(unittest.TestCase):
                                                                  _num_cpus):
         self.config.return_value = None
         _num_cpus.return_value = 32
-        self.assertEqual(context._calculate_workers(), 64)
+        self.assertEqual(context._calculate_workers(), 16)
 
     @patch.object(context, '_calculate_workers', return_value=256)
     def test_worker_context(self, calculate_workers):
