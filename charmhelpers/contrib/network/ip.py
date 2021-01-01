@@ -17,8 +17,10 @@ import re
 import subprocess
 import six
 import socket
+import sys
 
 from functools import partial
+from six import reraise
 
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
@@ -493,14 +495,25 @@ def get_host_ip(hostname, fallback=None):
     if is_ip(hostname):
         return hostname
 
-    ip_addr = ns_query(hostname)
-    if not ip_addr:
-        try:
-            ip_addr = socket.gethostbyname(hostname)
-        except Exception:
-            log("Failed to resolve hostname '%s'" % (hostname),
-                level=WARNING)
-            return fallback
+    ip_addr = None
+    exc_value = None
+    try:
+        ip_addr = ns_query(hostname)
+    except Exception:
+        # If DNS lookup failed, try nsswitch (may check /etc/hosts).
+        # If that fails too, raise this exception/traceback instead.
+        (exc_type, exc_value, exc_traceback) = sys.exc_info()
+    finally:
+        if not ip_addr:  # Hit exception (non-NXDOMAIN) or no lookup/answer.
+            try:
+                ip_addr = socket.gethostbyname(hostname)
+            except Exception:
+                log("Failed to resolve hostname '%s'" % (hostname),
+                    level=WARNING)
+                if fallback:
+                    return fallback
+                if exc_value:
+                    reraise(exc_type, exc_value, exc_traceback)
     return ip_addr
 
 
@@ -519,14 +532,23 @@ def get_hostname(address, fqdn=True):
                 apt_install("python3-dnspython", fatal=True)
             import dns.reversename
 
+        result = None
+        exc_value = None
         rev = dns.reversename.from_address(address)
-        result = ns_query(rev)
-
-        if not result:
-            try:
-                result = socket.gethostbyaddr(address)[0]
-            except Exception:
-                return None
+        try:
+            result = ns_query(rev)
+        except Exception:
+            # If reverse DNS lookup failed, try nsswitch (may check /etc/hosts)
+            # If that fails too, raise this exception/traceback instead.
+            (exc_type, exc_value, exc_traceback) = sys.exc_info()
+        finally:
+            if not result:  # Hit exception (non-NXDOMAIN) or no lookup/answer.
+                try:
+                    result = socket.gethostbyaddr(address)[0]
+                except Exception:
+                    if exc_value:
+                        reraise(exc_type, exc_value, exc_traceback)
+                    return None
     else:
         result = address
 
