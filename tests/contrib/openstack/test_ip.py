@@ -148,13 +148,15 @@ class IPTestCase(TestCase):
         resolve_address.return_value = 'unit1'
         self.assertTrue(ip.canonical_url(None), 'http://[unit1]')
 
-    def test_resolve_address_network_get(self):
+    @patch.object(ip, 'local_address')
+    def test_resolve_address_network_get(self, local_address):
         self.is_clustered.return_value = False
         self.unit_get.return_value = 'unit1'
         self.network_get_primary_address.side_effect = None
         self.network_get_primary_address.return_value = '10.5.60.1'
         self.assertEqual(ip.resolve_address(), '10.5.60.1')
-        self.unit_get.assert_called_with('public-address')
+        local_address.assert_called_once_with(
+            unit_get_fallback='public-address')
         calls = [call('os-public-network'),
                  call('prefer-ipv6')]
         self.config.assert_has_calls(calls)

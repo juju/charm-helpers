@@ -26,13 +26,13 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'resolve_network_cidr')
     @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
-    def test_CertRequest_add_hostname_cn(self, unit_get, get_hostname,
+    @mock.patch.object(cert_utils, 'local_address')
+    def test_CertRequest_add_hostname_cn(self, local_address, get_hostname,
                                          get_vip_in_network,
                                          resolve_network_cidr, local_unit):
         resolve_network_cidr.side_effect = lambda x: x
         get_vip_in_network.return_value = '10.1.2.100'
-        unit_get.return_value = '10.1.2.3'
+        local_address.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         cr = cert_utils.CertRequest()
         cr.add_hostname_cn()
@@ -46,13 +46,13 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'resolve_network_cidr')
     @mock.patch.object(cert_utils, 'get_vip_in_network')
     @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
-    def test_CertRequest_add_hostname_cn_ip(self, unit_get, get_hostname,
+    @mock.patch.object(cert_utils, 'local_address')
+    def test_CertRequest_add_hostname_cn_ip(self, local_address, get_hostname,
                                             get_vip_in_network,
                                             resolve_network_cidr, local_unit):
         resolve_network_cidr.side_effect = lambda x: x
         get_vip_in_network.return_value = '10.1.2.100'
-        unit_get.return_value = '10.1.2.3'
+        local_address.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         cr = cert_utils.CertRequest()
         cr.add_hostname_cn()
@@ -72,13 +72,13 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'resolve_address')
     @mock.patch.object(cert_utils, 'config')
     @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
-    def test_get_certificate_request(self, unit_get, get_hostname,
+    @mock.patch.object(cert_utils, 'local_address')
+    def test_get_certificate_request(self, local_address, get_hostname,
                                      config, resolve_address,
                                      network_get_primary_address,
                                      get_vip_in_network, resolve_network_cidr,
                                      local_unit, get_certificate_sans):
-        unit_get.return_value = '10.1.2.3'
+        local_address.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         _config = {
             'os-internal-hostname': 'internal.openstack.local',
@@ -141,12 +141,12 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'resolve_address')
     @mock.patch.object(cert_utils, 'config')
     @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
+    @mock.patch.object(cert_utils, 'local_address')
     def test_get_certificate_request_no_hostnames(
-            self, unit_get, get_hostname, config, resolve_address,
+            self, local_address, get_hostname, config, resolve_address,
             network_get_primary_address, get_vip_in_network,
             resolve_network_cidr, local_unit, get_certificate_sans):
-        unit_get.return_value = '10.1.2.3'
+        local_address.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         _config = {
             'os-admin-hostname': 'admin.openstack.local',
@@ -202,12 +202,12 @@ class CertUtilsTests(unittest.TestCase):
             bindings=['mybinding', 'internal', 'admin', 'public'])
 
     @mock.patch.object(cert_utils, 'get_certificate_request')
-    @mock.patch.object(cert_utils, 'unit_get')
+    @mock.patch.object(cert_utils, 'local_address')
     @mock.patch.object(cert_utils.os, 'symlink')
     @mock.patch.object(cert_utils.os.path, 'isfile')
     @mock.patch.object(cert_utils, 'get_hostname')
     def test_create_ip_cert_links(self, get_hostname, isfile,
-                                  symlink, unit_get, get_cert_request):
+                                  symlink, local_address, get_cert_request):
         cert_request = {'cert_requests': {
             'admin.openstack.local': {
                 'sans': ['10.10.0.100', '10.10.0.2', '10.10.0.3']},
@@ -273,12 +273,12 @@ class CertUtilsTests(unittest.TestCase):
             json_encode=False, bindings=['internal', 'admin', 'public'])
 
     @mock.patch.object(cert_utils, 'get_certificate_request')
-    @mock.patch.object(cert_utils, 'unit_get')
+    @mock.patch.object(cert_utils, 'local_address')
     @mock.patch.object(cert_utils.os, 'symlink')
     @mock.patch.object(cert_utils.os.path, 'isfile')
     @mock.patch.object(cert_utils, 'get_hostname')
     def test_create_ip_cert_links_bindings(
-            self, get_hostname, isfile, symlink, unit_get, get_cert_request):
+            self, get_hostname, isfile, symlink, local_address, get_cert_request):
         cert_request = {'cert_requests': {
             'admin.openstack.local': {
                 'sans': ['10.10.0.100', '10.10.0.2', '10.10.0.3']},
@@ -583,13 +583,13 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'resolve_address')
     @mock.patch.object(cert_utils, 'config')
     @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
-    def test_get_certificate_sans(self, unit_get, get_hostname,
+    @mock.patch.object(cert_utils, 'local_address')
+    def test_get_certificate_sans(self, local_address, get_hostname,
                                   config, resolve_address,
                                   get_relation_ip,
                                   get_vip_in_network, resolve_network_cidr,
                                   local_unit):
-        unit_get.return_value = '10.1.2.3'
+        local_address.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         _config = {
             'os-internal-hostname': 'internal.openstack.local',
@@ -645,11 +645,11 @@ class CertUtilsTests(unittest.TestCase):
     @mock.patch.object(cert_utils, 'resolve_address')
     @mock.patch.object(cert_utils, 'config')
     @mock.patch.object(cert_utils, 'get_hostname')
-    @mock.patch.object(cert_utils, 'unit_get')
+    @mock.patch.object(cert_utils, 'local_address')
     def test_get_certificate_sans_bindings(
-            self, unit_get, get_hostname, config, resolve_address,
+            self, local_address, get_hostname, config, resolve_address,
             get_relation_ip, get_vip_in_network, resolve_network_cidr, local_unit):
-        unit_get.return_value = '10.1.2.3'
+        local_address.return_value = '10.1.2.3'
         get_hostname.return_value = 'juju-unit-2'
         _config = {
             'os-internal-hostname': 'internal.openstack.local',

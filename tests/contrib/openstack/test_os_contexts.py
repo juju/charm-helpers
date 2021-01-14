@@ -666,7 +666,7 @@ TO_PATCH = [
     'related_units',
     'is_relation_made',
     'relation_set',
-    'unit_get',
+    'local_address',
     'https',
     'determine_api_port',
     'determine_apache_port',
@@ -2064,9 +2064,9 @@ class ContextTests(unittest.TestCase):
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data(self, local_unit, unit_get):
+    def test_haproxy_context_with_data(self, local_unit, local_address):
         '''Test haproxy context with all relation data'''
         cluster_relation = {
             'cluster:0': {
@@ -2122,9 +2122,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_timeout(self, local_unit, local_address):
         '''Test haproxy context with all relation data and timeout'''
         cluster_relation = {
             'cluster:0': {
@@ -2185,9 +2185,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', None),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_multinet(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_multinet(self, local_unit, local_address):
         '''Test haproxy context with all relation data for network splits'''
         cluster_relation = {
             'cluster:0': {
@@ -2276,9 +2276,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_public_only(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_public_only(self, local_unit, local_address):
         '''Test haproxy context with with openstack-dashboard public only binding'''
         cluster_relation = {
             'cluster:0': {
@@ -2349,9 +2349,9 @@ class ContextTests(unittest.TestCase):
         self.get_relation_ip.assert_has_calls([call('public', None),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_ipv6(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_ipv6(self, local_unit, local_address):
         '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
@@ -2422,9 +2422,9 @@ class ContextTests(unittest.TestCase):
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers(self, local_unit, unit_get):
+    def test_haproxy_context_with_no_peers(self, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2451,9 +2451,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_net_override(self, local_unit, unit_get):
+    def test_haproxy_context_with_net_override(self, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2485,9 +2485,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', '192.168.30.0/24'),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2853,13 +2853,13 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.midonet_ctxt())
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
-                                  mock_unit_get):
+                                  mock_local_address):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
-        mock_unit_get.return_value = priv_addr
+        mock_local_address.return_value = priv_addr
         neutron = context.NeutronContext()
 
         config = {'vip': vip}
@@ -2880,13 +2880,13 @@ class ContextTests(unittest.TestCase):
             neutron.neutron_ctxt()
         )
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt_http(self, mock_network_manager,
-                                       mock_unit_get):
+                                       mock_local_address):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
-        mock_unit_get.return_value = priv_addr
+        mock_local_address.return_value = priv_addr
         neutron = context.NeutronContext()
 
         config = {'vip': vip}
@@ -3389,7 +3389,7 @@ class ContextTests(unittest.TestCase):
             'os-public-network': None
         })
         self.resolve_address.return_value = '10.5.1.50'
-        self.unit_get.return_value = '10.5.1.50'
+        self.local_address.return_value = '10.5.1.50'
 
         apache = context.ApacheSSLContext()
         apache.external_ports = '8776'
@@ -3417,7 +3417,7 @@ class ContextTests(unittest.TestCase):
                            '10.5.3.100']
         self.get_address_in_network.side_effect = _base_addresses
         self.resolve_address.side_effect = _base_addresses
-        self.unit_get.return_value = '10.5.1.50'
+        self.local_address.return_value = '10.5.1.50'
 
         apache = context.ApacheSSLContext()
 
@@ -3446,7 +3446,7 @@ class ContextTests(unittest.TestCase):
         self.network_get_primary_address.side_effect = None
         self.network_get_primary_address.return_value = '10.5.2.50'
         self.resolve_address.return_value = '10.5.2.100'
-        self.unit_get.return_value = '10.5.1.50'
+        self.local_address.return_value = '10.5.1.50'
 
         apache = context.ApacheSSLContext()
         apache.external_ports = '8776'
