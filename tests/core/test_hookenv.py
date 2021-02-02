@@ -772,6 +772,19 @@ class HelpersTest(TestCase):
         has_juju_version.assertCalledOnceWith("2.4.4")
 
     @patch('charmhelpers.core.hookenv.os')
+    def test_gets_the_departing_unit(self, os_):
+        os_.environ = {
+            'JUJU_DEPARTING_UNIT': 'foo/0',
+        }
+
+        self.assertEqual(hookenv.departing_unit(), 'foo/0')
+
+    @patch('charmhelpers.core.hookenv.os')
+    def test_no_departing_unit(self, os_):
+        os_.environ = {}
+        self.assertEqual(hookenv.departing_unit(), None)
+
+    @patch('charmhelpers.core.hookenv.os')
     def test_gets_the_remote_unit(self, os_):
         os_.environ = {
             'JUJU_REMOTE_UNIT': 'foo',
