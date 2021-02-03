@@ -468,13 +468,16 @@ def config(scope=None):
 
 
 @cached
-def relation_get(attribute=None, unit=None, rid=None):
+def relation_get(attribute=None, unit=None, rid=None, app=None):
     """Get relation information"""
     _args = ['relation-get', '--format=json']
+    if app == True:
+        _args.append('--app')
     if rid:
         _args.append('-r')
         _args.append(rid)
     _args.append(attribute or '-')
+    # unit or application name
     if unit:
         _args.append(unit)
     try:
@@ -487,12 +490,14 @@ def relation_get(attribute=None, unit=None, rid=None):
         raise
 
 
-def relation_set(relation_id=None, relation_settings=None, **kwargs):
+def relation_set(relation_id=None, relation_settings=None, app=None, **kwargs):
     """Set relation information for the current unit"""
     relation_settings = relation_settings if relation_settings else {}
     relation_cmd_line = ['relation-set']
     accepts_file = "--file" in subprocess.check_output(
         relation_cmd_line + ["--help"], universal_newlines=True)
+    if app == True:
+        relation_cmd_line.append('--app')
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
     settings = relation_settings.copy()
