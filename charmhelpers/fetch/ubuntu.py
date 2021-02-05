@@ -799,6 +799,22 @@ def get_upstream_version(package):
     return ubuntu_apt_pkg.upstream_version(pkg.current_ver.ver_str)
 
 
+def get_installed_version(package):
+    """Determine installed version of a package
+
+    @returns None (if not installed) or the installed version as
+    Version object
+    """
+    cache = apt_cache()
+    dpkg_result = cache._dpkg_list([package]).get(package, {})
+    current_ver = None
+    installed_version = dpkg_result.get('version')
+
+    if installed_version:
+        current_ver = ubuntu_apt_pkg.Version({'ver_str': installed_version})
+    return current_ver
+
+
 def get_apt_dpkg_env():
     """Get environment suitable for execution of APT and DPKG tools.
 
