@@ -73,7 +73,6 @@ from charmhelpers.core.host import (
     write_file,
     pwgen,
     lsb_release,
-    CompareHostReleases,
     is_container,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -2116,6 +2115,7 @@ class MemcacheContext(OSContextGenerator):
     This context provides options for configuring a local memcache client and
     server for both IPv4 and IPv6
     """
+    interfaces = ['memcache']
 
     def __init__(self, package=None):
         """
@@ -2129,29 +2129,17 @@ class MemcacheContext(OSContextGenerator):
         ctxt = {}
         ctxt['use_memcache'] = enable_memcache(package=self.package)
         if ctxt['use_memcache']:
-            # Trusty version of memcached does not support ::1 as a listen
-            # address so use host file entry instead
-            release = lsb_release()['DISTRIB_CODENAME'].lower()
-            if is_ipv6_disabled():
-                if CompareHostReleases(release) > 'trusty':
-                    ctxt['memcache_server'] = '127.0.0.1'
-                else:
-                    ctxt['memcache_server'] = 'localhost'
-                ctxt['memcache_server_formatted'] = '127.0.0.1'
-                ctxt['memcache_port'] = '11211'
-                ctxt['memcache_url'] = '{}:{}'.format(
-                    ctxt['memcache_server_formatted'],
-                    ctxt['memcache_port'])
-            else:
-                if CompareHostReleases(release) > 'trusty':
-                    ctxt['memcache_server'] = '::1'
-                else:
-                    ctxt['memcache_server'] = 'ip6-localhost'
-                ctxt['memcache_server_formatted'] = '[::1]'
-                ctxt['memcache_port'] = '11211'
-                ctxt['memcache_url'] = 'inet6:{}:{}'.format(
-                    ctxt['memcache_server_formatted'],
-                    ctxt['memcache_port'])
+            # List all memcache servers in the cluster so that
+            # oslo_cache.memcache_pool will distribute the cached keys
+            # across them.
+            memcache_servers = []
+            for rid in relation_ids(self.interfaces[0]):
+                for unit in related_units(rid):
+                    memcache_servers += [relation_get(rid=rid, unit=unit).get('host')]
+            ctxt['memcache_port'] = '11211'
+            ctxt['memcache_url'] = ','.join(['{}:{}'.format(s, ctxt['memcache_port'])
+                                             for s in memcache_servers])
+            log('memcache_url: {}'.format(ctxt['memcache_url']))
         return ctxt
 
 

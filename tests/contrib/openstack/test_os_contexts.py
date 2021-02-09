@@ -501,6 +501,20 @@ QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED = {
     }
 }
 
+MEMCACHED_RELATION = {
+    'memcache:0': {
+        'memcached/0': {
+            'host': '10.0.0.0',
+        },
+        'memcached/1': {
+            'host': '10.0.0.1',
+        },
+        'memcached/2': {
+            'host': '10.0.0.2',
+        },
+    }
+}
+
 SUB_CONFIG = """
 nova:
     /etc/nova/nova.conf:
@@ -3945,51 +3959,22 @@ class ContextTests(unittest.TestCase):
         AA.manually_disable_aa_profile.assert_called_with()
 
     @patch.object(context, 'enable_memcache')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_memcache_context_ipv6(self, _is_ipv6_disabled, _enable_memcache):
-        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
+    def test_memcache_context(self, _enable_memcache):
         _enable_memcache.return_value = True
-        _is_ipv6_disabled.return_value = False
         config = {
             'openstack-origin': 'distro',
         }
         self.config.side_effect = fake_config(config)
+        relation = FakeRelation(relation_data=MEMCACHED_RELATION)
+        self.relation_ids.return_value = ['memcache:0']
+        self.related_units.return_value = ['memcached/0', 'memcached/1', 'memcached/2']
+        self.relation_get.side_effect = relation.get
         ctxt = context.MemcacheContext()
         self.assertTrue(ctxt()['use_memcache'])
         expect = {
             'memcache_port': '11211',
-            'memcache_server': '::1',
-            'memcache_server_formatted': '[::1]',
-            'memcache_url': 'inet6:[::1]:11211',
+            'memcache_url': '10.0.0.0:11211,10.0.0.1:11211,10.0.0.2:11211',
             'use_memcache': True}
-        self.assertEqual(ctxt(), expect)
-        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
-        expect['memcache_server'] = 'ip6-localhost'
-        ctxt = context.MemcacheContext()
-        self.assertEqual(ctxt(), expect)
-
-    @patch.object(context, 'enable_memcache')
-    @patch.object(context, 'is_ipv6_disabled')
-    def test_memcache_context_ipv4(self, _is_ipv6_disabled, _enable_memcache):
-        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
-        _enable_memcache.return_value = True
-        _is_ipv6_disabled.return_value = True
-        config = {
-            'openstack-origin': 'distro',
-        }
-        self.config.side_effect = fake_config(config)
-        ctxt = context.MemcacheContext()
-        self.assertTrue(ctxt()['use_memcache'])
-        expect = {
-            'memcache_port': '11211',
-            'memcache_server': '127.0.0.1',
-            'memcache_server_formatted': '127.0.0.1',
-            'memcache_url': '127.0.0.1:11211',
-            'use_memcache': True}
-        self.assertEqual(ctxt(), expect)
-        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
-        expect['memcache_server'] = 'localhost'
-        ctxt = context.MemcacheContext()
         self.assertEqual(ctxt(), expect)
 
     @patch.object(context, 'enable_memcache')
