@@ -471,14 +471,16 @@ def config(scope=None):
 def relation_get(attribute=None, unit=None, rid=None, app=None):
     """Get relation information"""
     _args = ['relation-get', '--format=json']
-    if app is True:
+    if app is not None:
+        if unit is not None:
+            raise ValueError("Cannot use both 'unit' and 'app'")
         _args.append('--app')
     if rid:
         _args.append('-r')
         _args.append(rid)
     _args.append(attribute or '-')
     # unit or application name
-    if unit:
+    if unit or app:
         _args.append(unit)
     try:
         return json.loads(subprocess.check_output(_args).decode('UTF-8'))
