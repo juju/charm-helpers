@@ -480,10 +480,8 @@ def relation_get(attribute=None, unit=None, rid=None, app=None):
         _args.append(rid)
     _args.append(attribute or '-')
     # unit or application name
-    if unit:
-        _args.append(unit)
-    if app:
-        _args.append(app)
+    if unit or app:
+        _args.append(unit or app)
     try:
         return json.loads(subprocess.check_output(_args).decode('UTF-8'))
     except ValueError:
