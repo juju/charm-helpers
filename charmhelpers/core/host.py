@@ -730,37 +730,77 @@ def restart_on_change(restart_map, stopstart=False, restart_functions=None):
 
 
 def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
-                             restart_functions=None):
+                             restart_functions=None,
+                             restart_gate_f=None,
+                             post_svc_restart_f=None,
+                             pre_restarts_wait_f=None):
     """Helper function to perform the restart_on_change function.
 
     This is provided for decorators to restart services if files described
     in the restart_map have changed after an invocation of lambda_f().
+
+    This functions allows for a number of helper functions to be passed.
+
+    `restart_functions` is a map with a service as the key and the
+    corresponding value being the function to call to restart the service. For
+    example if `restart_functions={'some-service': my_restart_func}` then
+    `my_restart_func` should a function which takes one argument which is the
+    service name to be retstarted.
+
+    `restart_gate_f` is a function which checks that a restart is permitted. It
+    should returna bool which indicates if a restart is allowed and should
+    take a service name (str) and a list of changed files (List[str]) as
+    arguments.
+
+    `post_svc_restart_f` is a function which runs after a service has been
+    restarted. It takes the service name that was restarted as an argument.
+
+    `pre_restarts_wait_f` is a function which is called before any restarts
+    occur. The use case for this is an application which wants to try and
+    stagger restarts between units.
 
     @param lambda_f: function to call.
     @param restart_map: {file: [service, ...]}
     @param stopstart: whether to stop, start or restart a service
     @param restart_functions: nonstandard functions to use to restart services
                               {svc: func, ...}
+    @param restart_gate_f: A function used to check if the restart is
+                            permitted.
+    @param post_svc_restart_f: A function run after a service has
+                               restarted.
+    @param pre_restarts_wait_f: A function callled before any restarts.
     @returns result of lambda_f()
     """
     if restart_functions is None:
         restart_functions = {}
     checksums = {path: path_hash(path) for path in restart_map}
     r = lambda_f()
+    changed_files = []
+    restarts = []
     # create a list of lists of the services to restart
-    restarts = [restart_map[path]
-                for path in restart_map
-                if path_hash(path) != checksums[path]]
+    for path in restart_map:
+        if path_hash(path) != checksums[path]:
+            restarts.append(restart_map[path])
+            changed_files.append(path)
     # create a flat list of ordered services without duplicates from lists
     services_list = list(OrderedDict.fromkeys(itertools.chain(*restarts)))
+    if pre_restarts_wait_f:
+        pre_restarts_wait_f()
     if services_list:
         actions = ('stop', 'start') if stopstart else ('restart',)
         for service_name in services_list:
+            if restart_gate_f:
+                trigger_files = [
+                    f for f in changed_files if service_name in restart_map[f]]
+                if not restart_gate_f(service_name, trigger_files):
+                    continue
             if service_name in restart_functions:
                 restart_functions[service_name](service_name)
             else:
                 for action in actions:
                     service(action, service_name)
+            if post_svc_restart_f:
+                post_svc_restart_f(service_name)
     return r
 
 
