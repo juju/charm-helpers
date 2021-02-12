@@ -15,6 +15,7 @@
 from charmhelpers.core.hookenv import (
     NoNetworkBinding,
     config,
+    log,
     unit_get,
     service_name,
     network_get_primary_address,
@@ -126,6 +127,8 @@ def _get_address_override(endpoint_type=PUBLIC):
 def local_address(unit_get_fallback='public-address'):
     """Return a network address for this unit.
 
+    DEPRECATED
+
     Attempt to retrieve a 'default' IP address for this unit
     from network-get. If this is running with an old version of Juju then
     fallback to unit_get.
@@ -139,9 +142,21 @@ def local_address(unit_get_fallback='public-address'):
     :returns: IP Address
     :rtype: str
     """
+    log(
+        "local_address is deprecated. Please find the call and replace it with "
+        "a network-get call with an explicit binding.", "WARNING")
     try:
+        # Note: (thedac) LP Bug#1915578
+        # network-get juju-info is likely to alphanumerically sort addresses
+        # and return the first rather than the "default" binding in the bundle.
+        # Replace all calls to local_address with network-get and an explicit
+        # binding.
         return network_get_primary_address('juju-info')
     except (NotImplementedError, NoNetworkBinding):
+        # Note: (thedac) LP Bug#1915578
+        # unit-get is deprecated
+        # Replace all calls to local_address with network-get and an explicit
+        # binding.
         return unit_get(unit_get_fallback)
 
 
