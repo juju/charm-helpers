@@ -1068,6 +1068,17 @@ def modulo_distribution(modulo=3, wait=30, non_zero_wait=False):
         return calculated_wait_time
 
 
+def ca_cert_absolute_path(basename_without_extension):
+    """Returns absolute path to CA certificate.
+
+    :param basename_without_extension: Filename without extension
+    :type basename_without_extension: str
+    :returns: Absolute full path
+    :rtype: str
+    """
+    return '{}/{}.crt'.format(CA_CERT_DIR, basename_without_extension)
+
+
 def install_ca_cert(ca_cert, name=None):
     """
     Install the given cert as a trusted CA.
@@ -1083,7 +1094,7 @@ def install_ca_cert(ca_cert, name=None):
         ca_cert = ca_cert.encode('utf8')
     if not name:
         name = 'juju-{}'.format(charm_name())
-    cert_file = '{}/{}.crt'.format(CA_CERT_DIR, name)
+    cert_file = ca_cert_absolute_path(name)
     new_hash = hashlib.md5(ca_cert).hexdigest()
     if file_hash(cert_file) == new_hash:
         return
