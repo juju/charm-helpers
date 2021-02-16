@@ -492,7 +492,7 @@ class CertUtilsTests(unittest.TestCase):
         remote_service_name.assert_called_once_with(relid='certificates:1')
         remote_service_name.reset_mock()
 
-        # Test without argument :
+        # Test without argument:
         relation_ids.return_value = ['certificates:2']
         self.assertEqual(cert_utils.get_cert_relation_ca_name(),
                          'vault_juju_ca_cert')

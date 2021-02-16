@@ -319,9 +319,9 @@ def get_cert_relation_ca_name(cert_relation_id=None):
     :rtype: str
     """
     if cert_relation_id is None:
-        for cert_relation_id in relation_ids('certificates'):
-            break
-        else:
+        try:
+            cert_relation_id = relation_ids('certificates')[0]
+        except IndexError:
             return ''
     return '{}_juju_ca_cert'.format(
         remote_service_name(relid=cert_relation_id))
