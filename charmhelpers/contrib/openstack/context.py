@@ -1596,9 +1596,15 @@ def _calculate_workers():
 
     @returns int: number of worker processes to use
     '''
-    multiplier = config('worker-multiplier') or DEFAULT_MULTIPLIER
+    multiplier = config('worker-multiplier')
+
+    # distinguish an empty config and an explicit config as 0.0
+    if multiplier is None:
+        multiplier = DEFAULT_MULTIPLIER
+
     count = int(_num_cpus() * multiplier)
-    if multiplier > 0 and count == 0:
+    if count <= 0:
+        # assign at least one worker
         count = 1
 
     if config('worker-multiplier') is None and is_container():
