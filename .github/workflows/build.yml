@@ -1,0 +1,46 @@
+name: charm-helpers CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        include:
+          - python-version: 2.7
+            env: pep8,py27
+          - python-version: 3.4
+            env: pep8,py34
+          - python-version: 3.5
+            env: pep8,py35
+          - python-version: 3.6
+            env: pep8,py36
+          - python-version: 3.7
+            env: pep8,py37
+          - python-version: 3.8
+            env: pep8,py38
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install juju
+      run: |
+        sudo snap install juju --classic
+    - name: Install packages
+      run: |
+        sudo apt -qq update
+        sudo apt install --yes libapt-pkg-dev # For python-apt wheel build
+        sudo apt install --yes bzr
+    - name: Install tox
+      run: pip install tox
+    - name: Test
+      run: tox -c tox.ini -e ${{ matrix.env }}
