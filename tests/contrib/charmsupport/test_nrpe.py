@@ -180,7 +180,6 @@ define service {
 
         nrpe_monitors = {'myservice':
                          {'command': 'check_myservice',
-                          'max_check_attempts': None,
                           }}
         monitors = yaml.dump(
             {"monitors": {"remote": {"nrpe": nrpe_monitors}}})
