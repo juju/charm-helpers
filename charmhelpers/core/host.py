@@ -34,7 +34,7 @@ import itertools
 import six
 
 from contextlib import contextmanager
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from .hookenv import log, INFO, DEBUG, local_unit, charm_name
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
@@ -731,7 +731,7 @@ def restart_on_change(restart_map, stopstart=False, restart_functions=None):
 
 def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
                              restart_functions=None,
-                             restart_gate_f=None,
+                             can_restart_now_f=None,
                              post_svc_restart_f=None,
                              pre_restarts_wait_f=None):
     """Helper function to perform the restart_on_change function.
@@ -747,7 +747,7 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
     `my_restart_func` should a function which takes one argument which is the
     service name to be retstarted.
 
-    `restart_gate_f` is a function which checks that a restart is permitted. It
+    `can_restart_now_f` is a function which checks that a restart is permitted. It
     should returna bool which indicates if a restart is allowed and should
     take a service name (str) and a list of changed files (List[str]) as
     arguments.
@@ -759,40 +759,47 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
     occur. The use case for this is an application which wants to try and
     stagger restarts between units.
 
-    @param lambda_f: function to call.
-    @param restart_map: {file: [service, ...]}
-    @param stopstart: whether to stop, start or restart a service
-    @param restart_functions: nonstandard functions to use to restart services
+    :param lambda_f: function to call.
+    :type lambda_f: Callable[[], ANY]
+    :param restart_map: {file: [service, ...]}
+    :type restart_map: Dict[str, List[str,]]
+    :param stopstart: whether to stop, start or restart a service
+    :type stopstart: booleean
+    :param restart_functions: nonstandard functions to use to restart services
                               {svc: func, ...}
-    @param restart_gate_f: A function used to check if the restart is
-                            permitted.
-    @param post_svc_restart_f: A function run after a service has
+    :type restart_functions: Dict[str, Callable[[str], None]]
+    :param can_restart_now_f: A function used to check if the restart is
+                              permitted.
+    :type can_restart_now_f: Callable[[str, List[str]], boolean]
+    :param post_svc_restart_f: A function run after a service has
                                restarted.
-    @param pre_restarts_wait_f: A function callled before any restarts.
-    @returns result of lambda_f()
+    :type post_svc_restart_f: Callable[[str], None]
+    :param pre_restarts_wait_f: A function callled before any restarts.
+    :type pre_restarts_wait_f: Callable[None, None]
+    :returns: result of lambda_f()
+    :rtype: ANY
     """
     if restart_functions is None:
         restart_functions = {}
     checksums = {path: path_hash(path) for path in restart_map}
     r = lambda_f()
-    changed_files = []
+    changed_files = defaultdict(list)
     restarts = []
     # create a list of lists of the services to restart
     for path in restart_map:
         if path_hash(path) != checksums[path]:
             restarts.append(restart_map[path])
-            changed_files.append(path)
+            changed_files[service].append(path)
+
     # create a flat list of ordered services without duplicates from lists
     services_list = list(OrderedDict.fromkeys(itertools.chain(*restarts)))
-    if pre_restarts_wait_f:
-        pre_restarts_wait_f()
     if services_list:
+        if pre_restarts_wait_f:
+            pre_restarts_wait_f()
         actions = ('stop', 'start') if stopstart else ('restart',)
         for service_name in services_list:
-            if restart_gate_f:
-                trigger_files = [
-                    f for f in changed_files if service_name in restart_map[f]]
-                if not restart_gate_f(service_name, trigger_files):
+            if can_restart_now_f:
+                if not can_restart_now_f(service_name, changed_files[service_name]):
                     continue
             if service_name in restart_functions:
                 restart_functions[service_name](service_name)
