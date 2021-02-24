@@ -786,11 +786,11 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
     changed_files = defaultdict(list)
     restarts = []
     # create a list of lists of the services to restart
-    for path in restart_map:
+    for path, services in restart_map.items():
         if path_hash(path) != checksums[path]:
-            restarts.append(restart_map[path])
-            changed_files[service].append(path)
-
+            restarts.append(services)
+            for svc in services:
+                changed_files[svc].append(path)
     # create a flat list of ordered services without duplicates from lists
     services_list = list(OrderedDict.fromkeys(itertools.chain(*restarts)))
     if services_list:
