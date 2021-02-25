@@ -1717,7 +1717,10 @@ def make_assess_status_func(*args, **kwargs):
 
 
 def pausable_restart_on_change(restart_map, stopstart=False,
-                               restart_functions=None):
+                               restart_functions=None,
+                               can_restart_now_f=None,
+                               post_svc_restart_f=None,
+                               pre_restarts_wait_f=None):
     """A restart_on_change decorator that checks to see if the unit is
     paused. If it is paused then the decorated function doesn't fire.
 
@@ -1743,11 +1746,28 @@ def pausable_restart_on_change(restart_map, stopstart=False,
     function won't be called if the decorated function is never called.  Note,
     retains backwards compatibility for passing a non-callable dictionary.
 
-    @param f: the function to decorate
-    @param restart_map: (optionally callable, which then returns the
-        restart_map) the restart map {conf_file: [services]}
-    @param stopstart: DEFAULT false; whether to stop, start or just restart
-    @returns decorator to use a restart_on_change with pausability
+    :param f: function to decorate.
+    :type f: Callable
+    :param restart_map: Optionally callable, which then returns the restart_map or
+                        the restart map {conf_file: [services]}
+    :type restart_map: Union[Callable[[],], Dict[str, List[str,]]
+    :param stopstart: whether to stop, start or restart a service
+    :type stopstart: booleean
+    :param restart_functions: nonstandard functions to use to restart services
+                              {svc: func, ...}
+    :type restart_functions: Dict[str, Callable[[str], None]]
+    :param can_restart_now_f: A function used to check if the restart is
+                              permitted.
+    :type can_restart_now_f: Callable[[str, List[str]], boolean]
+    :param post_svc_restart_f: A function run after a service has
+                               restarted.
+    :type post_svc_restart_f: Callable[[str], None]
+    :param pre_restarts_wait_f: A function callled before any restarts.
+    :type pre_restarts_wait_f: Callable[None, None]
+    :returns: decorator to use a restart_on_change with pausability
+    :rtype: decorator
+
+
     """
     def wrap(f):
         # py27 compatible nonlocal variable.  When py3 only, replace with
@@ -1763,8 +1783,13 @@ def pausable_restart_on_change(restart_map, stopstart=False,
                     if callable(restart_map) else restart_map
             # otherwise, normal restart_on_change functionality
             return restart_on_change_helper(
-                (lambda: f(*args, **kwargs)), __restart_map_cache['cache'],
-                stopstart, restart_functions)
+                (lambda: f(*args, **kwargs)),
+                __restart_map_cache['cache'],
+                stopstart,
+                restart_functions,
+                can_restart_now_f,
+                post_svc_restart_f,
+                pre_restarts_wait_f)
         return wrapped_f
     return wrap
 
