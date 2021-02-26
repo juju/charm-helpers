@@ -14,7 +14,7 @@
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict, namedtuple
-from functools import wraps
+from functools import partial, wraps
 
 import subprocess
 import json
@@ -35,6 +35,8 @@ from charmhelpers import deprecate
 from charmhelpers.contrib.network import ip
 
 from charmhelpers.core import decorators, unitdata
+
+import charmhelpers.contrib.openstack.deferred_events as deferred_events
 
 from charmhelpers.core.hookenv import (
     WORKLOAD_STATES,
@@ -112,7 +114,7 @@ from charmhelpers.fetch.snap import (
 
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
-from charmhelpers.contrib.openstack.exceptions import OSContextError
+from charmhelpers.contrib.openstack.exceptions import OSContextError, ServiceActionError
 from charmhelpers.contrib.openstack.policyd import (
     policyd_status_message_prefix,
     POLICYD_CONFIG_NAME,
@@ -1083,6 +1085,12 @@ def _determine_os_workload_status(
     try:
         if config(POLICYD_CONFIG_NAME):
             message = "{} {}".format(policyd_status_message_prefix(), message)
+        deferred_restarts = list(set(
+            [e.service for e in deferred_events.get_deferred_restarts()]))
+        if deferred_restarts:
+            svc_msg = "Services queued for restart: {}".format(
+                ', '.join(sorted(deferred_restarts)))
+            message = "{}. {}".format(message, svc_msg)
     except Exception:
         pass
 
@@ -1725,6 +1733,32 @@ def resume_unit(assess_status_func, services=None, ports=None,
             messages.append(message)
     if messages:
         raise Exception("Couldn't resume: {}".format("; ".join(messages)))
+
+
+def restart_services_action(services=None, when_all_stopped_func=None,
+                            deferred_only=None):
+    if services and deferred_only:
+        raise ValueError(
+            "services and deferred_only are mutually exclusive")
+    if deferred_only:
+        services = list(set(
+            [a.service for a in deferred_events.get_deferred_restarts()]))
+    _, messages = manage_payload_services(
+        'stop',
+        services=services,
+        charm_func=when_all_stopped_func)
+    if messages:
+        raise ServiceActionError(
+            "Error processing service stop request: {}".format(
+                "; ".join(messages)))
+    _, messages = manage_payload_services(
+        'start',
+        services=services)
+    if messages:
+        raise ServiceActionError(
+            "Error processing service start request: {}".format(
+                "; ".join(messages)))
+    deferred_events.clear_deferred_restarts(services)
 
 
 def make_assess_status_func(*args, **kwargs):
@@ -2551,3 +2585,9 @@ def get_subordinate_release_packages(os_release, package_type='deb'):
                         container.add(pkg)
                 break
     return SubordinatePackages(install, purge)
+
+
+os_restart_on_change = partial(
+    pausable_restart_on_change,
+    can_restart_now_f=deferred_events.defer_restart_on_changed,
+    post_svc_restart_f=deferred_events.process_svc_restart)
