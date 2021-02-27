@@ -33,12 +33,10 @@ class PolicyRCDTests(unittest.TestCase):
             policy_rcd.policy_config_dir(),
             '/etc/policy-rc.d')
 
-    @mock.patch.object(policy_rcd.hookenv, "service_name")
-    def test_policy_deferred_events_dir(self, service_name):
-        service_name.return_value = 'myapp'
+    def test_policy_deferred_events_dir(self):
         self.assertEqual(
             policy_rcd.policy_deferred_events_dir(),
-            '/var/lib/policy-rc.d/charm-myapp')
+            '/var/lib/policy-rc.d')
 
     @mock.patch.object(policy_rcd.glob, "glob")
     @mock.patch.object(policy_rcd, "policy_deferred_events_dir")
@@ -135,7 +133,7 @@ class PolicyRCDTests(unittest.TestCase):
             mock.call('/etc/policy-rc.d')
         ])
         copy2.assert_called_once_with(
-            '/dir2/policy-rc.d',
+            '/dir2/policy_rc_d_script.py',
             '/var/lib/charm/mysvc/policy-rc.d')
 
     @mock.patch.object(policy_rcd.hookenv, "service_name")

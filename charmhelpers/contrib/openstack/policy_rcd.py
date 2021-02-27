@@ -41,7 +41,7 @@ def policy_deferred_events_dir():
     :returns: Directory that contains deferred events for a given policy.
     :rtype: str
     """
-    return '/var/lib/policy-rc.d/charm-{}'.format(hookenv.service_name())
+    return '/var/lib/policy-rc.d'
 
 
 def get_policy_file_name():
@@ -169,7 +169,9 @@ def install_policy_rcd():
     policy_rcd_exec = "/var/lib/charm/{}/policy-rc.d".format(
         hookenv.service_name())
     host.mkdir(os.path.dirname(policy_rcd_exec))
-    shutil.copy2('{}/policy-rc.d'.format(source_file_dir), policy_rcd_exec)
+    shutil.copy2(
+        '{}/policy_rc_d_script.py'.format(source_file_dir),
+        policy_rcd_exec)
     # policy-rc.d must be installed via the alternatives system:
     # https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
     if not os.path.exists('/usr/sbin/policy-rc.d'):
