@@ -306,6 +306,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_swift_codename_none(self):
         self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
 
+    @patch("charmhelpers.core.hookenv.cache", new={})
     @patch.object(openstack, 'openstack_release')
     @patch.object(openstack, 'filter_installed_packages')
     @patch.object(openstack, 'apt_install')
@@ -313,10 +314,10 @@ class OpenStackHelpersTestCase(TestCase):
                                                  mock_filter_installed_packages,
                                                  mock_openstack_release):
         mock_openstack_release.return_value = {}
-        print("Checking when none")
         self.assertEquals(
             openstack.get_installed_os_version(), None)
 
+    @patch("charmhelpers.core.hookenv.cache", new={})
     @patch.object(openstack, 'openstack_release')
     @patch.object(openstack, 'filter_installed_packages')
     @patch.object(openstack, 'apt_install')
@@ -324,7 +325,6 @@ class OpenStackHelpersTestCase(TestCase):
                                                    mock_filter_installed_packages,
                                                    mock_openstack_release):
         mock_openstack_release.return_value = {'OPENSTACK_CODENAME': 'wallaby'}
-        print("Checking when wallaby")
         self.assertEquals(
             openstack.get_installed_os_version(), 'wallaby')
 

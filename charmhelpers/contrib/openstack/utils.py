@@ -483,9 +483,27 @@ def get_swift_codename(version):
     return None
 
 
-@deprecate("moved to charmhelpers.contrib.openstack.utils.get_installed_os_version()", "2021-01", log=juju_log)
 def get_os_codename_package(package, fatal=True):
-    '''Derive OpenStack release codename from an installed package.'''
+    """Derive OpenStack release codename from an installed package.
+
+    Initially, see of the openstack-release pkg is available (by trying to
+    install it) and use it instead.
+
+    If it isn't then it falls back to the existing method of checking the
+    version of the package passed and then resolving the version from that
+    using lookup tables.
+
+    Note: if possible, charms should use get_installed_os_version() to
+    determine the version of the "openstack-release" pkg.
+
+    :param package: the package to test for version information.
+    :type package: str
+    :param fatal: If True (default), then die via error_out()
+        be determined.
+    :type fatal: bool
+    :returns: the OpenStack release codename (e.g. ussuri)
+    :rtype: str
+    """
 
     codename = get_installed_os_version()
     if codename:
@@ -578,9 +596,20 @@ def get_os_version_package(pkg, fatal=True):
     # error_out(e)
 
 
+@cached
 def get_installed_os_version():
-    apt_install(filter_installed_packages(['openstack-release']), fatal=False)
-    print("OpenStack Release: {}".format(openstack_release()))
+    """Determine the OpenStack release code name from openstack-release pkg.
+
+    This uses the "openstack-release" pkg (if it exists) to return the
+    OpenStack release codename (e.g. usurri, mitaka, ocata, etc.)
+
+    Note, it caches the result so that it is only done once per hook.
+
+    :returns: the OpenStack release codename, if available
+    :rtype: Optional[str]
+    """
+    apt_install(filter_installed_packages(['openstack-release']),
+                fatal=False, quiet=True)
     return openstack_release().get('OPENSTACK_CODENAME')
 
 

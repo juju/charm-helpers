@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 
+from charmhelpers import deprecate
 from charmhelpers.core.host import get_distrib_codename, get_system_env
 
 from charmhelpers.core.hookenv import (
@@ -251,13 +252,19 @@ def apt_cache(*_, **__):
         # Detect this situation, log a warning and make the call to
         # ``apt_pkg.init()`` to avoid the consumer Python interpreter from
         # crashing with a segmentation fault.
-        log('Support for use of upstream ``apt_pkg`` module in conjunction'
-            'with charm-helpers is deprecated since 2019-06-25', level=WARNING)
+        @deprecate(
+            'Support for use of upstream ``apt_pkg`` module in conjunction'
+            'with charm-helpers is deprecated since 2019-06-25',
+            date=None, log=lambda x: log(x, level=WARNING))
+        def one_shot_log():
+            pass
+
+        one_shot_log()
         sys.modules['apt_pkg'].init()
     return ubuntu_apt_pkg.Cache()
 
 
-def apt_install(packages, options=None, fatal=False):
+def apt_install(packages, options=None, fatal=False, quiet=False):
     """Install one or more packages.
 
     :param packages: Package(s) to install
@@ -267,6 +274,8 @@ def apt_install(packages, options=None, fatal=False):
     :param fatal: Whether the command's output should be checked and
                   retried.
     :type fatal: bool
+    :param quiet: if True (default), supress log message
+    :type quiet: bool
     :raises: subprocess.CalledProcessError
     """
     if options is None:
@@ -279,8 +288,9 @@ def apt_install(packages, options=None, fatal=False):
         cmd.append(packages)
     else:
         cmd.extend(packages)
-    log("Installing {} with options: {}".format(packages,
-                                                options))
+    if not quiet:
+        log("Installing {} with options: {}"
+            .format(packages, options))
     _run_apt_command(cmd, fatal)
 
 
