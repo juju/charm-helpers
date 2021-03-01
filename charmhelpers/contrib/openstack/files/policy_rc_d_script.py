@@ -132,7 +132,7 @@ def process_action_request(service, action, policy_config_dir, policy_log_dir):
     if blocking_policies:
         policy_msg = [
             '{} {}'.format(p.policy_requestor_type, p.policy_requestor_name)
-            for p in blocking_policies]
+            for p in sorted(blocking_policies)]
         message = '{} of {} blocked by {}'.format(
             action,
             service,
