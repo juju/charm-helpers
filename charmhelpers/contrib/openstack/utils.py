@@ -596,7 +596,6 @@ def get_os_version_package(pkg, fatal=True):
     # error_out(e)
 
 
-@cached
 def get_installed_os_version():
     """Determine the OpenStack release code name from openstack-release pkg.
 
@@ -608,8 +607,12 @@ def get_installed_os_version():
     :returns: the OpenStack release codename, if available
     :rtype: Optional[str]
     """
-    apt_install(filter_installed_packages(['openstack-release']),
-                fatal=False, quiet=True)
+    @cached
+    def _do_install():
+        apt_install(filter_installed_packages(['openstack-release']),
+                    fatal=False, quiet=True)
+
+    _do_install()
     return openstack_release().get('OPENSTACK_CODENAME')
 
 
