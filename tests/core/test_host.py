@@ -1912,7 +1912,10 @@ class HelpersTest(TestCase):
         self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
                          updatedb_text)
 
-    def test_write_updatedb(self):
+    @patch('os.path')
+    def test_write_updatedb(self, mock_path):
+        mock_path.exists.return_value = True
+        mock_path.isdir.return_value = False
         _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
         with patch('charmhelpers.core.host.open', _open, create=True):
             host.add_to_updatedb_prunepath("/tmp/test")
