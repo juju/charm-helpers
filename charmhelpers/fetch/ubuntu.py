@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
+import os
 import platform
 import re
 import six
@@ -20,6 +21,7 @@ import subprocess
 import sys
 import time
 
+from charmhelpers import deprecate
 from charmhelpers.core.host import get_distrib_codename, get_system_env
 
 from charmhelpers.core.hookenv import (
@@ -251,13 +253,19 @@ def apt_cache(*_, **__):
         # Detect this situation, log a warning and make the call to
         # ``apt_pkg.init()`` to avoid the consumer Python interpreter from
         # crashing with a segmentation fault.
-        log('Support for use of upstream ``apt_pkg`` module in conjunction'
-            'with charm-helpers is deprecated since 2019-06-25', level=WARNING)
+        @deprecate(
+            'Support for use of upstream ``apt_pkg`` module in conjunction'
+            'with charm-helpers is deprecated since 2019-06-25',
+            date=None, log=lambda x: log(x, level=WARNING))
+        def one_shot_log():
+            pass
+
+        one_shot_log()
         sys.modules['apt_pkg'].init()
     return ubuntu_apt_pkg.Cache()
 
 
-def apt_install(packages, options=None, fatal=False):
+def apt_install(packages, options=None, fatal=False, quiet=False):
     """Install one or more packages.
 
     :param packages: Package(s) to install
@@ -267,6 +275,8 @@ def apt_install(packages, options=None, fatal=False):
     :param fatal: Whether the command's output should be checked and
                   retried.
     :type fatal: bool
+    :param quiet: if True (default), supress log message to stdout/stderr
+    :type quiet: bool
     :raises: subprocess.CalledProcessError
     """
     if options is None:
@@ -279,9 +289,10 @@ def apt_install(packages, options=None, fatal=False):
         cmd.append(packages)
     else:
         cmd.extend(packages)
-    log("Installing {} with options: {}".format(packages,
-                                                options))
-    _run_apt_command(cmd, fatal)
+    if not quiet:
+        log("Installing {} with options: {}"
+            .format(packages, options))
+    _run_apt_command(cmd, fatal, quiet=quiet)
 
 
 def apt_upgrade(options=None, fatal=False, dist=False):
@@ -723,7 +734,7 @@ def _verify_is_ubuntu_rel(release, os_release):
 
 
 def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
-                      retry_message="", cmd_env=None):
+                      retry_message="", cmd_env=None, quiet=False):
     """Run a command and retry until success or max_retries is reached.
 
     :param cmd: The apt command to run.
@@ -738,10 +749,19 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
     :type retry_message: str
     :param: cmd_env: Environment variables to add to the command run.
     :type cmd_env: Option[None, Dict[str, str]]
+    :param quiet: if True, silence the output of the command from stdout and
+        stderr
+    :type quiet: bool
     """
     env = get_apt_dpkg_env()
     if cmd_env:
         env.update(cmd_env)
+
+    kwargs = {}
+    if quiet:
+        devnull = os.devnull if six.PY2 else subprocess.DEVNULL
+        kwargs['stdout'] = devnull
+        kwargs['stderr'] = devnull
 
     if not retry_message:
         retry_message = "Failed executing '{}'".format(" ".join(cmd))
@@ -753,7 +773,7 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
     retry_results = (None,) + retry_exitcodes
     while result in retry_results:
         try:
-            result = subprocess.check_call(cmd, env=env)
+            result = subprocess.check_call(cmd, env=env, **kwargs)
         except subprocess.CalledProcessError as e:
             retry_count = retry_count + 1
             if retry_count > max_retries:
@@ -763,7 +783,7 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
             time.sleep(CMD_RETRY_DELAY)
 
 
-def _run_apt_command(cmd, fatal=False):
+def _run_apt_command(cmd, fatal=False, quiet=False):
     """Run an apt command with optional retries.
 
     :param cmd: The apt command to run.
@@ -771,13 +791,22 @@ def _run_apt_command(cmd, fatal=False):
     :param fatal: Whether the command's output should be checked and
                   retried.
     :type fatal: bool
+    :param quiet: if True, silence the output of the command from stdout and
+        stderr
+    :type quiet: bool
     """
     if fatal:
         _run_with_retries(
             cmd, retry_exitcodes=(1, APT_NO_LOCK,),
-            retry_message="Couldn't acquire DPKG lock")
+            retry_message="Couldn't acquire DPKG lock",
+            quiet=quiet)
     else:
-        subprocess.call(cmd, env=get_apt_dpkg_env())
+        kwargs = {}
+        if quiet:
+            devnull = os.devnull if six.PY2 else subprocess.DEVNULL
+            kwargs['stdout'] = devnull
+            kwargs['stderr'] = devnull
+        subprocess.call(cmd, env=get_apt_dpkg_env(), **kwargs)
 
 
 def get_upstream_version(package):
