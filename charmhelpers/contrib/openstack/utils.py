@@ -486,7 +486,7 @@ def get_swift_codename(version):
 def get_os_codename_package(package, fatal=True):
     """Derive OpenStack release codename from an installed package.
 
-    Initially, see of the openstack-release pkg is available (by trying to
+    Initially, see if the openstack-release pkg is available (by trying to
     install it) and use it instead.
 
     If it isn't then it falls back to the existing method of checking the
@@ -499,7 +499,6 @@ def get_os_codename_package(package, fatal=True):
     :param package: the package to test for version information.
     :type package: str
     :param fatal: If True (default), then die via error_out()
-        be determined.
     :type fatal: bool
     :returns: the OpenStack release codename (e.g. ussuri)
     :rtype: str
