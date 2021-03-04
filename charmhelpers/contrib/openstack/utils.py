@@ -2474,3 +2474,26 @@ def get_api_application_status():
             msg = 'Some units are not ready'
     juju_log(msg, 'DEBUG')
     return app_state, msg
+
+
+def sequence_status_check_functions(*functions):
+    """Sequence the functions passed so that they all get a chance to run as
+    the charm status check functions.
+
+    :param *functions: a list of functions that return (state, message)
+    :type *functions: List[Callable[[OSConfigRender], (str, str)]]
+    :returns: the Callable that takes configs and returns (state, message)
+    :rtype: Callable[[OSConfigRender], (str, str)]
+    """
+    def _inner_sequenced_functions(configs):
+        state, message = 'unknown', ''
+        for f in functions:
+            new_state, new_message = f(configs)
+            state = workload_state_compare(state, new_state)
+            if message:
+                message = "{}, {}".format(message, new_message)
+            else:
+                message = new_message
+        return state, message
+
+    return _inner_sequenced_functions
