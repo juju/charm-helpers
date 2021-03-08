@@ -287,7 +287,7 @@ PACKAGE_CODENAMES = {
         ('15', 'train'),
         ('16', 'ussuri'),
         ('17', 'victoria'),
-        ('18', 'cinder'),
+        ('18', 'wallaby'),
     ]),
     'keystone': OrderedDict([
         ('8', 'liberty'),
