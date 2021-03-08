@@ -275,3 +275,25 @@ class UtilsTests(unittest.TestCase):
         self.assertEqual(expected, utils.ordered(data))
 
         self.assertRaises(ValueError, utils.ordered, "foo")
+
+    def test_sequence_status_check_functions(self):
+        # all messages are reported and the highest priority status "wins"
+        f1 = mock.Mock(return_value=('blocked', 'status 1'))
+        f2 = mock.Mock(return_value=('', 'status 2'))
+        f3 = mock.Mock(return_value=('maintenance', 'status 3'))
+        f = utils.sequence_status_check_functions(f1, f2, f3)
+        expected = ('blocked', 'status 1, status 2, status 3')
+        result = f(mock.Mock())
+        self.assertEquals(result, expected)
+        # empty status must be replaced by "unknown"
+        f4 = mock.Mock(return_value=('', 'status 4'))
+        f5 = mock.Mock(return_value=('', 'status 5'))
+        f = utils.sequence_status_check_functions(f4, f5)
+        expected = ('unknown', 'status 4, status 5')
+        result = f(mock.Mock())
+        self.assertEquals(result, expected)
+        # sequencing 0 status checks must return state 'unknown', ''
+        f = utils.sequence_status_check_functions()
+        expected = ('unknown', '')
+        result = f(mock.Mock())
+        self.assertEquals(result, expected)

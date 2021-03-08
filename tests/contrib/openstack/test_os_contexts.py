@@ -685,7 +685,6 @@ TO_PATCH = [
     'kv',
     'pwgen',
     'lsb_release',
-    'is_container',
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
@@ -740,7 +739,6 @@ class ContextTests(unittest.TestCase):
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
         self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
-        self.is_container.return_value = False
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
         self.maxDiff = None
@@ -3365,26 +3363,10 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(context._calculate_workers(), 2)
 
     @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_container(self, _num_cpus):
+    def test_calculate_workers_noconfig_lotsa_cpus(self, _num_cpus):
         self.config.return_value = None
-        self.is_container.return_value = True
-        _num_cpus.return_value = 1
-        self.assertEqual(context._calculate_workers(), 2)
-
-    @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_lotsa_cpus_container(self,
-                                                             _num_cpus):
-        self.config.return_value = None
-        self.is_container.return_value = True
         _num_cpus.return_value = 32
         self.assertEqual(context._calculate_workers(), 4)
-
-    @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_lotsa_cpus_not_container(self,
-                                                                 _num_cpus):
-        self.config.return_value = None
-        _num_cpus.return_value = 32
-        self.assertEqual(context._calculate_workers(), 64)
 
     @patch.object(context, '_calculate_workers', return_value=256)
     def test_worker_context(self, calculate_workers):
