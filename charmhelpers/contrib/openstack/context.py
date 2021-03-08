@@ -945,6 +945,9 @@ class HAProxyContext(OSContextGenerator):
             ctxt['local_host'] = '127.0.0.1'
             ctxt['haproxy_host'] = '0.0.0.0'
 
+        if config('ssl-min-ver'):
+            ctxt['ssl_min_ver'] = config('ssl-min-ver')
+
         ctxt['ipv6_enabled'] = not is_ipv6_disabled()
 
         ctxt['stat_port'] = '8888'
