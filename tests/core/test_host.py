@@ -1431,32 +1431,7 @@ class HelpersTest(TestCase):
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
-    def test_restart_on_change1(self, iglob, exists, service):
-        file_name = '/etc/missing.conf'
-        restart_map = {
-            file_name: ['test-service']
-        }
-        iglob.side_effect = [[], [file_name]]
-        exists.return_value = True
-
-        @host.restart_on_change1(restart_map)
-        def make_some_changes(mock_file):
-            mock_file.read.return_value = b"newstuff"
-
-        with patch_open() as (mock_open, mock_file):
-            make_some_changes(mock_file)
-
-        for service_name in restart_map[file_name]:
-            service.assert_called_with('restart', service_name)
-
-        exists.assert_has_calls([
-            call(file_name),
-        ])
-
-    @patch.object(host, 'service')
-    @patch('os.path.exists')
-    @patch('glob.iglob')
-    def test_restart_on_change1_context_manager(self, iglob, exists, service):
+    def test_restart_on_change_context_manager(self, iglob, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
@@ -1465,7 +1440,7 @@ class HelpersTest(TestCase):
         exists.return_value = True
 
         with patch_open() as (mock_open, mock_file):
-            with host.restart_on_change1(restart_map):
+            with host.restart_on_change(restart_map):
                 mock_file.read.return_value = b"newstuff"
 
         for service_name in restart_map[file_name]:

@@ -694,42 +694,7 @@ class ChecksumError(ValueError):
     pass
 
 
-def restart_on_change(restart_map, stopstart=False, restart_functions=None):
-    """Restart services based on configuration files changing
-
-    This function is used a decorator, for example::
-
-        @restart_on_change({
-            '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
-            '/etc/apache/sites-enabled/*': [ 'apache2' ]
-            })
-        def config_changed():
-            pass  # your code here
-
-    In this example, the cinder-api and cinder-volume services
-    would be restarted if /etc/ceph/ceph.conf is changed by the
-    ceph_client_changed function. The apache2 service would be
-    restarted if any file matching the pattern got changed, created
-    or removed. Standard wildcards are supported, see documentation
-    for the 'glob' module for more information.
-
-    @param restart_map: {path_file_name: [service_name, ...]
-    @param stopstart: DEFAULT false; whether to stop, start OR restart
-    @param restart_functions: nonstandard functions to use to restart services
-                              {svc: func, ...}
-    @returns result from decorated function
-    """
-    def wrap(f):
-        @functools.wraps(f)
-        def wrapped_f(*args, **kwargs):
-            return restart_on_change_helper(
-                (lambda: f(*args, **kwargs)), restart_map, stopstart,
-                restart_functions)
-        return wrapped_f
-    return wrap
-
-
-class restart_on_change1(object):
+class restart_on_change(object):
     """Decorator AND context manager to handle restarts.
 
     Usage:
@@ -745,10 +710,34 @@ class restart_on_change1(object):
            ...
     """
 
-    def __init__(self, restart_map, stopstart=False, restart_functions=None):
+    def __init__(self, restart_map, stopstart=False, restart_functions=None,
+                 can_restart_now_f=None, post_svc_restart_f=None,
+                 pre_restarts_wait_f=None):
+        """
+        :param restart_map: {file: [service, ...]}
+        :type restart_map: Dict[str, List[str,]]
+        :param stopstart: whether to stop, start or restart a service
+        :type stopstart: booleean
+        :param restart_functions: nonstandard functions to use to restart
+                                  services {svc: func, ...}
+        :type restart_functions: Dict[str, Callable[[str], None]]
+        :param can_restart_now_f: A function used to check if the restart is
+                                  permitted.
+        :type can_restart_now_f: Callable[[str, List[str]], boolean]
+        :param post_svc_restart_f: A function run after a service has
+                                   restarted.
+        :type post_svc_restart_f: Callable[[str], None]
+        :param pre_restarts_wait_f: A function callled before any restarts.
+        :type pre_restarts_wait_f: Callable[None, None]
+        :returns: result of lambda_f()
+        :rtype: ANY
+        """
         self.restart_map = restart_map
         self.stopstart = stopstart
         self.restart_functions = restart_functions
+        self.can_restart_now_f = can_restart_now_f
+        self.post_svc_restart_f = post_svc_restart_f
+        self.pre_restarts_wait_f = pre_restarts_wait_f
 
     def __call__(self, f):
         """Work like a decorator.
@@ -765,25 +754,35 @@ class restart_on_change1(object):
             return restart_on_change_helper(
                 (lambda: f(*args, **kwargs)),
                 self.restart_map,
-                self.stopstart,
-                self.restart_functions)
+                stopstart=self.stopstart,
+                restart_functions=self.restart_functions,
+                can_restart_now_f=self.can_restart_now_f,
+                post_svc_restart_f=self.post_svc_restart_f,
+                pre_restarts_wait_f=self.pre_restarts_wait_f)
         return wrapped_f
 
     def __enter__(self):
+        """Enter the runtime context related to this object. """
         self.checksums = _pre_restart_on_change_helper(self.restart_map)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """
+        """Exit the runtime context related to this object.
+
+        The parameters describe the exception that caused the context to be
+        exited. If the context was exited without an exception, all three
+        arguments will be None.
         """
         if exc_type is None:
             _post_restart_on_change_helper(
                 self.checksums,
                 self.restart_map,
                 stopstart=self.stopstart,
-                restart_functions=self.restart_functions)
+                restart_functions=self.restart_functions,
+                can_restart_now_f=self.can_restart_now_f,
+                post_svc_restart_f=self.post_svc_restart_f,
+                pre_restarts_wait_f=self.pre_restarts_wait_f)
         # All is good, so return False; any exceptions will propagate.
         return False
-
 
 
 def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
@@ -804,8 +803,8 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
     `my_restart_func` should a function which takes one argument which is the
     service name to be retstarted.
 
-    `can_restart_now_f` is a function which checks that a restart is permitted. It
-    should returna bool which indicates if a restart is allowed and should
+    `can_restart_now_f` is a function which checks that a restart is permitted.
+    It should return a bool which indicates if a restart is allowed and should
     take a service name (str) and a list of changed files (List[str]) as
     arguments.
 
@@ -849,6 +848,13 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
 
 
 def _pre_restart_on_change_helper(restart_map):
+    """Take a snapshot of file hashes.
+
+    :param restart_map: {file: [service, ...]}
+    :type restart_map: Dict[str, List[str,]]
+    :returns: Dictionary of file paths and the files checksum.
+    :rtype: Dict[str, str]
+    """
     return {path: path_hash(path) for path in restart_map}
 
 
@@ -859,6 +865,26 @@ def _post_restart_on_change_helper(checksums,
                                    can_restart_now_f=None,
                                    post_svc_restart_f=None,
                                    pre_restarts_wait_f=None):
+    """Check whether files have changed.
+
+    :param checksums: Dictionary of file paths and the files checksum.
+    :type checksums: Dict[str, str]
+    :param restart_map: {file: [service, ...]}
+    :type restart_map: Dict[str, List[str,]]
+    :param stopstart: whether to stop, start or restart a service
+    :type stopstart: booleean
+    :param restart_functions: nonstandard functions to use to restart services
+                              {svc: func, ...}
+    :type restart_functions: Dict[str, Callable[[str], None]]
+    :param can_restart_now_f: A function used to check if the restart is
+                              permitted.
+    :type can_restart_now_f: Callable[[str, List[str]], boolean]
+    :param post_svc_restart_f: A function run after a service has
+                               restarted.
+    :type post_svc_restart_f: Callable[[str], None]
+    :param pre_restarts_wait_f: A function callled before any restarts.
+    :type pre_restarts_wait_f: Callable[None, None]
+    """
     if restart_functions is None:
         restart_functions = {}
     changed_files = defaultdict(list)
@@ -877,7 +903,8 @@ def _post_restart_on_change_helper(checksums,
         actions = ('stop', 'start') if stopstart else ('restart',)
         for service_name in services_list:
             if can_restart_now_f:
-                if not can_restart_now_f(service_name, changed_files[service_name]):
+                if not can_restart_now_f(service_name,
+                                         changed_files[service_name]):
                     continue
             if service_name in restart_functions:
                 restart_functions[service_name](service_name)
