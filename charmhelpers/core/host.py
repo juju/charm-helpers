@@ -729,8 +729,6 @@ class restart_on_change(object):
         :type post_svc_restart_f: Callable[[str], None]
         :param pre_restarts_wait_f: A function callled before any restarts.
         :type pre_restarts_wait_f: Callable[None, None]
-        :returns: result of lambda_f()
-        :rtype: ANY
         """
         self.restart_map = restart_map
         self.stopstart = stopstart
