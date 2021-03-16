@@ -695,7 +695,7 @@ class ChecksumError(ValueError):
 
 
 class restart_on_change(object):
-    """Decorator AND context manager to handle restarts.
+    """Decorator and context manager to handle restarts.
 
     Usage:
 
