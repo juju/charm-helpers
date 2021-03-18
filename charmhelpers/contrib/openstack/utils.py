@@ -1737,6 +1737,17 @@ def resume_unit(assess_status_func, services=None, ports=None,
 
 def restart_services_action(services=None, when_all_stopped_func=None,
                             deferred_only=None):
+    """Manage a service restart request via charm action.
+
+    :param services: Services to be restarted
+    :type model_name: List[str]
+    :param when_all_stopped_func: Function to call when all services are
+                                  stopped.
+    :type when_all_stopped_func: Callable[]
+    :param model_name: Only restart services which have a deferred restart
+                       event.
+    :type model_name: bool
+    """
     if services and deferred_only:
         raise ValueError(
             "services and deferred_only are mutually exclusive")
