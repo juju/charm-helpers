@@ -12,6 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Module for managing policy-rc.d script and associated files.
+
+This module manages the installation of /usr/sbin/policy-rc.d, the
+policy files and the event files. When a package update occurs the
+packaging system calls:
+
+policy-rc.d [options] <initscript ID> <actions>
+
+The return code of the script determines if the packaging system
+will perform that action on the given service. The policy-rc.d
+implementation installed by this module checks if an action is
+permitted by checking policy files placed in /etc/policy-rc.d.
+If a policy file exists which denies the requested action then
+this is recorded in an event file which is placed in
+/var/lib/policy-rc.d.
+"""
+
 import glob
 import os
 import shutil

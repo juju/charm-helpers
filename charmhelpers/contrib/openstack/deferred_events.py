@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Functions for managing deferred events.
+"""Module for managing deferred service events.
+
+This module is used to manage deferred service events from both charm actions
+and package actions.
+"""
 
 import collections
 import datetime
@@ -32,7 +36,7 @@ ServiceEvent = collections.namedtuple(
 
 
 class DeferredServiceEvents():
-    """A class to manage defered servce events."""
+    """A class to manage deferred service events."""
 
     def __init__(self):
         """Intialise deferred events class."""
@@ -40,7 +44,7 @@ class DeferredServiceEvents():
 
 
 class DeferredCharmServiceEvents(DeferredServiceEvents):
-    """Deferred events from charm actions."""
+    """Deferred service events from charm actions."""
 
     KV_KEY = 'deferred_events'
 
@@ -104,7 +108,7 @@ class DeferredCharmServiceEvents(DeferredServiceEvents):
 
 
 class DeferredPackageServiceEvents(DeferredServiceEvents):
-    """Deferred events from package actions."""
+    """Deferred service events from package actions."""
 
     def load_events(self):
         """Load events previously requested by the charm.
