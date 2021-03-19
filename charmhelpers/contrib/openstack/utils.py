@@ -2201,6 +2201,23 @@ def container_scoped_relations():
     return relations
 
 
+def container_scoped_relation_get(attribute=None):
+    """Get relation data from all container scoped relations.
+
+    :param attribute: Name of attribute to get
+    :type attribute: Optional[str]
+    :returns: Iterator with relation data
+    :rtype: Iterator[Optional[any]]
+    """
+    for endpoint_name in container_scoped_relations():
+        for rid in relation_ids(endpoint_name):
+            for unit in related_units(rid):
+                yield relation_get(
+                    attribute=attribute,
+                    unit=unit,
+                    rid=rid)
+
+
 def is_db_ready(use_current_context=False, rel_name=None):
     """Check remote database is ready to be used.
 
@@ -2497,3 +2514,40 @@ def sequence_status_check_functions(*functions):
         return state, message
 
     return _inner_sequenced_functions
+
+
+SubordinatePackages = namedtuple('SubordinatePackages', ['install', 'purge'])
+
+
+def get_subordinate_release_packages(os_release, package_type='deb'):
+    """Iterate over subordinate relations and get package information.
+
+    :param os_release: OpenStack release to look for
+    :type os_release: str
+    :param package_type: Package type (one of 'deb' or 'snap')
+    :type package_type: str
+    :returns: Packages to install and packages to purge or None
+    :rtype: SubordinatePackages[set,set]
+    """
+    install = set()
+    purge = set()
+
+    for rdata in container_scoped_relation_get('releases-packages-map'):
+        rp_map = json.loads(rdata or '{}')
+        # The map provided by subordinate has OpenStack release name as key.
+        # Find package information from subordinate matching requested release
+        # or the most recent release prior to requested release by sorting the
+        # keys in reverse order. This follows established patterns in our
+        # charms for templates and reactive charm implementations, i.e. as long
+        # as nothing has changed the definitions for the prior OpenStack
+        # release is still valid.
+        for release in sorted(rp_map.keys(), reverse=True):
+            if (CompareOpenStackReleases(release) <= os_release and
+                    package_type in rp_map[release]):
+                for name, container in (
+                        ('install', install),
+                        ('purge', purge)):
+                    for pkg in rp_map[release][package_type].get(name, []):
+                        container.add(pkg)
+                break
+    return SubordinatePackages(install, purge)
