@@ -1670,6 +1670,15 @@ class HelpersTest(TestCase):
                                  any_order=True)
         self.assertEqual(expected_settings, proxy_settings)
 
+    @patch.object(hookenv, 'metadata')
+    def test_is_subordinate(self, mock_metadata):
+        mock_metadata.return_value = {}
+        self.assertFalse(hookenv.is_subordinate())
+        mock_metadata.return_value = {'subordinate': False}
+        self.assertFalse(hookenv.is_subordinate())
+        mock_metadata.return_value = {'subordinate': True}
+        self.assertTrue(hookenv.is_subordinate())
+
 
 class HooksTest(TestCase):
     def setUp(self):

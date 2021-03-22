@@ -1,4 +1,5 @@
 import collections
+import copy
 import json
 import mock
 import six
@@ -297,3 +298,86 @@ class UtilsTests(unittest.TestCase):
         expected = ('unknown', '')
         result = f(mock.Mock())
         self.assertEquals(result, expected)
+
+    @mock.patch.object(utils, 'relation_get')
+    @mock.patch.object(utils, 'related_units')
+    @mock.patch.object(utils, 'relation_ids')
+    @mock.patch.object(utils, 'container_scoped_relations')
+    def test_container_scoped_relation_get(
+            self,
+            mock_container_scoped_relations,
+            mock_relation_ids,
+            mock_related_units,
+            mock_relation_get):
+        mock_container_scoped_relations.return_value = [
+            'relation1', 'relation2']
+        mock_relation_ids.return_value = ['rid']
+        mock_related_units.return_value = ['unit']
+
+        for rdata in utils.container_scoped_relation_get():
+            pass
+        mock_relation_ids.assert_has_calls([
+            mock.call('relation1'),
+            mock.call('relation2')])
+        mock_relation_get.assert_has_calls([
+            mock.call(attribute=None, unit='unit', rid='rid'),
+            mock.call(attribute=None, unit='unit', rid='rid')])
+
+        mock_relation_get.reset_mock()
+        for rdata in utils.container_scoped_relation_get(attribute='attr'):
+            pass
+        mock_relation_get.assert_has_calls([
+            mock.call(attribute='attr', unit='unit', rid='rid'),
+            mock.call(attribute='attr', unit='unit', rid='rid')])
+
+    @mock.patch.object(utils, 'container_scoped_relation_get')
+    def test_get_subordinate_release_packages(
+            self,
+            mock_container_scoped_relation_get):
+        rdata = {
+            'queens': {'snap': {'install': ['q_inst'], 'purge': ['q_purg']}},
+            'stein': {'deb': {'install': ['s_inst'], 'purge': ['s_purg']}}}
+        mock_container_scoped_relation_get.return_value = [
+            json.dumps(rdata),
+            json.dumps(rdata),
+        ]
+        # None of the subordinate relations have information about rocky or
+        # earlier for deb installations
+        self.assertEquals(
+            utils.get_subordinate_release_packages('rocky'),
+            utils.SubordinatePackages(set(), set()))
+        # Information on most recent earlier release with matching package
+        # type will be provided when requesting a release not specifically
+        # provided by subordinates
+        self.assertEquals(
+            utils.get_subordinate_release_packages(
+                'rocky', package_type='snap'),
+            utils.SubordinatePackages(
+                {'q_inst'}, {'q_purg'}))
+        self.assertEquals(
+            utils.get_subordinate_release_packages('train'),
+            utils.SubordinatePackages(
+                {'s_inst'}, {'s_purg'}))
+        # Confirm operation when each subordinate has different release package
+        # information
+        rdata2 = copy.deepcopy(rdata)
+        rdata2.update({
+            'train': {'deb': {'install': ['t_inst'], 'purge': ['t_purg']}}})
+        mock_container_scoped_relation_get.return_value = [
+            json.dumps(rdata),
+            json.dumps(rdata2),
+        ]
+        self.assertEquals(
+            utils.get_subordinate_release_packages('train'),
+            utils.SubordinatePackages(
+                {'s_inst', 't_inst'}, {'s_purg', 't_purg'}))
+        # Confirm operation when one of the subordinate relations does not
+        # implement sharing the package information
+        mock_container_scoped_relation_get.return_value = [
+            json.dumps(rdata),
+            None,
+        ]
+        self.assertEquals(
+            utils.get_subordinate_release_packages('train'),
+            utils.SubordinatePackages(
+                {'s_inst'}, {'s_purg'}))
