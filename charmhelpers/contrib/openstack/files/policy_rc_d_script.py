@@ -89,9 +89,10 @@ def record_blocked_action(service, action, blocking_policies, policy_log_dir):
             uuid.uuid1())
         with open(file_name, 'w') as f:
             data = {
-                'time': seconds,
+                'timestamp': seconds,
                 'service': service,
                 'action': action,
+                'reason': 'Package update',
                 'policy_requestor_type': policy.policy_requestor_type,
                 'policy_requestor_name': policy.policy_requestor_name}
             yaml.dump(data, f)

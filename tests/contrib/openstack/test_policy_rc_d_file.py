@@ -122,18 +122,20 @@ class PolicyRCDScriptTestCase(tests.utils.BaseTestCase):
                 '{}/charm-cinder-uuid2.deferred'.format(self.test_dir),
                 {
                     'action': 'restart',
+                    'reason': 'Package update',
                     'policy_requestor_name': 'cinder',
                     'policy_requestor_type': 'charm',
                     'service': 'cinder-api',
-                    'time': 456.0}),
+                    'timestamp': 456.0}),
             (
                 '{}/charm-cinder-ceph-uuid1.deferred'.format(self.test_dir),
                 {
                     'action': 'restart',
+                    'reason': 'Package update',
                     'policy_requestor_name': 'cinder-ceph',
                     'policy_requestor_type': 'charm',
                     'service': 'cinder-api',
-                    'time': 456.0})]
+                    'timestamp': 456.0})]
         for defer_file, contents in expect:
             with open(defer_file, 'r') as f:
                 self.assertEqual(

@@ -1,8 +1,10 @@
-import contextlib
+import copy
 import datetime
-from copy import deepcopy
+import tempfile
+import shutil
+import yaml
 
-from mock import MagicMock, patch, call
+from mock import patch, call
 
 import charmhelpers.contrib.openstack.deferred_events as deferred_events
 import tests.utils
@@ -12,29 +14,10 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
 
     def setUp(self):
         super(DeferredCharmServiceEventsTestCase, self).setUp()
-        self.patch_object(deferred_events.ch_core.unitdata, 'HookData')
-        self.kv = MagicMock()
-
-        self.event_a = {
-            'timestamp': 123,
-            'service': 'svcA',
-            'reason': 'ReasonA',
-            'action': 'restart'}
-        self.event_b = {
-            'timestamp': 223,
-            'service': 'svcB',
-            'reason': 'ReasonB',
-            'action': 'restart'}
-        self.kv_data = [self.event_a, self.event_b]
-        self.kv.get.return_value = self.kv_data
-
-        @contextlib.contextmanager
-        def hook_data__call__():
-            yield (self.kv, True, False)
-
-        hook_data__call__.return_value = (self.kv, True, False)
-        self.HookData.return_value = hook_data__call__
-        self.test_class = deferred_events.DeferredCharmServiceEvents()
+        self.tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(self.tmp_dir))
+        self.patch_object(deferred_events.hookenv, 'service_name')
+        self.service_name.return_value = 'myapp'
         self.exp_event_a = deferred_events.ServiceEvent(
             timestamp=123,
             service='svcA',
@@ -45,146 +28,144 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
             service='svcB',
             reason='ReasonB',
             action='restart')
-        self.base_expect_events = [self.exp_event_a, self.exp_event_b]
+        self.exp_event_c = deferred_events.ServiceEvent(
+            timestamp=323,
+            service='svcB',
+            reason='ReasonB',
+            action='restart')
+        self.base_expect_events = [
+            self.exp_event_a,
+            self.exp_event_b,
+            self.exp_event_c]
+        self.event_file_pair = []
+        for index, event in enumerate(self.base_expect_events):
+            event_file = '{}/{}.deferred'.format('/tmpdir', str(index))
+            self.event_file_pair.append((
+                event_file,
+                event))
 
-    def test_load_events(self):
-        self.assertEqual(
-            self.test_class.load_events(),
-            self.base_expect_events)
+    def test_matching_request_event(self):
+        self.assertTrue(
+            self.exp_event_b.matching_request(
+                self.exp_event_c))
+        self.assertFalse(
+            self.exp_event_a.matching_request(
+                self.exp_event_b))
 
-    def test_add_event(self):
-        self.patch_object(deferred_events.time, 'time')
-        self.time.return_value = 456
-        self.test_class.add_event('ovs-agent', 'restart', 'A Reason')
-        _expect = deepcopy(self.base_expect_events)
-        _expect.append(deferred_events.ServiceEvent(
-            timestamp=456,
-            service='ovs-agent',
-            reason='A Reason',
-            action='restart'))
-        self.assertEqual(
-            self.test_class.events,
-            _expect)
+    @patch.object(deferred_events.glob, "glob")
+    def test_deferred_events_files(self, glob):
+        defer_files = [
+            '/var/lib/policy-rc.d/charm-myapp/1612346300.deferred',
+            '/var/lib/policy-rc.d/charm-myapp/1612346322.deferred',
+            '/var/lib/policy-rc.d/charm-myapp/1612346360.deferred']
 
-    def test_clear_deferred_events(self):
-        self.test_class.clear_deferred_events(['svcA'], 'restart')
+        glob.return_value = defer_files
         self.assertEqual(
-            self.test_class.events,
-            [self.exp_event_b])
+            deferred_events.deferred_events_files(),
+            defer_files)
 
-    def test_clear_deferred_events_all(self):
-        self.test_class.clear_deferred_events(['svcA', 'svcB'], 'restart')
+    def test_read_event_file(self):
+        with tempfile.NamedTemporaryFile('w') as ftmp:
+            yaml.dump(vars(self.exp_event_a), ftmp)
+            ftmp.flush()
+            self.assertEqual(
+                deferred_events.read_event_file(ftmp.name),
+                self.exp_event_a)
+
+    @patch.object(deferred_events, "deferred_events_files")
+    def test_deferred_events(self, deferred_events_files):
+        event_files = []
+        expect = []
+        for index, event in enumerate(self.base_expect_events):
+            event_file = '{}/{}.deferred'.format(self.tmp_dir, str(index))
+            with open(event_file, 'w') as f:
+                yaml.dump(vars(event), f)
+            event_files.append(event_file)
+            expect.append((
+                event_file,
+                event))
+        deferred_events_files.return_value = event_files
         self.assertEqual(
-            self.test_class.events,
+            deferred_events.deferred_events(),
+            expect)
+
+    @patch.object(deferred_events, "deferred_events")
+    def test_duplicate_event_files(self, _deferred_events):
+        _deferred_events.return_value = self.event_file_pair
+        self.assertEqual(
+            deferred_events.duplicate_event_files(self.exp_event_b),
+            ['/tmpdir/1.deferred', '/tmpdir/2.deferred'])
+        self.assertEqual(
+            deferred_events.duplicate_event_files(deferred_events.ServiceEvent(
+                timestamp=223,
+                service='svcX',
+                reason='ReasonX',
+                action='restart')),
             [])
 
-    def test_clear_deferred_events_action_miss(self):
-        self.test_class.clear_deferred_events(['svcA', 'svcB'], 'stop')
+    @patch.object(deferred_events.uuid, "uuid1")
+    def test_get_event_record_file(self, uuid1):
+        uuid1.return_value = '89eb8258'
         self.assertEqual(
-            self.test_class.events,
-            self.base_expect_events)
+            deferred_events.get_event_record_file(
+                'charm',
+                'neutron-ovs'),
+            '/var/lib/policy-rc.d/charm-neutron-ovs-89eb8258.deferred')
 
-    def test_save_events(self):
-        self.test_class.save_events()
-        self.kv.set.assert_called_once_with('deferred_events', self.kv_data)
+    @patch.object(deferred_events, "get_event_record_file")
+    @patch.object(deferred_events, "duplicate_event_files")
+    @patch.object(deferred_events, "init_policy_log_dir")
+    def test_save_event(self, init_policy_log_dir, duplicate_event_files, get_event_record_file):
+        duplicate_event_files.return_value = []
+        test_file = '{}/test_save_event.yaml'.format(self.tmp_dir)
+        get_event_record_file.return_value = test_file
+        deferred_events.save_event(self.exp_event_a)
+        with open(test_file, 'r') as f:
+            contents = yaml.load(f)
+        self.assertEqual(contents, vars(self.exp_event_a))
 
-    @patch.object(deferred_events.policy_rcd, 'policy_deferred_events')
-    def test_load(self, policy_deferred_events):
-        policy_deferred_events.return_value = [
-            {
-                'time': 123,
-                'service': 'svcA',
-                'action': 'restart'},
-            {
-                'time': 223,
-                'service': 'svcB',
-                'action': 'restart'}]
-        self.assertEqual(
-            deferred_events.DeferredPackageServiceEvents().events,
-            [
-                deferred_events.ServiceEvent(
-                    timestamp=123,
-                    service='svcA',
-                    reason='Pkg Update',
-                    action='restart'),
-                deferred_events.ServiceEvent(
-                    timestamp=223,
-                    service='svcB',
-                    reason='Pkg Update',
-                    action='restart')])
+    @patch.object(deferred_events.os, "remove")
+    @patch.object(deferred_events, "read_event_file")
+    @patch.object(deferred_events, "deferred_events_files")
+    def test_clear_deferred_events(self, deferred_events_files, read_event_file,
+                                   remove):
+        deferred_events_files.return_value = ['/tmp/file1']
+        read_event_file.return_value = self.exp_event_a
+        deferred_events.clear_deferred_events('svcB', 'restart')
+        self.assertFalse(remove.called)
+        deferred_events.clear_deferred_events('svcA', 'restart')
+        remove.assert_called_once_with('/tmp/file1')
 
-    @patch.object(deferred_events.policy_rcd, 'policy_deferred_events')
-    @patch.object(deferred_events.policy_rcd, 'clear_deferred_pkg_events')
-    def test_clear_deferred_events_pkg(self, clear_deferred_pkg_events, policy_deferred_events):
-        policy_deferred_events.return_value = []
-        test_class = deferred_events.DeferredPackageServiceEvents()
-        test_class.clear_deferred_events(['svcA', 'svcB'], 'restart')
-        clear_deferred_pkg_events.assert_called_once_with(
-            ['svcA', 'svcB'],
-            'restart')
+    @patch.object(deferred_events.os, "mkdir")
+    @patch.object(deferred_events.os.path, "exists")
+    def test_init_policy_log_dir(self, exists, mkdir):
+        exists.return_value = True
+        deferred_events.init_policy_log_dir()
+        self.assertFalse(mkdir.called)
+        exists.return_value = False
+        deferred_events.init_policy_log_dir()
+        mkdir.assert_called_once_with('/var/lib/policy-rc.d')
 
-    @patch.object(deferred_events.policy_rcd, 'policy_deferred_events')
-    def test_get_deferred_events(self, policy_deferred_events):
-        policy_deferred_events.return_value = [
-            {
-                'time': 123,
-                'service': 'svcA',
-                'action': 'restart'},
-            {
-                'time': 223,
-                'service': 'svcB',
-                'action': 'restart'}]
-
+    @patch.object(deferred_events, "deferred_events")
+    def test_get_deferred_events(self, _deferred_events):
+        _deferred_events.return_value = self.event_file_pair
         self.assertEqual(
             deferred_events.get_deferred_events(),
-            [
-                deferred_events.ServiceEvent(
-                    timestamp=123,
-                    service='svcA',
-                    reason='ReasonA',
-                    action='restart'),
-                deferred_events.ServiceEvent(
-                    timestamp=223,
-                    service='svcB',
-                    reason='ReasonB',
-                    action='restart'),
-                deferred_events.ServiceEvent(
-                    timestamp=123,
-                    service='svcA',
-                    reason='Pkg Update',
-                    action='restart'),
-                deferred_events.ServiceEvent(
-                    timestamp=223,
-                    service='svcB',
-                    reason='Pkg Update',
-                    action='restart')])
+            self.base_expect_events)
 
-    @patch.object(deferred_events, 'get_deferred_events')
+    @patch.object(deferred_events, "get_deferred_events")
     def test_get_deferred_restarts(self, get_deferred_events):
-        get_deferred_events.return_value = [
+        test_events = copy.deepcopy(self.base_expect_events)
+        test_events.append(
             deferred_events.ServiceEvent(
-                timestamp=123,
-                service='svcA',
-                reason='ReasonA',
-                action='restart'),
-            deferred_events.ServiceEvent(
-                timestamp=223,
-                service='svcB',
-                reason='ReasonB',
-                action='stop'),
-            deferred_events.ServiceEvent(
-                timestamp=123,
-                service='svcA',
-                reason='Pkg Update',
-                action='start')]
+                timestamp=523,
+                service='svcD',
+                reason='StopReasonD',
+                action='stop'))
+        get_deferred_events.return_value = test_events
         self.assertEqual(
             deferred_events.get_deferred_restarts(),
-            [
-                deferred_events.ServiceEvent(
-                    timestamp=123,
-                    service='svcA',
-                    reason='ReasonA',
-                    action='restart')])
+            self.base_expect_events)
 
     @patch.object(deferred_events, 'clear_deferred_events')
     def test_clear_deferred_restarts(self, clear_deferred_events):
@@ -199,8 +180,8 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         clear_deferred_restarts.assert_called_once_with(
             ['svcA'])
 
-    @patch.object(deferred_events, 'config')
-    def is_restart_permitted(self, config):
+    @patch.object(deferred_events.hookenv, 'config')
+    def test_is_restart_permitted(self, config):
         config.return_value = None
         self.assertTrue(deferred_events.is_restart_permitted())
         config.return_value = True
@@ -208,24 +189,28 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         config.return_value = False
         self.assertFalse(deferred_events.is_restart_permitted())
 
-    @patch.object(deferred_events, 'DeferredCharmServiceEvents')
+    @patch.object(deferred_events.time, 'time')
+    @patch.object(deferred_events, 'save_event')
     @patch.object(deferred_events, 'is_restart_permitted')
-    def test_defer_restart_on_changed(self, is_restart_permitted,
-                                      DeferredCharmServiceEvents):
+    def test_defer_restart_on_changed(self, is_restart_permitted, save_event, time):
+        time.return_value = 123
         is_restart_permitted.return_value = False
         deferred_events.defer_restart_on_changed(
-            ['svcA', 'svcB'],
-            ['/tmp/test1.conf', '/tmp/test2.conf'])
-        DeferredCharmServiceEvents().add_event(
             'svcA',
-            action='restart',
-            event_reason='File(s) changed: /tmp/test1.conf, /tmp/test2.conf')
+            ['/tmp/test1.conf', '/tmp/test2.conf'])
+        save_event.assert_called_once_with(deferred_events.ServiceEvent(
+            timestamp=123,
+            service='svcA',
+            reason='File(s) changed: /tmp/test1.conf, /tmp/test2.conf',
+            action='restart'))
 
-    @patch.object(deferred_events, 'DeferredCharmServiceEvents')
+    @patch.object(deferred_events.time, 'time')
+    @patch.object(deferred_events, 'save_event')
     @patch.object(deferred_events.host, 'service_restart')
     @patch.object(deferred_events, 'is_restart_permitted')
     def test_deferrable_svc_restart(self, is_restart_permitted,
-                                    service_restart, DeferredCharmServiceEvents):
+                                    service_restart, save_event, time):
+        time.return_value = 123
         is_restart_permitted.return_value = True
         deferred_events.deferrable_svc_restart('svcA', reason='ReasonA')
         service_restart.assert_called_once_with('svcA')
@@ -233,8 +218,11 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         is_restart_permitted.return_value = False
         deferred_events.deferrable_svc_restart('svcA', reason='ReasonA')
         self.assertFalse(service_restart.called)
-        DeferredCharmServiceEvents().add_event(
-            'svcA', action='restart', event_reason='ReasonA')
+        save_event.assert_called_once_with(deferred_events.ServiceEvent(
+            timestamp=123,
+            service='svcA',
+            reason='ReasonA',
+            action='restart'))
 
     @patch.object(deferred_events.policy_rcd, 'add_policy_block')
     @patch.object(deferred_events.policy_rcd, 'remove_policy_file')
@@ -275,8 +263,9 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
     @patch.object(deferred_events, 'clear_deferred_restarts')
     @patch.object(deferred_events.hookenv, 'log')
     @patch.object(deferred_events, 'get_service_start_time')
-    def test_check_restarts(self, get_service_start_time, log,
-                            clear_deferred_restarts, get_deferred_restarts):
+    def test_check_restart_timestamps(self, get_service_start_time, log,
+                                      clear_deferred_restarts,
+                                      get_deferred_restarts):
         deferred_restarts = [
             # 'Tue 2021-02-02 10:19:55 UTC'
             deferred_events.ServiceEvent(
@@ -288,14 +277,14 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         get_service_start_time.return_value = datetime.datetime.strptime(
             'Tue 2021-02-02 13:19:55 UTC',
             '%a %Y-%m-%d %H:%M:%S %Z')
-        deferred_events.check_restarts()
+        deferred_events.check_restart_timestamps()
         clear_deferred_restarts.assert_called_once_with(['svcA'])
 
         clear_deferred_restarts.reset_mock()
         get_service_start_time.return_value = datetime.datetime.strptime(
             'Tue 2021-02-02 10:10:55 UTC',
             '%a %Y-%m-%d %H:%M:%S %Z')
-        deferred_events.check_restarts()
+        deferred_events.check_restart_timestamps()
         self.assertFalse(clear_deferred_restarts.called)
         log.assert_called_once_with(
             ('Restart still required, svcA was started at 2021-02-02 10:10:55,'
