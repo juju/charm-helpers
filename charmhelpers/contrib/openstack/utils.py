@@ -14,7 +14,7 @@
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict, namedtuple
-from functools import wraps
+from functools import partial, wraps
 
 import subprocess
 import json
@@ -36,9 +36,12 @@ from charmhelpers.contrib.network import ip
 
 from charmhelpers.core import decorators, unitdata
 
+import charmhelpers.contrib.openstack.deferred_events as deferred_events
+
 from charmhelpers.core.hookenv import (
     WORKLOAD_STATES,
     action_fail,
+    action_get,
     action_set,
     config,
     expected_peer_units,
@@ -112,7 +115,7 @@ from charmhelpers.fetch.snap import (
 
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
-from charmhelpers.contrib.openstack.exceptions import OSContextError
+from charmhelpers.contrib.openstack.exceptions import OSContextError, ServiceActionError
 from charmhelpers.contrib.openstack.policyd import (
     policyd_status_message_prefix,
     POLICYD_CONFIG_NAME,
@@ -1083,6 +1086,12 @@ def _determine_os_workload_status(
     try:
         if config(POLICYD_CONFIG_NAME):
             message = "{} {}".format(policyd_status_message_prefix(), message)
+        deferred_restarts = list(set(
+            [e.service for e in deferred_events.get_deferred_restarts()]))
+        if deferred_restarts:
+            svc_msg = "Services queued for restart: {}".format(
+                ', '.join(sorted(deferred_restarts)))
+            message = "{}. {}".format(message, svc_msg)
     except Exception:
         pass
 
@@ -1725,6 +1734,43 @@ def resume_unit(assess_status_func, services=None, ports=None,
             messages.append(message)
     if messages:
         raise Exception("Couldn't resume: {}".format("; ".join(messages)))
+
+
+def restart_services_action(services=None, when_all_stopped_func=None,
+                            deferred_only=None):
+    """Manage a service restart request via charm action.
+
+    :param services: Services to be restarted
+    :type model_name: List[str]
+    :param when_all_stopped_func: Function to call when all services are
+                                  stopped.
+    :type when_all_stopped_func: Callable[]
+    :param model_name: Only restart services which have a deferred restart
+                       event.
+    :type model_name: bool
+    """
+    if services and deferred_only:
+        raise ValueError(
+            "services and deferred_only are mutually exclusive")
+    if deferred_only:
+        services = list(set(
+            [a.service for a in deferred_events.get_deferred_restarts()]))
+    _, messages = manage_payload_services(
+        'stop',
+        services=services,
+        charm_func=when_all_stopped_func)
+    if messages:
+        raise ServiceActionError(
+            "Error processing service stop request: {}".format(
+                "; ".join(messages)))
+    _, messages = manage_payload_services(
+        'start',
+        services=services)
+    if messages:
+        raise ServiceActionError(
+            "Error processing service start request: {}".format(
+                "; ".join(messages)))
+    deferred_events.clear_deferred_restarts(services)
 
 
 def make_assess_status_func(*args, **kwargs):
@@ -2551,3 +2597,44 @@ def get_subordinate_release_packages(os_release, package_type='deb'):
                         container.add(pkg)
                 break
     return SubordinatePackages(install, purge)
+
+
+os_restart_on_change = partial(
+    pausable_restart_on_change,
+    can_restart_now_f=deferred_events.check_and_record_restart_request,
+    post_svc_restart_f=deferred_events.process_svc_restart)
+
+
+def restart_services_action_helper(all_services):
+    """Helper to run the restart-services action.
+
+    NOTE: all_services is all services that could be restarted but
+          depending on the action arguments it may be a subset of
+          these that are actually restarted.
+
+    :param all_services: All services that could be restarted
+    :type all_services: List[str]
+    """
+    deferred_only = action_get("deferred-only")
+    services = action_get("services")
+    if services:
+        services = services.split()
+    else:
+        services = all_services
+    if deferred_only:
+        restart_services_action(deferred_only=True)
+    else:
+        restart_services_action(services=services)
+
+
+def show_deferred_restarts_action_helper():
+    """Helper to run the show-deferred-restarts action."""
+    output = []
+    for event in deferred_events.get_deferred_events():
+        output.append('{} {} {}'.format(
+            str(event.timestamp),
+            event.service.ljust(40),
+            event.reason))
+    output.sort()
+    action_set({'output': "{}".format(
+        yaml.dump(output, default_flow_style=False))})
