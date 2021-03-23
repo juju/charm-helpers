@@ -241,8 +241,6 @@ SWIFT_CODENAMES = OrderedDict([
         ['2.24.0', '2.25.0']),
     ('victoria',
         ['2.25.0', '2.26.0']),
-    ('wallaby',
-        ['2.26.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -259,7 +257,6 @@ PACKAGE_CODENAMES = {
         ('20', 'train'),
         ('21', 'ussuri'),
         ('22', 'victoria'),
-        ('23', 'wallaby'),
     ]),
     'neutron-common': OrderedDict([
         ('7', 'liberty'),
@@ -273,7 +270,6 @@ PACKAGE_CODENAMES = {
         ('15', 'train'),
         ('16', 'ussuri'),
         ('17', 'victoria'),
-        ('18', 'wallaby'),
     ]),
     'cinder-common': OrderedDict([
         ('7', 'liberty'),
@@ -287,7 +283,6 @@ PACKAGE_CODENAMES = {
         ('15', 'train'),
         ('16', 'ussuri'),
         ('17', 'victoria'),
-        ('18', 'wallaby'),
     ]),
     'keystone': OrderedDict([
         ('8', 'liberty'),
@@ -301,7 +296,6 @@ PACKAGE_CODENAMES = {
         ('16', 'train'),
         ('17', 'ussuri'),
         ('18', 'victoria'),
-        ('19', 'wallaby'),
     ]),
     'horizon-common': OrderedDict([
         ('8', 'liberty'),
@@ -315,7 +309,6 @@ PACKAGE_CODENAMES = {
         ('16', 'train'),
         ('18', 'ussuri'),  # Note this was actually 17.0 - 18.3
         ('19', 'victoria'),  # Note this is really 18.6
-        ('19', 'wallaby'),
     ]),
     'ceilometer-common': OrderedDict([
         ('5', 'liberty'),
@@ -329,7 +322,6 @@ PACKAGE_CODENAMES = {
         ('13', 'train'),
         ('14', 'ussuri'),
         ('15', 'victoria'),
-        ('16', 'wallaby'),  # estimated
     ]),
     'heat-common': OrderedDict([
         ('5', 'liberty'),
@@ -343,7 +335,6 @@ PACKAGE_CODENAMES = {
         ('13', 'train'),
         ('14', 'ussuri'),
         ('15', 'victoria'),
-        ('16', 'wallaby'),  # estimated
     ]),
     'glance-common': OrderedDict([
         ('11', 'liberty'),
@@ -357,7 +348,6 @@ PACKAGE_CODENAMES = {
         ('19', 'train'),
         ('20', 'ussuri'),
         ('21', 'victoria'),
-        ('22', 'wallaby'),
     ]),
     'openstack-dashboard': OrderedDict([
         ('8', 'liberty'),
@@ -371,7 +361,6 @@ PACKAGE_CODENAMES = {
         ('16', 'train'),
         ('18', 'ussuri'),
         ('19', 'victoria'),
-        ('19', 'wallaby'),
     ]),
 }
 
