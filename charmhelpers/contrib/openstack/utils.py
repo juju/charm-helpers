@@ -41,6 +41,7 @@ import charmhelpers.contrib.openstack.deferred_events as deferred_events
 from charmhelpers.core.hookenv import (
     WORKLOAD_STATES,
     action_fail,
+    action_get,
     action_set,
     config,
     expected_peer_units,
@@ -2602,3 +2603,38 @@ os_restart_on_change = partial(
     pausable_restart_on_change,
     can_restart_now_f=deferred_events.check_and_record_restart_request,
     post_svc_restart_f=deferred_events.process_svc_restart)
+
+
+def restart_services_action_helper(all_services):
+    """Helper to run the restart-services action.
+
+    NOTE: all_services is all services that could be restarted but
+          depending on the action arguments it may be a subset of
+          these that are actually restarted.
+
+    :param all_services: All services that could be restarted
+    :type all_services: List[str]
+    """
+    deferred_only = action_get("deferred-only")
+    services = action_get("services")
+    if services:
+        services = services.split()
+    else:
+        services = all_services
+    if deferred_only:
+        restart_services_action(deferred_only=True)
+    else:
+        restart_services_action(services=services)
+
+
+def show_deferred_restarts_action_helper():
+    """Helper to run the show-deferred-restarts action."""
+    output = []
+    for event in deferred_events.get_deferred_events():
+        output.append('{} {} {}'.format(
+            str(event.timestamp),
+            event.service.ljust(40),
+            event.reason))
+    output.sort()
+    action_set({'output': "{}".format(
+        yaml.dump(output, default_flow_style=False))})
