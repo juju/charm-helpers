@@ -265,8 +265,8 @@ def is_restart_permitted():
     return hookenv.config('enable-auto-restarts')
 
 
-def defer_restart_on_changed(service, changed_files):
-    """Check if restarts are permitted, if they are not defer them.
+def check_and_record_restart_request(service, changed_files):
+    """Check if restarts are permitted, if they are not log the request.
 
     :param service: Service to be restarted
     :type service: str

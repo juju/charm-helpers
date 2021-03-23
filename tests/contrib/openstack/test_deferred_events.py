@@ -192,10 +192,11 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
     @patch.object(deferred_events.time, 'time')
     @patch.object(deferred_events, 'save_event')
     @patch.object(deferred_events, 'is_restart_permitted')
-    def test_defer_restart_on_changed(self, is_restart_permitted, save_event, time):
+    def test_check_and_record_restart_request(self, is_restart_permitted,
+                                              save_event, time):
         time.return_value = 123
         is_restart_permitted.return_value = False
-        deferred_events.defer_restart_on_changed(
+        deferred_events.check_and_record_restart_request(
             'svcA',
             ['/tmp/test1.conf', '/tmp/test2.conf'])
         save_event.assert_called_once_with(deferred_events.ServiceEvent(

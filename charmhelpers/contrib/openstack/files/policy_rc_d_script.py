@@ -163,11 +163,11 @@ def main():
         format='%(asctime)s %(message)s')
 
     service = sys.argv[1]
-    cmd = sys.argv[2]
+    action = sys.argv[2]
 
     permitted, message = process_action_request(
         service,
-        cmd,
+        action,
         DEFAULT_POLICY_CONFIG_DIR,
         DEFAULT_POLICY_LOG_DIR)
     logging.info(message)

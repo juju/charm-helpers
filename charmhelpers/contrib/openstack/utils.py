@@ -2600,5 +2600,5 @@ def get_subordinate_release_packages(os_release, package_type='deb'):
 
 os_restart_on_change = partial(
     pausable_restart_on_change,
-    can_restart_now_f=deferred_events.defer_restart_on_changed,
+    can_restart_now_f=deferred_events.check_and_record_restart_request,
     post_svc_restart_f=deferred_events.process_svc_restart)
