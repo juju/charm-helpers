@@ -685,7 +685,6 @@ TO_PATCH = [
     'kv',
     'pwgen',
     'lsb_release',
-    'is_container',
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
@@ -740,7 +739,6 @@ class ContextTests(unittest.TestCase):
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
         self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
-        self.is_container.return_value = False
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
         self.maxDiff = None
@@ -3315,20 +3313,29 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'psutil')
     def test_num_cpus_xenial(self, _psutil):
         _psutil.cpu_count.return_value = 4
-        self.assertTrue(context._num_cpus(), 4)
+        self.assertEqual(context._num_cpus(), 4)
 
     @patch.object(context, 'psutil')
     def test_num_cpus_trusty(self, _psutil):
+        _psutil.cpu_count.side_effect = AttributeError
         _psutil.NUM_CPUS = 4
-        self.assertTrue(context._num_cpus(), 4)
+        self.assertEqual(context._num_cpus(), 4)
 
     @patch.object(context, '_num_cpus')
     def test_calculate_workers_float(self, _num_cpus):
         self.config.side_effect = fake_config({
             'worker-multiplier': 0.3
         })
-        _num_cpus.return_value = 4
-        self.assertTrue(context._calculate_workers(), 4)
+        _num_cpus.return_value = 8
+        self.assertEqual(context._calculate_workers(), 2)
+
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_float_negative(self, _num_cpus):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': -4.0
+        })
+        _num_cpus.return_value = 8
+        self.assertEqual(context._calculate_workers(), 1)
 
     @patch.object(context, '_num_cpus')
     def test_calculate_workers_not_quite_0(self, _num_cpus):
@@ -3339,43 +3346,27 @@ class ContextTests(unittest.TestCase):
             'worker-multiplier': 0.001
         })
         _num_cpus.return_value = 100
-        self.assertTrue(context._calculate_workers(), 1)
+        self.assertEqual(context._calculate_workers(), 1)
 
-    @patch.object(context, 'psutil')
-    def test_calculate_workers_0(self, _psutil):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_0(self, _num_cpus):
         self.config.side_effect = fake_config({
             'worker-multiplier': 0
         })
-        _psutil.cpu_count.return_value = 2
-        self.assertTrue(context._calculate_workers(), 0)
+        _num_cpus.return_value = 2
+        self.assertEqual(context._calculate_workers(), 1)
 
     @patch.object(context, '_num_cpus')
     def test_calculate_workers_noconfig(self, _num_cpus):
         self.config.return_value = None
         _num_cpus.return_value = 1
-        self.assertTrue(context._calculate_workers(), 2)
+        self.assertEqual(context._calculate_workers(), 2)
 
     @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_container(self, _num_cpus):
-        self.config.return_value = None
-        self.is_container.return_value = True
-        _num_cpus.return_value = 1
-        self.assertTrue(context._calculate_workers(), 2)
-
-    @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_lotsa_cpus_container(self,
-                                                             _num_cpus):
-        self.config.return_value = None
-        self.is_container.return_value = True
-        _num_cpus.return_value = 32
-        self.assertTrue(context._calculate_workers(), 4)
-
-    @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_lotsa_cpus_not_container(self,
-                                                                 _num_cpus):
+    def test_calculate_workers_noconfig_lotsa_cpus(self, _num_cpus):
         self.config.return_value = None
         _num_cpus.return_value = 32
-        self.assertTrue(context._calculate_workers(), 64)
+        self.assertEqual(context._calculate_workers(), 4)
 
     @patch.object(context, '_calculate_workers', return_value=256)
     def test_worker_context(self, calculate_workers):

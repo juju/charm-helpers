@@ -1431,6 +1431,28 @@ class HelpersTest(TestCase):
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
+    def test_restart_on_change_context_manager(self, iglob, exists, service):
+        file_name = '/etc/missing.conf'
+        restart_map = {
+            file_name: ['test-service']
+        }
+        iglob.side_effect = [[], [file_name]]
+        exists.return_value = True
+
+        with patch_open() as (mock_open, mock_file):
+            with host.restart_on_change(restart_map):
+                mock_file.read.return_value = b"newstuff"
+
+        for service_name in restart_map[file_name]:
+            service.assert_called_with('restart', service_name)
+
+        exists.assert_has_calls([
+            call(file_name),
+        ])
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
     def test_multiservice_restart_on_change(self, iglob, exists, service):
         file_name_one = '/etc/missing.conf'
         file_name_two = '/etc/exists.conf'
@@ -1929,7 +1951,10 @@ class HelpersTest(TestCase):
         self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
                          updatedb_text)
 
-    def test_write_updatedb(self):
+    @patch('os.path')
+    def test_write_updatedb(self, mock_path):
+        mock_path.exists.return_value = True
+        mock_path.isdir.return_value = False
         _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
         with patch('charmhelpers.core.host.open', _open, create=True):
             host.add_to_updatedb_prunepath("/tmp/test")
