@@ -1800,11 +1800,14 @@ class HelpersTest(TestCase):
         lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         self.assertEqual(host.get_distrib_codename(), 'bionic')
 
+    @patch('charmhelpers.fetch.get_installed_version')
     @patch.object(osplatform, 'get_platform')
     @patch.object(ubuntu_apt_pkg, 'Cache')
-    def test_cmp_pkgrevno_revnos_ubuntu(self, pkg_cache, platform):
+    def test_cmp_pkgrevno_revnos_ubuntu(self, pkg_cache, platform,
+                                        get_installed_version):
         platform.return_value = 'ubuntu'
         imp.reload(host)
+        current_ver = '2.4'
 
         class MockPackage:
             class MockPackageRevno:
@@ -1815,12 +1818,26 @@ class HelpersTest(TestCase):
                 self.current_ver = self.MockPackageRevno(current_ver)
 
         pkg_dict = {
-            'python': MockPackage('2.4')
+            'python': MockPackage(current_ver)
         }
         pkg_cache.return_value = pkg_dict
+        get_installed_version.return_value = MockPackage.MockPackageRevno(
+            current_ver)
         self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
+        self.assertEqual(
+            host.cmp_pkgrevno('python', '2.3', pkgcache=pkg_dict),
+            1
+        )
+        self.assertEqual(
+            host.cmp_pkgrevno('python', '2.4', pkgcache=pkg_dict),
+            0
+        )
+        self.assertEqual(
+            host.cmp_pkgrevno('python', '2.5', pkgcache=pkg_dict),
+            -1
+        )
 
     @patch.object(osplatform, 'get_platform')
     def test_cmp_pkgrevno_revnos_centos(self, platform):
