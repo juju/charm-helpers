@@ -151,6 +151,7 @@ OPENSTACK_RELEASES = (
     'train',
     'ussuri',
     'victoria',
+    'wallaby',
 )
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
@@ -173,6 +174,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('eoan', 'train'),
     ('focal', 'ussuri'),
     ('groovy', 'victoria'),
+    ('hirsute', 'wallaby'),
 ])
 
 
@@ -196,6 +198,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2019.2', 'train'),
     ('2020.1', 'ussuri'),
     ('2020.2', 'victoria'),
+    ('2021.1', 'wallaby'),
 ])
 
 # The ugly duckling - must list releases oldest to newest
@@ -304,8 +307,8 @@ PACKAGE_CODENAMES = {
         ('14', 'rocky'),
         ('15', 'stein'),
         ('16', 'train'),
-        ('18', 'ussuri'),
-        ('19', 'victoria'),
+        ('18', 'ussuri'),  # Note this was actually 17.0 - 18.3
+        ('19', 'victoria'),  # Note this is really 18.6
     ]),
     'ceilometer-common': OrderedDict([
         ('5', 'liberty'),
