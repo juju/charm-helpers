@@ -31,8 +31,21 @@ except ImportError:
 DEFAULT_TEMPLATES_DIR = 'templates'
 
 
-def render(template_name, context, template_dir=DEFAULT_TEMPLATES_DIR):
+def render(template_name, context, template_dir=DEFAULT_TEMPLATES_DIR,
+           jinja_env_args=None):
+    """
+    Render jinja2 template with provided context.
+
+    :param template_name: name of the jinja template file
+    :param context: template context
+    :param template_dir: directory in which the template file is located
+    :param jinja_env_args: additional arguments passed to the
+                           jinja2.Environment. Expected dict with format
+                           {'arg_name': 'arg_value'}
+    :return: Rendered template as a string
+    """
+    env_kwargs = jinja_env_args or {}
     templates = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir))
+        loader=jinja2.FileSystemLoader(template_dir), **env_kwargs)
     template = templates.get_template(template_name)
     return template.render(context)
