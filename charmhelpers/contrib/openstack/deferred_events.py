@@ -28,6 +28,7 @@ import uuid
 import charmhelpers.contrib.openstack.policy_rcd as policy_rcd
 import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.host as host
+import charmhelpers.core.unitdata as unitdata
 
 import subprocess
 
@@ -361,3 +362,49 @@ def check_restart_timestamps():
                 level='DEBUG')
         else:
             clear_deferred_restarts([event.service])
+
+
+def set_deferred_hook(hookname):
+    """Record that a hook has been deferred.
+
+    :param hookname: Name of hook that was deferred.
+    :type hookname: str
+    """
+    with unitdata.HookData()() as t:
+        kv = t[0]
+        deferred_hooks = kv.get('deferred-hooks', [])
+        if hookname not in deferred_hooks:
+            deferred_hooks.append(hookname)
+            kv.set('deferred-hooks', sorted(list(set(deferred_hooks))))
+
+
+def get_deferred_hooks():
+    """Get a list of deferred hooks.
+
+    :returns: List of hook names.
+    :rtype: List[str]
+    """
+    with unitdata.HookData()() as t:
+        kv = t[0]
+        return kv.get('deferred-hooks', [])
+
+
+def clear_deferred_hooks():
+    """Clear any deferred hooks."""
+    with unitdata.HookData()() as t:
+        kv = t[0]
+        kv.set('deferred-hooks', [])
+
+
+def clear_deferred_hook(hookname):
+    """Clear a specific deferred hooks.
+
+    :param hookname: Name of hook to remove.
+    :type hookname: str
+    """
+    with unitdata.HookData()() as t:
+        kv = t[0]
+        deferred_hooks = kv.get('deferred-hooks', [])
+        if hookname in deferred_hooks:
+            deferred_hooks.remove(hookname)
+            kv.set('deferred-hooks', deferred_hooks)

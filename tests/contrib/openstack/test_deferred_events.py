@@ -1,5 +1,7 @@
+import contextlib
 import copy
 import datetime
+import json
 import tempfile
 import shutil
 import yaml
@@ -10,6 +12,36 @@ import charmhelpers.contrib.openstack.deferred_events as deferred_events
 import tests.utils
 
 
+class TestDB(object):
+    '''Test KV store for unitdata testing'''
+    def __init__(self):
+        self.data = {}
+        self.flushed = False
+
+    def get(self, key, default=None):
+        result = self.data.get(key, default)
+        if not result:
+            return default
+        return json.loads(result)
+
+    def set(self, key, value):
+        self.data[key] = json.dumps(value)
+        return value
+
+    def flush(self):
+        self.flushed = True
+
+
+class TestHookData(object):
+
+    def __init__(self, kv):
+        self.kv = kv
+
+    @contextlib.contextmanager
+    def __call__(self):
+        yield self.kv, True, True
+
+
 class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
 
     def setUp(self):
@@ -18,6 +50,9 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         self.addCleanup(lambda: shutil.rmtree(self.tmp_dir))
         self.patch_object(deferred_events.hookenv, 'service_name')
         self.service_name.return_value = 'myapp'
+        self.patch_object(deferred_events.unitdata, 'HookData')
+        self.db = TestDB()
+        self.HookData.return_value = TestHookData(self.db)
         self.exp_event_a = deferred_events.ServiceEvent(
             timestamp=123,
             service='svcA',
@@ -291,3 +326,39 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
             ('Restart still required, svcA was started at 2021-02-02 10:10:55,'
              ' restart was requested after that at 2021-02-02 10:19:55'),
             level='DEBUG')
+
+    def test_set_deferred_hook(self):
+        deferred_events.set_deferred_hook('config-changed')
+        self.assertEqual(self.db.get('deferred-hooks'), ['config-changed'])
+        deferred_events.set_deferred_hook('leader-settings-changed')
+        self.assertEqual(
+            self.db.get('deferred-hooks'),
+            ['config-changed', 'leader-settings-changed'])
+
+    def test_get_deferred_hook(self):
+        deferred_events.set_deferred_hook('config-changed')
+        self.assertEqual(
+            deferred_events.get_deferred_hooks(),
+            ['config-changed'])
+
+    def test_clear_deferred_hooks(self):
+        deferred_events.set_deferred_hook('config-changed')
+        deferred_events.set_deferred_hook('leader-settings-changed')
+        self.assertEqual(
+            deferred_events.get_deferred_hooks(),
+            ['config-changed', 'leader-settings-changed'])
+        deferred_events.clear_deferred_hooks()
+        self.assertEqual(
+            deferred_events.get_deferred_hooks(),
+            [])
+
+    def test_clear_deferred_hook(self):
+        deferred_events.set_deferred_hook('config-changed')
+        deferred_events.set_deferred_hook('leader-settings-changed')
+        self.assertEqual(
+            deferred_events.get_deferred_hooks(),
+            ['config-changed', 'leader-settings-changed'])
+        deferred_events.clear_deferred_hook('leader-settings-changed')
+        self.assertEqual(
+            deferred_events.get_deferred_hooks(),
+            ['config-changed'])
