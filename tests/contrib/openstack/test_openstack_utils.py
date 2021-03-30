@@ -1,6 +1,5 @@
 import io
 import os
-import contextlib
 import unittest
 from copy import copy
 from tests.helpers import patch_open, FakeRelation
@@ -14,6 +13,7 @@ from charmhelpers.core.hookenv import WORKLOAD_STATES, flush
 import charmhelpers.contrib.openstack.utils as openstack
 import charmhelpers.contrib.openstack.deferred_events as deferred_events
 from charmhelpers.contrib.openstack.exceptions import ServiceActionError
+import contextlib
 
 import six
 
@@ -1454,6 +1454,86 @@ class OpenStackHelpersTestCase(TestCase):
         kv.get.return_value = False
         r = openstack.is_unit_upgrading_set()
         self.assertEquals(r, False)
+
+    @patch.object(openstack, 'config')
+    @patch.object(openstack, 'is_unit_paused_set')
+    @patch.object(openstack.deferred_events, 'is_restart_permitted')
+    @patch.object(openstack.deferred_events, 'set_deferred_hook')
+    @patch.object(openstack.deferred_events, 'clear_deferred_hook')
+    def test_is_hook_allowed(self, clear_deferred_hook, set_deferred_hook,
+                             is_restart_permitted, is_unit_paused_set, config):
+        # Test unit not paused and not checking whether restarts are allowed
+        is_unit_paused_set.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=False),
+            (True, ''))
+        self.assertFalse(clear_deferred_hook.called)
+
+        # Test unit paused and not checking whether restarts are allowed
+        is_unit_paused_set.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=False),
+            (False, 'Unit is pause or upgrading. Skipping config-changed'))
+
+        # Test unit not paused and restarts allowed
+        clear_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (True, ''))
+        clear_deferred_hook.assert_called_once_with('config-changed')
+
+        # Test unit not paused and restarts not allowed
+        # enable-auto-restarts not enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = False
+        config().changed.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+        set_deferred_hook.assert_called_once_with('config-changed')
+
+        # Test unit not paused and restarts not allowed.
+        # enable-auto-restarts enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = False
+        config().changed.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+
+        # Test unit paused and restarts not allowed
+        # enable-auto-restarts not enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = True
+        is_restart_permitted.return_value = False
+        config().changed.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'Unit is pause or upgrading. Skipping config-changed and '
+                    'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+        set_deferred_hook.assert_called_once_with('config-changed')
 
     @patch('charmhelpers.contrib.openstack.utils.service_stop')
     def test_manage_payload_services_ok(self, service_stop):
