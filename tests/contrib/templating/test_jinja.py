@@ -12,6 +12,8 @@ SIMPLE_TEMPLATE = "{{ somevar }}"
 
 LOOP_TEMPLATE = "{% for i in somevar %}{{ i }}{% endfor %}"
 
+CUSTOM_DELIM_TEMPLATE = "{{ not_var }} << template_var >>"
+
 
 class Jinja2Test(TestCase):
 
@@ -45,4 +47,17 @@ class Jinja2Test(TestCase):
         result = render(
             name, {"somevar": ["1", "2", "3", "4", "5"]},
             template_dir=self.templates_dir)
+        self.assertEqual(expected, result)
+
+    def test_custom_delimiters(self):
+        name = "custom_delimiters"
+        template_var = "foo"
+        jinja_env_args = {"variable_start_string": "<<",
+                          "variable_end_string": ">>"}
+        expected = "{{ not_var }} %s" % template_var
+        self._write_template_to_file(name, CUSTOM_DELIM_TEMPLATE)
+
+        result = render(name, {'template_var': template_var},
+                        template_dir=self.templates_dir,
+                        jinja_env_args=jinja_env_args)
         self.assertEqual(expected, result)
