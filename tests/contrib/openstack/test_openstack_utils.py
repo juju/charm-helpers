@@ -1,6 +1,5 @@
 import io
 import os
-import contextlib
 import unittest
 from copy import copy
 from tests.helpers import patch_open, FakeRelation
@@ -12,6 +11,9 @@ from charmhelpers.fetch import ubuntu as fetch
 from charmhelpers.core.hookenv import WORKLOAD_STATES, flush
 
 import charmhelpers.contrib.openstack.utils as openstack
+import charmhelpers.contrib.openstack.deferred_events as deferred_events
+from charmhelpers.contrib.openstack.exceptions import ServiceActionError
+import contextlib
 
 import six
 
@@ -306,6 +308,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_swift_codename_none(self):
         self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
 
+    @patch("charmhelpers.core.hookenv.cache", new={})
     @patch.object(openstack, 'openstack_release')
     @patch.object(openstack, 'filter_installed_packages')
     @patch.object(openstack, 'apt_install')
@@ -313,10 +316,10 @@ class OpenStackHelpersTestCase(TestCase):
                                                  mock_filter_installed_packages,
                                                  mock_openstack_release):
         mock_openstack_release.return_value = {}
-        print("Checking when none")
         self.assertEquals(
             openstack.get_installed_os_version(), None)
 
+    @patch("charmhelpers.core.hookenv.cache", new={})
     @patch.object(openstack, 'openstack_release')
     @patch.object(openstack, 'filter_installed_packages')
     @patch.object(openstack, 'apt_install')
@@ -324,7 +327,6 @@ class OpenStackHelpersTestCase(TestCase):
                                                    mock_filter_installed_packages,
                                                    mock_openstack_release):
         mock_openstack_release.return_value = {'OPENSTACK_CODENAME': 'wallaby'}
-        print("Checking when wallaby")
         self.assertEquals(
             openstack.get_installed_os_version(), 'wallaby')
 
@@ -1453,6 +1455,86 @@ class OpenStackHelpersTestCase(TestCase):
         r = openstack.is_unit_upgrading_set()
         self.assertEquals(r, False)
 
+    @patch.object(openstack, 'config')
+    @patch.object(openstack, 'is_unit_paused_set')
+    @patch.object(openstack.deferred_events, 'is_restart_permitted')
+    @patch.object(openstack.deferred_events, 'set_deferred_hook')
+    @patch.object(openstack.deferred_events, 'clear_deferred_hook')
+    def test_is_hook_allowed(self, clear_deferred_hook, set_deferred_hook,
+                             is_restart_permitted, is_unit_paused_set, config):
+        # Test unit not paused and not checking whether restarts are allowed
+        is_unit_paused_set.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=False),
+            (True, ''))
+        self.assertFalse(clear_deferred_hook.called)
+
+        # Test unit paused and not checking whether restarts are allowed
+        is_unit_paused_set.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=False),
+            (False, 'Unit is pause or upgrading. Skipping config-changed'))
+
+        # Test unit not paused and restarts allowed
+        clear_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (True, ''))
+        clear_deferred_hook.assert_called_once_with('config-changed')
+
+        # Test unit not paused and restarts not allowed
+        # enable-auto-restarts not enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = False
+        config().changed.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+        set_deferred_hook.assert_called_once_with('config-changed')
+
+        # Test unit not paused and restarts not allowed.
+        # enable-auto-restarts enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = False
+        config().changed.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+
+        # Test unit paused and restarts not allowed
+        # enable-auto-restarts not enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = True
+        is_restart_permitted.return_value = False
+        config().changed.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'Unit is pause or upgrading. Skipping config-changed and '
+                    'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+        set_deferred_hook.assert_called_once_with('config-changed')
+
     @patch('charmhelpers.contrib.openstack.utils.service_stop')
     def test_manage_payload_services_ok(self, service_stop):
         services = ['service1', 'service2']
@@ -2407,6 +2489,37 @@ class OpenStackUtilsAdditionalTests(TestCase):
         self.assertEqual(
             openstack.get_api_application_status()[0].value,
             'blocked')
+
+    @patch.object(openstack.deferred_events, 'clear_deferred_restarts')
+    @patch.object(openstack, 'manage_payload_services')
+    @patch.object(openstack.deferred_events, 'get_deferred_restarts')
+    def test_restart_services_action(self, get_deferred_restarts,
+                                     manage_payload_services,
+                                     clear_deferred_restarts):
+        deferred_restarts = [
+            deferred_events.ServiceEvent(
+                timestamp=123,
+                service='svcA',
+                reason='ReasonA',
+                action='restart')]
+        get_deferred_restarts.return_value = deferred_restarts
+        manage_payload_services.return_value = (None, None)
+        openstack.restart_services_action(deferred_only=True)
+        manage_payload_services.assert_has_calls([
+            call('stop', services=['svcA'], charm_func=None),
+            call('start', services=['svcA'])])
+        clear_deferred_restarts.assert_called_once_with(['svcA'])
+        self.assertRaises(
+            ValueError,
+            openstack.restart_services_action,
+            ['svcA'],
+            deferred_only=True)
+
+        manage_payload_services.return_value = (None, 'something went wrong')
+        self.assertRaises(
+            ServiceActionError,
+            openstack.restart_services_action,
+            ['svcA'])
 
 
 if __name__ == '__main__':
