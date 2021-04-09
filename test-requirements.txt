@@ -1,0 +1,39 @@
+# Test-only dependencies are unpinned.
+#
+git+https://git.launchpad.net/ubuntu/+source/python-distutils-extra
+pip
+coverage>=3.6
+mock>=1.0.1,<1.1.0
+nose>=1.3.1
+flake8
+testtools==0.9.14  # Before dependent on modern 'six'
+# path 14.0.0 renamed `tempdir` to TempDir and breaks Amulet.
+path<14.0.0;python_version >= '3.5'
+amulet
+distro-info
+sphinx_rtd_theme
+ipaddress;python_version<'3.0'  # Py27 unit test requirement
+
+
+##########################################################
+# Specify versions of runtime dependencies where possible.
+# The requirements.txt file cannot be so specific
+
+# https://pyyaml.org/wiki/PyYAML#history
+# PyYAML==5.2 is last supported for py34
+PyYAML==5.2;python_version >= '3.0' and python_version <= '3.4' # py3 trusty
+PyYAML;     python_version == '2.7' or python_version >= '3.5'  # all else
+
+# https://jinja.palletsprojects.com/en/2.11.x/changelog/
+# Jinja2==2.10 is last supported for py34
+# Jinja2==2.11 is last supported for py27 & py35
+Jinja2==2.10;python_version >= '3.0' and python_version <= '3.4' # py3 trusty
+Jinja2==2.11;python_version == '2.7' or python_version == '3.5'  # py27, py35
+Jinja2;      python_version >= '3.6'                             # py36 and on
+
+##############################################################
+
+netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.
+psutil==1.2.1      # trusty
+python-keystoneclient==2.3.2 # xenial
+dnspython==1.11.1  # trusty

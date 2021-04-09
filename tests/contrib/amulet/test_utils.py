@@ -4,12 +4,16 @@
 #  Adam Collard <adam.collard@canonical.com>
 
 from contextlib import contextmanager
-from mock import patch
+from mock import patch, MagicMock
 import sys
 import unittest
 
 import six
 
+# amulet needs the juju command installed, but it needs to be mocked out (for
+# sure on py38).  So, let's just get rid of the whole module as it looks for
+# the juju command on module load.
+sys.modules['amulet'] = MagicMock()
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils,
     amulet,
@@ -196,20 +200,19 @@ class GetProcessIdListTestCase(unittest.TestCase):
         result = self.utils.get_process_id_list(self.sentry_unit, "foo")
         self.assertEqual(["123", "124", "125"], result)
 
-    def test_fails_if_no_process_found(self):
+    @patch("amulet.FAIL", new="failed")
+    @patch("amulet.raise_status")
+    def test_fails_if_no_process_found(self, mock_raise_status):
         """
         By default, the expectation is that a process is running. Failure
         to find a given process results in an amulet.FAIL being
         raised.
         """
         self.sentry_unit.commands['pidof -x "foo"'] = ("", 1)
-        with self.assertRaises(SystemExit) as cm, captured_output() as (
-                out, err):
-            self.utils.get_process_id_list(self.sentry_unit, "foo")
-        the_exception = cm.exception
-        self.assertEqual(1, the_exception.code)
-        self.assertEqual(
-            'foo `pidof -x "foo"` returned 1', out.getvalue().rstrip())
+        self.utils.get_process_id_list(self.sentry_unit, "foo")
+        mock_raise_status.assert_called_once_with(
+            "failed",
+            msg='foo `pidof -x "foo"` returned 1 ')
 
     def test_looks_for_scripts(self):
         """
@@ -220,7 +223,9 @@ class GetProcessIdListTestCase(unittest.TestCase):
         result = self.utils.get_process_id_list(self.sentry_unit, "foo")
         self.assertEqual(["123", "124", "125"], result)
 
-    def test_expect_no_pid(self):
+    @patch("amulet.FAIL", new="failed")
+    @patch("amulet.raise_status")
+    def test_expect_no_pid(self, mock_raise_status):
         """
         By setting expectation that there are no pids running the logic
         about when to fail is reversed.
@@ -232,15 +237,11 @@ class GetProcessIdListTestCase(unittest.TestCase):
         result = self.utils.get_process_id_list(
             self.sentry_unit, "foo", expect_success=False)
         self.assertEqual([], result)
-        with self.assertRaises(SystemExit) as cm, captured_output() as (
-                out, err):
-            self.utils.get_process_id_list(
-                self.sentry_unit, "bar", expect_success=False)
-        the_exception = cm.exception
-        self.assertEqual(1, the_exception.code)
-        self.assertEqual(
-            'foo `pidof -x "bar" || exit 0 && exit 1` returned 1',
-            out.getvalue().rstrip())
+        self.utils.get_process_id_list(
+            self.sentry_unit, "bar", expect_success=False)
+        mock_raise_status.assert_called_once_with(
+            "failed",
+            msg='foo `pidof -x "bar" || exit 0 && exit 1` returned 1 ')
 
 
 class GetUnitProcessIdsTestCase(unittest.TestCase):

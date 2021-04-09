@@ -21,14 +21,40 @@ class MysqlTests(unittest.TestCase):
         with mock.patch.object(mysql, 'log'):
             helper.connect(user='user', password='password', host='1.1.1.1')
         mysql.MySQLdb.connect.assert_called_with(
-            passwd='password', host='1.1.1.1', user='user')
+            passwd='password', host='1.1.1.1', user='user', connect_timeout=30)
 
     def test_connect_host_not_defined(self):
         helper = mysql.MySQLHelper('foo', 'bar')
         with mock.patch.object(mysql, 'log'):
             helper.connect(user='user', password='password')
         mysql.MySQLdb.connect.assert_called_with(
-            passwd='password', host='localhost', user='user')
+            passwd='password', host='localhost', user='user',
+            connect_timeout=30)
+
+    def test_connect_port_defined(self):
+        helper = mysql.MySQLHelper('foo', 'bar')
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', port=3316)
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user', port=3316,
+            connect_timeout=30)
+
+    def test_connect_new_default_timeout(self):
+        helper = mysql.MySQLHelper('foo', 'bar', connect_timeout=10)
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', port=3316)
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user', port=3316,
+            connect_timeout=10)
+
+    def test_connect_new_default_override(self):
+        helper = mysql.MySQLHelper('foo', 'bar', connect_timeout=10)
+        with mock.patch.object(mysql, 'log'):
+            helper.connect(user='user', password='password', port=3316,
+                           connect_timeout=20)
+        mysql.MySQLdb.connect.assert_called_with(
+            passwd='password', host='localhost', user='user', port=3316,
+            connect_timeout=20)
 
     @mock.patch.object(mysql.MySQLHelper, 'normalize_address')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
@@ -57,7 +83,10 @@ class MysqlTests(unittest.TestCase):
             elif unit == 'unit/2':
                 # No hostname
                 d = {'private-address': '10.0.0.3'}
-
+            elif unit == 'unit/3':
+                # Prefixed hostname
+                d = {'private-address': '10.0.0.4',
+                     'PRE_hostname': json.dumps(['10.0.0.4', '2001:db8:1::4'])}
             return d
 
         mock_relation_get.side_effect = mock_rel_get
@@ -73,6 +102,19 @@ class MysqlTests(unittest.TestCase):
 
         helper.grant_exists.assert_has_calls(calls, any_order=True)
         self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2']))
+
+        # With prefix
+        calls = [mock.call('dbB', 'userB', 'hostA'),
+                 mock.call('dbB', 'userB', '10.0.0.2'),
+                 mock.call('dbB', 'userB', '10.0.0.3'),
+                 mock.call('dbB', 'userB', '2001:db8:1::4'),
+                 mock.call('dbB', 'userB', '10.0.0.4')]
+
+        mock_related_units.return_value = [
+            'unit/0', 'unit/1', 'unit/2', 'unit/3']
+        units = helper.get_allowed_units('dbB', 'userB', prefix="PRE")
+        helper.grant_exists.assert_has_calls(calls, any_order=True)
+        self.assertEqual(units, set(['unit/0', 'unit/1', 'unit/2', 'unit/3']))
 
     @mock.patch('charmhelpers.contrib.network.ip.log',
                 lambda *args, **kwargs: None)
@@ -296,6 +338,7 @@ class MysqlTests(unittest.TestCase):
                           helper.set_mysql_password,
                           username='root', password='1234')
 
+    @mock.patch.object(mysql, 'lsb_release')
     @mock.patch.object(mysql, 'leader_get')
     @mock.patch.object(mysql, 'leader_set')
     @mock.patch.object(mysql.MySQLHelper, 'get_mysql_password')
@@ -303,7 +346,8 @@ class MysqlTests(unittest.TestCase):
     def test_set_mysql_password_fail_to_connect2(self, mock_connect,
                                                  mock_get_passwd,
                                                  mock_leader_set,
-                                                 mock_leader_get):
+                                                 mock_leader_get,
+                                                 mock_lsb_release):
 
         class FakeOperationalError(Exception):
             def __str__(self):
@@ -322,6 +366,9 @@ class MysqlTests(unittest.TestCase):
         helper = mysql.MySQLHelper('foo', 'bar', host='hostA')
         helper.connection = mock.MagicMock()
         mock_connect.side_effect = fake_connect
+        mock_lsb_release.return_value = {
+            'DISTRIB_CODENAME': 'bionic',
+        }
         with self.assertRaises(mysql.MySQLSetPasswordError) as cm:
             helper.set_mysql_password(username='root', password='1234')
 
@@ -820,6 +867,9 @@ class Mysql8Tests(unittest.TestCase):
                       "'{}'@'{}'".format(self.user, self.host)),
             mock.call("GRANT SELECT ON "
                       "performance_schema.replication_group_member_stats TO "
+                      "'{}'@'{}'".format(self.user, self.host)),
+            mock.call("GRANT SELECT ON "
+                      "performance_schema.global_variables TO "
                       "'{}'@'{}'".format(self.user, self.host))]
 
         self.cursor.execute.assert_has_calls(_calls)

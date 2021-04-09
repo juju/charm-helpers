@@ -13,17 +13,23 @@
 # limitations under the License.
 
 import collections
+import copy
+import enum
 import glob
+import hashlib
 import json
 import math
 import os
 import re
 import socket
 import time
+
 from base64 import b64decode
 from subprocess import check_call, CalledProcessError
 
 import six
+
+import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 
 from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
     _config_ini as config_ini
@@ -43,14 +49,15 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_set,
-    unit_get,
     unit_private_ip,
     charm_name,
     DEBUG,
     INFO,
     ERROR,
     status_set,
-    network_get_primary_address
+    network_get_primary_address,
+    WARNING,
+    service_name,
 )
 
 from charmhelpers.core.sysctl import create as sysctl_create
@@ -67,7 +74,6 @@ from charmhelpers.core.host import (
     pwgen,
     lsb_release,
     CompareHostReleases,
-    is_container,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
@@ -90,6 +96,7 @@ from charmhelpers.contrib.openstack.ip import (
     ADMIN,
     PUBLIC,
     ADDRESS_MAP,
+    local_address,
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
@@ -109,6 +116,13 @@ from charmhelpers.contrib.openstack.utils import (
     os_release,
 )
 from charmhelpers.core.unitdata import kv
+
+try:
+    from sriov_netplan_shim import pci
+except ImportError:
+    # The use of the function and contexts that require the pci module is
+    # optional.
+    pass
 
 try:
     import psutil
@@ -232,7 +246,7 @@ class SharedDBContext(OSContextGenerator):
                 hostname_key = "hostname"
             access_hostname = get_address_in_network(
                 access_network,
-                unit_get('private-address'))
+                local_address(unit_get_fallback='private-address'))
             set_hostname = relation_get(attribute=hostname_key,
                                         unit=local_unit())
             if set_hostname != access_hostname:
@@ -263,6 +277,12 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql+pymysql'
                 }
+                # Port is being introduced with LP Bug #1876188
+                # but it not currently required and may not be set in all
+                # cases, particularly in classic charms.
+                port = rdata.get('db_port')
+                if port:
+                    ctxt['database_port'] = port
                 if CompareOpenStackReleases(rel) < 'queens':
                     ctxt['database_type'] = 'mysql'
                 if self.context_complete(ctxt):
@@ -703,6 +723,12 @@ class AMQPContext(OSContextGenerator):
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     host = relation_get('private-address', rid=rid, unit=unit)
+                    if not relation_get('password', rid=rid, unit=unit):
+                        log(
+                            ("Skipping {} password not sent which indicates "
+                             "unit is not ready.".format(host)),
+                            level=DEBUG)
+                        continue
                     host = format_ipv6_addr(host) or host
                     rabbitmq_hosts.append(host)
 
@@ -783,6 +809,12 @@ class CephContext(OSContextGenerator):
                     mon_hosts.append(format_ipv6_addr(priv_addr) or priv_addr)
 
         ctxt['mon_hosts'] = ' '.join(sorted(mon_hosts))
+
+        if config('pool-type') and config('pool-type') == 'erasure-coded':
+            base_pool_name = config('rbd-pool') or config('rbd-pool-name')
+            if not base_pool_name:
+                base_pool_name = service_name()
+            ctxt['rbd_default_data_pool'] = base_pool_name
 
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
@@ -1055,7 +1087,7 @@ class ApacheSSLContext(OSContextGenerator):
             # NOTE(jamespage): Fallback must always be private address
             #                  as this is used to bind services on the
             #                  local unit.
-            fallback = unit_get("private-address")
+            fallback = local_address(unit_get_fallback="private-address")
             if net_config:
                 addr = get_address_in_network(net_config,
                                               fallback)
@@ -1227,7 +1259,7 @@ class NeutronContext(OSContextGenerator):
         if is_clustered():
             host = config('vip')
         else:
-            host = unit_get('private-address')
+            host = local_address(unit_get_fallback='private-address')
 
         ctxt = {'network_manager': self.network_manager,
                 'neutron_url': '%s://%s:%s' % (proto, host, '9696')}
@@ -1501,8 +1533,23 @@ class SubordinateConfigContext(OSContextGenerator):
                                         ctxt[k][section] = config_list
                             else:
                                 ctxt[k] = v
-        log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
-        return ctxt
+        if self.context_complete(ctxt):
+            log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
+            return ctxt
+        else:
+            return {}
+
+    def context_complete(self, ctxt):
+        """Overridden here to ensure the context is actually complete.
+
+        :param ctxt: The current context members
+        :type ctxt: Dict[str, ANY]
+        :returns: True if the context is complete
+        :rtype: bool
+        """
+        if not ctxt.get('sections'):
+            return False
+        return super(SubordinateConfigContext, self).context_complete(ctxt)
 
 
 class LogLevelContext(OSContextGenerator):
@@ -1548,16 +1595,21 @@ def _calculate_workers():
 
     @returns int: number of worker processes to use
     '''
-    multiplier = config('worker-multiplier') or DEFAULT_MULTIPLIER
+    multiplier = config('worker-multiplier')
+
+    # distinguish an empty config and an explicit config as 0.0
+    if multiplier is None:
+        multiplier = DEFAULT_MULTIPLIER
+
     count = int(_num_cpus() * multiplier)
-    if multiplier > 0 and count == 0:
+    if count <= 0:
+        # assign at least one worker
         count = 1
 
-    if config('worker-multiplier') is None and is_container():
+    if config('worker-multiplier') is None:
         # NOTE(jamespage): Limit unconfigured worker-multiplier
         #                  to MAX_DEFAULT_WORKERS to avoid insane
-        #                  worker configuration in LXD containers
-        #                  on large servers
+        #                  worker configuration on large servers
         # Reference: https://pad.lv/1665270
         count = min(count, MAX_DEFAULT_WORKERS)
 
@@ -2396,3 +2448,866 @@ class DHCPAgentContext(OSContextGenerator):
             return False
         else:
             return _config
+
+
+EntityMac = collections.namedtuple('EntityMac', ['entity', 'mac'])
+
+
+def resolve_pci_from_mapping_config(config_key):
+    """Resolve local PCI devices from MAC addresses in mapping config.
+
+    Note that this function keeps record of mac->PCI address lookups
+    in the local unit db as the devices will disappaear from the system
+    once bound.
+
+    :param config_key: Configuration option key to parse data from
+    :type config_key: str
+    :returns: PCI device address to Tuple(entity, mac) map
+    :rtype: collections.OrderedDict[str,Tuple[str,str]]
+    """
+    devices = pci.PCINetDevices()
+    resolved_devices = collections.OrderedDict()
+    db = kv()
+    # Note that ``parse_data_port_mappings`` returns Dict regardless of input
+    for mac, entity in parse_data_port_mappings(config(config_key)).items():
+        pcidev = devices.get_device_from_mac(mac)
+        if pcidev:
+            # NOTE: store mac->pci allocation as post binding
+            #       it disappears from PCIDevices.
+            db.set(mac, pcidev.pci_address)
+            db.flush()
+
+        pci_address = db.get(mac)
+        if pci_address:
+            resolved_devices[pci_address] = EntityMac(entity, mac)
+
+    return resolved_devices
+
+
+class DPDKDeviceContext(OSContextGenerator):
+
+    def __init__(self, driver_key=None, bridges_key=None, bonds_key=None):
+        """Initialize DPDKDeviceContext.
+
+        :param driver_key: Key to use when retrieving driver config.
+        :type driver_key: str
+        :param bridges_key: Key to use when retrieving bridge config.
+        :type bridges_key: str
+        :param bonds_key: Key to use when retrieving bonds config.
+        :type bonds_key: str
+        """
+        self.driver_key = driver_key or 'dpdk-driver'
+        self.bridges_key = bridges_key or 'data-port'
+        self.bonds_key = bonds_key or 'dpdk-bond-mappings'
+
+    def __call__(self):
+        """Populate context.
+
+        :returns: context
+        :rtype: Dict[str,Union[str,collections.OrderedDict[str,str]]]
+        """
+        driver = config(self.driver_key)
+        if driver is None:
+            return {}
+        # Resolve PCI devices for both directly used devices (_bridges)
+        # and devices for use in dpdk bonds (_bonds)
+        pci_devices = resolve_pci_from_mapping_config(self.bridges_key)
+        pci_devices.update(resolve_pci_from_mapping_config(self.bonds_key))
+        return {'devices': pci_devices,
+                'driver': driver}
+
+
+class OVSDPDKDeviceContext(OSContextGenerator):
+
+    def __init__(self, bridges_key=None, bonds_key=None):
+        """Initialize OVSDPDKDeviceContext.
+
+        :param bridges_key: Key to use when retrieving bridge config.
+        :type bridges_key: str
+        :param bonds_key: Key to use when retrieving bonds config.
+        :type bonds_key: str
+        """
+        self.bridges_key = bridges_key or 'data-port'
+        self.bonds_key = bonds_key or 'dpdk-bond-mappings'
+
+    @staticmethod
+    def _parse_cpu_list(cpulist):
+        """Parses a linux cpulist for a numa node
+
+        :returns: list of cores
+        :rtype: List[int]
+        """
+        cores = []
+        ranges = cpulist.split(',')
+        for cpu_range in ranges:
+            if "-" in cpu_range:
+                cpu_min_max = cpu_range.split('-')
+                cores += range(int(cpu_min_max[0]),
+                               int(cpu_min_max[1]) + 1)
+            else:
+                cores.append(int(cpu_range))
+        return cores
+
+    def _numa_node_cores(self):
+        """Get map of numa node -> cpu core
+
+        :returns: map of numa node -> cpu core
+        :rtype: Dict[str,List[int]]
+        """
+        nodes = {}
+        node_regex = '/sys/devices/system/node/node*'
+        for node in glob.glob(node_regex):
+            index = node.lstrip('/sys/devices/system/node/node')
+            with open(os.path.join(node, 'cpulist')) as cpulist:
+                nodes[index] = self._parse_cpu_list(cpulist.read().strip())
+        return nodes
+
+    def cpu_mask(self):
+        """Get hex formatted CPU mask
+
+        The mask is based on using the first config:dpdk-socket-cores
+        cores of each NUMA node in the unit.
+        :returns: hex formatted CPU mask
+        :rtype: str
+        """
+        num_cores = config('dpdk-socket-cores')
+        mask = 0
+        for cores in self._numa_node_cores().values():
+            for core in cores[:num_cores]:
+                mask = mask | 1 << core
+        return format(mask, '#04x')
+
+    def socket_memory(self):
+        """Formatted list of socket memory configuration per NUMA node
+
+        :returns: socket memory configuration per NUMA node
+        :rtype: str
+        """
+        sm_size = config('dpdk-socket-memory')
+        node_regex = '/sys/devices/system/node/node*'
+        mem_list = [str(sm_size) for _ in glob.glob(node_regex)]
+        if mem_list:
+            return ','.join(mem_list)
+        else:
+            return str(sm_size)
+
+    def devices(self):
+        """List of PCI devices for use by DPDK
+
+        :returns: List of PCI devices for use by DPDK
+        :rtype: collections.OrderedDict[str,str]
+        """
+        pci_devices = resolve_pci_from_mapping_config(self.bridges_key)
+        pci_devices.update(resolve_pci_from_mapping_config(self.bonds_key))
+        return pci_devices
+
+    def _formatted_whitelist(self, flag):
+        """Flag formatted list of devices to whitelist
+
+        :param flag: flag format to use
+        :type flag: str
+        :rtype: str
+        """
+        whitelist = []
+        for device in self.devices():
+            whitelist.append(flag.format(device=device))
+        return ' '.join(whitelist)
+
+    def device_whitelist(self):
+        """Formatted list of devices to whitelist for dpdk
+
+        using the old style '-w' flag
+
+        :returns: devices to whitelist prefixed by '-w '
+        :rtype: str
+        """
+        return self._formatted_whitelist('-w {device}')
+
+    def pci_whitelist(self):
+        """Formatted list of devices to whitelist for dpdk
+
+        using the new style '--pci-whitelist' flag
+
+        :returns: devices to whitelist prefixed by '--pci-whitelist '
+        :rtype: str
+        """
+        return self._formatted_whitelist('--pci-whitelist {device}')
+
+    def __call__(self):
+        """Populate context.
+
+        :returns: context
+        :rtype: Dict[str,Union[bool,str]]
+        """
+        ctxt = {}
+        whitelist = self.device_whitelist()
+        if whitelist:
+            ctxt['dpdk_enabled'] = config('enable-dpdk')
+            ctxt['device_whitelist'] = self.device_whitelist()
+            ctxt['socket_memory'] = self.socket_memory()
+            ctxt['cpu_mask'] = self.cpu_mask()
+        return ctxt
+
+
+class BridgePortInterfaceMap(object):
+    """Build a map of bridge ports and interaces from charm configuration.
+
+    NOTE: the handling of this detail in the charm is pre-deprecated.
+
+    The long term goal is for network connectivity detail to be modelled in
+    the server provisioning layer (such as MAAS) which in turn will provide
+    a Netplan YAML description that will be used to drive Open vSwitch.
+
+    Until we get to that reality the charm will need to configure this
+    detail based on application level configuration options.
+
+    There is a established way of mapping interfaces to ports and bridges
+    in the ``neutron-openvswitch`` and ``neutron-gateway`` charms and we
+    will carry that forward.
+
+    The relationship between bridge, port and interface(s).
+             +--------+
+             | bridge |
+             +--------+
+                 |
+         +----------------+
+         | port aka. bond |
+         +----------------+
+               |   |
+              +-+ +-+
+              |i| |i|
+              |n| |n|
+              |t| |t|
+              |0| |N|
+              +-+ +-+
+    """
+    class interface_type(enum.Enum):
+        """Supported interface types.
+
+        Supported interface types can be found in the ``iface_types`` column
+        in the ``Open_vSwitch`` table on a running system.
+        """
+        dpdk = 'dpdk'
+        internal = 'internal'
+        system = 'system'
+
+        def __str__(self):
+            """Return string representation of value.
+
+            :returns: string representation of value.
+            :rtype: str
+            """
+            return self.value
+
+    def __init__(self, bridges_key=None, bonds_key=None, enable_dpdk_key=None,
+                 global_mtu=None):
+        """Initialize map.
+
+        :param bridges_key: Name of bridge:interface/port map config key
+                            (default: 'data-port')
+        :type bridges_key: Optional[str]
+        :param bonds_key: Name of port-name:interface map config key
+                          (default: 'dpdk-bond-mappings')
+        :type bonds_key: Optional[str]
+        :param enable_dpdk_key: Name of DPDK toggle config key
+                                (default: 'enable-dpdk')
+        :type enable_dpdk_key: Optional[str]
+        :param global_mtu: Set a MTU on all interfaces at map initialization.
+
+            The default is to have Open vSwitch get this from the underlying
+            interface as set up by bare metal provisioning.
+
+            Note that you can augment the MTU on an individual interface basis
+            like this:
+
+            ifdatamap = bpi.get_ifdatamap(bridge, port)
+            ifdatamap = {
+                port: {
+                    **ifdata,
+                    **{'mtu-request': my_individual_mtu_map[port]},
+                }
+                for port, ifdata in ifdatamap.items()
+            }
+        :type global_mtu: Optional[int]
+        """
+        bridges_key = bridges_key or 'data-port'
+        bonds_key = bonds_key or 'dpdk-bond-mappings'
+        enable_dpdk_key = enable_dpdk_key or 'enable-dpdk'
+        self._map = collections.defaultdict(
+            lambda: collections.defaultdict(dict))
+        self._ifname_mac_map = collections.defaultdict(list)
+        self._mac_ifname_map = {}
+        self._mac_pci_address_map = {}
+
+        # First we iterate over the list of physical interfaces visible to the
+        # system and update interface name to mac and mac to interface name map
+        for ifname in list_nics():
+            if not is_phy_iface(ifname):
+                continue
+            mac = get_nic_hwaddr(ifname)
+            self._ifname_mac_map[ifname] = [mac]
+            self._mac_ifname_map[mac] = ifname
+
+            # check if interface is part of a linux bond
+            _bond_name = get_bond_master(ifname)
+            if _bond_name and _bond_name != ifname:
+                log('Add linux bond "{}" to map for physical interface "{}" '
+                    'with mac "{}".'.format(_bond_name, ifname, mac),
+                    level=DEBUG)
+                # for bonds we want to be able to get a list of the mac
+                # addresses for the physical interfaces the bond is made up of.
+                if self._ifname_mac_map.get(_bond_name):
+                    self._ifname_mac_map[_bond_name].append(mac)
+                else:
+                    self._ifname_mac_map[_bond_name] = [mac]
+
+        # In light of the pre-deprecation notice in the docstring of this
+        # class we will expose the ability to configure OVS bonds as a
+        # DPDK-only feature, but generally use the data structures internally.
+        if config(enable_dpdk_key):
+            # resolve PCI address of interfaces listed in the bridges and bonds
+            # charm configuration options.  Note that for already bound
+            # interfaces the helper will retrieve MAC address from the unit
+            # KV store as the information is no longer available in sysfs.
+            _pci_bridge_mac = resolve_pci_from_mapping_config(
+                bridges_key)
+            _pci_bond_mac = resolve_pci_from_mapping_config(
+                bonds_key)
+
+            for pci_address, bridge_mac in _pci_bridge_mac.items():
+                if bridge_mac.mac in self._mac_ifname_map:
+                    # if we already have the interface name in our map it is
+                    # visible to the system and therefore not bound to DPDK
+                    continue
+                ifname = 'dpdk-{}'.format(
+                    hashlib.sha1(
+                        pci_address.encode('UTF-8')).hexdigest()[:7])
+                self._ifname_mac_map[ifname] = [bridge_mac.mac]
+                self._mac_ifname_map[bridge_mac.mac] = ifname
+                self._mac_pci_address_map[bridge_mac.mac] = pci_address
+
+            for pci_address, bond_mac in _pci_bond_mac.items():
+                # for bonds we want to be able to get a list of macs from
+                # the bond name and also get at the interface name made up
+                # of the hash of the PCI address
+                ifname = 'dpdk-{}'.format(
+                    hashlib.sha1(
+                        pci_address.encode('UTF-8')).hexdigest()[:7])
+                self._ifname_mac_map[bond_mac.entity].append(bond_mac.mac)
+                self._mac_ifname_map[bond_mac.mac] = ifname
+                self._mac_pci_address_map[bond_mac.mac] = pci_address
+
+        config_bridges = config(bridges_key) or ''
+        for bridge, ifname_or_mac in (
+                pair.split(':', 1)
+                for pair in config_bridges.split()):
+            if ':' in ifname_or_mac:
+                try:
+                    ifname = self.ifname_from_mac(ifname_or_mac)
+                except KeyError:
+                    # The interface is destined for a different unit in the
+                    # deployment.
+                    continue
+                macs = [ifname_or_mac]
+            else:
+                ifname = ifname_or_mac
+                macs = self.macs_from_ifname(ifname_or_mac)
+
+            portname = ifname
+            for mac in macs:
+                try:
+                    pci_address = self.pci_address_from_mac(mac)
+                    iftype = self.interface_type.dpdk
+                    ifname = self.ifname_from_mac(mac)
+                except KeyError:
+                    pci_address = None
+                    iftype = self.interface_type.system
+
+                self.add_interface(
+                    bridge, portname, ifname, iftype, pci_address, global_mtu)
+
+            if not macs:
+                # We have not mapped the interface and it is probably some sort
+                # of virtual interface. Our user have put it in the config with
+                # a purpose so let's carry out their wish. LP: #1884743
+                log('Add unmapped interface from config: name "{}" bridge "{}"'
+                    .format(ifname, bridge),
+                    level=DEBUG)
+                self.add_interface(
+                    bridge, ifname, ifname, self.interface_type.system, None,
+                    global_mtu)
+
+    def __getitem__(self, key):
+        """Provide a Dict-like interface, get value of item.
+
+        :param key: Key to look up value from.
+        :type key: any
+        :returns: Value
+        :rtype: any
+        """
+        return self._map.__getitem__(key)
+
+    def __iter__(self):
+        """Provide a Dict-like interface, iterate over keys.
+
+        :returns: Iterator
+        :rtype: Iterator[any]
+        """
+        return self._map.__iter__()
+
+    def __len__(self):
+        """Provide a Dict-like interface, measure the length of internal map.
+
+        :returns: Length
+        :rtype: int
+        """
+        return len(self._map)
+
+    def items(self):
+        """Provide a Dict-like interface, iterate over items.
+
+        :returns: Key Value pairs
+        :rtype: Iterator[any, any]
+        """
+        return self._map.items()
+
+    def keys(self):
+        """Provide a Dict-like interface, iterate over keys.
+
+        :returns: Iterator
+        :rtype: Iterator[any]
+        """
+        return self._map.keys()
+
+    def ifname_from_mac(self, mac):
+        """
+        :returns: Name of interface
+        :rtype: str
+        :raises: KeyError
+        """
+        return (get_bond_master(self._mac_ifname_map[mac]) or
+                self._mac_ifname_map[mac])
+
+    def macs_from_ifname(self, ifname):
+        """
+        :returns: List of hardware address (MAC) of interface
+        :rtype: List[str]
+        :raises: KeyError
+        """
+        return self._ifname_mac_map[ifname]
+
+    def pci_address_from_mac(self, mac):
+        """
+        :param mac: Hardware address (MAC) of interface
+        :type mac: str
+        :returns: PCI address of device associated with mac
+        :rtype: str
+        :raises: KeyError
+        """
+        return self._mac_pci_address_map[mac]
+
+    def add_interface(self, bridge, port, ifname, iftype,
+                      pci_address, mtu_request):
+        """Add an interface to the map.
+
+        :param bridge: Name of bridge on which the bond will be added
+        :type bridge: str
+        :param port: Name of port which will represent the bond on bridge
+        :type port: str
+        :param ifname: Name of interface that will make up the bonded port
+        :type ifname: str
+        :param iftype: Type of interface
+        :type iftype: BridgeBondMap.interface_type
+        :param pci_address: PCI address of interface
+        :type pci_address: Optional[str]
+        :param mtu_request: MTU to request for interface
+        :type mtu_request: Optional[int]
+        """
+        self._map[bridge][port][ifname] = {
+            'type': str(iftype),
+        }
+        if pci_address:
+            self._map[bridge][port][ifname].update({
+                'pci-address': pci_address,
+            })
+        if mtu_request is not None:
+            self._map[bridge][port][ifname].update({
+                'mtu-request': str(mtu_request)
+            })
+
+    def get_ifdatamap(self, bridge, port):
+        """Get structure suitable for charmhelpers.contrib.network.ovs helpers.
+
+        :param bridge: Name of bridge on which the port will be added
+        :type bridge: str
+        :param port: Name of port which will represent one or more interfaces
+        :type port: str
+        """
+        for _bridge, _ports in self.items():
+            for _port, _interfaces in _ports.items():
+                if _bridge == bridge and _port == port:
+                    ifdatamap = {}
+                    for name, data in _interfaces.items():
+                        ifdatamap.update({
+                            name: {
+                                'type': data['type'],
+                            },
+                        })
+                        if data.get('mtu-request') is not None:
+                            ifdatamap[name].update({
+                                'mtu_request': data['mtu-request'],
+                            })
+                        if data.get('pci-address'):
+                            ifdatamap[name].update({
+                                'options': {
+                                    'dpdk-devargs': data['pci-address'],
+                                },
+                            })
+                    return ifdatamap
+
+
+class BondConfig(object):
+    """Container and helpers for bond configuration options.
+
+    Data is put into a dictionary and a convenient config get interface is
+    provided.
+    """
+
+    DEFAULT_LACP_CONFIG = {
+        'mode': 'balance-tcp',
+        'lacp': 'active',
+        'lacp-time': 'fast'
+    }
+    ALL_BONDS = 'ALL_BONDS'
+
+    BOND_MODES = ['active-backup', 'balance-slb', 'balance-tcp']
+    BOND_LACP = ['active', 'passive', 'off']
+    BOND_LACP_TIME = ['fast', 'slow']
+
+    def __init__(self, config_key=None):
+        """Parse specified configuration option.
+
+        :param config_key: Configuration key to retrieve data from
+                           (default: ``dpdk-bond-config``)
+        :type config_key: Optional[str]
+        """
+        self.config_key = config_key or 'dpdk-bond-config'
+
+        self.lacp_config = {
+            self.ALL_BONDS: copy.deepcopy(self.DEFAULT_LACP_CONFIG)
+        }
+
+        lacp_config = config(self.config_key)
+        if lacp_config:
+            lacp_config_map = lacp_config.split()
+            for entry in lacp_config_map:
+                bond, entry = entry.partition(':')[0:3:2]
+                if not bond:
+                    bond = self.ALL_BONDS
+
+                mode, entry = entry.partition(':')[0:3:2]
+                if not mode:
+                    mode = self.DEFAULT_LACP_CONFIG['mode']
+                assert mode in self.BOND_MODES, \
+                    "Bond mode {} is invalid".format(mode)
+
+                lacp, entry = entry.partition(':')[0:3:2]
+                if not lacp:
+                    lacp = self.DEFAULT_LACP_CONFIG['lacp']
+                assert lacp in self.BOND_LACP, \
+                    "Bond lacp {} is invalid".format(lacp)
+
+                lacp_time, entry = entry.partition(':')[0:3:2]
+                if not lacp_time:
+                    lacp_time = self.DEFAULT_LACP_CONFIG['lacp-time']
+                assert lacp_time in self.BOND_LACP_TIME, \
+                    "Bond lacp-time {} is invalid".format(lacp_time)
+
+                self.lacp_config[bond] = {
+                    'mode': mode,
+                    'lacp': lacp,
+                    'lacp-time': lacp_time
+                }
+
+    def get_bond_config(self, bond):
+        """Get the LACP configuration for a bond
+
+        :param bond: the bond name
+        :return: a dictionary with the configuration of the bond
+        :rtype: Dict[str,Dict[str,str]]
+        """
+        return self.lacp_config.get(bond, self.lacp_config[self.ALL_BONDS])
+
+    def get_ovs_portdata(self, bond):
+        """Get structure suitable for charmhelpers.contrib.network.ovs helpers.
+
+        :param bond: the bond name
+        :return: a dictionary with the configuration of the bond
+        :rtype: Dict[str,Union[str,Dict[str,str]]]
+        """
+        bond_config = self.get_bond_config(bond)
+        return {
+            'bond_mode': bond_config['mode'],
+            'lacp': bond_config['lacp'],
+            'other_config': {
+                'lacp-time': bond_config['lacp-time'],
+            },
+        }
+
+
+class SRIOVContext(OSContextGenerator):
+    """Provide context for configuring SR-IOV devices."""
+
+    class sriov_config_mode(enum.Enum):
+        """Mode in which SR-IOV is configured.
+
+        The configuration option identified by the ``numvfs_key`` parameter
+        is overloaded and defines in which mode the charm should interpret
+        the other SR-IOV-related configuration options.
+        """
+        auto = 'auto'
+        blanket = 'blanket'
+        explicit = 'explicit'
+
+    PCIDeviceNumVFs = collections.namedtuple(
+        'PCIDeviceNumVFs', ['device', 'numvfs'])
+
+    def _determine_numvfs(self, device, sriov_numvfs):
+        """Determine number of Virtual Functions (VFs) configured for device.
+
+        :param device: Object describing a PCI Network interface card (NIC)/
+        :type device: sriov_netplan_shim.pci.PCINetDevice
+        :param sriov_numvfs: Number of VFs requested for blanket configuration.
+        :type sriov_numvfs: int
+        :returns: Number of VFs to configure for device
+        :rtype: Optional[int]
+        """
+
+        def _get_capped_numvfs(requested):
+            """Get a number of VFs that does not exceed individual card limits.
+
+            Depending and make and model of NIC the number of VFs supported
+            vary.  Requesting more VFs than a card support would be a fatal
+            error, cap the requested number at the total number of VFs each
+            individual card supports.
+
+            :param requested: Number of VFs requested
+            :type requested: int
+            :returns: Number of VFs allowed
+            :rtype: int
+            """
+            actual = min(int(requested), int(device.sriov_totalvfs))
+            if actual < int(requested):
+                log('Requested VFs ({}) too high for device {}. Falling back '
+                    'to value supprted by device: {}'
+                    .format(requested, device.interface_name,
+                            device.sriov_totalvfs),
+                    level=WARNING)
+            return actual
+
+        if self._sriov_config_mode == self.sriov_config_mode.auto:
+            # auto-mode
+            #
+            # If device mapping configuration is present, return information
+            # on cards with mapping.
+            #
+            # If no device mapping configuration is present, return information
+            # for all cards.
+            #
+            # The maximum number of VFs supported by card will be used.
+            if (self._sriov_mapped_devices and
+                    device.interface_name not in self._sriov_mapped_devices):
+                log('SR-IOV configured in auto mode: No device mapping for {}'
+                    .format(device.interface_name),
+                    level=DEBUG)
+                return
+            return _get_capped_numvfs(device.sriov_totalvfs)
+        elif self._sriov_config_mode == self.sriov_config_mode.blanket:
+            # blanket-mode
+            #
+            # User has specified a number of VFs that should apply to all
+            # cards with support for VFs.
+            return _get_capped_numvfs(sriov_numvfs)
+        elif self._sriov_config_mode == self.sriov_config_mode.explicit:
+            # explicit-mode
+            #
+            # User has given a list of interface names and associated number of
+            # VFs
+            if device.interface_name not in self._sriov_config_devices:
+                log('SR-IOV configured in explicit mode: No device:numvfs '
+                    'pair for device {}, skipping.'
+                    .format(device.interface_name),
+                    level=DEBUG)
+                return
+            return _get_capped_numvfs(
+                self._sriov_config_devices[device.interface_name])
+        else:
+            raise RuntimeError('This should not be reached')
+
+    def __init__(self, numvfs_key=None, device_mappings_key=None):
+        """Initialize map from PCI devices and configuration options.
+
+        :param numvfs_key: Config key for numvfs (default: 'sriov-numvfs')
+        :type numvfs_key: Optional[str]
+        :param device_mappings_key: Config key for device mappings
+                                    (default: 'sriov-device-mappings')
+        :type device_mappings_key: Optional[str]
+        :raises: RuntimeError
+        """
+        numvfs_key = numvfs_key or 'sriov-numvfs'
+        device_mappings_key = device_mappings_key or 'sriov-device-mappings'
+
+        devices = pci.PCINetDevices()
+        charm_config = config()
+        sriov_numvfs = charm_config.get(numvfs_key) or ''
+        sriov_device_mappings = charm_config.get(device_mappings_key) or ''
+
+        # create list of devices from sriov_device_mappings config option
+        self._sriov_mapped_devices = [
+            pair.split(':', 1)[1]
+            for pair in sriov_device_mappings.split()
+        ]
+
+        # create map of device:numvfs from sriov_numvfs config option
+        self._sriov_config_devices = {
+            ifname: numvfs for ifname, numvfs in (
+                pair.split(':', 1) for pair in sriov_numvfs.split()
+                if ':' in sriov_numvfs)
+        }
+
+        # determine configuration mode from contents of sriov_numvfs
+        if sriov_numvfs == 'auto':
+            self._sriov_config_mode = self.sriov_config_mode.auto
+        elif sriov_numvfs.isdigit():
+            self._sriov_config_mode = self.sriov_config_mode.blanket
+        elif ':' in sriov_numvfs:
+            self._sriov_config_mode = self.sriov_config_mode.explicit
+        else:
+            raise RuntimeError('Unable to determine mode of SR-IOV '
+                               'configuration.')
+
+        self._map = {
+            device.pci_address: self.PCIDeviceNumVFs(
+                device, self._determine_numvfs(device, sriov_numvfs))
+            for device in devices.pci_devices
+            if device.sriov and
+            self._determine_numvfs(device, sriov_numvfs) is not None
+        }
+
+    def __call__(self):
+        """Provide backward compatible SR-IOV context.
+
+        :returns: Map interface name: min(configured, max) virtual functions.
+        Example:
+           {
+               'eth0': 16,
+               'eth1': 32,
+               'eth2': 64,
+           }
+        :rtype: Dict[str,int]
+        """
+        return {
+            pcidnvfs.device.interface_name: pcidnvfs.numvfs
+            for _, pcidnvfs in self._map.items()
+        }
+
+    @property
+    def get_map(self):
+        """Provide map of configured SR-IOV capable PCI devices.
+
+        :returns: Map PCI-address: (PCIDevice, min(configured, max) VFs.
+        Example:
+            {
+                '0000:81:00.0': self.PCIDeviceNumVFs(<PCIDevice object>, 32),
+                '0000:81:00.1': self.PCIDeviceNumVFs(<PCIDevice object>, 32),
+            }
+        :rtype: Dict[str, self.PCIDeviceNumVFs]
+        """
+        return self._map
+
+
+class CephBlueStoreCompressionContext(OSContextGenerator):
+    """Ceph BlueStore compression options."""
+
+    # Tuple with Tuples that map configuration option name to CephBrokerRq op
+    # property name
+    options = (
+        ('bluestore-compression-algorithm',
+            'compression-algorithm'),
+        ('bluestore-compression-mode',
+            'compression-mode'),
+        ('bluestore-compression-required-ratio',
+            'compression-required-ratio'),
+        ('bluestore-compression-min-blob-size',
+            'compression-min-blob-size'),
+        ('bluestore-compression-min-blob-size-hdd',
+            'compression-min-blob-size-hdd'),
+        ('bluestore-compression-min-blob-size-ssd',
+            'compression-min-blob-size-ssd'),
+        ('bluestore-compression-max-blob-size',
+            'compression-max-blob-size'),
+        ('bluestore-compression-max-blob-size-hdd',
+            'compression-max-blob-size-hdd'),
+        ('bluestore-compression-max-blob-size-ssd',
+            'compression-max-blob-size-ssd'),
+    )
+
+    def __init__(self):
+        """Initialize context by loading values from charm config.
+
+        We keep two maps, one suitable for use with CephBrokerRq's and one
+        suitable for template generation.
+        """
+        charm_config = config()
+
+        # CephBrokerRq op map
+        self.op = {}
+        # Context exposed for template generation
+        self.ctxt = {}
+        for config_key, op_key in self.options:
+            value = charm_config.get(config_key)
+            self.ctxt.update({config_key.replace('-', '_'): value})
+            self.op.update({op_key: value})
+
+    def __call__(self):
+        """Get context.
+
+        :returns: Context
+        :rtype: Dict[str,any]
+        """
+        return self.ctxt
+
+    def get_op(self):
+        """Get values for use in CephBrokerRq op.
+
+        :returns: Context values with CephBrokerRq op property name as key.
+        :rtype: Dict[str,any]
+        """
+        return self.op
+
+    def get_kwargs(self):
+        """Get values for use as keyword arguments.
+
+        :returns: Context values with key suitable for use as kwargs to
+                  CephBrokerRq add_op_create_*_pool methods.
+        :rtype: Dict[str,any]
+        """
+        return {
+            k.replace('-', '_'): v
+            for k, v in self.op.items()
+        }
+
+    def validate(self):
+        """Validate options.
+
+        :raises: AssertionError
+        """
+        # We slip in a dummy name on class instantiation to allow validation of
+        # the other options. It will not affect further use.
+        #
+        # NOTE: once we retire Python 3.5 we can fold this into a in-line
+        # dictionary comprehension in the call to the initializer.
+        dummy_op = {'name': 'dummy-name'}
+        dummy_op.update(self.op)
+        pool = ch_ceph.BasePool('dummy-service', op=dummy_op)
+        pool.validate()

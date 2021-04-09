@@ -18,14 +18,14 @@
 # Authors:
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
-import subprocess
-import pwd
+import glob
 import grp
 import os
-import glob
-import shutil
+import pwd
 import re
 import shlex
+import shutil
+import subprocess
 import yaml
 
 from charmhelpers.core.hookenv import (
@@ -139,10 +139,11 @@ define service {{
                         """{description}
     check_command                   check_nrpe!{command}
     servicegroups                   {nagios_servicegroup}
+{service_config_overrides}
 }}
 """)
 
-    def __init__(self, shortname, description, check_cmd):
+    def __init__(self, shortname, description, check_cmd, max_check_attempts=None):
         super(Check, self).__init__()
         # XXX: could be better to calculate this from the service name
         if not re.match(self.shortname_re, shortname):
@@ -155,6 +156,7 @@ define service {{
         # The default is: illegal_object_name_chars=`~!$%^&*"|'<>?,()=
         self.description = description
         self.check_cmd = self._locate_cmd(check_cmd)
+        self.max_check_attempts = max_check_attempts
 
     def _get_check_filename(self):
         return os.path.join(NRPE.nrpe_confdir, '{}.cfg'.format(self.command))
@@ -216,12 +218,19 @@ define service {{
                              nagios_servicegroups):
         self._remove_service_files()
 
+        if self.max_check_attempts:
+            service_config_overrides = '    max_check_attempts              {}'.format(
+                self.max_check_attempts
+            )  # Note indentation is here rather than in the template to avoid trailing spaces
+        else:
+            service_config_overrides = ''  # empty string to avoid printing 'None'
         templ_vars = {
             'nagios_hostname': hostname,
             'nagios_servicegroup': nagios_servicegroups,
             'description': self.description,
             'shortname': self.shortname,
             'command': self.command,
+            'service_config_overrides': service_config_overrides,
         }
         nrpe_service_text = Check.service_template.format(**templ_vars)
         nrpe_service_file = self._get_service_filename(hostname)
@@ -264,6 +273,11 @@ class NRPE(object):
             for rid in relation:
                 relation_set(relation_id=rid, relation_settings={'primary': self.primary})
         self.remove_check_queue = set()
+
+    @classmethod
+    def does_nrpe_conf_dir_exist(cls):
+        """Return True if th nrpe_confdif directory exists."""
+        return os.path.isdir(cls.nrpe_confdir)
 
     def add_check(self, *args, **kwargs):
         shortname = None
@@ -310,12 +324,21 @@ class NRPE(object):
 
         nrpe_monitors = {}
         monitors = {"monitors": {"remote": {"nrpe": nrpe_monitors}}}
+
+        # check that the charm can write to the conf dir.  If not, then nagios
+        # probably isn't installed, and we can defer.
+        if not self.does_nrpe_conf_dir_exist():
+            return
+
         for nrpecheck in self.checks:
             nrpecheck.write(self.nagios_context, self.hostname,
                             self.nagios_servicegroups)
             nrpe_monitors[nrpecheck.shortname] = {
                 "command": nrpecheck.command,
             }
+            # If we were passed max_check_attempts, add that to the relation data
+            if nrpecheck.max_check_attempts is not None:
+                nrpe_monitors[nrpecheck.shortname]['max_check_attempts'] = nrpecheck.max_check_attempts
 
         # update-status hooks are configured to firing every 5 minutes by
         # default. When nagios-nrpe-server is restarted, the nagios server
@@ -400,7 +423,7 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
         upstart_init = '/etc/init/%s.conf' % svc
         sysv_init = '/etc/init.d/%s' % svc
 
-        if host.init_is_systemd():
+        if host.init_is_systemd(service_name=svc):
             nrpe.add_check(
                 shortname=svc,
                 description='process check {%s}' % unit_name,

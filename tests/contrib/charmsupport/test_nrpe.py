@@ -164,6 +164,7 @@ define service {
     service_description             a-testunit[myservice] Check MyService
     check_command                   check_nrpe!check_myservice
     servicegroups                   a
+
 }
 """
         expected = [
@@ -178,7 +179,83 @@ define service {
         self.assertEqual(expected, actual)
 
         nrpe_monitors = {'myservice':
-                         {'command': 'check_myservice'}}
+                         {'command': 'check_myservice',
+                          }}
+        monitors = yaml.dump(
+            {"monitors": {"remote": {"nrpe": nrpe_monitors}}})
+        relation_set_calls = [
+            call(monitors=monitors, relation_id="local-monitors:1"),
+            call(monitors=monitors, relation_id="nrpe-external-master:2"),
+        ]
+        self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
+        self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
+                               exists=4, open=2, listdir=1, relation_get=2,
+                               relation_ids=3, relation_set=3)
+
+    def test_max_check_attmpts(self):
+        self.patched['config'].return_value = {'nagios_context': 'a',
+                                               'nagios_servicegroups': ''}
+        self.patched['exists'].return_value = True
+        self.patched['relation_get'].return_value = {
+            'egress-subnets': '10.66.111.24/32',
+            'ingress-address': '10.66.111.24',
+            'private-address': '10.66.111.24'
+        }
+
+        def _rels(rname):
+            relations = {
+                'local-monitors': 'local-monitors:1',
+                'nrpe-external-master': 'nrpe-external-master:2',
+            }
+            return [relations[rname]]
+        self.patched['relation_ids'].side_effect = _rels
+
+        checker = nrpe.NRPE()
+        checker.add_check(shortname="myservice",
+                          description="Check MyService",
+                          check_cmd="check_http http://localhost",
+                          max_check_attempts=8,
+                          )
+
+        self.assertEqual(None, checker.write())
+
+        self.assertEqual(2, self.patched['open'].call_count)
+        filename = 'check_myservice.cfg'
+        expected = [
+            ('/etc/nagios/nrpe.d/%s' % filename, 'w'),
+            ('/var/lib/nagios/export/service__a-testunit_%s' % filename, 'w'),
+        ]
+        actual = [x[0] for x in self.patched['open'].call_args_list]
+        self.assertEqual(expected, actual)
+        outfile = self.patched['open'].return_value.__enter__.return_value
+        service_file_contents = """
+#---------------------------------------------------
+# This file is Juju managed
+#---------------------------------------------------
+define service {
+    use                             active-service
+    host_name                       a-testunit
+    service_description             a-testunit[myservice] Check MyService
+    check_command                   check_nrpe!check_myservice
+    servicegroups                   a
+    max_check_attempts              8
+}
+"""
+        expected = [
+            '# check myservice\n',
+            '# The following header was added automatically by juju\n',
+            '# Modifying it will affect nagios monitoring and alerting\n',
+            '# servicegroups: a\n',
+            'command[check_myservice]=/usr/lib/nagios/plugins/check_http http://localhost\n',
+            service_file_contents,
+        ]
+        actual = [x[0][0] for x in outfile.write.call_args_list]
+        self.assertEqual(expected, actual)
+
+        nrpe_monitors = {'myservice':
+                         {'command': 'check_myservice',
+                          'max_check_attempts': 8,
+                          }}
         monitors = yaml.dump(
             {"monitors": {"remote": {"nrpe": nrpe_monitors}}})
         relation_set_calls = [

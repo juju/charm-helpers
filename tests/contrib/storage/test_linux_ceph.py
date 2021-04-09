@@ -1,5 +1,6 @@
 from mock import patch, call, mock_open
 
+import collections
 import six
 import errno
 from shutil import rmtree
@@ -137,7 +138,7 @@ CEPH_CLIENT_RELATION = {
             'private-address': '10.5.44.105',
         },
         'glance/0': {
-            'broker_req': '{"api-version": 1, "request-id": "0bc7dc54", "ops": [{"replicas": 3, "name": "glance", "op": "create-pool"}]}',
+            'broker_req': '{"api-version": 1, "request-id": "0bc7dc54", "ops": [{"replicas": 3, "name": "glance", "op": "create-pool", "rbd-mirroring-mode": "pool"}]}',
             'private-address': '10.5.44.109',
         },
     }
@@ -211,6 +212,100 @@ class CephUtilsTests(TestCase):
         self.addCleanup(_m.stop)
         setattr(self, method, mock)
 
+    def _get_osd_settings_test_helper(self, settings, expected=None):
+        units = {
+            'client:1': ['ceph-iscsi/1', 'ceph-iscsi/2'],
+            'client:3': ['cinder-ceph/0', 'cinder-ceph/3']}
+        self.relation_ids.return_value = units.keys()
+        self.related_units.side_effect = lambda x: units[x]
+        self.relation_get.side_effect = lambda x, y, z: settings[y]
+        if expected:
+            self.assertEqual(
+                ceph_utils.get_osd_settings('client'),
+                expected)
+        else:
+            ceph_utils.get_osd_settings('client'),
+
+    def test_get_osd_settings_all_unset(self):
+        settings = {
+            'ceph-iscsi/1': None,
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': None,
+            'cinder-ceph/3': None}
+        self._get_osd_settings_test_helper(settings, {})
+
+    def test_get_osd_settings_one_group_set(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd heartbeat grace": 5}',
+            'ceph-iscsi/2': '{"osd heartbeat grace": 5}',
+            'cinder-ceph/0': '{"osd heartbeat interval": 25}',
+            'cinder-ceph/3': '{"osd heartbeat interval": 25}'}
+        self._get_osd_settings_test_helper(
+            settings,
+            {'osd heartbeat interval': 25,
+             'osd heartbeat grace': 5})
+
+    def test_get_osd_settings_invalid_option(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd foobar": 5}',
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': None,
+            'cinder-ceph/3': None}
+        self.assertRaises(
+            ceph_utils.OSDSettingNotAllowed,
+            self._get_osd_settings_test_helper,
+            settings)
+
+    def test_get_osd_settings_conflicting_options(self):
+        settings = {
+            'ceph-iscsi/1': '{"osd heartbeat grace": 5}',
+            'ceph-iscsi/2': None,
+            'cinder-ceph/0': '{"osd heartbeat grace": 6}',
+            'cinder-ceph/3': None}
+        self.assertRaises(
+            ceph_utils.OSDSettingConflict,
+            self._get_osd_settings_test_helper,
+            settings)
+
+    @patch.object(ceph_utils, 'application_name')
+    def test_send_application_name(self, application_name):
+        application_name.return_value = 'client'
+        ceph_utils.send_application_name()
+        self.relation_set.assert_called_once_with(
+            relation_settings={'application-name': 'client'},
+            relation_id=None)
+        self.relation_set.reset_mock()
+        ceph_utils.send_application_name(relid='rid:1')
+        self.relation_set.assert_called_once_with(
+            relation_settings={'application-name': 'client'},
+            relation_id='rid:1')
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    def test_send_osd_settings(self, _get_osd_settings):
+        self.relation_ids.return_value = ['client:1', 'client:3']
+        _get_osd_settings.return_value = {
+            'osd heartbeat grace': 5,
+            'osd heartbeat interval': 25}
+        ceph_utils.send_osd_settings()
+        expected_calls = [
+            call(
+                relation_id='client:1',
+                relation_settings={
+                    'osd-settings': ('{"osd heartbeat grace": 5, '
+                                     '"osd heartbeat interval": 25}')}),
+            call(
+                relation_id='client:3',
+                relation_settings={
+                    'osd-settings': ('{"osd heartbeat grace": 5, '
+                                     '"osd heartbeat interval": 25}')})]
+        self.relation_set.assert_has_calls(expected_calls, any_order=True)
+
+    @patch.object(ceph_utils, 'get_osd_settings')
+    def test_send_osd_settings_bad_settings(self, _get_osd_settings):
+        _get_osd_settings.side_effect = ceph_utils.OSDSettingConflict()
+        ceph_utils.send_osd_settings()
+        self.assertFalse(self.relation_set.called)
+
     def test_validator_valid(self):
         # 1 is an int
         ceph_utils.validator(value=1,
@@ -245,6 +340,81 @@ class CephUtilsTests(TestCase):
         ceph_utils.validator(value="foo",
                              valid_type=str,
                              valid_range=["foo"])
+
+    def test_pool_set_quota(self):
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'max-bytes': 'fake-byte-quota',
+        })
+        p.set_quota()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd',
+            'pool', 'set-quota', 'fake-pool', 'max_bytes', 'fake-byte-quota'])
+        self.check_call.reset_mock()
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'max-objects': 'fake-object-count-quota',
+        })
+        p.set_quota()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd',
+            'pool', 'set-quota', 'fake-pool', 'max_objects',
+            'fake-object-count-quota'])
+        self.check_call.reset_mock()
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'max-bytes': 'fake-byte-quota',
+            'max-objects': 'fake-object-count-quota',
+        })
+        p.set_quota()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd',
+            'pool', 'set-quota', 'fake-pool', 'max_bytes', 'fake-byte-quota',
+            'max_objects', 'fake-object-count-quota'])
+
+    def test_pool_set_compression(self):
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'compression-algorithm': 'lz4',
+        })
+        p.set_compression()
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+            'compression_algorithm', 'lz4'])
+        self.check_call.reset_mock()
+        p = ceph_utils.BasePool(service='admin', op={
+            'name': 'fake-pool',
+            'compression-algorithm': 'lz4',
+            'compression-mode': 'fake-mode',
+            'compression-required-ratio': 'fake-ratio',
+            'compression-min-blob-size': 'fake-min-blob-size',
+            'compression-min-blob-size-hdd': 'fake-min-blob-size-hdd',
+            'compression-min-blob-size-ssd': 'fake-min-blob-size-ssd',
+            'compression-max-blob-size': 'fake-max-blob-size',
+            'compression-max-blob-size-hdd': 'fake-max-blob-size-hdd',
+            'compression-max-blob-size-ssd': 'fake-max-blob-size-ssd',
+        })
+        p.set_compression()
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_algorithm', 'lz4']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_mode', 'fake-mode']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_required_ratio', 'fake-ratio']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_min_blob_size', 'fake-min-blob-size']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_min_blob_size_hdd', 'fake-min-blob-size-hdd']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_min_blob_size_ssd', 'fake-min-blob-size-ssd']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_max_blob_size', 'fake-max-blob-size']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_max_blob_size_hdd', 'fake-max-blob-size-hdd']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'fake-pool',
+                  'compression_max_blob_size_ssd', 'fake-max-blob-size-ssd']),
+        ], any_order=True)
 
     def test_pool_add_cache_tier(self):
         p = ceph_utils.Pool(name='test', service='admin')
@@ -387,19 +557,44 @@ class CephUtilsTests(TestCase):
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
                                       percent_data=50)
         p.create()
-
         # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '128']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                  'target_size_ratio', '0.5']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=32', 'test', '128']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '0.5']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on'])
+        ])
 
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
-                 'pg_autoscale_mode', 'on']),
+    @patch.object(ceph_utils, 'get_osds')
+    def test_replicated_pool_create_autoscaler_small(self, get_osds):
+        self.enabled_manager_modules.return_value = ['pg_autoscaler']
+        self.cmp_pkgrevno.return_value = 1
+        get_osds.return_value = range(1, 3)
+        p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3,
+                                      percent_data=1)
+        p.create()
+        # Using the PG Calc, for 8 OSDs with a size of 3 and 50% of the data
+
+        # at 100 PGs/OSD, the number of expected placement groups will be 128
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=2', 'test', '2']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'size', '3']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '0.01']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -474,8 +669,11 @@ class CephUtilsTests(TestCase):
                                    percent_data=100)
         p.create()
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create',
+                  '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '1.0']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown'])
         ])
@@ -495,13 +693,20 @@ class CephUtilsTests(TestCase):
             'm': '1',
             'plugin': 'jerasure'}
         p = ceph_utils.ErasurePool(name='test', service='admin',
-                                   percent_data=100)
+                                   percent_data=100, allow_ec_overwrites=True)
         p.create()
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'create', '--pg-num-min=32', 'test',
                   '2048', '2048', 'erasure', 'default']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'target_size_ratio', '1.0']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'application', 'enable', 'test', 'unknown']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'pg_autoscale_mode', 'on']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool',
+                  'set', 'test', 'allow_ec_overwrites', 'true']),
         ])
 
     def test_get_erasure_profile_none(self):
@@ -586,40 +791,128 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile(self, existing_profile):
-        existing_profile.return_value = True
+        existing_profile.return_value = False
+        self.test_config.set('customize-failure-domain', False)
         self.cmp_pkgrevno.return_value = -1
-        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
-                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain='rack', data_chunks=10, coding_chunks=3,
+            device_class='ssd')
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'ruleset-failure-domain=' + 'rack', '--force']
+               'ruleset-failure-domain=' + 'rack']
         self.check_call.assert_has_calls([call(cmd)])
 
         self.cmp_pkgrevno.return_value = 1
-        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
-                                          failure_domain='rack', data_chunks=10, coding_chunks=3)
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain='rack', data_chunks=10, coding_chunks=3,
+            device_class='ssd')
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
                'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
-               'crush-failure-domain=' + 'rack', '--force']
+               'crush-failure-domain=' + 'rack',
+               'crush-device-class=ssd']
+        self.check_call.assert_has_calls([call(cmd)])
+
+        existing_profile.return_value = True
+        self.check_call.reset_mock()
+
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain='rack', data_chunks=10, coding_chunks=3,
+            device_class='ssd')
+
+        self.check_call.assert_not_called()
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_failure_domain(self, existing_profile):
+        existing_profile.return_value = False
+        self.test_config.set('customize-failure-domain', True)
+        self.cmp_pkgrevno.return_value = -1
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            failure_domain=None, data_chunks=10, coding_chunks=3,
+            device_class='ssd')
+
+        cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
+               'plugin=' + 'jerasure', 'k=' + str(10), 'm=' + str(3),
+               'ruleset-failure-domain=' + 'rack']
+        self.config.assert_called_once_with('customize-failure-domain')
         self.check_call.assert_has_calls([call(cmd)])
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
-    def test_create_erasure_profile_local(self, existing_profile):
+    def test_create_erasure_profile_lrc(self, existing_profile):
         self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
         existing_profile.return_value = False
-        ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='local',
-                                          failure_domain='rack', data_chunks=10, coding_chunks=3, locality=1)
+        ceph_utils.create_erasure_profile(
+            service='admin', profile_name='super-profile', erasure_plugin_name='lrc',
+            failure_domain='host', data_chunks=10, coding_chunks=3, locality=1,
+            crush_locality='rack'
+        )
 
         cmd = ['ceph', '--id', 'admin', 'osd', 'erasure-code-profile', 'set', 'super-profile',
-               'plugin=' + 'local', 'k=' + str(10), 'm=' + str(3),
-               'ruleset-failure-domain=' + 'rack', 'l=' + str(1)]
+               'plugin=' + 'lrc', 'k=' + str(10), 'm=' + str(3),
+               'ruleset-failure-domain=' + 'host', 'l=' + str(1),
+               'crush-locality=rack']
         self.check_call.assert_has_calls([call(cmd)])
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_lrc_no_locality(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            ValueError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='lrc',
+            failure_domain='rack', data_chunks=10, coding_chunks=3, locality=None
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_invalid_plugin(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            AssertionError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='foobar',
+            data_chunks=10, coding_chunks=3
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_invalid_technique(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            AssertionError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            data_chunks=10, coding_chunks=3,
+            erasure_plugin_technique='foobar'
+        )
+
+    @patch.object(ceph_utils, 'erasure_profile_exists')
+    def test_create_erasure_profile_invalid_failure_domain(self, existing_profile):
+        self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
+        existing_profile.return_value = False
+        self.assertRaises(
+            AssertionError,
+            ceph_utils.create_erasure_profile,
+            service='admin', profile_name='super-profile', erasure_plugin_name='jerasure',
+            data_chunks=10, coding_chunks=3,
+            failure_domain='foobar',
+        )
 
     @patch.object(ceph_utils, 'erasure_profile_exists')
     def test_create_erasure_profile_shec(self, existing_profile):
         self.cmp_pkgrevno.return_value = -1
+        self.test_config.set('customize-failure-domain', False)
         existing_profile.return_value = False
         ceph_utils.create_erasure_profile(service='admin', profile_name='super-profile', erasure_plugin_name='shec',
                                           failure_domain='rack', data_chunks=10, coding_chunks=3,
@@ -1305,6 +1598,17 @@ class CephUtilsTests(TestCase):
         rq2.add_op_request_access_to_group(name='objects',
                                            permission='r')
         self.assertFalse(rq1 == rq2)
+        # now check equality check for common properties
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_replicated_pool('pool1')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_replicated_pool('pool1')
+        self.assertTrue(rq1 == rq2)
+        rq1 = ceph_utils.CephBrokerRq()
+        rq1.add_op_create_replicated_pool('pool1', compression_mode='none')
+        rq2 = ceph_utils.CephBrokerRq()
+        rq2.add_op_create_replicated_pool('pool1', compression_mode='passive')
+        self.assertFalse(rq1 == rq2)
 
     def test_ceph_broker_rsp_class(self):
         rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
@@ -1598,6 +1902,22 @@ class CephUtilsTests(TestCase):
                                     "'unknown': {'blah': 1}}")
         self.assertEqual({'osd': {'foo': 1}}, ctxt)
 
+    @patch.object(ceph_utils, 'get_osd_settings')
+    @patch.object(ceph_utils, 'config')
+    def test_ceph_osd_conf_context_conflict(self, mock_config,
+                                            mock_get_osd_settings):
+        mock_config.return_value = "{'osd': {'osd heartbeat grace': 20}}"
+        mock_get_osd_settings.return_value = {
+            'osd heartbeat grace': 25,
+            'osd heartbeat interval': 5}
+        ctxt = ceph_utils.CephOSDConfContext()()
+        self.assertEqual(ctxt, {
+            'osd': collections.OrderedDict([('osd heartbeat grace', 20)]),
+            'osd_from_client': collections.OrderedDict(
+                [('osd heartbeat interval', 5)]),
+            'osd_from_client_conflict': collections.OrderedDict(
+                [('osd heartbeat grace', 25)])})
+
     @patch.object(ceph_utils, 'local_unit', lambda: "nova-compute/0")
     def test_is_broker_action_done(self):
         tmpdir = mkdtemp()
@@ -1669,8 +1989,51 @@ class CephUtilsTests(TestCase):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
+    def test__partial_build_common_op_create(self):
+        self.maxDiff = None
+        rq = ceph_utils.CephBrokerRq()
+        expect = {
+            'app-name': None,
+            'compression-algorithm': 'lz4',
+            'compression-mode': 'passive',
+            'compression-required-ratio': 0.85,
+            'compression-min-blob-size': 131072,
+            'compression-min-blob-size-hdd': 131072,
+            'compression-min-blob-size-ssd': 8192,
+            'compression-max-blob-size': 524288,
+            'compression-max-blob-size-hdd': 524288,
+            'compression-max-blob-size-ssd': 65536,
+            'group': None,
+            'max-bytes': None,
+            'max-objects': None,
+            'group-namespace': None,
+            'rbd-mirroring-mode': 'pool',
+            'weight': None,
+        }
+        self.assertDictEqual(
+            rq._partial_build_common_op_create(
+                compression_algorithm='lz4',
+                compression_mode='passive',
+                compression_required_ratio=0.85,
+                compression_min_blob_size=131072,
+                compression_min_blob_size_hdd=131072,
+                compression_min_blob_size_ssd=8192,
+                compression_max_blob_size=524288,
+                compression_max_blob_size_hdd=524288,
+                compression_max_blob_size_ssd=65536),
+            expect)
+
     def test_add_op_create_replicated_pool(self):
         base_op = {'app-name': None,
+                   'compression-algorithm': None,
+                   'compression-max-blob-size': None,
+                   'compression-max-blob-size-hdd': None,
+                   'compression-max-blob-size-ssd': None,
+                   'compression-min-blob-size': None,
+                   'compression-min-blob-size-hdd': None,
+                   'compression-min-blob-size-ssd': None,
+                   'compression-mode': None,
+                   'compression-required-ratio': None,
                    'group': None,
                    'group-namespace': None,
                    'max-bytes': None,
@@ -1678,11 +2041,60 @@ class CephUtilsTests(TestCase):
                    'name': 'apool',
                    'op': 'create-pool',
                    'pg_num': None,
+                   'rbd-mirroring-mode': 'pool',
                    'replicas': 3,
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_replicated_pool('apool')
-        self.assertEqual(rq.ops, [base_op])
+        self.assertDictEqual(rq.ops[0], base_op)
+        self.assertRaises(
+            ValueError, rq.add_op_create_pool, 'apool', pg_num=51, weight=100)
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_algorithm='invalid')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_mode='invalid')
+        # these parameters should be float / int
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_required_ratio='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_min_blob_size='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_min_blob_size_hdd='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_min_blob_size_ssd='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_max_blob_size='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_max_blob_size_hdd='1')
+        rq = ceph_utils.CephBrokerRq()
+        self.assertRaises(
+            ValueError,
+            rq.add_op_create_replicated_pool, 'apool',
+            compression_max_blob_size_ssd='1')
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('apool', replica_count=42)
         op = base_op.copy()
@@ -1723,20 +2135,42 @@ class CephUtilsTests(TestCase):
         op = base_op.copy()
         op['max-objects'] = 42
         self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_replicated_pool('apool', rbd_mirroring_mode='pool')
+        op = base_op.copy()
+        op['rbd-mirroring-mode'] = 'pool'
+        self.assertEqual(rq.ops, [op])
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_replicated_pool('apool', rbd_mirroring_mode='image')
+        op = base_op.copy()
+        op['rbd-mirroring-mode'] = 'image'
+        self.assertEqual(rq.ops, [op])
 
     def test_add_op_create_erasure_pool(self):
         base_op = {'app-name': None,
+                   'allow-ec-overwrites': False,
+                   'compression-algorithm': None,
+                   'compression-max-blob-size': None,
+                   'compression-max-blob-size-hdd': None,
+                   'compression-max-blob-size-ssd': None,
+                   'compression-min-blob-size': None,
+                   'compression-min-blob-size-hdd': None,
+                   'compression-min-blob-size-ssd': None,
+                   'compression-mode': None,
+                   'compression-required-ratio': None,
                    'erasure-profile': None,
                    'group': None,
+                   'group-namespace': None,
                    'max-bytes': None,
                    'max-objects': None,
                    'name': 'apool',
                    'op': 'create-pool',
                    'pool-type': 'erasure',
+                   'rbd-mirroring-mode': 'pool',
                    'weight': None}
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_erasure_pool('apool')
-        self.assertEqual(rq.ops, [base_op])
+        self.assertDictEqual(rq.ops[0], base_op)
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_erasure_pool('apool', weight=42)
         op = base_op.copy()
@@ -1762,3 +2196,49 @@ class CephUtilsTests(TestCase):
         op = base_op.copy()
         op['max-objects'] = 42
         self.assertEqual(rq.ops, [op])
+
+    @patch.object(ceph_utils, 'local_unit')
+    def test_get_previous_request(self, _local_unit):
+        raw_request = CEPH_CLIENT_RELATION['ceph:8']['glance/0']['broker_req']
+        self.relation_get.return_value = raw_request
+        req = ceph_utils.get_previous_request('aRid')
+        self.assertDictEqual(json.loads(req.request), json.loads(raw_request))
+        self.relation_get.assert_called_once_with(
+            attribute='broker_req', rid='aRid', unit=_local_unit())
+
+    @patch.object(ceph_utils, 'uuid')
+    def test_CephBrokerRq__init__(self, _uuid):
+        raw_request = CEPH_CLIENT_RELATION['ceph:8']['glance/0']['broker_req']
+        request = json.loads(raw_request)
+        req1 = ceph_utils.CephBrokerRq(api_version=request['api-version'],
+                                       request_id=request['request-id'])
+        req1.set_ops(request['ops'])
+        req2 = ceph_utils.CephBrokerRq(raw_request_data=raw_request)
+        self.assertDictEqual(
+            json.loads(req1.request),
+            json.loads(req2.request))
+        _uuid.uuid1.return_value = 'fake-uuid'
+        new_req = ceph_utils.CephBrokerRq()
+        expect = {
+            'api-version': 1,
+            'request-id': 'fake-uuid',
+            'ops': [],
+        }
+        self.assertDictEqual(
+            json.loads(new_req.request), expect)
+
+    def test_update_pool(self):
+        ceph_utils.update_pool('aUser', 'aPool', {'aKey': 'aValue'})
+        self.check_call.assert_called_once_with([
+            'ceph', '--id', 'aUser', 'osd', 'pool', 'set',
+            'aPool', 'aKey', 'aValue'])
+        self.check_call.reset_mock()
+        ceph_utils.update_pool('aUser', 'aPool', {
+            'aKey': 'aValue',
+            'anotherKey': 'anotherValue'})
+        self.check_call.assert_has_calls([
+            call(['ceph', '--id', 'aUser', 'osd', 'pool', 'set',
+                  'aPool', 'aKey', 'aValue']),
+            call(['ceph', '--id', 'aUser', 'osd', 'pool', 'set',
+                  'aPool', 'anotherKey', 'anotherValue']),
+        ], any_order=True)

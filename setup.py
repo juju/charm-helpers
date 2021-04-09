@@ -12,45 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import setuptools
 
-from setuptools import setup, find_packages
-
-
-version_file = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'VERSION'))
-require_file = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'requirements.txt'))
-
-with open(version_file) as v:
-    VERSION = v.read().strip()
-
-with open(require_file) as r:
-    requires = r.read().splitlines()
-
-SETUP = {
-    'name': "charmhelpers",
-    'version': VERSION,
-    'author': "Charmers",
-    'author_email': "juju@lists.ubuntu.com",
-    'url': "https://github.com/juju/charm-helpers",
-    'install_requires': requires,
-    'packages': find_packages(exclude=('tests', 'tests.*', 'tools', 'tools.*')),
-    'scripts': [
-        "bin/chlp",
-        "bin/contrib/charmsupport/charmsupport",
-        "bin/contrib/saltstack/salt-call",
-    ],
-    'license': "Apache 2.0 (ASL)",
-    'long_description': open('README.rst').read(),
-    'description': 'Helpers for Juju Charm development',
-}
-
+# In python < 2.7.4, a lazy loading of package `pbr` will break
+# setuptools if some other modules registered functions in `atexit`.
+# solution from: http://bugs.python.org/issue15881#msg170215
 try:
-    from sphinx_pypi_upload import UploadDoc
-    SETUP['cmdclass'] = {'upload_sphinx': UploadDoc}
+    import multiprocessing  # noqa
 except ImportError:
     pass
 
-if __name__ == '__main__':
-    setup(**SETUP)
+setuptools.setup(
+    setup_requires=['pbr>=2.0.0'],
+    pbr=True)

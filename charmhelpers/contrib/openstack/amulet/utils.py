@@ -42,6 +42,7 @@ import pika
 import swiftclient
 
 from charmhelpers.core.decorators import retry_on_exception
+
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
@@ -63,6 +64,7 @@ OPENSTACK_RELEASES_PAIRS = [
     'bionic_stein', 'disco_stein',
     'bionic_train', 'eoan_train',
     'bionic_ussuri', 'focal_ussuri',
+    'focal_victoria', 'groovy_victoria',
 ]
 
 

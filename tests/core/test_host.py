@@ -80,6 +80,19 @@ link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
 
 
 class HelpersTest(TestCase):
+    @patch('charmhelpers.core.host.lsb_release')
+    @patch('os.path')
+    def test_init_is_systemd_service_snap(self, path, lsb_release):
+        # If Service begins with 'snap.' it should be True
+        service_name = "snap.package.service"
+        self.assertTrue(host.init_is_systemd(service_name=service_name))
+
+        # If service doesn't begin with snap. use normal evaluation.
+        service_name = "package.service"
+        lsb_release.return_value = {'DISTRIB_CODENAME': 'whatever'}
+        path.isdir.return_value = True
+        self.assertTrue(host.init_is_systemd(service_name=service_name))
+        path.isdir.assert_called_with('/run/systemd/system')
 
     @patch('charmhelpers.core.host.lsb_release')
     @patch('os.path')
@@ -1418,6 +1431,28 @@ class HelpersTest(TestCase):
     @patch.object(host, 'service')
     @patch('os.path.exists')
     @patch('glob.iglob')
+    def test_restart_on_change_context_manager(self, iglob, exists, service):
+        file_name = '/etc/missing.conf'
+        restart_map = {
+            file_name: ['test-service']
+        }
+        iglob.side_effect = [[], [file_name]]
+        exists.return_value = True
+
+        with patch_open() as (mock_open, mock_file):
+            with host.restart_on_change(restart_map):
+                mock_file.read.return_value = b"newstuff"
+
+        for service_name in restart_map[file_name]:
+            service.assert_called_with('restart', service_name)
+
+        exists.assert_has_calls([
+            call(file_name),
+        ])
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
     def test_multiservice_restart_on_change(self, iglob, exists, service):
         file_name_one = '/etc/missing.conf'
         file_name_two = '/etc/exists.conf'
@@ -1765,11 +1800,14 @@ class HelpersTest(TestCase):
         lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
         self.assertEqual(host.get_distrib_codename(), 'bionic')
 
+    @patch('charmhelpers.fetch.get_installed_version')
     @patch.object(osplatform, 'get_platform')
     @patch.object(ubuntu_apt_pkg, 'Cache')
-    def test_cmp_pkgrevno_revnos_ubuntu(self, pkg_cache, platform):
+    def test_cmp_pkgrevno_revnos_ubuntu(self, pkg_cache, platform,
+                                        get_installed_version):
         platform.return_value = 'ubuntu'
         imp.reload(host)
+        current_ver = '2.4'
 
         class MockPackage:
             class MockPackageRevno:
@@ -1780,12 +1818,26 @@ class HelpersTest(TestCase):
                 self.current_ver = self.MockPackageRevno(current_ver)
 
         pkg_dict = {
-            'python': MockPackage('2.4')
+            'python': MockPackage(current_ver)
         }
         pkg_cache.return_value = pkg_dict
+        get_installed_version.return_value = MockPackage.MockPackageRevno(
+            current_ver)
         self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
         self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
         self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)
+        self.assertEqual(
+            host.cmp_pkgrevno('python', '2.3', pkgcache=pkg_dict),
+            1
+        )
+        self.assertEqual(
+            host.cmp_pkgrevno('python', '2.4', pkgcache=pkg_dict),
+            0
+        )
+        self.assertEqual(
+            host.cmp_pkgrevno('python', '2.5', pkgcache=pkg_dict),
+            -1
+        )
 
     @patch.object(osplatform, 'get_platform')
     def test_cmp_pkgrevno_revnos_centos(self, platform):
@@ -1899,7 +1951,10 @@ class HelpersTest(TestCase):
         self.assertEqual(host.updatedb(updatedb_text, '/srv/node'),
                          updatedb_text)
 
-    def test_write_updatedb(self):
+    @patch('os.path')
+    def test_write_updatedb(self, mock_path):
+        mock_path.exists.return_value = True
+        mock_path.isdir.return_value = False
         _open = mock_open(read_data='PRUNEPATHS="/tmp /srv/node"')
         with patch('charmhelpers.core.host.open', _open, create=True):
             host.add_to_updatedb_prunepath("/tmp/test")
