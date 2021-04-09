@@ -482,6 +482,29 @@ class CertUtilsTests(unittest.TestCase):
             bindings=['mybinding', 'internal', 'admin', 'public'])
 
     @mock.patch.object(cert_utils, 'remote_service_name')
+    @mock.patch.object(cert_utils, 'relation_ids')
+    def test_get_cert_relation_ca_name(self, relation_ids, remote_service_name):
+        remote_service_name.return_value = 'vault'
+
+        # Test with argument:
+        self.assertEqual(cert_utils.get_cert_relation_ca_name('certificates:1'),
+                         'vault_juju_ca_cert')
+        remote_service_name.assert_called_once_with(relid='certificates:1')
+        remote_service_name.reset_mock()
+
+        # Test without argument:
+        relation_ids.return_value = ['certificates:2']
+        self.assertEqual(cert_utils.get_cert_relation_ca_name(),
+                         'vault_juju_ca_cert')
+        remote_service_name.assert_called_once_with(relid='certificates:2')
+        remote_service_name.reset_mock()
+
+        # Test without argument nor 'certificates' relation:
+        relation_ids.return_value = []
+        self.assertEqual(cert_utils.get_cert_relation_ca_name(), '')
+        remote_service_name.assert_not_called()
+
+    @mock.patch.object(cert_utils, 'remote_service_name')
     @mock.patch.object(cert_utils.os, 'remove')
     @mock.patch.object(cert_utils.os.path, 'exists')
     @mock.patch.object(cert_utils, 'config')
