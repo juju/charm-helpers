@@ -492,13 +492,13 @@ def relation_get(attribute=None, unit=None, rid=None, app=None):
         raise
 
 
-def relation_set(relation_id=None, relation_settings=None, app=None, **kwargs):
+def relation_set(relation_id=None, relation_settings=None, app=False, **kwargs):
     """Set relation information for the current unit"""
     relation_settings = relation_settings if relation_settings else {}
     relation_cmd_line = ['relation-set']
     accepts_file = "--file" in subprocess.check_output(
         relation_cmd_line + ["--help"], universal_newlines=True)
-    if app is True:
+    if app:
         relation_cmd_line.append('--app')
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
