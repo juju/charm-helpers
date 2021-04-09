@@ -1164,6 +1164,14 @@ class HelpersTest(TestCase):
         self.assertEqual(result['foo'], 'BAR')
         check_output.assert_called_with(['relation-get', '--format=json', '-'])
 
+        hookenv.relation_get(unit='foo/0')
+        check_output.assert_called_with(['relation-get', '--format=json', '-', 'foo/0'])
+
+        hookenv.relation_get(app='foo')
+        check_output.assert_called_with(['relation-get', '--format=json', '--app', '-', 'foo'])
+
+        self.assertRaises(ValueError, hookenv.relation_get, app='foo', unit='foo/0')
+
     @patch('charmhelpers.core.hookenv.subprocess')
     def test_relation_get_none(self, mock_subprocess):
         mock_subprocess.check_output.return_value = b'null'
@@ -1255,6 +1263,9 @@ class HelpersTest(TestCase):
                                        local_unit):
         hookenv.relation_set(foo="bar")
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
+
+        hookenv.relation_set(foo="bar", app=True)
+        check_call_.assert_called_with(['relation-set', '--app', 'foo=bar'])
 
     @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
