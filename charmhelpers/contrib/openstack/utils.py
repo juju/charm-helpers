@@ -1090,7 +1090,7 @@ def _determine_os_workload_status(
     try:
         if config(POLICYD_CONFIG_NAME):
             message = "{} {}".format(policyd_status_message_prefix(), message)
-        # Get deferred restarts events that were triggered by a policy writtena
+        # Get deferred restarts events that were triggered by a policy written
         # by this charm.
         deferred_restarts = list(set(
             [e.service
