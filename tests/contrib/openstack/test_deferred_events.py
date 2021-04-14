@@ -57,7 +57,9 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
             timestamp=123,
             service='svcA',
             reason='ReasonA',
-            action='restart')
+            action='restart',
+            policy_requestor_name='myapp',
+            policy_requestor_type='charm')
         self.exp_event_b = deferred_events.ServiceEvent(
             timestamp=223,
             service='svcB',
