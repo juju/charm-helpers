@@ -494,3 +494,48 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.patched['copy2'].assert_called_once_with(
             'filea',
             '/usr/local/lib/nagios/plugins/filea')
+
+    def test_enable_sudo_for_openvswitch_checks(self):
+        error_msg = 'test failure'
+        nrpe.enable_sudo_for_openvswitch_checks()
+
+        self.patched['open'].side_effect = IOError(error_msg)
+        nrpe.enable_sudo_for_openvswitch_checks()
+        self.patched['open'].side_effect = None
+
+        self.patched['chmod'].side_effect = OSError(error_msg)
+        nrpe.enable_sudo_for_openvswitch_checks()
+        self.patched['chmod'].side_effect = None
+
+        self.patched['chown'].side_effect = OSError(error_msg)
+        nrpe.enable_sudo_for_openvswitch_checks()
+        self.patched['chown'].side_effect = None
+
+        expected_path = '/etc/sudoers.d/99-check_openvswitch'
+        expected_success_log = ("Sudoers file for check_openvswitch "
+                                "installed: {}".format(expected_path))
+        expected_failure_log = ("Failed to setup sudoers file for "
+                                "check_openvswitch: {}".format(error_msg))
+        self.patched['open'].assert_has_calls(
+            [call(expected_path, 'w')], any_order=True)
+        self.patched['chmod'].assert_has_calls(
+            [call(expected_path, 0o100440)], any_order=True)
+        self.patched['chown'].assert_has_calls(
+            [call(expected_path, uid=0, gid=0)], any_order=True)
+        self.patched['log'].assert_has_calls(
+            [call(expected_success_log, nrpe.DEBUG),
+             call(expected_failure_log),
+             call(expected_failure_log),
+             call(expected_failure_log)])
+        self.check_call_counts(log=4, open=4, chmod=3, chown=2)
+
+    @patch.object(nrpe, 'enable_sudo_for_openvswitch_checks')
+    @patch.object(nrpe.NRPE, 'add_check')
+    def test_add_openvswitch_checks(self, mock_nrpe_add_check, mock_enable_sudo):
+        foo = nrpe.NRPE()
+        nrpe.add_openvswitch_checks(foo, 'testunit')
+        mock_enable_sudo.assert_called_once()
+        mock_nrpe_add_check.assert_called_once_with(
+            shortname='openvswitch',
+            description='Check Open vSwitch {testunit}',
+            check_cmd='check_openvswitch.py')
