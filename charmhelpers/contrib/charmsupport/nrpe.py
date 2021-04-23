@@ -520,7 +520,7 @@ def add_openvswitch_checks(nrpe, unit_name):
     enable_sudo_for_openvswitch_checks()
     nrpe.add_check(
         shortname='openvswitch',
-        description='Check Open vSwitch {%s}' % unit_name,
+        description='Check Open vSwitch {{{0}}}'.format(unit_name),
         check_cmd='check_openvswitch.py')
 
 
@@ -528,7 +528,9 @@ def enable_sudo_for_openvswitch_checks():
     sudoers_dir = "/etc/sudoers.d"
     sudoers_mode = 0o100440
     ovs_sudoers_file = "99-check_openvswitch"
-    ovs_sudoers_entry = "nagios ALL=(root) NOPASSWD: /usr/bin/ovs-vsctl show"
+    ovs_sudoers_entry = ("# Juju owned - do not edit #\n"
+                         "nagios ALL=(root) NOPASSWD: /usr/bin/ovs-vsctl "
+                         "--format=json list Interface\n")
     dest = os.path.join(sudoers_dir, ovs_sudoers_file)
     try:
         with open(dest, "w") as sudoer_file:

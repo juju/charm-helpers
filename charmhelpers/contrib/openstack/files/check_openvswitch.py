@@ -1,42 +1,62 @@
 #!/usr/bin/env python3
-# -*- coding: us-ascii -*-
-"""Check for issues with NVME hardware devices."""
+"""Check for known error statuses in OVS.
+
+This script currently checks through the Interface table in OVSDB
+for errors. The script is named generically to allow for expanded
+status checks in the future.
+"""
 
 import argparse
-import re
+import json
 import subprocess
 import sys
 
+# This depends on nagios_plugin3 being installed by charm-nrpe
 from nagios_plugin3 import CriticalError, UnknownError, try_check
 
 
-def parse_ovs_status():
-    """Check for errors in 'ovs-vsctl show' output."""
+def parse_ovs_interface_errors():
+    """Check for errors in OVSDB Interface table."""
     try:
-        cmd = ["/usr/bin/sudo", "/usr/bin/ovs-vsctl", "show"]
+        cmd = [
+            "/usr/bin/sudo",
+            "/usr/bin/ovs-vsctl",
+            "--format=json",
+            "list",
+            "Interface",
+        ]
         ovs_output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise UnknownError(
-            "UNKNOWN: Failed to query ovs: {}".format(
-                e.output.decode(errors="ignore").rstrip()
+            "UNKNOWN: OVS command '{}' failed.  Output: {}".format(
+                " ".join(cmd), e.output.decode(errors="ignore").rstrip(),
             )
         )
+    ovs_interfaces = json.loads(ovs_output.decode(errors="ignore"))
+    ovs_interface_errors = []
+    for i in ovs_interfaces["data"]:
+        # OVSDB internal data is formatted per RFC 7047 5.1
+        iface = dict(zip(ovs_interfaces["headings"], i))
+        error = iface["error"]
+        if isinstance(error, list) and len(error) == 2 and error[0] == "set":
+            # deserialize the set data into csv string elements
+            error = ",".join(error[1])
+        if error:
+            ovs_interface_errors.append(
+                "Error on iface {}: {}".format(iface["name"], error)
+            )
 
-    ovs_vsctl_show_errors = []
-    ovs_error_re = re.compile(r"^.*error: (?P<message>.+)$", re.I)
-    for line in ovs_output.decode(errors="ignore").splitlines():
-        m = ovs_error_re.match(line)
-        if m:
-            ovs_vsctl_show_errors.append(m.group("message"))
-
-    if ovs_vsctl_show_errors:
-        numerrs = len(ovs_vsctl_show_errors)
+    if ovs_interface_errors:
         raise CriticalError(
-            "CRITICAL: Found {} error(s) in ovs-vsctl show: "
-            "{}".format(numerrs, ", ".join(ovs_vsctl_show_errors))
+            "CRITICAL: Found {} interface error(s) in OVSDB: "
+            "{}".format(len(ovs_interface_errors), ", ".join(ovs_interface_errors))
         )
 
-    print("OK: no errors found in openvswitch")
+    print(
+        "OK: No errors found across {} interfaces in openvswitch".format(
+            len(ovs_interfaces["data"])
+        )
+    )
 
 
 def parse_args(argv=None):
@@ -44,8 +64,8 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         prog="check_openvswitch",
         description=(
-            "this program checks openvswitch status and outputs an "
-            "appropriate Nagios status line"
+            "this program checks openvswitch interface status and outputs "
+            "an appropriate Nagios status line"
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -55,7 +75,7 @@ def parse_args(argv=None):
 def main(argv):
     """Define main subroutine."""
     parse_args(argv)
-    try_check(parse_ovs_status)
+    try_check(parse_ovs_interface_errors)
 
 
 if __name__ == "__main__":
