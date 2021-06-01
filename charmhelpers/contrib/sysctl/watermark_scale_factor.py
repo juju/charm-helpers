@@ -37,37 +37,55 @@ def calculate_watermark_scale_factor():
     :type: int
     """
 
+    mem_total = get_memtotal()
+    normal_managed_pages = get_normal_managed_pages()
+
     try:
-        with open('/proc/meminfo', 'r') as f:
-            line = f.readline()
-            while line != '':
-                if "MemTotal" in line:
-                    mem_total = int(P.search(line).group())  # int([v for v in line.split(' ') if P.match(v)][0])
-                    break
-    except OSError as e:
-        log(f"Failed to read /proc/meminfo in calculating watermark_scale_factor: {e}", ERROR)
+        wmark = min([watermark_scale_factor(mem_total, managed_pages)
+                     for managed_pages in normal_managed_pages])
+    except ValueError as e:
+        log("Failed to calculate watermark_scale_factor from normal managed pages: {}".format(normal_managed_pages), ERROR)
         raise e
 
+    log("vm.watermark_scale_factor: {}".format(wmark), DEBUG)
+    return wmark
+
+
+def get_memtotal():
+    memtotal = None
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                print(line)
+                if "MemTotal" in line:
+                    memtotal = int(P.search(line).group())
+                    break
+                else:
+                    raise Exception("Could not find MemTotal")
+    except (Exception, OSError) as e:
+        log("Failed to parse /proc/meminfo in calculating watermark_scale_factor: {}".format(e), ERROR)
+        raise e
+
+    return memtotal
+
+
+def get_normal_managed_pages():
     try:
         normal_managed_pages = []
         with open('/proc/zoneinfo', 'r') as f:
-            for line in f.read().splitlines():
+            for line in f:
                 if "Node" in line and "zone" in line:
                     zone = [v for v in line.split(' ')
                             if v in ["DMA", "DMA32", "Normal", "Movable", "Device"]][0]
-                    # node = int(P.search(line).group())  # int([v for v in line.split(' ') if P.match(v)][0].rstrip(','))
 
                 if zone == "Normal" and "managed" in line:
                     managed = int([v for v in line.split(' ') if P.match(v)][0])
                     normal_managed_pages.append(managed)
     except OSError as e:
-        log(f"Failed to read /proc/zoneinfo in calculating watermark_scale_factor: {e}", ERROR)
+        log("Failed to read /proc/zoneinfo in calculating watermark_scale_factor: {}".format(e), ERROR)
         raise e
 
-    wmark = min([watermark_scale_factor(mem_total, managed_pages)
-                 for managed_pages in normal_managed_pages])
-    log(f"vm.watermark_scale_factor: {wmark}", DEBUG)
-    return wmark
+    return normal_managed_pages
 
 
 def watermark_scale_factor(mem_total, managed_pages):
