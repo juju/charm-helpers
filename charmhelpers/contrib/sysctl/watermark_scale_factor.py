@@ -25,23 +25,22 @@ import re
 
 WMARK_MAX = 1000
 WMARK_DEFAULT = 10
-MEM_TOTAL_MIN_KB = 16777152
+MEMTOTAL_MIN_KB = 16777152
 MAX_PAGES = 2500000000
-P = re.compile('\d+')
 
 
 def calculate_watermark_scale_factor():
     """Calculates optimal vm.watermark_scale_factor value
 
     :returns: watermark_scale_factor
-    :type: int
+    :rtype: int
     """
 
-    mem_total = get_memtotal()
+    memtotal = get_memtotal()
     normal_managed_pages = get_normal_managed_pages()
 
     try:
-        wmark = min([watermark_scale_factor(mem_total, managed_pages)
+        wmark = min([watermark_scale_factor(memtotal, managed_pages)
                      for managed_pages in normal_managed_pages])
     except ValueError as e:
         log("Failed to calculate watermark_scale_factor from normal managed pages: {}".format(normal_managed_pages), ERROR)
@@ -52,16 +51,21 @@ def calculate_watermark_scale_factor():
 
 
 def get_memtotal():
+    """Parse /proc/meminfo for memtotal value
+
+    :returns: memtotal
+    :rtype: int
+    """
+
     memtotal = None
     try:
         with open('/proc/meminfo', 'r') as f:
             for line in f:
-                print(line)
                 if "MemTotal" in line:
-                    memtotal = int(P.search(line).group())
+                    memtotal = int(re.search(r"\d+", line).group())
                     break
-                else:
-                    raise Exception("Could not find MemTotal")
+            else:
+                raise Exception("Could not find MemTotal")
     except (Exception, OSError) as e:
         log("Failed to parse /proc/meminfo in calculating watermark_scale_factor: {}".format(e), ERROR)
         raise e
@@ -70,17 +74,31 @@ def get_memtotal():
 
 
 def get_normal_managed_pages():
+    """Parse /proc/zoneinfo for managed pages of the
+    normal zone on each node
+
+    :returns: normal_managed_pages
+    :rtype: [int]
+    """
     try:
         normal_managed_pages = []
         with open('/proc/zoneinfo', 'r') as f:
+            in_zone_normal = False
+            # regex to search for strings that look like "Node 0, zone    Normal" and last string to group 1
+            normal_zone_matcher = re.compile(r"^Node\s\d+\s+zone\s+(\S+)$")
+            # regex to match to a number at the end of the line.
+            managed_matcher = re.compile(r"\s+managed\s+(\d+)$")
             for line in f:
-                if "Node" in line and "zone" in line:
-                    zone = [v for v in line.split(' ')
-                            if v in ["DMA", "DMA32", "Normal", "Movable", "Device"]][0]
+                match = normal_zone_matcher.search(line)
+                if match:
+                    in_zone_normal = match.group(1) == 'Normal'
+                if in_zone_normal:
+                    # match the number at the end of "     managed    3840" into group 1.
+                    managed_match = managed_matcher.search(line)
+                    if managed_match:
+                        normal_managed_pages.append(managed_match.group(1))
+                        in_zone_normal = False
 
-                if zone == "Normal" and "managed" in line:
-                    managed = int([v for v in line.split(' ') if P.match(v)][0])
-                    normal_managed_pages.append(managed)
     except OSError as e:
         log("Failed to read /proc/zoneinfo in calculating watermark_scale_factor: {}".format(e), ERROR)
         raise e
@@ -88,9 +106,17 @@ def get_normal_managed_pages():
     return normal_managed_pages
 
 
-def watermark_scale_factor(mem_total, managed_pages):
-    # if < 16G ram return default
-    if mem_total <= MEM_TOTAL_MIN_KB:
+def watermark_scale_factor(memtotal, managed_pages):
+    """Calculate a value for vm.watermark_scale_factor
+
+    :param memtotal: Total system memory in KB
+    :type memtotal: int
+    :param managed_pages: Number of managed pages
+    :type managed_pages: int
+    :returns: normal_managed_pages
+    :rtype: int
+    """
+    if memtotal <= MEMTOTAL_MIN_KB:
         return WMARK_DEFAULT
     else:
         wmark = int(MAX_PAGES / managed_pages)
