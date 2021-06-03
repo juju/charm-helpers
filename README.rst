@@ -1,8 +1,8 @@
 CharmHelpers |badge|
 --------------------
 
-.. |badge| image:: https://travis-ci.org/juju/charm-helpers.svg?branch=master
-    :target: https://travis-ci.org/juju/charm-helpers
+.. |badge| image:: https://github.com/juju/charm-helpers/actions/workflows/build.yml/badge.svg?branch=master
+    :target: https://github.com/juju/charm-helpers/actions/workflows/build.yml
 
 Overview
 ========
