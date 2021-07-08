@@ -625,7 +625,7 @@ def add_source(source, key=None, fail_invalid=False):
     '<openstack-version>': translate to cloud:<release> based on the current
       distro version (i.e. for 'ussuri' this will either be 'bionic-ussuri' or
       'distro'.
-    '<openstack-version/proposed': as above, but for proposed.
+    '<openstack-version>/proposed': as above, but for proposed.
 
     Otherwise the source is not recognised and this is logged to the juju log.
     However, no error is raised, unless sys_error_on_exit is True.
