@@ -4776,6 +4776,57 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
             },
         })
 
+    def test_wrong_bridges_keys_pattern(self):
+        self.patch_object(context, 'config')
+        # check "<str>" pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'incorrect_pattern'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(context.BridgesKeyException):
+            context.BridgePortInterfaceMap()
+
+        # check "<str>:<str> " pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:bond0 '),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(context.BridgesKeyException):
+            context.BridgePortInterfaceMap()
+
+        # check "<str>:<str> <str>" pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(context.BridgesKeyException):
+            context.BridgePortInterfaceMap()
+
+        # check "<str>:<str> <str>:" pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1:'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(context.BridgesKeyException):
+            context.BridgePortInterfaceMap()
+
+        # check double spaces "<str>:<str>  <str>:<str>" pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2  '
+                'br-provider1:bond0'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(context.BridgesKeyException):
+            context.BridgePortInterfaceMap()
+
     def test_add_interface(self):
         self.patch_object(context, 'config')
         self.config.return_value = ''
