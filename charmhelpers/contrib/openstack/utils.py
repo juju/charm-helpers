@@ -153,6 +153,8 @@ OPENSTACK_RELEASES = (
     'ussuri',
     'victoria',
     'wallaby',
+    'xena',
+    'yoga',
 )
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
@@ -176,6 +178,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('focal', 'ussuri'),
     ('groovy', 'victoria'),
     ('hirsute', 'wallaby'),
+    ('impish', 'xena'),
 ])
 
 
