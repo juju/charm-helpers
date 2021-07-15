@@ -810,7 +810,6 @@ def _add_bare_openstack(openstack_release):
     :type openstack_release: str
     :raises: SourceConfigError
     """
-    # So it's distro, which means it's a no-op so end here.
     # TODO(ajkavanagh) - surely this means we should be removing cloud archives
     # if they exist?
     __add_bare_helper(openstack_release, "{}-{}", lambda: None)
