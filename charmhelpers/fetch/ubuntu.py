@@ -208,6 +208,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'wallaby/proposed': 'focal-proposed/wallaby',
     'focal-wallaby/proposed': 'focal-proposed/wallaby',
     'focal-proposed/wallaby': 'focal-proposed/wallaby',
+    # Yoga
+    'yoga': 'focal-updates/yoga',
+    'focal-yoga': 'focal-updates/yoga',
+    'focal-yoga/updates': 'focal-updates/yoga',
+    'focal-updates/yoga': 'focal-updates/yoga',
+    'yoga/proposed': 'focal-proposed/yoga',
+    'focal-yoga/proposed': 'focal-proposed/yoga',
+    'focal-proposed/yoga': 'focal-proposed/yoga',
 }
 
 
@@ -232,6 +240,8 @@ OPENSTACK_RELEASES = (
     'ussuri',
     'victoria',
     'wallaby',
+    'xena',
+    'yoga',
 )
 
 
@@ -256,6 +266,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('focal', 'ussuri'),
     ('groovy', 'victoria'),
     ('hirsute', 'wallaby'),
+    ('impish', 'xena'),
 ])
 
 
