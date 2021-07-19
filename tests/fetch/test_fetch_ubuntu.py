@@ -730,6 +730,98 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         # distro is a noop but test validate no exception is thrown
         fetch.add_source(source=source)
 
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_is_distro(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'focal'
+        fetch.add_source('ussuri')
+        mock_add_cloud_pocket.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_is_cloud_pocket(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'bionic'
+        fetch.add_source('ussuri')
+        mock_add_cloud_pocket.assert_called_once_with("bionic-ussuri")
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_impossible_version(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'xenial'
+        try:
+            fetch.add_source('ussuri')
+            self.fail("add_source('ussuri') on xenial should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_impossible_ubuntu(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'bambam'
+        try:
+            fetch.add_source('ussuri')
+            self.fail("add_source('ussuri') on bambam should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_is_distro_proposed(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'focal'
+        fetch.add_source('ussuri/proposed')
+        mock_add_cloud_pocket.assert_not_called()
+        mock_add_proposed.assert_called_once_with()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_is_cloud_pocket(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'bionic'
+        fetch.add_source('ussuri/proposed')
+        mock_add_cloud_pocket.assert_called_once_with("bionic-ussuri/proposed")
+        mock_add_proposed.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_impossible_version(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'xenial'
+        try:
+            fetch.add_source('ussuri/proposed')
+            self.fail("add_source('ussuri/proposed') on xenial should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+        mock_add_proposed.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_impossible_ubuntu(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'bambam'
+        try:
+            fetch.add_source('ussuri/proposed')
+            self.fail("add_source('ussuri/proposed') on bambam should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+        mock_add_proposed.assert_not_called()
+
 
 class AptTests(TestCase):
 
