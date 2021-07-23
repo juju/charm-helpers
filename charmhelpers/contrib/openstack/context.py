@@ -139,13 +139,6 @@ HAPROXY_RUN_DIR = '/var/run/haproxy/'
 DEFAULT_OSLO_MESSAGING_DRIVER = "messagingv2"
 
 
-class BridgesKeyException(Exception):
-    """Raised when an error occurs setting up bridges keys
-    """
-
-    pass
-
-
 def ensure_packages(packages):
     """Install but do not upgrade required plugin packages."""
     required = filter_installed_packages(packages)
@@ -2805,57 +2798,44 @@ class BridgePortInterfaceMap(object):
                 self._mac_pci_address_map[bond_mac.mac] = pci_address
 
         config_bridges = config(bridges_key) or ''
-        # check config_bridges pattern "<str>:<str>","<str>:<str> <str>:<str>" or ""
-        config_bridges_pattern = re.match(
-            r'^((\S+:\S+)( \S+:\S+)*|^$)$',
-            config_bridges
-        )
-        if config_bridges_pattern:
-            for bridge, ifname_or_mac in (
-                    pair.split(':', 1)
-                    for pair in config_bridges.split()):
-                if ':' in ifname_or_mac:
-                    try:
-                        ifname = self.ifname_from_mac(ifname_or_mac)
-                    except KeyError:
-                        # The interface is destined for a different unit in the
-                        # deployment.
-                        continue
-                    macs = [ifname_or_mac]
-                else:
-                    ifname = ifname_or_mac
-                    macs = self.macs_from_ifname(ifname_or_mac)
+        for bridge, ifname_or_mac in (
+                pair.split(':', 1)
+                for pair in config_bridges.split()):
+            if ':' in ifname_or_mac:
+                try:
+                    ifname = self.ifname_from_mac(ifname_or_mac)
+                except KeyError:
+                    # The interface is destined for a different unit in the
+                    # deployment.
+                    continue
+                macs = [ifname_or_mac]
+            else:
+                ifname = ifname_or_mac
+                macs = self.macs_from_ifname(ifname_or_mac)
 
-                portname = ifname
-                for mac in macs:
-                    try:
-                        pci_address = self.pci_address_from_mac(mac)
-                        iftype = self.interface_type.dpdk
-                        ifname = self.ifname_from_mac(mac)
-                    except KeyError:
-                        pci_address = None
-                        iftype = self.interface_type.system
+            portname = ifname
+            for mac in macs:
+                try:
+                    pci_address = self.pci_address_from_mac(mac)
+                    iftype = self.interface_type.dpdk
+                    ifname = self.ifname_from_mac(mac)
+                except KeyError:
+                    pci_address = None
+                    iftype = self.interface_type.system
 
-                    self.add_interface(
-                        bridge, portname, ifname, iftype, pci_address, global_mtu)
+                self.add_interface(
+                    bridge, portname, ifname, iftype, pci_address, global_mtu)
 
-                if not macs:
-                    # We have not mapped the interface and it is probably some sort
-                    # of virtual interface. Our user have put it in the config with
-                    # a purpose so let's carry out their wish. LP: #1884743
-                    log('Add unmapped interface from config: name "{}" bridge "{}"'
-                        .format(ifname, bridge),
-                        level=DEBUG)
-                    self.add_interface(
-                        bridge, ifname, ifname, self.interface_type.system, None,
-                        global_mtu)
-
-        else:
-            msg = ('Wrong format. '
-                   'Expected format is space-delimited list of key-value pairs.'
-                   'Ex: "br-internet:00:00:5e:00:00:42 br-provider:enp3s0f0"')
-            status_set('blocked', msg)
-            raise BridgesKeyException(msg)
+            if not macs:
+                # We have not mapped the interface and it is probably some sort
+                # of virtual interface. Our user have put it in the config with
+                # a purpose so let's carry out their wish. LP: #1884743
+                log('Add unmapped interface from config: name "{}" bridge "{}"'
+                    .format(ifname, bridge),
+                    level=DEBUG)
+                self.add_interface(
+                    bridge, ifname, ifname, self.interface_type.system, None,
+                    global_mtu)
 
     def __getitem__(self, key):
         """Provide a Dict-like interface, get value of item.
