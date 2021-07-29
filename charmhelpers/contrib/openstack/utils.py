@@ -106,6 +106,8 @@ from charmhelpers.fetch import (
     filter_installed_packages,
     filter_missing_packages,
     ubuntu_apt_pkg as apt,
+    OPENSTACK_RELEASES,
+    UBUNTU_OPENSTACK_RELEASE,
 )
 
 from charmhelpers.fetch.snap import (
@@ -131,53 +133,6 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
-
-OPENSTACK_RELEASES = (
-    'diablo',
-    'essex',
-    'folsom',
-    'grizzly',
-    'havana',
-    'icehouse',
-    'juno',
-    'kilo',
-    'liberty',
-    'mitaka',
-    'newton',
-    'ocata',
-    'pike',
-    'queens',
-    'rocky',
-    'stein',
-    'train',
-    'ussuri',
-    'victoria',
-    'wallaby',
-)
-
-UBUNTU_OPENSTACK_RELEASE = OrderedDict([
-    ('oneiric', 'diablo'),
-    ('precise', 'essex'),
-    ('quantal', 'folsom'),
-    ('raring', 'grizzly'),
-    ('saucy', 'havana'),
-    ('trusty', 'icehouse'),
-    ('utopic', 'juno'),
-    ('vivid', 'kilo'),
-    ('wily', 'liberty'),
-    ('xenial', 'mitaka'),
-    ('yakkety', 'newton'),
-    ('zesty', 'ocata'),
-    ('artful', 'pike'),
-    ('bionic', 'queens'),
-    ('cosmic', 'rocky'),
-    ('disco', 'stein'),
-    ('eoan', 'train'),
-    ('focal', 'ussuri'),
-    ('groovy', 'victoria'),
-    ('hirsute', 'wallaby'),
-])
-
 
 OPENSTACK_CODENAMES = OrderedDict([
     ('2011.2', 'diablo'),
