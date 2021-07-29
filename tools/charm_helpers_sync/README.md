@@ -64,10 +64,6 @@ imports all of `charmhelpers.core` + `charmhelpers.contrib.openstack`, and only
     hooks/helpers/contrib/openstack/neutron.py
     hooks/helpers/contrib/openstack/alternatives.py
     hooks/helpers/contrib/openstack/ssh_migrations.py
-    hooks/helpers/contrib/openstack/amulet
-    hooks/helpers/contrib/openstack/amulet/utils.py
-    hooks/helpers/contrib/openstack/amulet/__init__.py
-    hooks/helpers/contrib/openstack/amulet/deployment.py
     hooks/helpers/contrib/openstack/utils.py
     hooks/helpers/contrib/openstack/files
     hooks/helpers/contrib/openstack/files/__init__.py
