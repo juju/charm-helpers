@@ -135,6 +135,8 @@ DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
 
 OPENSTACK_CODENAMES = OrderedDict([
+    # NOTE(lourot): 'yyyy.i' isn't actually mapping with any real version
+    # number. This just means the i-th version of the year yyyy.
     ('2011.2', 'diablo'),
     ('2012.1', 'essex'),
     ('2012.2', 'folsom'),
@@ -155,6 +157,8 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2020.1', 'ussuri'),
     ('2020.2', 'victoria'),
     ('2021.1', 'wallaby'),
+    ('2021.2', 'xena'),
+    ('2022.1', 'yoga'),
 ])
 
 # The ugly duckling - must list releases oldest to newest
