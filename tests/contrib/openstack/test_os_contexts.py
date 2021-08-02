@@ -4459,6 +4459,38 @@ NUMA_CORES_MULTI = {
     '1': [4, 5, 6, 7]
 }
 
+LSCPU_ONE_SOCKET = b"""
+# The following is the parsable format, which can be fed to other
+# programs. Each different item in every column has an unique ID
+# starting from zero.
+# Socket
+0
+0
+0
+0
+"""
+
+LSCPU_TWO_SOCKET = b"""
+# The following is the parsable format, which can be fed to other
+# programs. Each different item in every column has an unique ID
+# starting from zero.
+# Socket
+0
+1
+0
+1
+0
+1
+0
+1
+0
+1
+0
+1
+0
+1
+"""
+
 
 class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
 
@@ -4520,16 +4552,16 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
 
     def test_socket_memory(self):
         """Test socket memory configuration"""
-        self.patch_object(context, 'glob')
+        self.patch_object(context, 'check_output')
         self.patch_object(context, 'config')
         self.config.side_effect = lambda x: {
             'dpdk-socket-memory': 1024,
         }.get(x)
-        self.glob.glob.return_value = ['a']
+        self.check_output.return_value = LSCPU_ONE_SOCKET
         self.assertEqual(self.target.socket_memory(),
                          '1024')
 
-        self.glob.glob.return_value = ['a', 'b']
+        self.check_output.return_value = LSCPU_TWO_SOCKET
         self.assertEqual(self.target.socket_memory(),
                          '1024,1024')
 
@@ -4575,8 +4607,8 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
             '0000:00:1d.0': 'br-data',
         }.items()))
         self._numa_node_cores.return_value = NUMA_CORES_SINGLE
-        self.patch_object(context, 'glob')
-        self.glob.glob.return_value = ['a']
+        self.patch_object(context, 'check_output')
+        self.check_output.return_value = LSCPU_ONE_SOCKET
         self.config.side_effect = lambda x: {
             'dpdk-socket-cores': 1,
             'dpdk-socket-memory': 1024,
