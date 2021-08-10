@@ -742,7 +742,8 @@ def _add_apt_repository(spec):
         series = get_distrib_codename()
         spec = spec.replace('{series}', series)
     _run_with_retries(['add-apt-repository', '--yes', spec],
-                      cmd_env=env_proxy_settings(['https', 'http']))
+                      cmd_env=env_proxy_settings(['https', 'http', 'no_proxy'])
+                      )
 
 
 def _add_cloud_pocket(pocket):
