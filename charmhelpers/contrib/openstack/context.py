@@ -25,6 +25,7 @@ import socket
 import time
 
 from base64 import b64decode
+from distutils.version import LooseVersion
 from subprocess import (
     check_call,
     check_output,
@@ -39,6 +40,7 @@ from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
 from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
+    get_installed_version,
 )
 from charmhelpers.core.hookenv import (
     NoNetworkBinding,
@@ -962,9 +964,18 @@ class HAProxyContext(OSContextGenerator):
         db = kv()
         ctxt['stat_password'] = db.get('stat-password')
         if not ctxt['stat_password']:
-            ctxt['stat_password'] = db.set('stat-password',
-                                           pwgen(32))
+            ctxt['stat_password'] = db.set('stat-password', pwgen(32))
             db.flush()
+
+        # NOTE(rgildein): configure prometheus exporter for haproxy > 2.0.0
+        #                 New bind will be created and a prometheus-exporter
+        #                 will be used for path /metrics. At the same time,
+        #                 prometheus-exporter avoids using auth.
+        haproxy_version = get_installed_version("haproxy")
+        if haproxy_version and haproxy_version.ver_str >= LooseVersion("2.0.0"):
+            ctxt["stats_exporter_host"] = get_relation_ip("prometheus")
+            ctxt["stats_exporter_port"] = \
+                config("haproxy-prometheus-stats-port") or 8404
 
         for frontend in cluster_hosts:
             if (len(cluster_hosts[frontend]['backends']) > 1 or
