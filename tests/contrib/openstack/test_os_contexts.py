@@ -140,6 +140,8 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'internal_host': 'keystone-internal.local',
+    'internal_port': '5000',
     'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_tenant_id': '123456',
@@ -147,6 +149,7 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_username': 'adam',
     'service_protocol': 'http',
     'auth_protocol': 'http',
+    'internal_protocol': 'http',
 }
 
 IDENTITY_SERVICE_RELATION_UNSET = {
@@ -154,6 +157,8 @@ IDENTITY_SERVICE_RELATION_UNSET = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'internal_host': 'keystone-internal.local',
+    'internal_port': '5000',
     'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
@@ -182,6 +187,8 @@ APIIDENTITY_SERVICE_RELATION_UNSET = {
             'service_host': 'keystonehost.local',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
+            'internal_port': '5000',
+            'internal_host': 'keystone-internal.local',
             'service_domain': 'admin_domain',
             'service_tenant': 'admin',
             'service_password': 'foo',
@@ -195,12 +202,15 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'internal_host': 'keystone-internal.local',
+    'internal_port': '5000',
     'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'https',
     'auth_protocol': 'https',
+    'internal_protocol': 'https',
 }
 
 IDENTITY_SERVICE_RELATION_VERSIONED = {
@@ -1025,6 +1035,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1077,6 +1090,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1104,6 +1120,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'signing_dir': '/var/cache/cinder',
             'api_version': '2.0',
         }
@@ -1131,6 +1150,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1156,6 +1178,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'https',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1185,6 +1210,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'https',
             'api_version': '3',
         }
         result.pop('keystone_authtoken')
@@ -1235,6 +1263,9 @@ class ContextTests(unittest.TestCase):
             'service_host': '[2001:db8:1::1]',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': '[2001:db8:1::1]',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
