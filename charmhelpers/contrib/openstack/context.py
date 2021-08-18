@@ -456,18 +456,24 @@ class IdentityServiceContext(OSContextGenerator):
                 serv_host = format_ipv6_addr(serv_host) or serv_host
                 auth_host = rdata.get('auth_host')
                 auth_host = format_ipv6_addr(auth_host) or auth_host
+                int_host = rdata.get('internal_host')
+                int_host = format_ipv6_addr(int_host) or int_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
+                int_protocol = rdata.get('internal_protocol') or 'http'
                 api_version = rdata.get('api_version') or '2.0'
                 ctxt.update({'service_port': rdata.get('service_port'),
                              'service_host': serv_host,
                              'auth_host': auth_host,
                              'auth_port': rdata.get('auth_port'),
+                             'internal_host': int_host,
+                             'internal_port': rdata.get('internal_port'),
                              'admin_tenant_name': rdata.get('service_tenant'),
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
+                             'internal_protocol': int_protocol,
                              'api_version': api_version})
 
                 if float(api_version) > 2:
