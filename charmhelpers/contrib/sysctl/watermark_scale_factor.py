@@ -60,7 +60,7 @@ def get_memtotal():
     memtotal = None
     try:
         with open('/proc/meminfo', 'r') as f:
-            for line in f:
+            for line in f.readlines():
                 if "MemTotal" in line:
                     memtotal = int(re.search(r"\d+", line).group())
                     break
@@ -85,10 +85,10 @@ def get_normal_managed_pages():
         with open('/proc/zoneinfo', 'r') as f:
             in_zone_normal = False
             # regex to search for strings that look like "Node 0, zone    Normal" and last string to group 1
-            normal_zone_matcher = re.compile(r"^Node\s\d+\s+zone\s+(\S+)$")
+            normal_zone_matcher = re.compile(r"^Node\s\d+,\s+zone\s+(\S+)$")
             # regex to match to a number at the end of the line.
             managed_matcher = re.compile(r"\s+managed\s+(\d+)$")
-            for line in f:
+            for line in f.readlines():
                 match = normal_zone_matcher.search(line)
                 if match:
                     in_zone_normal = match.group(1) == 'Normal'
@@ -96,7 +96,7 @@ def get_normal_managed_pages():
                     # match the number at the end of "     managed    3840" into group 1.
                     managed_match = managed_matcher.search(line)
                     if managed_match:
-                        normal_managed_pages.append(managed_match.group(1))
+                        normal_managed_pages.append(int(managed_match.group(1)))
                         in_zone_normal = False
 
     except OSError as e:

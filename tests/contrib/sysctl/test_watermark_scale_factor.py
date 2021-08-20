@@ -10,6 +10,9 @@ from charmhelpers.contrib.sysctl.watermark_scale_factor import (
 from mock import patch, mock_open
 import unittest
 
+from tests.helpers import patch_open
+from tests.helpers import mock_open as mocked_open
+
 TO_PATCH = [
     "log",
     "ERROR",
@@ -60,16 +63,16 @@ class TestWatermarkScaleFactor(unittest.TestCase):
         self.assertTrue(wmark <= 1000, "ret {}".format(wmark))
 
     def test_get_memtotal(self):
-        with patch("builtins.open", mock_open(read_data=PROC_MEMINFO)) as mock_file:
-            result = get_memtotal()
-            mock_file.assert_called_with('/proc/meminfo', 'r')
+        with patch_open() as (mock_open, mock_file):
+            mock_file.readlines.return_value = PROC_MEMINFO.splitlines()
+            self.assertEqual(get_memtotal(), 98881012)
+            mock_open.assert_called_once_with('/proc/meminfo', 'r')
 
-        self.assertTrue(result == 98881012)
-
-    @patch("builtins.open", new_callable=mock_open, read_data=PROC_ZONEINFO)
-    def test_get_normal_managed_pages(self, mock_file):
-        self.assertCountEqual(get_normal_managed_pages(), [24247810])
-        mock_file.assert_called_with('/proc/zoneinfo', 'r')
+    def test_get_normal_managed_pages(self):
+        with patch_open() as (mock_open, mock_file):
+            mock_file.readlines.return_value = PROC_ZONEINFO.splitlines()
+            self.assertCountEqual(get_normal_managed_pages(), [24247810])
+            mock_open.assert_called_with('/proc/zoneinfo', 'r')
 
     def test_watermark_scale_factor(self):
         mem_totals = [16777152, 33554304, 536868864]
