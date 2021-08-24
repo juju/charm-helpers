@@ -2576,6 +2576,69 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_without_prometheus_exporter(self, local_unit, local_address):
+        '''Test haproxy context without prometheus exporter'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet',
+                                            'prometheus1.localnet']
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.side_effect = lambda x: \
+            9103 if x == "haproxy-exporter-stats-port" else False
+        self.maxDiff = None
+        self.is_ipv6_disabled.return_value = True
+        self.get_installed_version.return_value = Version({'ver_str': '2.0.0'})
+        # test without haproxy-exporter relation
+        self.is_relation_made.return_value = False
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
+                },
+            },
+            'default_backend': 'cluster-peer0.localnet',
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster')])
+
+    @patch('charmhelpers.contrib.openstack.context.local_address')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
     def test_haproxy_context_with_prometheus_exporter(self, local_unit, local_address):
         '''Test haproxy context with prometheus exporter'''
         cluster_relation = {
@@ -2600,10 +2663,12 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = relation.relation_units
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.side_effect = lambda x: \
-            9103 if x == "haproxy-prometheus-stats-port" else False
+            9103 if x == "haproxy-exporter-stats-port" else False
         self.maxDiff = None
         self.is_ipv6_disabled.return_value = True
         self.get_installed_version.return_value = Version({'ver_str': '2.0.0'})
+        # test with haproxy-exporter relation
+        self.is_relation_made.return_value = True
         haproxy = context.HAProxyContext()
         with patch_open() as (_open, _file):
             result = haproxy()
@@ -2636,7 +2701,7 @@ class ContextTests(unittest.TestCase):
                                                call('internal', False),
                                                call('public', False),
                                                call('cluster'),
-                                               call('prometheus')])
+                                               call('haproxy-exporter')])
 
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''

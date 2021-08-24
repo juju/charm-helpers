@@ -444,9 +444,11 @@ class HATests(unittest.TestCase):
         self.assertEqual(ha.generate_ha_relation_data('testservice'),
                          expected)
 
-    def test_render_grafana_dashboard(self):
+    @patch.object(ha, "application_name")
+    def test_render_grafana_dashboard(self, mock_application_name):
         """Test rendering HAProxy Grafana dashboard."""
-        ha.GRAFANA_DASHBOARD_VERSION = "99.9"
+        mock_application_name.return_value = "test"
         dashboard = ha.render_grafana_dashboard("prometheus2")
-        self.assertIn('"title": "HAProxy 99.9"', dashboard)
+        self.assertIn('"title": "HAProxy"', dashboard)
+        self.assertIn('{job=\\"test\\"}', dashboard)
         self.assertIn('"datasource": "prometheus2 - Juju generated source"', dashboard)

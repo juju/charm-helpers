@@ -36,7 +36,7 @@ from charmhelpers.core.hookenv import (
     charm_name,
     config,
     status_set,
-    DEBUG,
+    DEBUG, application_name,
 )
 
 from charmhelpers.core.host import (
@@ -69,7 +69,6 @@ JSON_ENCODE_OPTIONS = dict(
 VIP_GROUP_NAME = 'grp_{service}_vips'
 DNSHA_GROUP_NAME = 'grp_{service}_hostnames'
 GRAFANA_DASHBOARD = "grafana-haproxy-dashboard.json.j2"
-GRAFANA_DASHBOARD_VERSION = "1.0"
 
 
 class DNSHAException(Exception):
@@ -361,12 +360,13 @@ def render_grafana_dashboard(prometheus_app_name):
     :return: Grafana dashboard json model as a str.
     :rtype: str
     """
+    app_name = application_name()
     template_dir = os.path.join(os.path.dirname(__file__), "../templates/")
     datasource = "{} - Juju generated source".format(prometheus_app_name)
     return jinja.render(GRAFANA_DASHBOARD,
                         {"datasource": datasource,
-                         "prometheus_app_name": prometheus_app_name,
-                         "dashboard_version": GRAFANA_DASHBOARD_VERSION},
+                         "app_name": app_name,
+                         "prometheus_app_name": prometheus_app_name},
                         template_dir=template_dir,
                         jinja_env_args={"variable_start_string": "<< ",
                                         "variable_end_string": " >>"})

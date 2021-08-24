@@ -972,10 +972,12 @@ class HAProxyContext(OSContextGenerator):
         #                 will be used for path /metrics. At the same time,
         #                 prometheus-exporter avoids using auth.
         haproxy_version = get_installed_version("haproxy")
-        if haproxy_version and haproxy_version.ver_str >= LooseVersion("2.0.0"):
-            ctxt["stats_exporter_host"] = get_relation_ip("prometheus")
+        if (haproxy_version and
+                haproxy_version.ver_str >= LooseVersion("2.0.0") and
+                is_relation_made("haproxy-exporter")):
+            ctxt["stats_exporter_host"] = get_relation_ip("haproxy-exporter")
             ctxt["stats_exporter_port"] = \
-                config("haproxy-prometheus-stats-port") or 8404
+                config("haproxy-exporter-stats-port") or 8404
 
         for frontend in cluster_hosts:
             if (len(cluster_hosts[frontend]['backends']) > 1 or
