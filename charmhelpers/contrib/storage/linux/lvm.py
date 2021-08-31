@@ -60,7 +60,7 @@ def remove_lvm_physical_volume(block_device):
     '''
     p = Popen(['pvremove', '-ff', block_device],
               stdin=PIPE)
-    p.communicate(input='y\n')
+    p.communicate(input=b'y\n')
 
 
 def list_lvm_volume_group(block_device):
