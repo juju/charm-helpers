@@ -7,11 +7,10 @@ from charmhelpers.contrib.sysctl.watermark_scale_factor import (
     get_normal_managed_pages,
 )
 
-from mock import patch, mock_open
+from mock import patch
 import unittest
 
 from tests.helpers import patch_open
-from tests.helpers import mock_open as mocked_open
 
 TO_PATCH = [
     "log",
