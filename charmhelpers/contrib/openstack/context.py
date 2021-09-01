@@ -1790,6 +1790,10 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-port-forwarding',
                 'default': False,
             },
+            'enable_fwaas': {
+                'rel_key': 'enable-fwaas',
+                'default': False,
+            },
             'global_physnet_mtu': {
                 'rel_key': 'global-physnet-mtu',
                 'default': 1500,
@@ -1823,6 +1827,11 @@ class NeutronAPIContext(OSContextGenerator):
 
         if ctxt['enable_port_forwarding']:
             l3_extension_plugins.append('port_forwarding')
+
+        if ctxt['enable_fwaas']:
+            l3_extension_plugins.append('fwaas_v2')
+            if ctxt['enable_nfg_logging']:
+                l3_extension_plugins.append('fwaas_v2_log')
 
         ctxt['l3_extension_plugins'] = l3_extension_plugins
 
