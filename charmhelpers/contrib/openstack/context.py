@@ -2397,6 +2397,12 @@ class DHCPAgentContext(OSContextGenerator):
             ctxt['enable_metadata_network'] = True
             ctxt['enable_isolated_metadata'] = True
 
+        ctxt['append_ovs_config'] = False
+        cmp_release = CompareOpenStackReleases(
+            os_release('neutron-common', base='icehouse'))
+        if cmp_release >= 'queens' and config('enable-dpdk'):
+            ctxt['append_ovs_config'] = True
+
         return ctxt
 
     @staticmethod
