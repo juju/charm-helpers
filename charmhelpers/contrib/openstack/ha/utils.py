@@ -57,8 +57,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config
 )
 
-from charmhelpers.contrib.templating import jinja
-
 JSON_ENCODE_OPTIONS = dict(
     sort_keys=True,
     allow_nan=False,
@@ -360,6 +358,8 @@ def render_grafana_dashboard(prometheus_app_name):
     :return: Grafana dashboard json model as a str.
     :rtype: str
     """
+    from charmhelpers.contrib.templating import jinja
+
     app_name = application_name()
     template_dir = os.path.join(os.path.dirname(__file__), "../templates/")
     datasource = "{} - Juju generated source".format(prometheus_app_name)
