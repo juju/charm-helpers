@@ -4235,6 +4235,7 @@ class ContextTests(unittest.TestCase):
             "instance-mtu": None,
             "ovs-use-veth": None}
         _expect = {
+            "append_ovs_config": False,
             "debug": False,
             "dns_servers": None,
             "enable_isolated_metadata": None,
@@ -4260,6 +4261,7 @@ class ContextTests(unittest.TestCase):
             "instance-mtu": _mtu,
             "ovs-use-veth": True}
         _expect = {
+            "append_ovs_config": False,
             "debug": True,
             "dns_servers": _dns,
             "enable_isolated_metadata": True,
@@ -4284,7 +4286,8 @@ class ContextTests(unittest.TestCase):
              'ovs_use_veth': False,
              "enable_isolated_metadata": None,
              "enable_metadata_network": None,
-             "debug": None}
+             "debug": None,
+             "append_ovs_config": False}
         )
 
     def test_dhcp_agent_context_dnsmasq_flags(self):
@@ -4305,6 +4308,7 @@ class ContextTests(unittest.TestCase):
                 "enable_isolated_metadata": None,
                 "enable_metadata_network": None,
                 "debug": None,
+                "append_ovs_config": False,
             }
         )
 
