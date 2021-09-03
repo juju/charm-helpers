@@ -58,9 +58,7 @@ def remove_lvm_physical_volume(block_device):
 
     :param block_device: str: Full path of block device to scrub.
     '''
-    p = Popen(['pvremove', '-ff', block_device],
-              stdin=PIPE)
-    p.communicate(input=b'y\n')
+    check_call(['pvremove', '-ff', '--yes', block_device])
 
 
 def list_lvm_volume_group(block_device):
