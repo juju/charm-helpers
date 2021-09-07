@@ -40,7 +40,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         else:
             return True
 
-    def clone(self, source, dest, branch="master", depth=None):
+    def clone(self, source, dest, branch="main", depth=None):
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
 
@@ -52,7 +52,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
                 cmd.extend(['--depth', depth])
         check_output(cmd, stderr=STDOUT)
 
-    def install(self, source, branch="master", dest=None, depth=None):
+    def install(self, source, branch="main", dest=None, depth=None):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
         if dest:

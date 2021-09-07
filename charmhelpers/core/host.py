@@ -944,8 +944,8 @@ def is_phy_iface(interface):
     return False
 
 
-def get_bond_master(interface):
-    """Returns bond master if interface is bond slave otherwise None.
+def get_bond_main(interface):
+    """Returns bond main if interface is bond subordinate otherwise None.
 
     NOTE: the provided interface is expected to be physical
     """
@@ -955,12 +955,12 @@ def get_bond_master(interface):
             if '/virtual/' in os.path.realpath(iface_path):
                 return None
 
-            master = os.path.join(iface_path, 'master')
-            if os.path.exists(master):
-                master = os.path.realpath(master)
-                # make sure it is a bond master
-                if os.path.exists(os.path.join(master, 'bonding')):
-                    return os.path.basename(master)
+            main = os.path.join(iface_path, 'main')
+            if os.path.exists(main):
+                main = os.path.realpath(main)
+                # make sure it is a bond main
+                if os.path.exists(os.path.join(main, 'bonding')):
+                    return os.path.basename(main)
 
     return None
 

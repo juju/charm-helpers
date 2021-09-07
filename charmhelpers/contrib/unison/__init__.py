@@ -56,7 +56,7 @@
 # that the calling charm takes care of leader delegation.
 #
 # Additionally files can be synchronized only to an specific unit:
-# sync_to_peer(slave_address, user='juju_ssh',
+# sync_to_peer(subordinate_address, user='juju_ssh',
 #              paths=[files], verbose=False)
 
 import os

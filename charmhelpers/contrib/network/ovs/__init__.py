@@ -40,7 +40,7 @@ BRIDGE_TEMPLATE = """\
 auto {linuxbridge_port}
 iface {linuxbridge_port} inet manual
     pre-up ip link add name {linuxbridge_port} type veth peer name {ovsbridge_port}
-    pre-up ip link set {ovsbridge_port} master {bridge}
+    pre-up ip link set {ovsbridge_port} main {bridge}
     pre-up ip link set {ovsbridge_port} up
     up ip link set {linuxbridge_port} up
     down ip link del {linuxbridge_port}

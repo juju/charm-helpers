@@ -91,7 +91,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_relations.return_value = {
             'wsgi-file': {},
             'website': {},
-            'nrpe-external-master': {},
+            'nrpe-external-main': {},
         }
         self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relations_of_type')
@@ -177,12 +177,12 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                     'relation-key2': 'relation_value2',
                 },
                 'relations_full': {
-                    'nrpe-external-master': {},
+                    'nrpe-external-main': {},
                     'website': {},
                     'wsgi-file': {},
                 },
                 'relations': {
-                    'nrpe-external-master': [],
+                    'nrpe-external-main': [],
                     'website': [],
                     'wsgi-file': [],
                 },

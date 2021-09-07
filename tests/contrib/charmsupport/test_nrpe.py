@@ -133,7 +133,7 @@ class NRPETestCase(NRPEBaseTestCase):
         def _rels(rname):
             relations = {
                 'local-monitors': 'local-monitors:1',
-                'nrpe-external-master': 'nrpe-external-master:2',
+                'nrpe-external-main': 'nrpe-external-main:2',
             }
             return [relations[rname]]
         self.patched['relation_ids'].side_effect = _rels
@@ -260,7 +260,7 @@ define service {
             {"monitors": {"remote": {"nrpe": nrpe_monitors}}})
         relation_set_calls = [
             call(monitors=monitors, relation_id="local-monitors:1"),
-            call(monitors=monitors, relation_id="nrpe-external-master:2"),
+            call(monitors=monitors, relation_id="nrpe-external-main:2"),
         ]
         self.patched['relation_set'].assert_has_calls(relation_set_calls, any_order=True)
         self.check_call_counts(config=1, getpwnam=1, getgrnam=1,
@@ -354,7 +354,7 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
             'nagios_hostname': 'bob-openstack-dashboard-0',
             'private-address': '10.5.3.103',
             '__unit__': u'dashboard-nrpe/1',
-            '__relid__': u'nrpe-external-master:2',
+            '__relid__': u'nrpe-external-main:2',
             'nagios_host_context': u'bob',
         }
         self.patched['relations_of_type'].return_value = [rel_info]
@@ -365,7 +365,7 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
             'nagios_hostname': 'bob-openstack-dashboard-0',
             'private-address': '10.5.3.103',
             '__unit__': u'dashboard-nrpe/1',
-            '__relid__': u'nrpe-external-master:2',
+            '__relid__': u'nrpe-external-main:2',
             'nagios_host_context': u'bob',
         }
         self.patched['relations_of_type'].return_value = [rel_info]
@@ -376,7 +376,7 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
             'nagios_hostname': 'bob-openstack-dashboard-0',
             'private-address': '10.5.3.103',
             '__unit__': u'dashboard-nrpe/1',
-            '__relid__': u'nrpe-external-master:2',
+            '__relid__': u'nrpe-external-main:2',
             'nagios_host_context': u'bob',
         }
         self.patched['relations_of_type'].return_value = [rel_info]
