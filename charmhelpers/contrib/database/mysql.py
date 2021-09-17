@@ -23,6 +23,9 @@ import six
 
 # from string import upper
 
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
 from charmhelpers.core.host import (
     CompareHostReleases,
     lsb_release,
@@ -88,6 +91,8 @@ class MySQLHelper(object):
         self.delete_ondisk_passwd_file = delete_ondisk_passwd_file
         self.connection = None
 
+    @retry_on_exception(3, base_delay=10,
+                        exc_type=MySQLdb.OperationalError)
     def connect(self, user='root', password=None, host=None, port=None,
                 connect_timeout=None):
         _connection_info = {
