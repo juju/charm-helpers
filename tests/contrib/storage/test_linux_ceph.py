@@ -1167,12 +1167,12 @@ class CephUtilsTests(TestCase):
         self.check_call.assert_not_called()
 
     def test_keyring_path(self):
-        """It correctly dervies keyring path from service name"""
+        """It correctly derives keyring path from service name"""
         result = ceph_utils._keyring_path('cinder')
         self.assertEquals('/etc/ceph/ceph.client.cinder.keyring', result)
 
     def test_keyfile_path(self):
-        """It correctly dervies keyring path from service name"""
+        """It correctly derives keyring path from service name"""
         result = ceph_utils._keyfile_path('cinder')
         self.assertEquals('/etc/ceph/ceph.client.cinder.key', result)
 

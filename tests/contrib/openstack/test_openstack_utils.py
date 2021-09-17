@@ -82,7 +82,7 @@ FAKE_REPO = {
         'os_release': 'mitaka',
         'os_version': '2.7.0'
     },
-    # a package thats available in the cache but is not installed
+    # a package that's available in the cache but is not installed
     'cinder-common': {
         'os_release': 'havana',
         'os_version': '2013.2'
@@ -800,7 +800,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
     def test_ensure_nonexistent_block_device(self, error_out, is_bd):
-        """Test it will not ensure a non-existant block device"""
+        """Test it will not ensure a non-existent block device"""
         is_bd.return_value = False
         openstack.ensure_block_device(block_device='foo')
         self.assertTrue(error_out.called)
@@ -2128,7 +2128,7 @@ class OpenStackHelpersTestCase(TestCase):
         # notifications but they are not the ones being looked for.
         self.assertTrue(openstack.endpoint_changed('nova'))
         # Check endpoint_changed returns False if the notification
-        # has alredy been seen
+        # has already been seen
         get_endpoint_notifications.return_value = {
             'placement-identity-service_3-keystone_0': 'd5c3'}
         self.kv_data = {

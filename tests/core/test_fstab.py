@@ -37,7 +37,7 @@ class FstabTest(unittest.TestCase):
         os.unlink(self.tempfile.name)
 
     def test_entries(self):
-        """Test if entries are correctly readed from fstab file"""
+        """Test if entries are correctly read from fstab file"""
         assert_equal(sorted(GENERATED_FSTAB_FILE.splitlines()),
                      sorted(str(entry) for entry in self.fstab.entries))
 
