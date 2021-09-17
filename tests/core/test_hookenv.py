@@ -1787,10 +1787,10 @@ class HooksTest(TestCase):
         self.assertEqual(execs, [True])
 
     def test_magic_underscores(self):
-        # Juju hook names use hypens as separators. Python functions use
+        # Juju hook names use hyphens as separators. Python functions use
         # underscores. If explicit names have not been provided, hooks
         # are registered with both the function name and the function
-        # name with underscores replaced with hypens for convenience.
+        # name with underscores replaced with hyphens for convenience.
         execs = []
         hooks = hookenv.Hooks()
 

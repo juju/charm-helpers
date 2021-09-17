@@ -484,7 +484,7 @@ class IPTest(unittest.TestCase):
                                                       _ifaddresses):
 
         # This will raise a KeyError since we are looking for "2"
-        # (actally, netiface.AF_INET).
+        # (actually, netiface.AF_INET).
         DUMMY_ADDRESSES = {
             'eth0': {
                 10: [{'addr': 'fe80::3e97:eff:fe8b:1cf7%eth0',

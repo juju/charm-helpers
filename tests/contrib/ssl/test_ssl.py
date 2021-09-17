@@ -30,7 +30,7 @@ class HelpersTest(TestCase):
 
     @patch('charmhelpers.core.hookenv.log')
     def test_generate_selfsigned_failure(self, mock_log):
-        # This is NOT enough, functino requires cn key
+        # This is NOT enough, function requires cn key
         subject = {"country": "UK",
                    "locality": "my_locality"}
 
