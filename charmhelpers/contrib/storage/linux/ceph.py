@@ -268,7 +268,7 @@ class BasePool(object):
         'compression-max-blob-size': (int, None),
         'compression-max-blob-size-hdd': (int, None),
         'compression-max-blob-size-ssd': (int, None),
-        'rbd-mirroring-mode': (str, ('image', 'pool'))
+        'rbd-mirroring-mode': (str, ('image', 'pool', 'none'))
     }
 
     def __init__(self, service, name=None, percent_data=None, app_name=None,
