@@ -80,9 +80,9 @@ class LVMStorageUtilsTests(unittest.TestCase):
 
     def test_remove_lvm_physical_volume(self):
         """It removes LVM physical volume signatures from block device"""
-        with patch(STORAGE_LINUX_LVM + '.Popen') as popen:
+        with patch(STORAGE_LINUX_LVM + '.check_call') as popen:
             lvm.remove_lvm_physical_volume('/dev/foo')
-            popen.assert_called_with(['pvremove', '-ff', '/dev/foo'], stdin=-1)
+            popen.assert_called_with(['pvremove', '-ff', '--yes', '/dev/foo'])
 
     def test_is_physical_volume(self):
         """It properly reports block dev is an LVM PV"""
