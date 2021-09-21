@@ -70,7 +70,7 @@ class TestWatermarkScaleFactor(unittest.TestCase):
     def test_get_normal_managed_pages(self):
         with patch_open() as (mock_open, mock_file):
             mock_file.readlines.return_value = PROC_ZONEINFO.splitlines()
-            self.assertCountEqual(get_normal_managed_pages(), [24247810])
+            self.assertEqual(get_normal_managed_pages(), [24247810])
             mock_open.assert_called_with('/proc/zoneinfo', 'r')
 
     def test_watermark_scale_factor(self):
