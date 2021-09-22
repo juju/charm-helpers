@@ -119,8 +119,8 @@ def watermark_scale_factor(memtotal, managed_pages):
     if memtotal <= MEMTOTAL_MIN_KB:
         return WMARK_DEFAULT
     else:
-        wmark = int(MAX_PAGES / managed_pages)
-        if wmark > 1000:
+        WMARK = int(MAX_PAGES / managed_pages)
+        if WMARK > 1000:
             return 1000
         else:
-            return wmark
+            return WMARK
