@@ -3,7 +3,6 @@
 from charmhelpers.contrib.sysctl.watermark_scale_factor import (
     watermark_scale_factor,
     calculate_watermark_scale_factor,
-    get_memtotal,
     get_normal_managed_pages,
 )
 
@@ -17,15 +16,6 @@ TO_PATCH = [
     "ERROR",
     "DEBUG"
 ]
-
-PROC_MEMINFO = """
-MemTotal:       98881012 kB
-MemFree:         5415708 kB
-MemAvailable:   30993024 kB
-Buffers:           12712 kB
-Cached:         16951140 kB
-SwapCached:       155104 kB
-"""
 
 PROC_ZONEINFO = """
 Node 0, zone   Normal
@@ -53,19 +43,13 @@ class TestWatermarkScaleFactor(unittest.TestCase):
         return mock
 
     @patch('charmhelpers.contrib.sysctl.watermark_scale_factor.get_normal_managed_pages')
-    @patch('charmhelpers.contrib.sysctl.watermark_scale_factor.get_memtotal')
-    def test_calculate_watermark_scale_factor(self, memtotal, normal_managed_pages):
-        memtotal.return_value = 98881012
-        normal_managed_pages.return_value = [24247810]
+    @patch('charmhelpers.core.host.get_total_ram')
+    def test_calculate_watermark_scale_factor(self, get_total_ram, get_normal_managed_pages):
+        get_total_ram.return_value = 101254156288
+        get_normal_managed_pages.return_value = [24247810]
         wmark = calculate_watermark_scale_factor()
         self.assertTrue(wmark >= 10, "ret {}".format(wmark))
         self.assertTrue(wmark <= 1000, "ret {}".format(wmark))
-
-    def test_get_memtotal(self):
-        with patch_open() as (mock_open, mock_file):
-            mock_file.readlines.return_value = PROC_MEMINFO.splitlines()
-            self.assertEqual(get_memtotal(), 98881012)
-            mock_open.assert_called_once_with('/proc/meminfo', 'r')
 
     def test_get_normal_managed_pages(self):
         with patch_open() as (mock_open, mock_file):
@@ -74,7 +58,7 @@ class TestWatermarkScaleFactor(unittest.TestCase):
             mock_open.assert_called_with('/proc/zoneinfo', 'r')
 
     def test_watermark_scale_factor(self):
-        mem_totals = [16777152, 33554304, 536868864]
+        mem_totals = [17179803648, 34359607296, 549753716736]
         managed_pages = [4194288, 24247815, 8388576, 134217216]
         arglists = [[mem, managed] for mem in mem_totals for managed in managed_pages]
 

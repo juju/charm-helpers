@@ -22,10 +22,11 @@ from charmhelpers.core.hookenv import (
 )
 
 import re
+from charmhelpers.core.host import get_total_ram
 
 WMARK_MAX = 1000
 WMARK_DEFAULT = 10
-MEMTOTAL_MIN_KB = 16777152
+MEMTOTAL_MIN_BYTES = 17179803648  # 16G
 MAX_PAGES = 2500000000
 
 
@@ -36,7 +37,7 @@ def calculate_watermark_scale_factor():
     :rtype: int
     """
 
-    memtotal = get_memtotal()
+    memtotal = get_total_ram()
     normal_managed_pages = get_normal_managed_pages()
 
     try:
@@ -48,29 +49,6 @@ def calculate_watermark_scale_factor():
 
     log("vm.watermark_scale_factor: {}".format(wmark), DEBUG)
     return wmark
-
-
-def get_memtotal():
-    """Parse /proc/meminfo for memtotal value
-
-    :returns: memtotal
-    :rtype: int
-    """
-
-    memtotal = None
-    try:
-        with open('/proc/meminfo', 'r') as f:
-            for line in f.readlines():
-                if "MemTotal" in line:
-                    memtotal = int(re.search(r"\d+", line).group())
-                    break
-            else:
-                raise Exception("Could not find MemTotal")
-    except (Exception, OSError) as e:
-        log("Failed to parse /proc/meminfo in calculating watermark_scale_factor: {}".format(e), ERROR)
-        raise e
-
-    return memtotal
 
 
 def get_normal_managed_pages():
@@ -116,7 +94,7 @@ def watermark_scale_factor(memtotal, managed_pages):
     :returns: normal_managed_pages
     :rtype: int
     """
-    if memtotal <= MEMTOTAL_MIN_KB:
+    if memtotal <= MEMTOTAL_MIN_BYTES:
         return WMARK_DEFAULT
     else:
         WMARK = int(MAX_PAGES / managed_pages)
