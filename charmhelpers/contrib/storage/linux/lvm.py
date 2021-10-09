@@ -17,8 +17,6 @@ from subprocess import (
     CalledProcessError,
     check_call,
     check_output,
-    Popen,
-    PIPE,
 )
 
 
