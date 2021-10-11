@@ -294,7 +294,11 @@ class BasePool(object):
         # NOTE: Do not perform initialization steps that require live data from
         # a running cluster here. The *Pool classes may be used for validation.
         self.service = service
-        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        try:
+            self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        except AttributeError:
+            # ceph-common is not installed so assume older version
+            self.nautilus_or_later = False
         self.op = op or {}
 
         if op:
@@ -745,7 +749,11 @@ class ErasurePool(BasePool):
         k = int(erasure_profile['k'])
         m = int(erasure_profile['m'])
         pgs = self.get_pgs(k + m, self.percent_data)
-        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        try:
+            self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        except AttributeError:
+            # ceph-common not installed, assume older version
+            self.nautilus_or_later = False
         # Create it
         if self.nautilus_or_later:
             cmd = [
