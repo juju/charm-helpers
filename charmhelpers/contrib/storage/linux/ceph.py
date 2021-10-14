@@ -294,11 +294,6 @@ class BasePool(object):
         # NOTE: Do not perform initialization steps that require live data from
         # a running cluster here. The *Pool classes may be used for validation.
         self.service = service
-        try:
-            self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
-        except AttributeError:
-            # ceph-common is not installed so assume older version
-            self.nautilus_or_later = False
         self.op = op or {}
 
         if op:
@@ -345,7 +340,8 @@ class BasePool(object):
         Do not add calls for a specific pool type here, those should go into
         one of the pool specific classes.
         """
-        if self.nautilus_or_later:
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        if nautilus_or_later:
             # Ensure we set the expected pool ratio
             update_pool(
                 client=self.service,
@@ -664,8 +660,9 @@ class ReplicatedPool(BasePool):
         else:
             self.pg_num = self.get_pgs(self.replicas, self.percent_data)
 
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
         # Create it
-        if self.nautilus_or_later:
+        if nautilus_or_later:
             cmd = [
                 'ceph', '--id', self.service, 'osd', 'pool', 'create',
                 '--pg-num-min={}'.format(
@@ -749,13 +746,9 @@ class ErasurePool(BasePool):
         k = int(erasure_profile['k'])
         m = int(erasure_profile['m'])
         pgs = self.get_pgs(k + m, self.percent_data)
-        try:
-            self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
-        except AttributeError:
-            # ceph-common not installed, assume older version
-            self.nautilus_or_later = False
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
         # Create it
-        if self.nautilus_or_later:
+        if nautilus_or_later:
             cmd = [
                 'ceph', '--id', self.service, 'osd', 'pool', 'create',
                 '--pg-num-min={}'.format(
