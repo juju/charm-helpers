@@ -503,7 +503,9 @@ class CephUtilsTests(TestCase):
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_luminous_ceph(self, get_osds):
-        self.cmp_pkgrevno.side_effect = [-1, 1]
+        self.cmp_pkgrevno.side_effect = (
+            lambda _, version: -1 if version == '14.2.0' else 1
+        )
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()

@@ -158,7 +158,7 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         get_event_record_file.return_value = test_file
         deferred_events.save_event(self.exp_event_a)
         with open(test_file, 'r') as f:
-            contents = yaml.load(f)
+            contents = yaml.safe_load(f)
         self.assertEqual(contents, vars(self.exp_event_a))
 
     @patch.object(deferred_events.os, "remove")
