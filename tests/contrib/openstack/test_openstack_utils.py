@@ -1841,6 +1841,19 @@ class OpenStackHelpersTestCase(TestCase):
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
+        # test dist_upgrade
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_openstack_upgrade('package-xyz',
+                                              do_openstack_upgrade,
+                                              None,
+                                              dist_upgrade=True)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('success, upgrade completed.')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
     @patch.object(openstack, 'juju_log')
     @patch.object(openstack, 'action_set')
     @patch.object(openstack, 'action_fail')
