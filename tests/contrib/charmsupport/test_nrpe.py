@@ -337,6 +337,21 @@ class NRPECheckTestCase(NRPEBaseTestCase):
         expected = 'Check command not found: check_http'
         self.assertEqual(expected, self.patched['log'].call_args[0][0])
 
+    def test_locate_cmd_argument_escape(self):
+        """Test that `_locate_cmd` properly escapes arguments.
+
+        If arguments contain symbols that have special meaning in shell, like
+        '*',';' or '`', they should be properly quoted to prevent unexpected
+        behavior.
+        """
+        self.patched['exists'].return_value = True
+        raw_cmd = "check_test -a * -b ; -c `/bin/bash` -d foo -e 1"
+        prefix = "/usr/lib/nagios/plugins/"
+        safe_cmd = "check_test -a '*' -b ';' -c '`/bin/bash`' -d foo -e 1"
+        check = nrpe.Check('shortname', 'description', raw_cmd)
+
+        self.assertEqual(check.check_cmd, prefix + safe_cmd)
+
     def test_run(self):
         self.patched['exists'].return_value = True
         command = '/usr/bin/wget foo'

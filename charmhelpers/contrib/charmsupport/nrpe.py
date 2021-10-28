@@ -174,7 +174,8 @@ define service {{
             if os.path.exists(os.path.join(path, parts[0])):
                 command = os.path.join(path, parts[0])
                 if len(parts) > 1:
-                    command += " " + " ".join(parts[1:])
+                    safe_args = [shlex.quote(arg) for arg in parts[1:]]
+                    command += " " + " ".join(safe_args)
                 return command
         log('Check command not found: {}'.format(parts[0]))
         return ''
