@@ -1841,13 +1841,13 @@ class OpenStackHelpersTestCase(TestCase):
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
-        # test dist_upgrade
+        # test force_upgrade
         openstack_upgrade_available.return_value = False
 
         openstack.do_action_openstack_upgrade('package-xyz',
                                               do_openstack_upgrade,
                                               None,
-                                              dist_upgrade=True)
+                                              force_upgrade=True)
 
         self.assertTrue(openstack_upgrade_available.called)
         msg = ('success, upgrade completed.')

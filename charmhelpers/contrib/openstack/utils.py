@@ -1414,7 +1414,7 @@ def incomplete_relation_data(configs, required_interfaces):
 
 
 def do_action_openstack_upgrade(package, upgrade_callback, configs,
-                                dist_upgrade=False):
+                                force_upgrade=False):
     """Perform action-managed OpenStack upgrade.
 
     Upgrades packages to the configured openstack-origin version and sets
@@ -1428,13 +1428,13 @@ def do_action_openstack_upgrade(package, upgrade_callback, configs,
     @param package: package name for determining if upgrade available
     @param upgrade_callback: function callback to charm's upgrade function
     @param configs: templating object derived from OSConfigRenderer class
-    @param dist_upgrade: perform dist-upgrade regardless of new openstack
+    @param force_upgrade: perform dist-upgrade regardless of new openstack
 
     @return: True if upgrade successful; False if upgrade failed or skipped
     """
     ret = False
 
-    if openstack_upgrade_available(package) or dist_upgrade:
+    if openstack_upgrade_available(package) or force_upgrade:
         if config('action-managed-upgrade'):
             juju_log('Upgrading OpenStack release')
 
