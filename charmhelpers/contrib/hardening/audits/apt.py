@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from __future__ import absolute_import  # required for external apt import
-from six import string_types
 
 from charmhelpers.fetch import (
     apt_cache,
@@ -51,7 +50,7 @@ class RestrictedPackages(BaseAudit):
 
     def __init__(self, pkgs, **kwargs):
         super(RestrictedPackages, self).__init__(**kwargs)
-        if isinstance(pkgs, string_types) or not hasattr(pkgs, '__iter__'):
+        if isinstance(pkgs, str) or not hasattr(pkgs, '__iter__'):
             self.pkgs = pkgs.split()
         else:
             self.pkgs = pkgs

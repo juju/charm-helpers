@@ -9,11 +9,7 @@ from mock import (
 )
 from charmhelpers.core.host import chdir
 
-import six
-if six.PY3:
-    from urllib.parse import urlparse
-else:
-    from urlparse import urlparse
+from urllib.parse import urlparse
 
 
 try:

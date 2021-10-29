@@ -20,24 +20,12 @@ from __future__ import absolute_import
 import functools
 import inspect
 import subprocess
-import sys
 
-try:
-    import six  # NOQA:F401
-except ImportError:
-    if sys.version_info.major == 2:
-        subprocess.check_call(['apt-get', 'install', '-y', 'python-six'])
-    else:
-        subprocess.check_call(['apt-get', 'install', '-y', 'python3-six'])
-    import six  # NOQA:F401
 
 try:
     import yaml  # NOQA:F401
 except ImportError:
-    if sys.version_info.major == 2:
-        subprocess.check_call(['apt-get', 'install', '-y', 'python-yaml'])
-    else:
-        subprocess.check_call(['apt-get', 'install', '-y', 'python3-yaml'])
+    subprocess.check_call(['apt-get', 'install', '-y', 'python3-yaml'])
     import yaml  # NOQA:F401
 
 

@@ -9,7 +9,6 @@ PyYAML
 # Jinja2==2.11 is last supported for py27 & py35 (xenial)
 Jinja2
 
-six
 netaddr
 Tempita
 

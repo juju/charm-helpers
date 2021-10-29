@@ -8,11 +8,6 @@ from subprocess import CalledProcessError
 import unittest
 import tempfile
 
-import six
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-else:
-    builtin_open = 'builtins.open'
 
 __author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
@@ -36,7 +31,7 @@ class SysctlTests(unittest.TestCase):
         self.addCleanup(_m.stop)
         return mock
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_create(self, mock_open):
         """Test create sysctl method"""
         _file = MagicMock(spec=io.FileIO)
@@ -55,7 +50,7 @@ class SysctlTests(unittest.TestCase):
             "sysctl", "-p",
             "/etc/sysctl.d/test-sysctl.conf"])
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_create_with_ignore(self, mock_open):
         """Test create sysctl method"""
         _file = MagicMock(spec=io.FileIO)
@@ -76,7 +71,7 @@ class SysctlTests(unittest.TestCase):
             "sysctl", "-p",
             "/etc/sysctl.d/test-sysctl.conf", "-e"])
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_create_with_dict(self, mock_open):
         """Test create sysctl method"""
         _file = MagicMock(spec=io.FileIO)
@@ -95,7 +90,7 @@ class SysctlTests(unittest.TestCase):
             "sysctl", "-p",
             "/etc/sysctl.d/test-sysctl.conf"])
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_create_invalid_argument(self, mock_open):
         """Test create sysctl with an invalid argument"""
         _file = MagicMock(spec=io.FileIO)
@@ -107,7 +102,7 @@ class SysctlTests(unittest.TestCase):
             'Error parsing YAML sysctl_dict: {"kernel.max_pid": 1337 xxxx',
             level='ERROR')
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_create_raises(self, mock_open):
         """CalledProcessErrors are propagated for non-container machines."""
         _file = MagicMock(spec=io.FileIO)
@@ -119,7 +114,7 @@ class SysctlTests(unittest.TestCase):
         with self.assertRaises(CalledProcessError):
             create('{"kernel.max_pid": 1337}', "/etc/sysctl.d/test-sysctl.conf")
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_create_raises_container(self, mock_open):
         """CalledProcessErrors are logged for containers."""
         _file = MagicMock(spec=io.FileIO)

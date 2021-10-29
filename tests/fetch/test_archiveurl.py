@@ -13,13 +13,8 @@ from charmhelpers.fetch import (
     UnhandledSource,
 )
 
-import six
-if six.PY3:
-    from urllib.parse import urlparse
-    from urllib.error import URLError
-else:
-    from urllib2 import URLError
-    from urlparse import urlparse
+from urllib.parse import urlparse
+from urllib.error import URLError
 
 
 class ArchiveUrlFetchHandlerTest(TestCase):

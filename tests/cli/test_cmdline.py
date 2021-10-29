@@ -12,7 +12,7 @@ from pprint import pformat
 import yaml
 import csv
 
-from six import StringIO
+from io import StringIO
 
 from charmhelpers import cli
 

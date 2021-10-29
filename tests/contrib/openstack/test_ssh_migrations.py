@@ -1,18 +1,10 @@
 import mock
-import six
 import subprocess
 import unittest
 
 from tests.helpers import patch_open, mock_open
 
 import charmhelpers.contrib.openstack.ssh_migrations as ssh_migrations
-
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-    builtin_import = '__builtin__.__import__'
-else:
-    builtin_open = 'builtins.open'
-    builtin_import = 'builtins.__import__'
 
 
 UNIT1_HOST_KEY_1 = """|1|EaIiWNsBsaSke5T5bdDlaV5xKPU=|WKMu3Va+oNwRjXmPGOZ+mrpWbM8= ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDZdZdR7I35ymFdspruN1CIez/0m62sJeld2nLuOGaNbdl/rk5bGrWUAZh6c9p9H53FAqGAXBD/1C8dZ5dgIAGdTs7PAZq7owXCpgUPQcGOYVAtBwv8qfnWyI1W+Vpi6vnb2sgYr6XGbB9b84i4vrd98IIpXIleC9qd0VUTSYgd7+NPaFNoK0HZmqcNEf5leaa8sgSf4t5F+BTWEXzU3ql/3isFT8lEpJ9N8wOvNzAoFEQcxqauvOJn72QQ6kUrQT3NdQFUMHquS/s+nBrQNPbUmzqrvSOed75Qk8359zqU1Rce7U39cqc0scYi1ak3oJdojwfLFKJw4TMPn/Pq7JnT"""
@@ -133,7 +125,7 @@ class SSHMigrationsTests(unittest.TestCase):
             mock.call('/etc/nova/compute_ssh/nova-compute-lxd')]
         self.mkdir.assert_has_calls(mkdir_calls)
 
-    @mock.patch(builtin_open)
+    @mock.patch('builtins.open')
     def test_ssh_directory_missing_file(self, _open):
         self.setup_mocks_ssh_directory_for_unit(
             'nova-compute-lxd',
@@ -149,7 +141,7 @@ class SSHMigrationsTests(unittest.TestCase):
             'w')
         self.assertFalse(self.mkdir.called)
 
-    @mock.patch(builtin_open)
+    @mock.patch('builtins.open')
     def test_ssh_directory_missing_files(self, _open):
         self.setup_mocks_ssh_directory_for_unit(
             'nova-compute-lxd',

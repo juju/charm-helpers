@@ -4,7 +4,7 @@ import unittest
 import yaml
 from testtools import TestCase
 
-from six import StringIO
+from io import StringIO
 
 import sys
 # Path hack to ensure we test the local code, not a version installed in

@@ -25,7 +25,6 @@ import re
 import itertools
 import functools
 
-import six
 import traceback
 import uuid
 import yaml
@@ -401,7 +400,7 @@ def get_os_codename_version(vers):
 
 def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
     '''Determine OpenStack version number from codename.'''
-    for k, v in six.iteritems(version_map):
+    for k, v in version_map.items():
         if v == codename:
             return k
     e = 'Could not derive OpenStack version for '\
@@ -411,7 +410,8 @@ def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
 
 def get_os_version_codename_swift(codename):
     '''Determine OpenStack version number of swift from codename.'''
-    for k, v in six.iteritems(SWIFT_CODENAMES):
+    # for k, v in six.iteritems(SWIFT_CODENAMES):
+    for k, v in SWIFT_CODENAMES.items():
         if k == codename:
             return v[-1]
     e = 'Could not derive swift version for '\
@@ -421,17 +421,17 @@ def get_os_version_codename_swift(codename):
 
 def get_swift_codename(version):
     '''Determine OpenStack codename that corresponds to swift version.'''
-    codenames = [k for k, v in six.iteritems(SWIFT_CODENAMES) if version in v]
+    codenames = [k for k, v in SWIFT_CODENAMES.items() if version in v]
 
     if len(codenames) > 1:
         # If more than one release codename contains this version we determine
         # the actual codename based on the highest available install source.
         for codename in reversed(codenames):
             releases = UBUNTU_OPENSTACK_RELEASE
-            release = [k for k, v in six.iteritems(releases) if codename in v]
-            ret = subprocess.check_output(['apt-cache', 'policy', 'swift'])
-            if six.PY3:
-                ret = ret.decode('UTF-8')
+            release = [k for k, v in releases.items() if codename in v]
+            ret = (subprocess
+                   .check_output(['apt-cache', 'policy', 'swift'])
+                   .decode('UTF-8'))
             if codename in ret or release[0] in ret:
                 return codename
     elif len(codenames) == 1:
@@ -441,7 +441,7 @@ def get_swift_codename(version):
     match = re.match(r'^(\d+)\.(\d+)', version)
     if match:
         major_minor_version = match.group(0)
-        for codename, versions in six.iteritems(SWIFT_CODENAMES):
+        for codename, versions in SWIFT_CODENAMES.items():
             for release_version in versions:
                 if release_version.startswith(major_minor_version):
                     return codename
@@ -477,9 +477,7 @@ def get_os_codename_package(package, fatal=True):
     if snap_install_requested():
         cmd = ['snap', 'list', package]
         try:
-            out = subprocess.check_output(cmd)
-            if six.PY3:
-                out = out.decode('UTF-8')
+            out = subprocess.check_output(cmd).decode('UTF-8')
         except subprocess.CalledProcessError:
             return None
         lines = out.split('\n')
@@ -549,16 +547,14 @@ def get_os_version_package(pkg, fatal=True):
 
     if 'swift' in pkg:
         vers_map = SWIFT_CODENAMES
-        for cname, version in six.iteritems(vers_map):
+        for cname, version in vers_map.items():
             if cname == codename:
                 return version[-1]
     else:
         vers_map = OPENSTACK_CODENAMES
-        for version, cname in six.iteritems(vers_map):
+        for version, cname in vers_map.items():
             if cname == codename:
                 return version
-    # e = "Could not determine OpenStack version for package: %s" % pkg
-    # error_out(e)
 
 
 def get_installed_os_version():
@@ -821,10 +817,10 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     if not os.path.exists(os.path.dirname(juju_rc_path)):
         os.mkdir(os.path.dirname(juju_rc_path))
     with open(juju_rc_path, 'wt') as rc_script:
-        rc_script.write(
-            "#!/bin/bash\n")
-        [rc_script.write('export %s=%s\n' % (u, p))
-         for u, p in six.iteritems(env_vars) if u != "script_path"]
+        rc_script.write("#!/bin/bash\n")
+        for u, p in env_vars.items():
+            if u != "script_path":
+                rc_script.write('export %s=%s\n' % (u, p))
 
 
 def openstack_upgrade_available(package):
@@ -1854,21 +1850,20 @@ def pausable_restart_on_change(restart_map, stopstart=False,
 
     """
     def wrap(f):
-        # py27 compatible nonlocal variable.  When py3 only, replace with
-        # nonlocal keyword
-        __restart_map_cache = {'cache': None}
+        __restart_map_cache = None
 
         @functools.wraps(f)
         def wrapped_f(*args, **kwargs):
+            nonlocal __restart_map_cache
             if is_unit_paused_set():
                 return f(*args, **kwargs)
-            if __restart_map_cache['cache'] is None:
-                __restart_map_cache['cache'] = restart_map() \
+            if __restart_map_cache is None:
+                __restart_map_cache = restart_map() \
                     if callable(restart_map) else restart_map
             # otherwise, normal restart_on_change functionality
             return restart_on_change_helper(
                 (lambda: f(*args, **kwargs)),
-                __restart_map_cache['cache'],
+                __restart_map_cache,
                 stopstart,
                 restart_functions,
                 can_restart_now_f,
@@ -1893,7 +1888,7 @@ def ordered(orderme):
         raise ValueError('argument must be a dict type')
 
     result = OrderedDict()
-    for k, v in sorted(six.iteritems(orderme), key=lambda x: x[0]):
+    for k, v in sorted(orderme.items(), key=lambda x: x[0]):
         if isinstance(v, dict):
             result[k] = ordered(v)
         else:

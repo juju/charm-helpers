@@ -8,12 +8,6 @@ import charmhelpers.contrib.openstack.templating as templating
 
 from jinja2.exceptions import TemplateNotFound
 
-import six
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-else:
-    builtin_open = 'builtins.open'
-
 
 class FakeContextGenerator(object):
     interfaces = None
@@ -78,10 +72,7 @@ class TemplatingTests(unittest.TestCase):
         templating.FileSystemLoader = MockFSLoader
         templating.ChoiceLoader = MockChoiceLoader
         templating.Environment = MagicMock
-        if six.PY2:
-            apt.assert_called_with('python-jinja2')
-        else:
-            apt.assert_called_with('python3-jinja2')
+        apt.assert_called_with('python3-jinja2')
 
     def test_create_renderer_invalid_templates_dir(self):
         '''Ensure OSConfigRenderer checks templates_dir'''
@@ -169,7 +160,7 @@ class TemplatingTests(unittest.TestCase):
     def test_render_template_by_basename(self):
         '''It renders template if it finds it by config file basename'''
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch.object(templating, 'get_loader')
     def test_write_out_config(self, loader, _open):
         '''It writes a templated config when provided a complete context'''

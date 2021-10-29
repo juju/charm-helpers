@@ -12,7 +12,6 @@ from mock import patch, call, mock_open
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
-import six
 
 from charmhelpers.core import host
 from charmhelpers.fetch import ubuntu_apt_pkg
@@ -1195,7 +1194,7 @@ class HelpersTest(TestCase):
     @patch.object(host, 'os')
     def test_writes_binary_contents(self, os_, log):
         path = '/some/path/{baz}'
-        fmtstr = six.u('what is {juju}\N{TRADE MARK SIGN}').encode('UTF-8')
+        fmtstr = 'what is {juju}\N{TRADE MARK SIGN}'.encode('UTF-8')
         fileno = 'some-fileno'
 
         with patch_open() as (mock_open, mock_file):
