@@ -3212,6 +3212,9 @@ class SRIOVContext(OSContextGenerator):
         sriov_numvfs = charm_config.get(numvfs_key) or ''
         sriov_device_mappings = charm_config.get(device_mappings_key) or ''
 
+        cmp_release = CompareHostReleases(lsb_release()['DISTRIB_CODENAME'])
+        self.sriov_enabled = (cmp_release >= 'xenial' and config.get('enable-sriov'))
+
         # create list of devices from sriov_device_mappings config option
         self._sriov_mapped_devices = [
             pair.split(':', 1)[1]
@@ -3256,10 +3259,14 @@ class SRIOVContext(OSContextGenerator):
            }
         :rtype: Dict[str,int]
         """
-        return {
+        ctxt = {
             pcidnvfs.device.interface_name: pcidnvfs.numvfs
             for _, pcidnvfs in self._map.items()
         }
+
+        ctxt.update({'sriov_enabled': self.sriov_enabled})
+
+        return ctxt
 
     @property
     def get_map(self):
