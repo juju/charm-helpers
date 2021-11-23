@@ -326,7 +326,8 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         self.assertFalse(clear_deferred_restarts.called)
         log.assert_called_once_with(
             ('Restart still required, svcA was started at 2021-02-02 10:10:55,'
-             ' restart was requested after that at 2021-02-02 10:19:55'),
+             ' restart was requested after that at {}'.format(
+                 datetime.datetime.fromtimestamp(1612261195.0))),
             level='DEBUG')
 
     def test_set_deferred_hook(self):
