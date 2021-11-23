@@ -1003,14 +1003,8 @@ def cmd_exists(cmd):
 
 
 @cached
-@deprecate("moved to function_get()", log=log)
 def action_get(key=None):
-    """
-    .. deprecated:: 0.20.7
-       Alias for :func:`function_get`.
-
-    Gets the value of an action parameter, or all key/value param pairs.
-    """
+    """Gets the value of an action parameter, or all key/value param pairs."""
     cmd = ['action-get']
     if key is not None:
         cmd.append(key)
@@ -1020,8 +1014,12 @@ def action_get(key=None):
 
 
 @cached
+@deprecate("moved to action_get()", log=log)
 def function_get(key=None):
-    """Gets the value of an action parameter, or all key/value param pairs"""
+    """
+    .. deprecated::
+    Gets the value of an action parameter, or all key/value param pairs.
+    """
     cmd = ['function-get']
     # Fallback for older charms.
     if not cmd_exists('function-get'):
@@ -1034,22 +1032,20 @@ def function_get(key=None):
     return function_data
 
 
-@deprecate("moved to function_set()", log=log)
 def action_set(values):
-    """
-    .. deprecated:: 0.20.7
-       Alias for :func:`function_set`.
-
-    Sets the values to be returned after the action finishes.
-    """
+    """Sets the values to be returned after the action finishes."""
     cmd = ['action-set']
     for k, v in list(values.items()):
         cmd.append('{}={}'.format(k, v))
     subprocess.check_call(cmd)
 
 
+@deprecate("moved to action_set()", log=log)
 def function_set(values):
-    """Sets the values to be returned after the function finishes"""
+    """
+    .. deprecated::
+    Sets the values to be returned after the function finishes.
+    """
     cmd = ['function-set']
     # Fallback for older charms.
     if not cmd_exists('function-get'):
@@ -1060,12 +1056,8 @@ def function_set(values):
     subprocess.check_call(cmd)
 
 
-@deprecate("moved to function_fail()", log=log)
 def action_fail(message):
     """
-    .. deprecated:: 0.20.7
-       Alias for :func:`function_fail`.
-
     Sets the action status to failed and sets the error message.
 
     The results set by action_set are preserved.
@@ -1073,10 +1065,14 @@ def action_fail(message):
     subprocess.check_call(['action-fail', message])
 
 
+@deprecate("moved to action_fail()", log=log)
 def function_fail(message):
-    """Sets the function status to failed and sets the error message.
+    """
+    .. deprecated::
+    Sets the function status to failed and sets the error message.
 
-    The results set by function_set are preserved."""
+    The results set by function_set are preserved.
+    """
     cmd = ['function-fail']
     # Fallback for older charms.
     if not cmd_exists('function-fail'):
