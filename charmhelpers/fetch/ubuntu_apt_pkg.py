@@ -40,6 +40,9 @@ import os
 import subprocess
 import sys
 
+from charmhelpers import deprecate
+from charmhelpers.core.hookenv import log
+
 
 class _container(dict):
     """Simple container for attributes."""
@@ -87,6 +90,10 @@ class Cache(object):
         pkg.current_ver = current_ver
         pkg.architecture = dpkg_result.get('architecture')
         return pkg
+
+    @deprecate("use dpkg_list() instead.", "2022-05", log=log)
+    def _dpkg_list(self, packages):
+        return self.dpkg_list(packages)
 
     def dpkg_list(self, packages):
         """Get data from system dpkg database for package.
