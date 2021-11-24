@@ -989,7 +989,7 @@ def get_installed_version(package):
     Version object
     """
     cache = apt_cache()
-    dpkg_result = cache._dpkg_list([package]).get(package, {})
+    dpkg_result = cache.dpkg_list([package]).get(package, {})
     current_ver = None
     installed_version = dpkg_result.get('version')
 
