@@ -729,7 +729,7 @@ class MySQL8Helper(MySQLHelper):
                 remote_ip=remote_ip,
                 password=password)
             )
-        except MySQLdb._exceptions.OperationalError:
+        except MySQLdb.OperationalError:
             log("DB user {} already exists.".format(db_user),
                 "WARNING")
         finally:
