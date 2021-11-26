@@ -987,12 +987,25 @@ class CephUtilsTests(TestCase):
         self.assertRaises(CalledProcessError, ceph_utils.monitor_key_delete,
                           service='admin', key='foo')
 
-    def test_get_monmap(self):
+    @patch.object(ceph_utils, 'cmp_pkgrevno')
+    def test_get_monmap_pre_octopus(self, mock_cmp_pkgrevno):
+        mock_cmp_pkgrevno.return_value = -1
         self.check_output.return_value = MONMAP_DUMP
         cmd = ['ceph', '--id', 'admin',
                'mon_status', '--format=json']
         ceph_utils.get_mon_map(service='admin')
         self.check_output.assert_called_with(cmd)
+        mock_cmp_pkgrevno.assert_called_once_with('ceph-common', '15.0.0')
+
+    @patch.object(ceph_utils, 'cmp_pkgrevno')
+    def test_get_monmap_octopus_and_later(self, mock_cmp_pkgrevno):
+        mock_cmp_pkgrevno.return_value = 0
+        self.check_output.return_value = MONMAP_DUMP
+        cmd = ['ceph', '--id', 'admin',
+               'quorum_status', '--format=json']
+        ceph_utils.get_mon_map(service='admin')
+        self.check_output.assert_called_with(cmd)
+        mock_cmp_pkgrevno.assert_called_once_with('ceph-common', '15.0.0')
 
     @patch.object(ceph_utils, 'get_mon_map')
     def test_hash_monitor_names(self, monmap):
