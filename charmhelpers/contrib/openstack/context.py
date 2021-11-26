@@ -1111,7 +1111,11 @@ class ApacheSSLContext(OSContextGenerator):
             endpoint = resolve_address(net_type)
             addresses.append((addr, endpoint))
 
-        return sorted(set(addresses))
+        # Log the set of addresses to have a trail log and capture if tuples
+        # change over time in the same unit (LP: #1952414).
+        sorted_addresses = sorted(set(addresses))
+        log('get_network_addresses: {}'.format(sorted_addresses))
+        return sorted_addresses
 
     def __call__(self):
         if isinstance(self.external_ports, six.string_types):
