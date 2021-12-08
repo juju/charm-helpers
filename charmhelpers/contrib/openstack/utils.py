@@ -92,6 +92,7 @@ from charmhelpers.core.host import (
     service_resume,
     service_stop,
     service_start,
+    restart_on_change,
     restart_on_change_helper,
 )
 
@@ -1800,11 +1801,7 @@ def make_assess_status_func(*args, **kwargs):
     return _assess_status_func
 
 
-def pausable_restart_on_change(restart_map, stopstart=False,
-                               restart_functions=None,
-                               can_restart_now_f=None,
-                               post_svc_restart_f=None,
-                               pre_restarts_wait_f=None):
+class pausable_restart_on_change(restart_on_change):
     """A restart_on_change decorator that checks to see if the unit is
     paused. If it is paused then the decorated function doesn't fire.
 
@@ -1853,7 +1850,7 @@ def pausable_restart_on_change(restart_map, stopstart=False,
 
 
     """
-    def wrap(f):
+    def __call__(self, f):
         # py27 compatible nonlocal variable.  When py3 only, replace with
         # nonlocal keyword
         __restart_map_cache = {'cache': None}
@@ -1863,19 +1860,18 @@ def pausable_restart_on_change(restart_map, stopstart=False,
             if is_unit_paused_set():
                 return f(*args, **kwargs)
             if __restart_map_cache['cache'] is None:
-                __restart_map_cache['cache'] = restart_map() \
-                    if callable(restart_map) else restart_map
+                __restart_map_cache['cache'] = self.restart_map() \
+                    if callable(self.restart_map) else self.restart_map
             # otherwise, normal restart_on_change functionality
             return restart_on_change_helper(
                 (lambda: f(*args, **kwargs)),
                 __restart_map_cache['cache'],
-                stopstart,
-                restart_functions,
-                can_restart_now_f,
-                post_svc_restart_f,
-                pre_restarts_wait_f)
+                self.stopstart,
+                self.restart_functions,
+                self.can_restart_now_f,
+                self.post_svc_restart_f,
+                self.pre_restarts_wait_f)
         return wrapped_f
-    return wrap
 
 
 def ordered(orderme):
