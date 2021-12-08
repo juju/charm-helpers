@@ -15,6 +15,7 @@
 import os
 
 import six
+import yaml
 
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
@@ -248,10 +249,14 @@ class OSConfigRenderer(object):
         log('Registered config file: {}'.format(config_file),
             level=INFO)
 
+    def s_to_dict(self, s):
+        return yaml.safe_load(s)
+
     def _get_tmpl_env(self):
         if not self._tmpl_env:
             loader = get_loader(self.templates_dir, self.openstack_release)
             self._tmpl_env = Environment(loader=loader)
+            self._tmpl_env.filters['s_to_dict'] = self.s_to_dict
 
     def _get_template(self, template):
         self._get_tmpl_env()
