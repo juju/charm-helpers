@@ -2,7 +2,6 @@ from testtools import TestCase
 import tempfile
 import shutil
 import subprocess
-import six
 import mock
 
 from os.path import exists, join, isdir
@@ -72,7 +71,5 @@ class ServiceCATest(TestCase):
 
         output = subprocess.check_output(cmd,
                                          stderr=subprocess.STDOUT).strip()
-        expected = '{}: OK'.format(full_cert_path)
-        if six.PY3:
-            expected = bytes(expected, 'utf-8')
+        expected = '{}: OK'.format(full_cert_path).encode('utf-8')
         self.assertEqual(expected, output)

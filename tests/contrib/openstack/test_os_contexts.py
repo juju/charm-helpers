@@ -2,7 +2,6 @@ import collections
 import copy
 import json
 import mock
-import six
 import unittest
 import yaml
 
@@ -18,12 +17,6 @@ from tests.helpers import patch_open
 import tests.utils
 
 import charmhelpers.contrib.openstack.context as context
-
-
-if not six.PY3:
-    open_builtin = '__builtin__.open'
-else:
-    open_builtin = 'builtins.open'
 
 
 class FakeRelation(object):
@@ -859,7 +852,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch('os.path.exists')
-    @patch(open_builtin)
+    @patch('builtins.open')
     def test_db_ssl(self, _open, osexists):
         osexists.return_value = False
         ssl_dir = '/etc/dbssl'
@@ -1367,7 +1360,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch(open_builtin)
+    @patch('builtins.open')
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
         relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
@@ -1647,8 +1640,8 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy.deepcopy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            for u in six.iterkeys(v):
+        for k, v in relation.items():
+            for u in v.keys():
                 del relation[k][u]['auth']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
@@ -1672,8 +1665,8 @@ class ContextTests(unittest.TestCase):
            earlier unit it would be ignored'''
         config.side_effect = fake_config({'use-syslog': 'True'})
         relation = copy.deepcopy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            last_unit = sorted(six.iterkeys(v))[-1]
+        for k, v in relation.items():
+            last_unit = sorted(v.keys())[-1]
             unit_data = relation[k][last_unit]
             del unit_data['auth']
             relation[k][last_unit] = unit_data
@@ -4182,11 +4175,7 @@ class ContextTests(unittest.TestCase):
             'host': 'myhost',
             'use_fqdn_hint': False},
             ctxt)
-        if six.PY2:
-            _socket.error = Exception
-            _socket.getaddrinfo.side_effect = Exception
-        else:
-            _socket.getaddrinfo.side_effect = OSError
+        _socket.getaddrinfo.side_effect = OSError
         _socket.gethostname.return_value = 'myhost'
         ctxt = context.HostInfoContext()()
         self.assertEqual({
@@ -4712,6 +4701,7 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
 
     def test__init__(self):
         self.maxDiff = None
+        self.patch_object(context, 'log')
         self.patch_object(context, 'config')
         # system with three interfaces (eth0, eth1 and eth2) where
         # eth0 and eth1 is part of linux bond bond0.
@@ -4951,6 +4941,7 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
             self.__dict__ = _dict
 
     def test___init__(self):
+        self.patch_object(context, 'log')
         self.patch_object(context.pci, 'PCINetDevices')
         pci_devices = self.ObjectView({
             'pci_devices': [

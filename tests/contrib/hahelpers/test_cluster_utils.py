@@ -124,7 +124,7 @@ class ClusterUtilsTests(TestCase):
                                                mock_log):
         '''It determines its unit is not leader'''
         self.get_unit_hostname.return_value = 'node1'
-        check_output.return_value = "resource vip is NOT running"
+        check_output.return_value = b"resource vip is NOT running"
         self.assertRaises(cluster_utils.CRMResourceNotFound,
                           cluster_utils.is_crm_leader, 'vip')
         mock_time.assert_has_calls([call.sleep(2), call.sleep(4),

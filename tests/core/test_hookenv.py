@@ -1,23 +1,17 @@
-import os
+from enum import Enum
+import io
 import json
-from subprocess import CalledProcessError
+import os
+from mock import call, MagicMock, mock_open, patch, sentinel
+import pickle
 import shutil
+from subprocess import CalledProcessError
+from testtools import TestCase
 import tempfile
 import types
-from mock import call, MagicMock, mock_open, patch, sentinel
-from testtools import TestCase
-from enum import Enum
 import yaml
 
-import six
-import io
-
 from charmhelpers.core import hookenv
-
-if six.PY3:
-    import pickle
-else:
-    import cPickle as pickle
 
 
 CHARM_METADATA = b"""name: testmock
@@ -189,7 +183,7 @@ class ConfigTest(TestCase):
     def test_keys(self):
         c = hookenv.Config(dict(foo='bar'))
         c["baz"] = "bar"
-        self.assertEqual(sorted([six.u("foo"), "baz"]), sorted(c.keys()))
+        self.assertEqual(sorted(["foo", "baz"]), sorted(c.keys()))
 
     def test_in(self):
         # Test behavior of the in operator.
@@ -372,7 +366,7 @@ class HelpersTest(TestCase):
         self.assertEqual(result[1], 'a')
 
         # ... because the result is actually a string
-        self.assert_(isinstance(result, six.string_types))
+        self.assert_(isinstance(result, str))
 
     @patch('charmhelpers.core.hookenv.log', lambda *args, **kwargs: None)
     @patch('charmhelpers.core.hookenv._cache_config', None)
@@ -440,26 +434,14 @@ class HelpersTest(TestCase):
         self.assertEqual(result, None)
         cmd_line = ['config-get', '--all', '--format=json']
         check_output.assert_called_with(cmd_line)
-        try:
-            # Python3
-            log.assert_called_with(
-                'Unable to parse output from config-get: '
-                'config_cmd_line="{}" message="{}"'
-                .format(str(cmd_line),
-                        "'utf8' codec can't decode byte 0x9d in position "
-                        "18: invalid start byte"),
-                level=hookenv.ERROR,
-            )
-        except AssertionError:
-            # Python2.7
-            log.assert_called_with(
-                'Unable to parse output from config-get: '
-                'config_cmd_line="{}" message="{}"'
-                .format(str(cmd_line),
-                        "'utf-8' codec can't decode byte 0x9d in position "
-                        "18: invalid start byte"),
-                level=hookenv.ERROR,
-            )
+        log.assert_called_with(
+            'Unable to parse output from config-get: '
+            'config_cmd_line="{}" message="{}"'
+            .format(str(cmd_line),
+                    "'utf-8' codec can't decode byte 0x9d in position "
+                    "18: invalid start byte"),
+            level=hookenv.ERROR,
+        )
 
     @patch('charmhelpers.core.hookenv._cache_config', {'baz': 'bar'})
     @patch('charmhelpers.core.hookenv.charm_dir')
@@ -490,7 +472,7 @@ class HelpersTest(TestCase):
         self.assertEqual(result[1], 'a')
 
         # ... because the result is actually a string
-        self.assert_(isinstance(result, six.string_types))
+        self.assert_(isinstance(result, str))
 
         self.assertFalse(check_output.called)
 

@@ -22,7 +22,7 @@ import copy
 from distutils.version import LooseVersion
 from enum import Enum
 from functools import wraps
-from collections import namedtuple
+from collections import namedtuple, UserDict
 import glob
 import os
 import json
@@ -35,12 +35,6 @@ import tempfile
 from subprocess import CalledProcessError
 
 from charmhelpers import deprecate
-
-import six
-if not six.PY3:
-    from UserDict import UserDict
-else:
-    from collections import UserDict
 
 
 CRITICAL = "CRITICAL"
@@ -112,7 +106,7 @@ def log(message, level=None):
     command = ['juju-log']
     if level:
         command += ['-l', level]
-    if not isinstance(message, six.string_types):
+    if not isinstance(message, str):
         message = repr(message)
     command += [message[:SH_MAX_ARG]]
     # Missing juju-log should not cause failures in unit tests
@@ -132,7 +126,7 @@ def log(message, level=None):
 def function_log(message):
     """Write a function progress message"""
     command = ['function-log']
-    if not isinstance(message, six.string_types):
+    if not isinstance(message, str):
         message = repr(message)
     command += [message[:SH_MAX_ARG]]
     # Missing function-log should not cause failures in unit tests
@@ -446,12 +440,6 @@ def config(scope=None):
     global _cache_config
     config_cmd_line = ['config-get', '--all', '--format=json']
     try:
-        # JSON Decode Exception for Python3.5+
-        exc_json = json.decoder.JSONDecodeError
-    except AttributeError:
-        # JSON Decode Exception for Python2.7 through Python3.4
-        exc_json = ValueError
-    try:
         if _cache_config is None:
             config_data = json.loads(
                 subprocess.check_output(config_cmd_line).decode('UTF-8'))
@@ -459,7 +447,7 @@ def config(scope=None):
         if scope is not None:
             return _cache_config.get(scope)
         return _cache_config
-    except (exc_json, UnicodeDecodeError) as e:
+    except (json.decoder.JSONDecodeError, UnicodeDecodeError) as e:
         log('Unable to parse output from config-get: config_cmd_line="{}" '
             'message="{}"'
             .format(config_cmd_line, str(e)), level=ERROR)

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import six
 import tempfile
 
 from mock import (
@@ -56,8 +55,6 @@ class UtilsTestCase(TestCase):
         mock_get_user_provided_overrides.return_value = {}
         self.assertEqual(utils.__SETTINGS__, {})
         self.assertTrue('sysctl' in utils.get_settings('os'))
-        self.assertEqual(sorted(list(six.iterkeys(utils.__SETTINGS__))),
-                         ['os'])
+        self.assertEqual(sorted(utils.__SETTINGS__.keys()), ['os'])
         self.assertTrue('server' in utils.get_settings('ssh'))
-        self.assertEqual(sorted(list(six.iterkeys(utils.__SETTINGS__))),
-                         ['os', 'ssh'])
+        self.assertEqual(sorted(utils.__SETTINGS__.keys()), ['os', 'ssh'])

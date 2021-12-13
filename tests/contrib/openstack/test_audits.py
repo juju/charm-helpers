@@ -1,12 +1,10 @@
-from testtools import TestCase, skipIf
+from testtools import TestCase
 from mock import patch, MagicMock, call
-import six
 
 import charmhelpers.contrib.openstack.audits as audits
 import charmhelpers.contrib.openstack.audits.openstack_security_guide as guide
 
 
-@skipIf(six.PY2, 'Audits only support Python3')
 class AuditTestCase(TestCase):
 
     @patch('charmhelpers.contrib.openstack.audits._audits', {})
@@ -27,7 +25,8 @@ class AuditTestCase(TestCase):
         audits.run({})
         self.assertTrue(variables['guard_called'])
         self.assertTrue(variables['test_run'])
-        self.assertEqual(audits._audits['test'], audits.Audit(test, (should_run,)))
+        self.assertEqual(
+            audits._audits['test'], audits.Audit(test, (should_run,)))
 
     @patch('charmhelpers.contrib.openstack.audits._audits', {})
     def test_wrapper_not_run(self):
@@ -47,7 +46,8 @@ class AuditTestCase(TestCase):
         audits.run({})
         self.assertTrue(variables['guard_called'])
         self.assertFalse(variables['test_run'])
-        self.assertEqual(audits._audits['test'], audits.Audit(test, (should_run,)))
+        self.assertEqual(
+            audits._audits['test'], audits.Audit(test, (should_run,)))
 
     @patch('charmhelpers.contrib.openstack.audits._audits', {})
     def test_duplicate_audit(self):
@@ -80,7 +80,8 @@ class AuditTestCase(TestCase):
             def test(options):
                 pass
         except RuntimeError as e:
-            self.assertEqual("Configuration includes non-callable filters: [3]", e.args[0])
+            self.assertEqual(
+                "Configuration includes non-callable filters: [3]", e.args[0])
             return
         self.assertTrue(False, "Duplicate audit should raise an exception")
 
@@ -185,15 +186,18 @@ class AuditsTestCase(TestCase):
         self.assertEqual(verifier(), False)
 
     def test_is_audit_type_empty(self):
-        verifier = audits.is_audit_type(audits.AuditType.OpenStackSecurityGuide)
+        verifier = audits.is_audit_type(
+            audits.AuditType.OpenStackSecurityGuide)
         self.assertEqual(verifier({}), False)
 
     def test_is_audit_type(self):
-        verifier = audits.is_audit_type(audits.AuditType.OpenStackSecurityGuide)
-        self.assertEqual(verifier({'audit_type': audits.AuditType.OpenStackSecurityGuide}), True)
+        verifier = audits.is_audit_type(
+            audits.AuditType.OpenStackSecurityGuide)
+        self.assertEqual(
+            verifier({'audit_type': audits.AuditType.OpenStackSecurityGuide}),
+            True)
 
 
-@skipIf(six.PY2, 'Audits only support Python3')
 class OpenstackSecurityGuideTestCase(TestCase):
 
     @patch('configparser.ConfigParser')
@@ -204,14 +208,17 @@ class OpenstackSecurityGuideTestCase(TestCase):
         _config_parser.assert_called_with(strict=False)
         parser.read.assert_called_with('test')
 
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._stat')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._stat')
     def test_internal_validate_file_ownership(self, _stat):
         _stat.return_value = guide.Ownership('test_user', 'test_group', '600')
-        guide._validate_file_ownership('test_user', 'test_group', 'test-file-name')
+        guide._validate_file_ownership(
+            'test_user', 'test_group', 'test-file-name')
         _stat.assert_called_with('test-file-name')
         pass
 
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._stat')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._stat')
     def test_internal_validate_file_mode(self, _stat):
         _stat.return_value = guide.Ownership('test_user', 'test_group', '600')
         guide._validate_file_mode('600', 'test-file-name')
@@ -219,8 +226,10 @@ class OpenstackSecurityGuideTestCase(TestCase):
         pass
 
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_mode')
-    def test_validate_file_permissions_defaults(self, _validate_mode, _is_file):
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._validate_file_mode')
+    def test_validate_file_permissions_defaults(
+            self, _validate_mode, _is_file):
         _is_file.return_value = True
         config = {
             'files': {
@@ -231,7 +240,8 @@ class OpenstackSecurityGuideTestCase(TestCase):
         _validate_mode.assert_called_once_with('600', 'test', False)
 
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_mode')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._validate_file_mode')
     def test_validate_file_permissions(self, _validate_mode, _is_file):
         _is_file.return_value = True
         config = {
@@ -246,8 +256,10 @@ class OpenstackSecurityGuideTestCase(TestCase):
 
     @patch('glob.glob')
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_mode')
-    def test_validate_file_permissions_glob(self, _validate_mode, _is_file, _glob):
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._validate_file_mode')
+    def test_validate_file_permissions_glob(
+            self, _validate_mode, _is_file, _glob):
         _glob.return_value = ['test']
         _is_file.return_value = True
         config = {
@@ -261,7 +273,8 @@ class OpenstackSecurityGuideTestCase(TestCase):
         _validate_mode.assert_called_once_with('777', 'test', False)
 
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_ownership')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._validate_file_ownership')
     def test_validate_file_ownership_defaults(self, _validate_owner, _is_file):
         _is_file.return_value = True
         config = {
@@ -273,7 +286,8 @@ class OpenstackSecurityGuideTestCase(TestCase):
         _validate_owner.assert_called_once_with('root', 'root', 'test', False)
 
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_ownership')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._validate_file_ownership')
     def test_validate_file_ownership(self, _validate_owner, _is_file):
         _is_file.return_value = True
         config = {
@@ -285,12 +299,15 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_ownership(config)
-        _validate_owner.assert_called_once_with('test-user', 'test-group', 'test', False)
+        _validate_owner.assert_called_once_with(
+            'test-user', 'test-group', 'test', False)
 
     @patch('glob.glob')
     @patch('os.path.isfile')
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._validate_file_ownership')
-    def test_validate_file_ownership_glob(self, _validate_owner, _is_file, _glob):
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._validate_file_ownership')
+    def test_validate_file_ownership_glob(
+            self, _validate_owner, _is_file, _glob):
         _glob.return_value = ['test']
         _is_file.return_value = True
         config = {
@@ -302,17 +319,21 @@ class OpenstackSecurityGuideTestCase(TestCase):
             }
         }
         guide.validate_file_ownership(config)
-        _validate_owner.assert_called_once_with('test-user', 'test-group', 'test', False)
+        _validate_owner.assert_called_once_with(
+            'test-user', 'test-group', 'test', False)
 
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._config_section')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._config_section')
     def test_validate_uses_keystone(self, _config_section):
         _config_section.side_effect = [None, {
             'auth_strategy': 'keystone',
         }]
         guide.validate_uses_keystone({})
-        _config_section.assert_has_calls([call({}, 'api'), call({}, 'DEFAULT')])
+        _config_section.assert_has_calls(
+            [call({}, 'api'), call({}, 'DEFAULT')])
 
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._config_section')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._config_section')
     def test_validate_uses_tls_for_keystone(self, _config_section):
         _config_section.return_value = {
             'auth_uri': 'https://10.10.10.10',
@@ -320,7 +341,8 @@ class OpenstackSecurityGuideTestCase(TestCase):
         guide.validate_uses_tls_for_keystone({})
         _config_section.assert_called_with({}, 'keystone_authtoken')
 
-    @patch('charmhelpers.contrib.openstack.audits.openstack_security_guide._config_section')
+    @patch('charmhelpers.contrib.openstack.audits'
+           '.openstack_security_guide._config_section')
     def test_validate_uses_tls_for_glance(self, _config_section):
         _config_section.return_value = {
             'api_servers': 'https://10.10.10.10',

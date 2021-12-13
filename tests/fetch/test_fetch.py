@@ -1,4 +1,3 @@
-import six
 import os
 import yaml
 
@@ -11,12 +10,7 @@ from mock import (
 
 from charmhelpers import fetch
 
-if six.PY3:
-    from urllib.parse import urlparse
-    builtin_open = 'builtins.open'
-else:
-    from urlparse import urlparse
-    builtin_open = '__builtin__.open'
+from urllib.parse import urlparse
 
 
 FAKE_APT_CACHE = {

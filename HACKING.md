@@ -7,28 +7,19 @@ such as making real, unmocked calls out to sudo foo, juju binaries, and perhaps
 other things.  This is not ideal for a number of reasons.  One of those reasons
 is that it pollutes the test runner (your) system.
 
-The current recommendation for testing locally is to do so in a fresh Xenial
-(16.04) lxc container.  16.04 is selected for consistency with what is available
-in the Travis CI test gates.  As of this writing, 18.04 is not available there.
+The current recommendation for testing locally is to do so in a fresh bionic
+(18.04) lxc container.  This is because charmhelpers supports at least bionic
+and later Ubuntu distros.
 
-The fresh Xenial lxc system container will need to have the following packages
+The fresh Bionic lxc system container will need to have the following packages
 installed in order to satisfy test runner dependencies:
 
-    sudo apt install git bzr tox libapt-pkg-dev python-dev python3-dev build-essential juju -y
+    sudo apt install git bzr tox libapt-pkg-dev python3-dev build-essential juju -y
 
 The tests can be executed as follows:
 
     tox -e pep8
     tox -e py3
-    tox -e py2
-
-See also:  .travis.yaml for what is happening in the test gate.
-
-## Run testsuite (legacy Makefile method)
-
-    make test
-
-Run `make` without arguments for more options.
 
 ## Test it in a charm
 
@@ -66,9 +57,9 @@ charm, get the path of the installed charmhelpers by running following command.*
 Install html doc dependencies:
 
 ```bash
-sudo apt-get install python-flake8 python-shelltoolbox python-tempita \
-python-nose python-mock python-testtools python-jinja2 python-coverage \
-python-git python-netifaces python-netaddr python-pip zip
+sudo apt-get install python3-flake8 python3-shelltoolbox python3-tempita \
+python3-nose python3-mock python3-testtools python3-jinja2 python3-coverage \
+python3-git python3-netifaces python3-netaddr python3-pip zip
 ```
 
 To build the html documentation:
@@ -82,7 +73,7 @@ To browse the html documentation locally:
 ```bash
 make docs
 cd docs/_build/html
-python -m SimpleHTTPServer 8765
+python3 -m SimpleHTTPServer 8765
 # point web browser to http://localhost:8765
 ```
 

@@ -18,15 +18,9 @@ A Pythonic API to interact with the charm hook environment.
 :author: Stuart Bishop <stuart.bishop@canonical.com>
 '''
 
-import six
-
 from charmhelpers.core import hookenv
 
-from collections import OrderedDict
-if six.PY3:
-    from collections import UserDict  # pragma: nocover
-else:
-    from UserDict import IterableUserDict as UserDict  # pragma: nocover
+from collections import OrderedDict, UserDict
 
 
 class Relations(OrderedDict):
@@ -166,7 +160,7 @@ class RelationInfo(UserDict):
         if self.unit != hookenv.local_unit():
             raise TypeError('Attempting to set {} on remote unit {}'
                             ''.format(key, self.unit))
-        if value is not None and not isinstance(value, six.string_types):
+        if value is not None and not isinstance(value, str):
             # We don't do implicit casting. This would cause simple
             # types like integers to be read back as strings in subsequent
             # hooks, and mutable types would require a lot of wrapping
@@ -191,7 +185,7 @@ class Leader(UserDict):
     def __setitem__(self, key, value):
         if not hookenv.is_leader():
             raise TypeError('Not the leader. Cannot change leader settings.')
-        if value is not None and not isinstance(value, six.string_types):
+        if value is not None and not isinstance(value, str):
             # We don't do implicit casting. This would cause simple
             # types like integers to be read back as strings in subsequent
             # hooks, and mutable types would require a lot of wrapping

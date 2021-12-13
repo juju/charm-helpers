@@ -20,8 +20,6 @@
 import os
 import yaml
 
-import six
-
 import charmhelpers.core.hookenv
 
 
@@ -93,7 +91,8 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     By default, hyphens are allowed in keys as this is supported
     by yaml, but for tools like ansible, hyphens are not valid [1].
 
-    [1] http://www.ansibleworks.com/docs/playbooks_variables.html#what-makes-a-valid-variable-name
+    [1] http://www.ansibleworks.com/docs/playbooks_variables.html
+            #what-makes-a-valid-variable-name
     """
     config = charmhelpers.core.hookenv.config()
 
@@ -101,16 +100,17 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
     # file resources etc.
     config['charm_dir'] = charm_dir
     config['local_unit'] = charmhelpers.core.hookenv.local_unit()
-    config['unit_private_address'] = charmhelpers.core.hookenv.unit_private_ip()
+    config['unit_private_address'] = (
+        charmhelpers.core.hookenv.unit_private_ip())
     config['unit_public_address'] = charmhelpers.core.hookenv.unit_get(
         'public-address'
     )
 
     # Don't use non-standard tags for unicode which will not
     # work when salt uses yaml.load_safe.
-    yaml.add_representer(six.text_type,
+    yaml.add_representer(str,
                          lambda dumper, value: dumper.represent_scalar(
-                             six.u('tag:yaml.org,2002:str'), value))
+                             'tag:yaml.org,2002:str', value))
 
     yaml_dir = os.path.dirname(yaml_path)
     if not os.path.exists(yaml_dir):

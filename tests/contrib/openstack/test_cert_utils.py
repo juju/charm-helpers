@@ -504,13 +504,14 @@ class CertUtilsTests(unittest.TestCase):
         self.assertEqual(cert_utils.get_cert_relation_ca_name(), '')
         remote_service_name.assert_not_called()
 
+    @mock.patch.object(cert_utils, 'log')
     @mock.patch.object(cert_utils, 'remote_service_name')
     @mock.patch.object(cert_utils.os, 'remove')
     @mock.patch.object(cert_utils.os.path, 'exists')
     @mock.patch.object(cert_utils, 'config')
     @mock.patch.object(cert_utils, 'install_ca_cert')
     def test__manage_ca_certs(self, install_ca_cert, config, os_exists,
-                              os_remove, remote_service_name):
+                              os_remove, remote_service_name, _log):
         remote_service_name.return_value = 'vault'
         _config = {}
         config.side_effect = lambda x: _config.get(x)

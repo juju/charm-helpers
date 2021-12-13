@@ -2,15 +2,9 @@ import collections
 import copy
 import json
 import mock
-import six
 import unittest
 
 from charmhelpers.contrib.openstack import utils
-
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-else:
-    builtin_open = 'builtins.open'
 
 
 class UtilsTests(unittest.TestCase):
@@ -225,7 +219,7 @@ class UtilsTests(unittest.TestCase):
         }
 
         mock_open = mock.mock_open(read_data=TEST_POLICY)
-        with mock.patch(builtin_open, mock_open) as mock_file:
+        with mock.patch('builtins.open', mock_open) as mock_file:
             utils.update_json_file(TEST_POLICY_FILE, {})
             self.assertFalse(mock_file.called)
 
@@ -244,7 +238,7 @@ class UtilsTests(unittest.TestCase):
         tmp.update(items_to_update)
         TEST_POLICY = json.dumps(tmp)
         mock_open = mock.mock_open(read_data=TEST_POLICY)
-        with mock.patch(builtin_open, mock_open) as mock_file:
+        with mock.patch('builtins.open', mock_open) as mock_file:
             utils.update_json_file(TEST_POLICY_FILE, items_to_update)
             mock_file.assert_has_calls([
                 mock.call(TEST_POLICY_FILE),

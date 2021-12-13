@@ -1,7 +1,6 @@
 from mock import patch, call, mock_open
 
 import collections
-import six
 import errno
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -325,15 +324,15 @@ class CephUtilsTests(TestCase):
                           valid_range=[0])
 
     def test_validator_invalid_string_list(self):
-        # foo is a six.string_types that isn't in the valid string list
+        # foo is a str that isn't in the valid string list
         self.assertRaises(AssertionError, ceph_utils.validator,
                           value="foo",
-                          valid_type=six.string_types,
+                          valid_type=str,
                           valid_range=["valid", "list", "of", "strings"])
 
     def test_validator_valid_string(self):
         ceph_utils.validator(value="foo",
-                             valid_type=six.string_types,
+                             valid_type=str,
                              valid_range=["foo"])
 
     def test_validator_valid_string_type(self):
@@ -1013,9 +1012,7 @@ class CephUtilsTests(TestCase):
             '010d57d581604d411b315dd64112bff832ab92c7323fa06077134b50',
             '8e0a9705c1aeafa1ce250cc9f1bb443fc6e5150e5edcbeb6eeb82e3c',
             'c3f8d36ba098c23ee920cb08cfb9beda6b639f8433637c190bdd56ec']
-        _monmap_dump = MONMAP_DUMP
-        if six.PY3:
-            _monmap_dump = _monmap_dump.decode('UTF-8')
+        _monmap_dump = MONMAP_DUMP.decode('UTF-8')
         monmap.return_value = json.loads(_monmap_dump)
         hashed_mon_list = ceph_utils.hash_monitor_names(service='admin')
         self.assertEqual(expected=expected_hash_list, observed=hashed_mon_list)
