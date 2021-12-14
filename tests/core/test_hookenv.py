@@ -1212,20 +1212,25 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-get', '--format=json',
                                          'baz-scope', 'baz-unit'])
 
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
     @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_call')
     @patch('subprocess.check_output')
-    def test_relation_set_flushes_local_unit_cache(self, check_output,
-                                                   check_call, local_unit):
+    def test_relation_set_flushes_local_unit_cache(
+            self, check_output, check_call, local_unit,
+            _relation_set_accepts_file):
         check_output.return_value = json.dumps('BAR').encode('UTF-8')
         local_unit.return_value = 'baz_unit'
+        # mock out _relation_set_accepts_file() do it doesn't mess with the
+        # cache
+        _relation_set_accepts_file.return_value = False
         hookenv.relation_get(attribute='baz_scope', unit='baz_unit')
         hookenv.relation_get(attribute='bar_scope')
         self.assertTrue(len(hookenv.cache) == 2)
         check_output.return_value = ""
         hookenv.relation_set(baz_scope='hello')
         # relation_set should flush any entries for local_unit
-        self.assertTrue(len(hookenv.cache) == 1)
+        self.assertEqual(len(hookenv.cache), 1)
 
     @patch('subprocess.check_output')
     def test_gets_relation_with_relation_id(self, check_output):
@@ -1238,59 +1243,92 @@ class HelpersTest(TestCase):
         check_output.assert_called_with(['relation-get', '--format=json', '-r',
                                          123, 'baz-scope', 'baz-unit'])
 
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
     @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_kwargs(self, check_call_, check_output,
-                                       local_unit):
+    def test_sets_relation_with_kwargs(
+            self, check_call_, check_output, local_unit,
+            _relation_set_accepts_file):
+        _relation_set_accepts_file.return_value = False
         hookenv.relation_set(foo="bar")
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
         hookenv.relation_set(foo="bar", app=True)
         check_call_.assert_called_with(['relation-set', '--app', 'foo=bar'])
 
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
     @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_dict(self, check_call_, check_output,
-                                     local_unit):
+    def test_sets_relation_with_dict(
+            self, check_call_, check_output, local_unit,
+            _relation_set_accepts_file):
+        _relation_set_accepts_file.return_value = False
         hookenv.relation_set(relation_settings={"foo": "bar"})
         check_call_.assert_called_with(['relation-set', 'foo=bar'])
 
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
     @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_relation_id(self, check_call_, check_output,
-                                            local_unit):
+    def test_sets_relation_with_relation_id(
+            self, check_call_, check_output, local_unit,
+            _relation_set_accepts_file):
+        _relation_set_accepts_file.return_value = False
         hookenv.relation_set(relation_id="foo", bar="baz")
         check_call_.assert_called_with(['relation-set', '-r', 'foo',
                                         'bar=baz'])
 
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
     @patch('charmhelpers.core.hookenv.local_unit')
     @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_sets_relation_with_missing_value(self, check_call_, check_output,
-                                              local_unit):
+    def test_sets_relation_with_missing_value(
+            self, check_call_, check_output, local_unit,
+            _relation_set_accepts_file):
+        _relation_set_accepts_file.return_value = False
         hookenv.relation_set(foo=None)
         check_call_.assert_called_with(['relation-set', 'foo='])
 
-    @patch('charmhelpers.core.hookenv.local_unit', MagicMock())
-    @patch('os.remove')
     @patch('subprocess.check_output')
-    @patch('subprocess.check_call')
-    def test_relation_set_file(self, check_call, check_output, remove):
+    def test__relation_set_accepts_file_true(self, check_output):
         """If relation-set accepts a --file parameter, it's used.
 
         Juju 1.23.2 introduced a --file parameter, which means you can
         pass the data through a file. Not using --file would make
         relation_set break if the relation data is too big.
         """
+        check_output.return_value = "--file"
+        self.assertTrue(hookenv._relation_set_accepts_file())
         # check_output(["relation-set", "--help"]) is used to determine
         # whether we can pass --file to it.
-        check_output.return_value = "--file"
-        hookenv.relation_set(foo="bar")
         check_output.assert_called_with(
             ["relation-set", "--help"], universal_newlines=True)
+
+    @patch('subprocess.check_output')
+    def test__relation_set_accepts_file_false(self, check_output):
+        check_output.return_value = "--thing\n--other-thing\n"
+        self.assertFalse(hookenv._relation_set_accepts_file())
+        # check_output(["relation-set", "--help"]) is used to determine
+        # whether we can pass --file to it.
+        check_output.assert_called_with(
+            ["relation-set", "--help"], universal_newlines=True)
+
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
+    @patch('charmhelpers.core.hookenv.local_unit', MagicMock())
+    @patch('os.remove')
+    @patch('subprocess.check_call')
+    def test_relation_set_file(self, check_call, remove,
+                               _relation_set_accepts_file):
+        """If relation-set accepts a --file parameter, it's used.
+
+        Juju 1.23.2 introduced a --file parameter, which means you can
+        pass the data through a file. Not using --file would make
+        relation_set break if the relation data is too big.
+        """
+        _relation_set_accepts_file.return_value = True
+        hookenv.relation_set(foo="bar")
         # relation-set is called with relation-set --file <temp_file>
         # with data as YAML and the temp_file is then removed.
         self.assertEqual(1, len(check_call.call_args[0]))
@@ -1303,22 +1341,19 @@ class HelpersTest(TestCase):
             self.assertEqual("foo: bar", f.read().strip())
         remove.assert_called_with(temp_file)
 
+    @patch('charmhelpers.core.hookenv._relation_set_accepts_file')
     @patch('charmhelpers.core.hookenv.local_unit', MagicMock())
     @patch('os.remove')
-    @patch('subprocess.check_output')
     @patch('subprocess.check_call')
-    def test_relation_set_file_non_str(self, check_call, check_output, remove):
+    def test_relation_set_file_non_str(self, check_call, remove,
+                                       _relation_set_accepts_file):
         """If relation-set accepts a --file parameter, it's used.
 
         Any value that is not a string is converted to a string before encoding
         the settings to YAML.
         """
-        # check_output(["relation-set", "--help"]) is used to determine
-        # whether we can pass --file to it.
-        check_output.return_value = "--file"
+        _relation_set_accepts_file.return_value = True
         hookenv.relation_set(foo={"bar": 1})
-        check_output.assert_called_with(
-            ["relation-set", "--help"], universal_newlines=True)
         # relation-set is called with relation-set --file <temp_file>
         # with data as YAML and the temp_file is then removed.
         self.assertEqual(1, len(check_call.call_args[0]))

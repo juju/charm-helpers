@@ -478,12 +478,26 @@ def relation_get(attribute=None, unit=None, rid=None, app=None):
         raise
 
 
+@cached
+def _relation_set_accepts_file():
+    """Return True if the juju relation-set command accepts a file.
+
+    Cache the result as it won't change during the execution of a hook, and
+    thus we can make relation_set() more efficient by only checking for the
+    first relation_set() call.
+
+    :returns: True if relation_set accepts a file.
+    :rtype: bool
+    :raises: subprocess.CalledProcessError if the check fails.
+    """
+    return "--file" in subprocess.check_output(
+        ["relation-set", "--help"], universal_newlines=True)
+
+
 def relation_set(relation_id=None, relation_settings=None, app=False, **kwargs):
     """Set relation information for the current unit"""
     relation_settings = relation_settings if relation_settings else {}
     relation_cmd_line = ['relation-set']
-    accepts_file = "--file" in subprocess.check_output(
-        relation_cmd_line + ["--help"], universal_newlines=True)
     if app:
         relation_cmd_line.append('--app')
     if relation_id is not None:
@@ -495,7 +509,7 @@ def relation_set(relation_id=None, relation_settings=None, app=False, **kwargs):
         # sites pass in things like dicts or numbers.
         if value is not None:
             settings[key] = "{}".format(value)
-    if accepts_file:
+    if _relation_set_accepts_file():
         # --file was introduced in Juju 1.23.2. Use it by default if
         # available, since otherwise we'll break if the relation data is
         # too big. Ideally we should tell relation-set to read the data from
