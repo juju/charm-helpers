@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import  # required for external apt import
-
 from charmhelpers.fetch import (
     apt_cache,
     apt_purge
