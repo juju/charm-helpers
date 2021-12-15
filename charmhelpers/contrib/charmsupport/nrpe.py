@@ -28,6 +28,7 @@ import subprocess
 import yaml
 
 from charmhelpers.core.hookenv import (
+    application_name,
     config,
     hook_name,
     local_unit,
@@ -520,3 +521,29 @@ def remove_deprecated_check(nrpe, deprecated_services):
     for dep_svc in deprecated_services:
         log('Deprecated service: {}'.format(dep_svc))
         nrpe.remove_check(shortname=dep_svc)
+
+
+def add_deferred_restarts_check(nrpe):
+    unit_name = local_unit().replace('/', '-')
+    shortname = unit_name + '_deferred_restarts'
+    check_cmd = 'check_deferred_restarts.py --application {}'.format(
+        application_name())
+
+    log('Adding deferred restarts nrpe check: {}'.format(shortname))
+    nrpe.add_check(
+        shortname=shortname,
+        description='Check deferred service restarts {}'.format(unit_name),
+        check_cmd=check_cmd)
+
+
+def remove_deferred_restarts_check(nrpe):
+    unit_name = local_unit().replace('/', '-')
+    shortname = unit_name + '_deferred_restarts'
+    check_cmd = 'check_deferred_restarts.py --application {}'.format(
+        application_name())
+
+    log('Removing deferred restarts nrpe check: {}'.format(shortname))
+    nrpe.remove_check(
+        shortname=shortname,
+        description='Check deferred service restarts {}'.format(unit_name),
+        check_cmd=check_cmd)
