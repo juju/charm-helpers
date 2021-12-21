@@ -2088,7 +2088,8 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data(self, local_unit, local_address):
+    @patch('charmhelpers.contrib.openstack.context.https')
+    def test_haproxy_context_with_data(self, https, local_unit, local_address):
         '''Test haproxy context with all relation data'''
         cluster_relation = {
             'cluster:0': {
@@ -2100,6 +2101,7 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
+        https.return_value = True
         local_unit.return_value = 'peer/0'
         # We are only using get_relation_ip.
         # Setup the values it returns on each subsequent call.
@@ -2130,6 +2132,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'https': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2146,7 +2149,9 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_timeout(self, local_unit, local_address):
+    @patch('charmhelpers.contrib.openstack.context.https')
+    def test_haproxy_context_with_data_timeout(
+            self, https, local_unit, local_address):
         '''Test haproxy context with all relation data and timeout'''
         cluster_relation = {
             'cluster:0': {
@@ -2158,6 +2163,7 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
+        https.return_value = True
         local_unit.return_value = 'peer/0'
         # We are only using get_relation_ip.
         # Setup the values it returns on each subsequent call.
@@ -2191,6 +2197,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'https': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2209,7 +2216,9 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_multinet(self, local_unit, local_address):
+    @patch('charmhelpers.contrib.openstack.context.https')
+    def test_haproxy_context_with_data_multinet(
+            self, https, local_unit, local_address):
         '''Test haproxy context with all relation data for network splits'''
         cluster_relation = {
             'cluster:0': {
@@ -2227,7 +2236,7 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
-
+        https.return_value = True
         local_unit.return_value = 'peer/0'
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
@@ -2284,6 +2293,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'https': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2300,7 +2310,9 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_public_only(self, local_unit, local_address):
+    @patch('charmhelpers.contrib.openstack.context.https')
+    def test_haproxy_context_with_data_public_only(
+            self, https, local_unit, local_address):
         '''Test haproxy context with with openstack-dashboard public only binding'''
         cluster_relation = {
             'cluster:0': {
@@ -2314,7 +2326,7 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
-
+        https.return_value = True
         local_unit.return_value = 'peer/0'
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
@@ -2359,6 +2371,7 @@ class ContextTests(unittest.TestCase):
             'default_backend': 'cluster-peer0.localnet',
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'https': True,
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2373,7 +2386,9 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_ipv6(self, local_unit, local_address):
+    @patch('charmhelpers.contrib.openstack.context.https')
+    def test_haproxy_context_with_data_ipv6(
+            self, https, local_unit, local_address):
         '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
@@ -2385,7 +2400,7 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
-
+        https.return_value = True
         local_unit.return_value = 'peer/0'
         # We are only using get_relation_ip.
         # Setup the values it returns on each subsequent call.
@@ -2424,6 +2439,7 @@ class ContextTests(unittest.TestCase):
             'haproxy_server_timeout': 50000,
             'haproxy_client_timeout': 50000,
             'haproxy_host': '::',
+            'https': True,
             'ipv6_enabled': True,
             'stat_password': 'testpassword',
             'stat_port': '8888',
@@ -2509,7 +2525,9 @@ class ContextTests(unittest.TestCase):
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, local_address):
+    @patch('charmhelpers.contrib.openstack.context.https')
+    def test_haproxy_context_with_no_peers_singlemode(
+            self, https, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2520,6 +2538,7 @@ class ContextTests(unittest.TestCase):
                 },
             },
         }
+        https.return_value = True
         local_unit.return_value = 'peer/0'
         # We are only using get_relation_ip.
         # Setup the values it returns on each subsequent call.
@@ -2545,6 +2564,7 @@ class ContextTests(unittest.TestCase):
             },
             'default_backend': 'lonely.clusterpeer.howsad',
             'haproxy_host': '0.0.0.0',
+            'https': True,
             'local_host': '127.0.0.1',
             'ipv6_enabled': False,
             'stat_port': '8888',

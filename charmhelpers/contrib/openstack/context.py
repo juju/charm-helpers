@@ -924,7 +924,8 @@ class HAProxyContext(OSContextGenerator):
 
         ctxt = {
             'frontends': cluster_hosts,
-            'default_backend': addr
+            'default_backend': addr,
+            'https': https()
         }
 
         if config('haproxy-server-timeout'):
