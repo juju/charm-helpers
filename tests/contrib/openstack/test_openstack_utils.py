@@ -226,6 +226,14 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_codename_install_source(None),
                           '')
 
+        # check that bare ubuntu releases end up as the release.
+        self.assertEquals(openstack.get_os_codename_install_source('essex'),
+                          'essex')
+        self.assertEquals(openstack.get_os_codename_install_source('ussuri'),
+                          'ussuri')
+        self.assertEquals(openstack.get_os_codename_install_source('queens'),
+                          'queens')
+
     @patch.object(openstack, 'get_os_version_codename')
     @patch.object(openstack, 'get_os_codename_install_source')
     def test_os_version_from_install_source(self, codename, version):
