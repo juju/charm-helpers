@@ -782,63 +782,6 @@ class restart_on_change(object):
         return False
 
 
-class restart_on_change1(object):
-    """Decorator AND context manager to handle restarts.
-
-    Usage:
-
-       @restart_on_change(restart_map, ...)
-       def function_that_might_trigger_a_restart(...)
-           ...
-
-    Or:
-
-       with restart_on_change(restart_map, ...):
-           do_stuff_that_might_trigger_a_restart()
-           ...
-    """
-
-    def __init__(self, restart_map, stopstart=False, restart_functions=None):
-        self.restart_map = restart_map
-        self.stopstart = stopstart
-        self.restart_functions = restart_functions
-
-    def __call__(self, f):
-        """Work like a decorator.
-
-        Returns a wrapped function that performs the restart if triggered.
-
-        :param f: The function that is being wrapped.
-        :type f: Callable[[Any], Any]
-        :returns: the wrapped function
-        :rtype: Callable[[Any], Any]
-        """
-        @functools.wraps(f)
-        def wrapped_f(*args, **kwargs):
-            return restart_on_change_helper(
-                (lambda: f(*args, **kwargs)),
-                self.restart_map,
-                self.stopstart,
-                self.restart_functions)
-        return wrapped_f
-
-    def __enter__(self):
-        self.checksums = _pre_restart_on_change_helper(self.restart_map)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        """
-        if exc_type is None:
-            _post_restart_on_change_helper(
-                self.checksums,
-                self.restart_map,
-                stopstart=self.stopstart,
-                restart_functions=self.restart_functions)
-        # All is good, so return False; any exceptions will propagate.
-        return False
-
-
-
 def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
                              restart_functions=None,
                              can_restart_now_f=None,
