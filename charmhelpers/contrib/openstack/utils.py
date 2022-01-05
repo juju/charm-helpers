@@ -1414,45 +1414,75 @@ def incomplete_relation_data(configs, required_interfaces):
         for i in incomplete_relations}
 
 
-def do_action_openstack_upgrade(package, upgrade_callback, configs,
-                                force_upgrade=False):
+def do_action_openstack_upgrade(package, upgrade_callback, configs):
     """Perform action-managed OpenStack upgrade.
 
     Upgrades packages to the configured openstack-origin version and sets
     the corresponding action status as a result.
 
-    If the charm was installed from source we cannot upgrade it.
     For backwards compatibility a config flag (action-managed-upgrade) must
     be set for this code to run, otherwise a full service level upgrade will
     fire on config-changed.
 
-    @param package: package name for determining if upgrade available
+    @param package: package name for determining if openstack upgrade available
     @param upgrade_callback: function callback to charm's upgrade function
     @param configs: templating object derived from OSConfigRenderer class
-    @param force_upgrade: perform dist-upgrade regardless of new openstack
 
     @return: True if upgrade successful; False if upgrade failed or skipped
     """
     ret = False
 
-    if openstack_upgrade_available(package) or force_upgrade:
+    if openstack_upgrade_available(package):
         if config('action-managed-upgrade'):
             juju_log('Upgrading OpenStack release')
 
             try:
                 upgrade_callback(configs=configs)
-                action_set({'outcome': 'success, upgrade completed.'})
+                action_set({'outcome': 'success, upgrade completed'})
                 ret = True
             except Exception:
-                action_set({'outcome': 'upgrade failed, see traceback.'})
+                action_set({'outcome': 'upgrade failed, see traceback'})
                 action_set({'traceback': traceback.format_exc()})
-                action_fail('do_openstack_upgrade resulted in an '
+                action_fail('upgrade callback resulted in an '
                             'unexpected error')
         else:
             action_set({'outcome': 'action-managed-upgrade config is '
-                                   'False, skipped upgrade.'})
+                                   'False, skipped upgrade'})
     else:
-        action_set({'outcome': 'no upgrade available.'})
+        action_set({'outcome': 'no upgrade available'})
+
+    return ret
+
+
+def do_action_package_upgrade(package, upgrade_callback, configs):
+    """Perform package upgrade within the current OpenStack release.
+
+    Upgrades packages only if there is not an openstack upgrade available,
+    and sets the corresponding action status as a result.
+
+    @param package: package name for determining if openstack upgrade available
+    @param upgrade_callback: function callback to charm's upgrade function
+    @param configs: templating object derived from OSConfigRenderer class
+
+    @return: True if upgrade successful; False if upgrade failed or skipped
+    """
+    ret = False
+
+    if not openstack_upgrade_available(package):
+        juju_log('Upgrading packages')
+
+        try:
+            upgrade_callback(configs=configs)
+            action_set({'outcome': 'success, upgrade completed'})
+            ret = True
+        except Exception:
+            action_set({'outcome': 'upgrade failed, see traceback'})
+            action_set({'traceback': traceback.format_exc()})
+            action_fail('upgrade callback resulted in an '
+                        'unexpected error')
+    else:
+        action_set({'outcome': 'upgrade skipped because an openstack upgrade '
+                               'is available'})
 
     return ret
 
