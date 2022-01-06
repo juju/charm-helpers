@@ -1815,7 +1815,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('success, upgrade completed.')
+        msg = ('success, upgrade completed')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1837,20 +1837,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('no upgrade available.')
-        action_set.assert_called_with({'outcome': msg})
-        self.assertFalse(action_fail.called)
-
-        # test force_upgrade
-        openstack_upgrade_available.return_value = False
-
-        openstack.do_action_openstack_upgrade('package-xyz',
-                                              do_openstack_upgrade,
-                                              None,
-                                              force_upgrade=True)
-
-        self.assertTrue(openstack_upgrade_available.called)
-        msg = ('success, upgrade completed.')
+        msg = ('no upgrade available')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1875,7 +1862,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('action-managed-upgrade config is False, skipped upgrade.')
+        msg = ('action-managed-upgrade config is False, skipped upgrade')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1901,7 +1888,75 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = 'do_openstack_upgrade resulted in an unexpected error'
+        msg = 'upgrade callback resulted in an unexpected error'
+        action_fail.assert_called_with(msg)
+        self.assertTrue(action_set.called)
+        self.assertTrue(traceback.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade(self, config, openstack_upgrade_available,
+                             action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('success, upgrade completed')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade_skip(self, config,
+                                  openstack_upgrade_available,
+                                  action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            pass
+
+        # package upgrades are skipped if openstack uprade is available
+        openstack_upgrade_available.return_value = True
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('upgrade skipped because an openstack upgrade is available')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('traceback.format_exc')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade_traceback(self, config, traceback,
+                                       openstack_upgrade_available,
+                                       action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            oops()  # noqa
+
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = 'upgrade callback resulted in an unexpected error'
         action_fail.assert_called_with(msg)
         self.assertTrue(action_set.called)
         self.assertTrue(traceback.called)
