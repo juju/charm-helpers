@@ -36,6 +36,7 @@ Example: ./check_sriov_numvfs.py ens3f0:32 ens3f1:32 ens6f0:32 ens6f1:32
 
 import argparse
 import os.path
+import traceback
 import sys
 
 
@@ -108,12 +109,17 @@ def main():
     args = parse_args()
     error_msg = []
 
-    for device_numvfs in args.sriov_numvfs:
-        iface, numvfs = parse_sriov_numvfs(device_numvfs)
-        error_msg += check_interface_numvfs(iface, numvfs)
-    if error_msg:
-        print("CRITICAL: {} problems detected\n".format(len(error_msg)) + "\n".join(error_msg))
-        sys.exit(2)
+    try:
+        for device_numvfs in args.sriov_numvfs:
+            iface, numvfs = parse_sriov_numvfs(device_numvfs)
+            error_msg += check_interface_numvfs(iface, numvfs)
+        if error_msg:
+            print("CRITICAL: {} problems detected\n".format(len(error_msg)) + "\n".join(error_msg))
+            sys.exit(2)
+    except:  # noqa: E722
+        print("{} raised unknown exception '{}'".format(__file__, sys.exc_info()[0]))
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(3)
 
     print("OK: sriov_numvfs set to " + ", ".join(args.sriov_numvfs))
 
