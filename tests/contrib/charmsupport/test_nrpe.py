@@ -494,3 +494,12 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.patched['copy2'].assert_called_once_with(
             'filea',
             '/usr/local/lib/nagios/plugins/filea')
+
+    @patch.object(nrpe.NRPE, 'add_check')
+    def test_add_sriov_numvfs_checks(self, mock_nrpe_add_check):
+        foo = nrpe.NRPE()
+        nrpe.add_sriov_numvfs_checks(foo, 'ens3f0:32 ens3f1:32')
+        mock_nrpe_add_check.assert_called_once_with(
+            shortname='sriov_numvfs',
+            description='Check SRIOV numvfs',
+            check_cmd='check_sriov_numvfs.py ens3f0:32 ens3f1:32')
