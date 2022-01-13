@@ -30,7 +30,7 @@ class TestCheckSriovNumfs(unittest.TestCase):
             os.removedirs(self.interface_folder)
 
     def test_parameter_parsing(self):
-        """ check if the sriov_numvfs parameter is parsed correctly """
+        """Ensure that the format of the sriov_numvfs parameter is parsed correctly"""
         iface, numvfs = check_sriov_numvfs.parse_sriov_numvfs('ens3f0:32')
         self.assertEqual(iface, 'ens3f0')
         self.assertEqual(numvfs, 32)
@@ -42,14 +42,14 @@ class TestCheckSriovNumfs(unittest.TestCase):
             self.assertRaises(ValueError, check_sriov_numvfs.parse_sriov_numvfs, param)
 
     def test_check_interface_numvfs_no_interface(self):
-        """ check should report nothing if the interface does not exists """
+        """Check should ignore the interface if it does not exists"""
         self.assertListEqual(
             check_sriov_numvfs.check_interface_numvfs('no-interface', 0), []
         )
 
     @mock.patch('charmhelpers.contrib.network.files.check_sriov_numvfs.DEVICE_TEMPLATE', interface_folder)
     def test_check_interface_numvfs_vfs_disabled(self):
-        """ check if virtual functions are disabled """
+        """Check should report if virtual functions are disabled """
         self.assertListEqual(
             check_sriov_numvfs.check_interface_numvfs('ens3f0', 0),
             ['ens3f0: VFs are disabled or not-available']
@@ -59,24 +59,24 @@ class TestCheckSriovNumfs(unittest.TestCase):
     @mock.patch('charmhelpers.contrib.network.files.check_sriov_numvfs.SRIOV_NUMVFS_TEMPLATE', sriov_numvfs_file)
     @mock.patch('charmhelpers.contrib.network.files.check_sriov_numvfs.SRIOV_TOTALVFS_TEMPLATE', sriov_totalvfs_file)
     def test_check_interface_numvfs_vfs_enabled(self):
-        """ check if virtual functions are enabled """
+        """Check if numvfs is evaluated correctly"""
 
-        # check numvfs correct
+        # check numvfs correct should pass
         self.assertListEqual(
             check_sriov_numvfs.check_interface_numvfs('ens3f0', 32),
             []
         )
 
-        # check numvfs != check
+        # check numvfs != expected should faild
         self.assertListEqual(
             check_sriov_numvfs.check_interface_numvfs('ens3f0', 16),
-            ['ens3f0: Number of VFs on interface (32) does not match check (16)']
+            ['ens3f0: Number of VFs on interface (32) does not match expected (16)']
         )
 
-        # check numvfs > sriov_totalvfs
+        # check numvfs > sriov_totalvfs should fail
         with open(self.sriov_numvfs_file, "w") as f:
             f.write("128")
         self.assertListEqual(
             check_sriov_numvfs.check_interface_numvfs('ens3f0', 128),
-            ['ens3f0: Maximum number of VFs available on interface (64) is lower than the check (128)']
+            ['ens3f0: Maximum number of VFs available on interface (64) is lower than the expected (128)']
         )
