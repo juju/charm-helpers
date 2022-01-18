@@ -524,6 +524,11 @@ def remove_deprecated_check(nrpe, deprecated_services):
 
 
 def add_deferred_restarts_check(nrpe):
+    """
+    Add NRPE check for services with deferred restarts.
+
+    :param NRPE nrpe: NRPE object to add check to
+    """
     unit_name = local_unit().replace('/', '-')
     shortname = unit_name + '_deferred_restarts'
     check_cmd = 'check_deferred_restarts.py --application {}'.format(
@@ -537,6 +542,11 @@ def add_deferred_restarts_check(nrpe):
 
 
 def remove_deferred_restarts_check(nrpe):
+    """
+    Remove NRPE check for services with deferred service restarts.
+
+    :param NRPE nrpe: NRPE object to remove check from
+    """
     unit_name = local_unit().replace('/', '-')
     shortname = unit_name + '_deferred_restarts'
     check_cmd = 'check_deferred_restarts.py --application {}'.format(
