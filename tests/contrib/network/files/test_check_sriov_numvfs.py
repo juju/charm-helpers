@@ -35,11 +35,8 @@ class TestCheckSriovNumfs(unittest.TestCase):
         self.assertEqual(iface, 'ens3f0')
         self.assertEqual(numvfs, 32)
 
-        for param in ['', ':', ':test', ':32', 'ens3f2', 'a:1:b', 'ens3f2:']:
+        for param in ['', ':', ':test', ':32', 'ens3f2', 'a:1:b', 'ens3f2:', 'ens3f2:test']:
             self.assertRaises(check_sriov_numvfs.ArgsFormatError, check_sriov_numvfs.parse_sriov_numvfs, param)
-
-        for param in ['ens3f2:test']:
-            self.assertRaises(ValueError, check_sriov_numvfs.parse_sriov_numvfs, param)
 
     def test_check_interface_numvfs_no_interface(self):
         """Check should ignore the interface if it does not exists"""

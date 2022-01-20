@@ -36,11 +36,13 @@ Example: ./check_sriov_numvfs.py ens3f0:32 ens3f1:32 ens6f0:32 ens6f1:32
 
 import argparse
 import os.path
+import re
 import traceback
 import sys
 
 
 DEVICE_TEMPLATE = "/sys/class/net/{0}"
+DEVICE_VF_PATTERN = r'(?P<iface>[0-9a-z]{3,}):(?P<numvfs>\d+)'
 SRIOV_NUMVFS_TEMPLATE = "/sys/class/net/{0}/device/sriov_numvfs"
 SRIOV_TOTALVFS_TEMPLATE = "/sys/class/net/{0}/device/sriov_totalvfs"
 
@@ -52,14 +54,28 @@ class ArgsFormatError(Exception):
 
 
 def get_interface_setting(file):
-    """Return the value content of a setting file as int"""
+    """Return the value content of a settings file as int.
+
+    :param file: Full path of the settings file.
+    :type file: str
+    :returns: The interface setting as int.
+    :rtype: int
+    """
     with open(file) as f:
         value = f.read()
     return int(value)
 
 
 def check_interface_numvfs(iface, numvfs):
-    """Check SR-IOV numvfs config"""
+    """Verify SR-IOV interface configuration for number of virtual functions.
+
+    :param iface: Name of the interface.
+    :type iface: str
+    :param numvfs: Number of virtual functions that should to be configured.
+    :type numvfs: int
+    :returns: List of check violations found for the device.
+    :rtype: [str]
+    """
     sriov_numvfs_path = SRIOV_NUMVFS_TEMPLATE.format(iface)
     sriov_totalvfs_path = SRIOV_TOTALVFS_TEMPLATE.format(iface)
     msg = []
@@ -72,15 +88,18 @@ def check_interface_numvfs(iface, numvfs):
     if not os.path.exists(sriov_totalvfs_path) or not os.path.exists(sriov_numvfs_path):
         return ["{}: VFs are disabled or not-available".format(iface)]
 
-    # Verify number of virtual functions
     sriov_numvfs = get_interface_setting(sriov_numvfs_path)
     sriov_totalvfs = get_interface_setting(sriov_totalvfs_path)
+
+    # Verify that number of virtual functions is set to the expected number
     if numvfs != sriov_numvfs:
         msg.append(
             "{}: Number of VFs on interface ({}) does not match expected ({})".format(
                 iface, sriov_numvfs, numvfs
             )
         )
+
+    # Verify that the device supports the amount of VFs that we expect to be configured
     if numvfs > sriov_totalvfs:
         msg.append(
             "{}: Maximum number of VFs available on interface ({}) is lower than the expected ({})".format(
@@ -91,25 +110,29 @@ def check_interface_numvfs(iface, numvfs):
 
 
 def parse_sriov_numvfs(device_numvfs):
-    """Parse parameters and check format"""
+    """Parse sriov_numvfs string, verify format and return parsed values.
+
+    :param device_numvfs: The devicename and number of Virtual Functions, format '<interface>:<numvfs>'.
+    :type device_numvfs: str
+    :returns: The interface name and number of VFs.
+    :rtype: (str, int)
+    :raises: ArgsFormatError if the format of the parameter is not correct.
+    """
     msg = "Parameter format must be '<interface>:<numvfs>', e.g. ens3f0:32, given: '{}'".format(
         device_numvfs
     )
-    parts = device_numvfs.split(":")
-    if (
-        len(parts) != 2 or      # exactly 2 parts
-        len(parts[0]) < 3 or    # interface name should be at least 3 chars
-        len(parts[1]) < 1 or    # numvfs should be at least 1 char
-        int(parts[1]) < 0       # numvfs should be a valid int > 0
-    ):
+    match = re.match(DEVICE_VF_PATTERN, device_numvfs)
+    if match is None:
         raise ArgsFormatError(msg)
-    iface = str(device_numvfs.split(":")[0])
-    numvfs = int(device_numvfs.split(":")[1])
-    return (iface, numvfs)
+    return match.group('iface'), int(match.group('numvfs'))
 
 
 def parse_args():
-    """Parse command-line options."""
+    """Parse command-line options.
+
+    :returns: Argparsed cli parameters as argparse.Namespace
+    :rtype: argparse.Namespace
+    """
     parser = argparse.ArgumentParser(
         description="Check SR-IOV number of virtual functions configuration"
     )
