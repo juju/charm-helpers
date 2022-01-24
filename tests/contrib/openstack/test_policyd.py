@@ -3,16 +3,9 @@ import copy
 import io
 import os
 import mock
-import six
 import unittest
 
 from charmhelpers.contrib.openstack import policyd
-
-
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-else:
-    builtin_open = 'builtins.open'
 
 
 class PolicydTests(unittest.TestCase):
@@ -393,7 +386,7 @@ class PolicydTests(unittest.TestCase):
             mock_open = mock.MagicMock(spec=open)
             mock_file = mock.MagicMock(spec=io.FileIO)
 
-            with mock.patch(builtin_open, mock_open):
+            with mock.patch('builtins.open', mock_open):
                 yield mock_open, mock_file
 
         mock_clean_policyd_dir_for.reset_mock()

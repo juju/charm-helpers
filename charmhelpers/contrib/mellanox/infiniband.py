@@ -17,8 +17,6 @@
 
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
-import six
-
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
@@ -32,10 +30,7 @@ from charmhelpers.core.hookenv import (
 try:
     from netifaces import interfaces as network_interfaces
 except ImportError:
-    if six.PY2:
-        apt_install('python-netifaces')
-    else:
-        apt_install('python3-netifaces')
+    apt_install('python3-netifaces')
     from netifaces import interfaces as network_interfaces
 
 import os

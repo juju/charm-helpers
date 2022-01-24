@@ -14,7 +14,6 @@
 
 import tempfile
 import os
-import six
 
 from mock import call, patch
 from unittest import TestCase
@@ -304,7 +303,7 @@ class TemplatingTestCase(TestCase):
 
     def tearDown(self):
         # Cleanup
-        for path in six.itervalues(self.pathindex):
+        for path in self.pathindex.values():
             os.remove(path)
 
         super(TemplatingTestCase, self).tearDown()

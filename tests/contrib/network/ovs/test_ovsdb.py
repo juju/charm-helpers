@@ -95,6 +95,14 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
             break
         self._run.assert_called_once_with(
             'ovs-vsctl', '-f', 'json', 'find', 'bridge', 'name=br-test')
+        # check the optional args paramenter
+        self._run.reset_mock()
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl', args=['extra', 'args'])
+        for el in self.target.bridge.find(condition='name=br-test'):
+            break
+        self._run.assert_called_once_with(
+            'ovs-vsctl', 'extra', 'args',
+            '-f', 'json', 'find', 'bridge', 'name=br-test')
 
     def test_clear(self):
         self.target = ovsdb.SimpleOVSDB('ovs-vsctl')

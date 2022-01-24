@@ -13,10 +13,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - python-version: 2.7
-            env: pep8,py27
-          - python-version: 3.4
-            env: pep8,py34
           - python-version: 3.5
             env: pep8,py35
           - python-version: 3.6

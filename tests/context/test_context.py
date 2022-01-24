@@ -13,7 +13,6 @@
 # limitations under the License.
 import unittest
 from mock import patch, sentinel
-import six
 
 from charmhelpers import context
 from charmhelpers.core import hookenv
@@ -128,14 +127,13 @@ class TestRelations(unittest.TestCase):
 
         # Python 2 unicode strings work too.
         hookenv.relation_set.reset_mock()
-        r[sentinel.key] = six.u('value')
+        r[sentinel.key] = 'value'
         hookenv.relation_set.assert_called_once_with(
-            'rel:10', {sentinel.key: six.u('value')})
+            'rel:10', {sentinel.key: 'value'})
 
         # Byte strings fail under Python 3.
-        if six.PY3:
-            with self.assertRaises(ValueError):
-                r[sentinel.key] = six.b('value')
+        with self.assertRaises(ValueError):
+            r[sentinel.key] = b'value'
 
         # Deletes work
         del r[sentinel.key]
@@ -172,13 +170,12 @@ class TestLeader(unittest.TestCase):
         leader_set.assert_called_with({sentinel.key: None})
 
         # Python 2 unicode string values work too
-        leader[sentinel.key] = six.u('bar')
+        leader[sentinel.key] = 'bar'
         leader_set.assert_called_with({sentinel.key: 'bar'})
 
         # Byte strings fail under Python 3
-        if six.PY3:
-            with self.assertRaises(ValueError):
-                leader[sentinel.key] = six.b('baz')
+        with self.assertRaises(ValueError):
+            leader[sentinel.key] = b'baz'
 
         # Non strings fail, as implicit casting causes more trouble
         # than it solves. Simple types like integers would round trip

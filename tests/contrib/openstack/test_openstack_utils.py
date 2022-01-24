@@ -15,14 +15,6 @@ import charmhelpers.contrib.openstack.deferred_events as deferred_events
 from charmhelpers.contrib.openstack.exceptions import ServiceActionError
 import contextlib
 
-import six
-
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-    builtin_import = '__builtin__.__import__'
-else:
-    builtin_open = 'builtins.open'
-    builtin_import = 'builtins.__import__'
 
 FAKE_CODENAME = 'precise'
 # mocked return of openstack.lsb_release()
@@ -234,6 +226,14 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertEquals(openstack.get_os_codename_install_source(None),
                           '')
 
+        # check that bare ubuntu releases end up as the release.
+        self.assertEquals(openstack.get_os_codename_install_source('essex'),
+                          'essex')
+        self.assertEquals(openstack.get_os_codename_install_source('ussuri'),
+                          'ussuri')
+        self.assertEquals(openstack.get_os_codename_install_source('queens'),
+                          'queens')
+
     @patch.object(openstack, 'get_os_version_codename')
     @patch.object(openstack, 'get_os_codename_install_source')
     def test_os_version_from_install_source(self, codename, version):
@@ -339,7 +339,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in six.iteritems(FAKE_REPO):
+            for pkg, vers in FAKE_REPO.items():
                 # test fake repo for all "installed" packages
                 if pkg.startswith('bad-'):
                     continue
@@ -444,7 +444,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in six.iteritems(FAKE_REPO):
+            for pkg, vers in FAKE_REPO.items():
                 if pkg.startswith('bad-'):
                     continue
                 if 'pkg_vers' not in vers:
@@ -523,7 +523,7 @@ class OpenStackHelpersTestCase(TestCase):
             "|key": ('', 'key'),
             "source": ('source', None),
         }
-        for k, v in six.iteritems(tests):
+        for k, v in tests.items():
             self.assertEqual(openstack.get_source_and_pgp_key(k), v)
 
     # These should still work, even though the bulk of the functionality has
@@ -555,7 +555,7 @@ class OpenStackHelpersTestCase(TestCase):
              'precise-havana main'], env={})
 
     @patch.object(fetch, 'get_distrib_codename')
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch('subprocess.check_call')
     def test_configure_install_source_distro_proposed(
             self, _spcc, _open, _lsb):
@@ -652,7 +652,7 @@ class OpenStackHelpersTestCase(TestCase):
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd, env={})
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch.object(fetch, 'apt_install')
     @patch.object(fetch, 'get_distrib_codename')
     @patch.object(fetch, 'filter_installed_packages')
@@ -708,7 +708,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         """Test generation of scriptrc from environment"""
         scriptrc = ['#!/bin/bash\n',
@@ -842,7 +842,7 @@ class OpenStackHelpersTestCase(TestCase):
         zap_disk.assert_called_with('/dev/vdb')
 
     @patch('os.path.isfile')
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_get_matchmaker_map(self, _open, _isfile):
         _isfile.return_value = True
         mm_data = """
@@ -860,7 +860,7 @@ class OpenStackHelpersTestCase(TestCase):
         )
 
     @patch('os.path.isfile')
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_get_matchmaker_map_nofile(self, _open, _isfile):
         _isfile.return_value = False
         self.assertEqual(
@@ -1815,7 +1815,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('success, upgrade completed.')
+        msg = ('success, upgrade completed')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1837,7 +1837,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('no upgrade available.')
+        msg = ('no upgrade available')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1862,7 +1862,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('action-managed-upgrade config is False, skipped upgrade.')
+        msg = ('action-managed-upgrade config is False, skipped upgrade')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1888,7 +1888,75 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = 'do_openstack_upgrade resulted in an unexpected error'
+        msg = 'upgrade callback resulted in an unexpected error'
+        action_fail.assert_called_with(msg)
+        self.assertTrue(action_set.called)
+        self.assertTrue(traceback.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade(self, config, openstack_upgrade_available,
+                             action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('success, upgrade completed')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade_skip(self, config,
+                                  openstack_upgrade_available,
+                                  action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            pass
+
+        # package upgrades are skipped if openstack uprade is available
+        openstack_upgrade_available.return_value = True
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('upgrade skipped because an openstack upgrade is available')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('traceback.format_exc')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade_traceback(self, config, traceback,
+                                       openstack_upgrade_available,
+                                       action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            oops()  # noqa
+
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = 'upgrade callback resulted in an unexpected error'
         action_fail.assert_called_with(msg)
         self.assertTrue(action_set.called)
         self.assertTrue(traceback.called)

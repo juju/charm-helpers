@@ -19,7 +19,6 @@ import sys
 import platform
 import os
 import glob
-import six
 
 # from string import upper
 
@@ -55,10 +54,7 @@ try:
     import MySQLdb
 except ImportError:
     apt_update(fatal=True)
-    if six.PY2:
-        apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
-    else:
-        apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
+    apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
     import MySQLdb
 
 
@@ -729,7 +725,7 @@ class MySQL8Helper(MySQLHelper):
                 remote_ip=remote_ip,
                 password=password)
             )
-        except MySQLdb._exceptions.OperationalError:
+        except MySQLdb.OperationalError:
             log("DB user {} already exists.".format(db_user),
                 "WARNING")
         finally:

@@ -8,14 +8,7 @@ import charmhelpers.contrib.network.ip as net_ip
 from mock import patch, MagicMock
 
 import nose.tools
-import six
 
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-    builtin_import = '__builtin__.__import__'
-else:
-    builtin_open = 'builtins.open'
-    builtin_import = 'builtins.__import__'
 
 DUMMY_ADDRESSES = {
     'lo': {
@@ -640,7 +633,7 @@ class IPTest(unittest.TestCase):
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_get_host_ip_with_hostname(self, apt_install):
         fake_dns = FakeDNS('10.0.0.1')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             ip = net_ip.get_host_ip('www.ubuntu.com')
         self.assertEquals(ip, '10.0.0.1')
 
@@ -652,7 +645,7 @@ class IPTest(unittest.TestCase):
         ns_query.return_value = []
         fake_dns = FakeDNS(None)
         socket.return_value = '10.0.0.1'
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             ip = net_ip.get_host_ip('www.ubuntu.com')
         self.assertEquals(ip, '10.0.0.1')
 
@@ -669,32 +662,29 @@ class IPTest(unittest.TestCase):
             raise Exception()
 
         socket.side_effect = r
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             ip = net_ip.get_host_ip('www.ubuntu.com', fallback='127.0.0.1')
         self.assertEquals(ip, '127.0.0.1')
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_get_host_ip_with_ip(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             ip = net_ip.get_host_ip('4.2.2.1')
         self.assertEquals(ip, '4.2.2.1')
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_ns_query_trigger_apt_install(self, apt_install):
         fake_dns = FakeDNS('5.5.5.5')
-        with patch(builtin_import, side_effect=[ImportError, fake_dns]):
+        with patch('builtins.__import__', side_effect=[ImportError, fake_dns]):
             nsq = net_ip.ns_query('5.5.5.5')
-            if six.PY2:
-                apt_install.assert_called_with('python-dnspython', fatal=True)
-            else:
-                apt_install.assert_called_with('python3-dnspython', fatal=True)
+            apt_install.assert_called_with('python3-dnspython', fatal=True)
         self.assertEquals(nsq, '5.5.5.5')
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_ns_query_ptr_record(self, apt_install):
         fake_dns = FakeDNS('127.0.0.1')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             nsq = net_ip.ns_query('127.0.0.1')
         self.assertEquals(nsq, '127.0.0.1')
 
@@ -702,35 +692,35 @@ class IPTest(unittest.TestCase):
     def test_ns_query_a_record(self, apt_install):
         fake_dns = FakeDNS('127.0.0.1')
         fake_dns_name = FakeDNSName('www.somedomain.tld')
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             nsq = net_ip.ns_query(fake_dns_name)
         self.assertEquals(nsq, '127.0.0.1')
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_ns_query_blank_record(self, apt_install):
         fake_dns = FakeDNS(None)
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns, fake_dns]):
             nsq = net_ip.ns_query(None)
         self.assertEquals(nsq, None)
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_ns_query_lookup_fail(self, apt_install):
         fake_dns = FakeDNS('')
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns, fake_dns]):
             nsq = net_ip.ns_query('nonexistant')
         self.assertEquals(nsq, None)
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_get_hostname_with_ip(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns, fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
         self.assertEquals(hn, 'www.ubuntu.com')
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_get_hostname_with_ip_not_fqdn(self, apt_install):
         fake_dns = FakeDNS('packages.ubuntu.com')
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns, fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1', fqdn=False)
         self.assertEquals(hn, 'packages')
 
@@ -752,13 +742,10 @@ class IPTest(unittest.TestCase):
     @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_get_hostname_trigger_apt_install(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
-        with patch(builtin_import, side_effect=[ImportError, fake_dns,
-                                                fake_dns]):
+        with patch('builtins.__import__',
+                   side_effect=[ImportError, fake_dns, fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
-            if six.PY2:
-                apt_install.assert_called_with('python-dnspython', fatal=True)
-            else:
-                apt_install.assert_called_with('python3-dnspython', fatal=True)
+            apt_install.assert_called_with('python3-dnspython', fatal=True)
 
         self.assertEquals(hn, 'www.ubuntu.com')
 
@@ -769,7 +756,7 @@ class IPTest(unittest.TestCase):
         fake_dns = FakeDNS('www.ubuntu.com')
         ns_query.return_value = []
         socket.return_value = ()
-        with patch(builtin_import, side_effect=[fake_dns, fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns, fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
         self.assertEquals(hn, None)
 
@@ -781,7 +768,7 @@ class IPTest(unittest.TestCase):
         fake_dns = FakeDNS('www.ubuntu.com')
         ns_query.return_value = []
         socket.return_value = ("www.ubuntu.com", "", "")
-        with patch(builtin_import, side_effect=[fake_dns]):
+        with patch('builtins.__import__', side_effect=[fake_dns]):
             hn = net_ip.get_hostname('4.2.2.1')
         self.assertEquals(hn, "www.ubuntu.com")
 
