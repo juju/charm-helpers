@@ -1,4 +1,4 @@
-# Copyright 2012-2021 Canonical Limited.
+# Copyright 2012-2022 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -521,3 +521,15 @@ def remove_deprecated_check(nrpe, deprecated_services):
     for dep_svc in deprecated_services:
         log('Deprecated service: {}'.format(dep_svc))
         nrpe.remove_check(shortname=dep_svc)
+
+
+def add_sriov_numvfs_check(nrpe, sriov_numvfs):
+    """
+    Add a check for the number of VFs configured for SR-IOV interfaces
+    :param NRPE nrpe: NRPE object to add check to
+    :param str sriov_numvfs: space separated list of <interface>:<numvfs>
+    """
+    nrpe.add_check(
+        shortname='sriov_numvfs',
+        description='Check SRIOV numvfs',
+        check_cmd='check_sriov_numvfs.py {}'.format(sriov_numvfs))
