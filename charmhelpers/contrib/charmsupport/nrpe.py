@@ -28,6 +28,7 @@ import subprocess
 import yaml
 
 from charmhelpers.core.hookenv import (
+    DEBUG,
     config,
     hook_name,
     local_unit,
@@ -507,6 +508,39 @@ def add_haproxy_checks(nrpe, unit_name):
         shortname='haproxy_queue',
         description='Check HAProxy queue depth {%s}' % unit_name,
         check_cmd='check_haproxy_queue_depth.sh')
+
+
+def add_openvswitch_checks(nrpe, unit_name):
+    """
+    Add checks for openvswitch
+
+    :param NRPE nrpe: NRPE object to add check to
+    :param str unit_name: Unit name to use in check description
+    """
+    enable_sudo_for_openvswitch_checks()
+    nrpe.add_check(
+        shortname='openvswitch',
+        description='Check Open vSwitch {{{0}}}'.format(unit_name),
+        check_cmd='check_openvswitch.py')
+
+
+def enable_sudo_for_openvswitch_checks():
+    sudoers_dir = "/etc/sudoers.d"
+    sudoers_mode = 0o100440
+    ovs_sudoers_file = "99-check_openvswitch"
+    ovs_sudoers_entry = ("# Juju owned - do not edit #\n"
+                         "nagios ALL=(root) NOPASSWD: /usr/bin/ovs-vsctl "
+                         "--format=json list Interface\n")
+    dest = os.path.join(sudoers_dir, ovs_sudoers_file)
+    try:
+        with open(dest, "w") as sudoer_file:
+            sudoer_file.write(ovs_sudoers_entry)
+        os.chmod(dest, sudoers_mode)
+        os.chown(dest, uid=0, gid=0)
+    except (OSError, IOError) as e:
+        log("Failed to setup sudoers file for check_openvswitch: {}".format(e))
+    else:
+        log("Sudoers file for check_openvswitch installed: {}".format(dest), DEBUG)
 
 
 def remove_deprecated_check(nrpe, deprecated_services):
