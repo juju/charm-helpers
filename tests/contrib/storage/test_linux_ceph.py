@@ -495,7 +495,8 @@ class CephUtilsTests(TestCase):
         p.create()
 
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200),
+                  'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)]),
         ])
         self.assertEqual(self.check_call.call_count, 2)
@@ -511,7 +512,7 @@ class CephUtilsTests(TestCase):
 
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd',
-                  'pool', 'create', 'test', str(200)]),
+                  'pool', 'create', 'test', str(200), 'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd',
                   'pool', 'set', 'test', 'size', str(3)]),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -531,7 +532,7 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 16
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '16']),
+                  '16', 'replicated_rule']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -546,8 +547,9 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '128']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
+                  '128', 'replicated_rule']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
+                  'size', '3']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -563,7 +565,8 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool',
-                  'create', '--pg-num-min=32', 'test', '128']),
+                  'create', '--pg-num-min=32', 'test', '128',
+                  'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'size', '3']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -587,7 +590,7 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool',
-                  'create', '--pg-num-min=2', 'test', '2']),
+                  'create', '--pg-num-min=2', 'test', '2', 'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'size', '3']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -611,7 +614,7 @@ class CephUtilsTests(TestCase):
         # will be 1024.
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '1024']),
+                  '1024', 'replicated_rule']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -627,7 +630,7 @@ class CephUtilsTests(TestCase):
         # will be 32768
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '32768']),
+                  '32768', 'replicated_rule']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -2046,6 +2049,7 @@ class CephUtilsTests(TestCase):
                    'compression-min-blob-size-ssd': None,
                    'compression-mode': None,
                    'compression-required-ratio': None,
+                   'crush-profile': None,
                    'group': None,
                    'group-namespace': None,
                    'max-bytes': None,
