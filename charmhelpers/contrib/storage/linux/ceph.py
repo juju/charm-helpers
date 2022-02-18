@@ -648,7 +648,7 @@ class ReplicatedPool(BasePool):
             # we will fail with KeyError if it is not provided.
             self.replicas = op['replicas']
             self.pg_num = op.get('pg_num')
-            self.profile_name = op.get('crush-profile', profile_name)
+            self.profile_name = op.get('crush-profile') or profile_name
         else:
             self.replicas = replicas or 2
             self.pg_num = pg_num
