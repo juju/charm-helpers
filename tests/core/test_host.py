@@ -184,7 +184,7 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_stop(service_name))
 
         service.assert_called_with('stop', service_name)
-    
+
     @patch.object(host, 'service')
     def test_enables_a_service(self, service):
         service_name = 'foo-service'
