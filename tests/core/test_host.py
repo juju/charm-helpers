@@ -186,6 +186,14 @@ class HelpersTest(TestCase):
         service.assert_called_with('stop', service_name)
 
     @patch.object(host, 'service')
+    def test_enables_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        self.assertTrue(host.service_enable(service_name))
+
+        service.assert_called_with('enable', service_name)
+
+    @patch.object(host, 'service')
     def test_restarts_a_service(self, service):
         service_name = 'foo-service'
         service.side_effect = [True]
