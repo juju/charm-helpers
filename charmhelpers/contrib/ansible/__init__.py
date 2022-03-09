@@ -205,6 +205,7 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
     env['PYTHONUNBUFFERED'] = "1"
     call = [
         'ansible-playbook',
+        '-vvv',
         '-c',
         'local',
         playbook,
