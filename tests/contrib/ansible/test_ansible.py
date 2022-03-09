@@ -138,7 +138,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'playbooks/dependencies.yaml')
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'],
+            'ansible-playbook', '-vvv', '-c', 'local', 'playbooks/dependencies.yaml'],
             env={'PYTHONUNBUFFERED': '1'})
 
     def test_writes_vars_file(self):
@@ -197,7 +197,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'playbooks/complete-state.yaml', tags=['install', 'somethingelse'])
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            'ansible-playbook', '-vvv', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', 'install,somethingelse'], env={'PYTHONUNBUFFERED': '1'})
 
     @mock.patch.object(hookenv, 'config')
@@ -207,7 +207,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             extra_vars={'a': 'b'})
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            'ansible-playbook', '-vvv', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', 'install,somethingelse', '--extra-vars', '{"a": "b"}'],
             env={'PYTHONUNBUFFERED': '1'})
 
@@ -218,7 +218,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             extra_vars='@myvars.json')
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            'ansible-playbook', '-vvv', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', 'install,somethingelse', '--extra-vars', '"@myvars.json"'],
             env={'PYTHONUNBUFFERED': '1'})
 
@@ -229,7 +229,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             extra_vars={'pkg': {'a': 'present', 'b': 'absent'}})
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            'ansible-playbook', '-vvv', '-c', 'local', 'playbooks/complete-state.yaml',
             '--tags', 'install,somethingelse', '--extra-vars',
             '{"pkg": {"a": "present", "b": "absent"}}'],
             env={'PYTHONUNBUFFERED': '1'})
@@ -244,7 +244,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.assertEqual(foo.call_count, 1)
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
+            'ansible-playbook', '-vvv', '-c', 'local', 'my/playbook.yaml',
             '--tags', 'foo'], env={'PYTHONUNBUFFERED': '1'})
 
     @mock.patch.object(hookenv, 'config')
@@ -255,7 +255,7 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         hooks.execute(['start'])
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
+            'ansible-playbook', '-vvv', '-c', 'local', 'my/playbook.yaml',
             '--tags', 'start'], env={'PYTHONUNBUFFERED': '1'})
 
 
