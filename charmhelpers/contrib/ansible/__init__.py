@@ -214,7 +214,12 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
         call.extend(['--tags', '{}'.format(tags)])
     if extra_vars:
         call.extend(['--extra-vars', json.dumps(extra_vars)])
-    subprocess.check_call(call, env=env)
+    try:
+        subprocess.check_output(call, env=env)
+    except subprocess.CalledProcessError as e:
+        charmhelpers.core.hookenv.log("Ansible playbook failed with {} "
+                                      "Stdout: {}".format(e, e.output))
+        raise subprocess.CalledProcessError(e)
 
 
 class AnsibleHooks(charmhelpers.core.hookenv.Hooks):
