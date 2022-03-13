@@ -1172,6 +1172,29 @@ def status_get():
         return (status["status"], status["message"])
 
 
+def application_status_get():
+    """Retrieve the previously set juju application state and units state
+
+    If the status-get command is not found then assume this is juju < 1.23 and
+    return 'unknown', ""
+
+    """
+    cmd = ["status-get", "--format=json", "--application"]
+    try:
+        raw_status = subprocess.check_output(cmd)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return ("unknown", "")
+        else:
+            raise
+    else:
+        status = json.loads(raw_status.decode("UTF-8"))
+        return (
+            status["application-status"]["status"],
+            status["application-status"]["units"],
+        )
+
+
 def translate_exc(from_exc, to_exc):
     def inner_translate_exc1(f):
         @wraps(f)
