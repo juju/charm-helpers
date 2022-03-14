@@ -218,7 +218,8 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
         subprocess.check_output(call, env=env)
     except subprocess.CalledProcessError as e:
         charmhelpers.core.hookenv.log("Ansible playbook failed with {} "
-                                      "Stdout: {}".format(e, e.output))
+                                      "Stdout: {}".format(e, e.output),
+                                      level="ERROR")
         raise subprocess.CalledProcessError(e)
 
 
