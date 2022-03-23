@@ -141,6 +141,7 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'http',
+    'service_type': 'volume',
     'auth_protocol': 'http',
     'internal_protocol': 'http',
 }
@@ -170,6 +171,7 @@ IDENTITY_CREDENTIALS_RELATION_UNSET = {
     'credentials_password': 'foo',
     'credentials_username': 'adam',
     'credentials_protocol': 'https',
+    'service_type': 'volume',
 }
 
 
@@ -186,6 +188,7 @@ APIIDENTITY_SERVICE_RELATION_UNSET = {
             'service_tenant': 'admin',
             'service_password': 'foo',
             'service_username': 'adam',
+            'service_type': 'volume',
         }
     }
 }
@@ -202,6 +205,7 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'https',
+    'service_type': 'volume',
     'auth_protocol': 'https',
     'internal_protocol': 'https',
 }
@@ -1052,6 +1056,7 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'https',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
+            'service_type': 'volume',
             'service_protocol': 'https',
             'api_version': '2.0',
         }
@@ -1083,6 +1088,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'http',
@@ -1143,6 +1149,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'http',
@@ -1171,6 +1178,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'https',
@@ -1203,6 +1211,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'https',
@@ -1230,6 +1239,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'api_version': '3',
         }
         self.assertEquals(result, expected)
@@ -1256,6 +1266,7 @@ class ContextTests(unittest.TestCase):
             'service_host': '[2001:db8:1::1]',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
             'internal_host': '[2001:db8:1::1]',
             'internal_port': '5000',
             'internal_protocol': 'http',
@@ -1302,6 +1313,7 @@ class ContextTests(unittest.TestCase):
             ('username', 'adam'),
             ('password', 'foo'),
             ('signing_dir', ''),
+            ('service_type', 'volume'),
         ))
 
         self.assertEquals(keystone_authtoken, expected)
