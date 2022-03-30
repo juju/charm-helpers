@@ -1,3 +1,5 @@
+import tempfile
+
 from mock import patch
 import unittest
 import json
@@ -448,7 +450,11 @@ class HATests(unittest.TestCase):
     def test_render_grafana_dashboard(self, mock_application_name):
         """Test rendering HAProxy Grafana dashboard."""
         mock_application_name.return_value = "test"
-        dashboard = ha.render_grafana_dashboard("prometheus2")
-        self.assertIn('"title": "HAProxy"', dashboard)
-        self.assertIn('{job=\\"test\\"}', dashboard)
-        self.assertIn('"datasource": "prometheus2 - Juju generated source"', dashboard)
+        with tempfile.NamedTemporaryFile("w") as tmp:
+            tmp.write('"<< app_name >>": "<< prometheus_app_name >>",'
+                      '"datasource": "<< datasource >>"')
+            tmp.flush()
+            dashboard = ha.render_grafana_dashboard("prometheus2", tmp.name)
+
+        self.assertEqual('"test": "prometheus2","datasource": '
+                         '"prometheus2 - Juju generated source"', dashboard)

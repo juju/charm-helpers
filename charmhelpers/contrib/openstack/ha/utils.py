@@ -36,7 +36,8 @@ from charmhelpers.core.hookenv import (
     charm_name,
     config,
     status_set,
-    DEBUG, application_name,
+    DEBUG,
+    application_name,
 )
 
 from charmhelpers.core.host import (
@@ -66,7 +67,7 @@ JSON_ENCODE_OPTIONS = dict(
 
 VIP_GROUP_NAME = 'grp_{service}_vips'
 DNSHA_GROUP_NAME = 'grp_{service}_hostnames'
-GRAFANA_DASHBOARD = "grafana-haproxy-dashboard.json.j2"
+HAPROXY_DASHBOARD_RESOURCE = "haproxy-dashboard"
 
 
 class DNSHAException(Exception):
@@ -350,23 +351,27 @@ def update_hacluster_vip(service, relation_data):
             }
 
 
-def render_grafana_dashboard(prometheus_app_name):
+def render_grafana_dashboard(prometheus_app_name, haproxy_dashboard):
     """Load grafana dashboard json model and insert prometheus datasource.
+
     :param prometheus_app_name: name of the 'prometheus' application that will
                                 be used as datasource in grafana dashboard
     :type prometheus_app_name: str
+    :param haproxy_dashboard: path to haproxy dashboard
+    :type haproxy_dashboard: str
     :return: Grafana dashboard json model as a str.
     :rtype: str
     """
     from charmhelpers.contrib.templating import jinja
 
+    dashboard_template = os.path.basename(haproxy_dashboard)
+    dashboard_template_dir = os.path.dirname(haproxy_dashboard)
     app_name = application_name()
-    template_dir = os.path.join(os.path.dirname(__file__), "../templates/")
     datasource = "{} - Juju generated source".format(prometheus_app_name)
-    return jinja.render(GRAFANA_DASHBOARD,
+    return jinja.render(dashboard_template,
                         {"datasource": datasource,
                          "app_name": app_name,
                          "prometheus_app_name": prometheus_app_name},
-                        template_dir=template_dir,
+                        template_dir=dashboard_template_dir,
                         jinja_env_args={"variable_start_string": "<< ",
                                         "variable_end_string": " >>"})

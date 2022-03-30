@@ -2662,14 +2662,13 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         self.related_units.side_effect = relation.relation_units
         self.get_netmask_for_address.return_value = '255.255.0.0'
-        self.config.side_effect = lambda x: \
-            9103 if x == "haproxy-exporter-stats-port" else False
+        self.config.return_value = False
         self.maxDiff = None
         self.is_ipv6_disabled.return_value = True
         self.get_installed_version.return_value = Version({'ver_str': '2.0.0'})
         # test with haproxy-exporter relation
         self.is_relation_made.return_value = True
-        haproxy = context.HAProxyContext()
+        haproxy = context.HAProxyContext(exporter_stats_port=9103)
         with patch_open() as (_open, _file):
             result = haproxy()
         ex = {

@@ -868,28 +868,11 @@ class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
     def __init__(self, singlenode_mode=False,
-                 address_types=ADDRESS_TYPES):
+                 address_types=ADDRESS_TYPES,
+                 exporter_stats_port=DEFAULT_HAPROXY_EXPORTER_STATS_PORT):
         self.address_types = address_types
         self.singlenode_mode = singlenode_mode
-
-    @property
-    def haproxy_exporter_stats_port(self):
-        """Get haproxy-exporter-stats-port from config.
-
-        :returns: haproxy-exporter-stats-port from config or 8404
-        :rtype: int
-        """
-        try:
-            port = int(config("haproxy-exporter-stats-port"))
-            assert port != 0, 'haproxy-export-status-port must not be 0'
-            return port
-        except (AssertionError, ValueError, TypeError) as error:
-            log("Failed to get haproxy-exporter-stats-port.", level=ERROR)
-            log("original error message: {}".format(error), level=ERROR)
-            log("Using default HAProxy exporter stats port. "
-                "[{}]".format(DEFAULT_HAPROXY_EXPORTER_STATS_PORT),
-                level=WARNING)
-            return DEFAULT_HAPROXY_EXPORTER_STATS_PORT
+        self.exporter_stats_port = exporter_stats_port
 
     def __call__(self):
         if not os.path.isdir(HAPROXY_RUN_DIR):
@@ -996,7 +979,7 @@ class HAProxyContext(OSContextGenerator):
                 haproxy_version.ver_str >= LooseVersion("2.0.0") and
                 is_relation_made("haproxy-exporter")):
             ctxt["stats_exporter_host"] = get_relation_ip("haproxy-exporter")
-            ctxt["stats_exporter_port"] = self.haproxy_exporter_stats_port
+            ctxt["stats_exporter_port"] = self.exporter_stats_port
 
         for frontend in cluster_hosts:
             if (len(cluster_hosts[frontend]['backends']) > 1 or
