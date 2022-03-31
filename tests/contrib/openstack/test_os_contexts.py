@@ -1,3 +1,4 @@
+import base64
 import collections
 import copy
 import json
@@ -17,6 +18,75 @@ from tests.helpers import patch_open
 import tests.utils
 
 import charmhelpers.contrib.openstack.context as context
+
+SSL_CA = base64.b64encode('''-----BEGIN CERTIFICATE-----
+MIIDPzCCAiegAwIBAgIUfhjNMTbE2ufAPObs8lV1RQaZ/RswDQYJKoZIhvcNAQEL
+BQAwEjEQMA4GA1UEAwwHcm9vdF9jYTAeFw0yMjA0MDQxMjE0MjVaFw0yNjA0MDQx
+MjE0MjVaMBIxEDAOBgNVBAMMB3Jvb3RfY2EwggEiMA0GCSqGSIb3DQEBAQUAA4IB
+DwAwggEKAoIBAQCeGcBQkL5kuWSYVmrVp1sWDMl6U+2v8zlP/tqjaRtVARqhwxJN
+H0UtuGB8O9s1VAoH9hyx1P5VvQIlNn/SlACEXnXL1OokMgj/76r7s8bAFEG/g7gj
+gUj/XbS8q7sVO72gpEFXGwhGiXKfqam/GaURxlex+y7Kg2t0pR0bWs4RvJElFljw
+SfrtSREucxqM+h3huC5lzyqS239HSQPXxTxX2TVE5cYzxdOWA/ICZ2SC6j2F6Jxk
+H6aheAIa97LGS0gzUuba/a4zsyIz8eWfhxFzGcjrexoCFtBx2hGg/1jJRDeVXnJf
+KtB3W+GapKufuUdtHw4k0DL3zeyY99wi/avxAgMBAAGjgYwwgYkwHQYDVR0OBBYE
+FKDWfP1/EF2aAlcJyQJMPGJ9GszYME0GA1UdIwRGMESAFKDWfP1/EF2aAlcJyQJM
+PGJ9GszYoRakFDASMRAwDgYDVQQDDAdyb290X2NhghR+GM0xNsTa58A85uzyVXVF
+Bpn9GzAMBgNVHRMEBTADAQH/MAsGA1UdDwQEAwIBBjANBgkqhkiG9w0BAQsFAAOC
+AQEAhILWfl+ldAnfRuXj3qHs6q/0zZz1uSlG8gSFlO/KuINYi6/Vp1r7BjRmTymD
+J1lPY7haQ8nlraT/j3CjXcCHHeUBCjShT8oWyLFxu/2FpMbw9B7zqqoSy1LVrIKh
+xfuRma2TUx3vxUpAvQIsw98si/2EH1qzUuvv47jb8Zg59EULtjT8pkN81FgXVOme
+s3V7YqAUSDLechoCN+rR0iWi7zVI6LeFnlfwWwMqYW/5SiWasgQohZM9eAjXECo7
+cSXGCUfL3EDAmbRxOMCOLFF5WNmGsm//a2ZEegnY/GmCNw501e3spqXzXIe5HRRR
+jOm40xKhkPtObqOe2lRsRzT1ww==
+-----END CERTIFICATE-----'''.encode())
+SSL_KEY = base64.b64encode('''-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC3f7DzliwS5KsZ
+QNSK+9Zq+qZuLO4ptwCGGcfFYV8WTziy1ORvCJk5adRlS4kEhq4KBE+l+EJVOSrx
+PxUS8z/2JalxJ2fD6jrUrkEp9AAJefwpbK9qTMJ4PeuoLaPnzxtuvDesdzdSX4F1
+Ubm5Wr0g3RqDwrp5lrrAQNT65rXq7Vm7BRNFcLowpP3c9mno2IW1jA2oDgBP0P5J
+YICCA82E6Oz/hvp80uLUcu7Om0RaYf8Z8JwfkvK1qhrdJEMaqfdAhNJ0HlWPVnQz
+Io9H8XDJkIlLL1UNCTVRoJb2OgnKvGFIU+Rwa7bG2Wq5QceH/4T+KUeWvf9VN9Ef
+K0wURcrpAgMBAAECggEAJ2dDHzt7IV97IkQan/GuPHCwdm4tgkWq1iEJFehv28GN
+QlGW8ATfqkWAd3P96zvkeYAtfk1OKTDKeN178ALOFFRIC2VT0e0lTvBQS+r6aw6H
+yHlvPZtYEyvww79xN+DwWhoOtnkvJwAdM40mHZhPjpQMEokpM9zbI1eIpIwQOm76
+N65FwyiCghumUKPLDRvTjiVPDT/RuIDMzUAUKXSkh/2wfNarGWy6jDZS03b+8uBe
+ggPUSqTmtoSxL9C5aAG9CJi8SUkakw2s2fjwQxyeXC1GaWWnziFDA1Rhl1xnbehO
+QgDKhcwZMmddc1fySanei9EX5zgB2M8nQGeRljlCEQKBgQDgM7ht53Z0dxGHcbgE
+pJQBJQc9RScfTlU/L09DBOJI2rw5VtBXhCXEIQLxCM/A2H+e9vV8bhYbLLOB0vm8
+wCEs06gfikCzOKid+gr6gV1yfURCvd7zKv7HLZY9938oeqHuKYUef4gvFy/Ivw7U
+oGpkL1xlXD3FKbbAD6/S8WOxvQKBgQDRhiBTMO6eOvuiSj5YvCXMsRnicJDIOVaK
+ZuhgQo9WMZoAgX238Zpm63MQmqGc1NQt/uJXnyEr83/xtf+lGeGiWDzk8CJvPNNG
+fDhgAMqAtkjYUkPmVaR3xWwt9cxiMIK3edoiB9WYjuQChYP+75VqV0r85AFFoi5s
+qNWlPBSSnQKBgCz4EsDwkSDRFRH+rDM6M3l7TNVsPmmYE58lxRcjLqQAQ4qYsBct
+qUmKeYWRB+KdShO/YwO/LO3sbGDYyUCjpMPR/EG/QDTyY1e0ZGlUc0LYf02HueU6
+NXoL2bu6HaYn2rzjVREF8XHIi8wPDlF1j4FiwnyOINGgCUjCnLiJtD5dAoGAVJ56
+x55ngHgJ0I1ziJrUGUsdTRpxHqwpi1PsXZQEF6eIrtOdVoC4/v/wRLBuvMwntTvP
+Zdvapcl9zrzWNnOxcMN6NGvXPF2wZjMdAYjQQBNecB8pVQkZl1WgTx+KH82/vSH1
+OvE3DpoG9A3ANWHFUmFW47Oh3+GUJkY5orYVCPECgYEAya7XvUKwzsW1481+cHMw
+D9gAKMxkkPw+66SFZpRXGhCmAbhOxWaMRnT/CLDYf4jRkuFp0O7uh3rtVrhZf71z
+KAXlrNCq0cJotAQmfK7h4/8TgECz+h4KFfE6q3IlqbOOhCwYczRGkjGmh5qRYidu
+ksQN9IhwJNVGqPMhWznB11s=
+-----END PRIVATE KEY-----'''.encode())
+SSL_CERT = base64.b64encode('''-----BEGIN CERTIFICATE-----
+MIIDVjCCAj6gAwIBAgIQc3/Zflj6FxtoQphOJRYFuTANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQDDAdyb290X2NhMB4XDTIyMDQwNDEyMTQyNVoXDTI2MDQwNDEyMTQy
+NVowETEPMA0GA1UEAwwGc2VydmVyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+CgKCAQEAt3+w85YsEuSrGUDUivvWavqmbizuKbcAhhnHxWFfFk84stTkbwiZOWnU
+ZUuJBIauCgRPpfhCVTkq8T8VEvM/9iWpcSdnw+o61K5BKfQACXn8KWyvakzCeD3r
+qC2j588bbrw3rHc3Ul+BdVG5uVq9IN0ag8K6eZa6wEDU+ua16u1ZuwUTRXC6MKT9
+3PZp6NiFtYwNqA4AT9D+SWCAggPNhOjs/4b6fNLi1HLuzptEWmH/GfCcH5Lytaoa
+3SRDGqn3QITSdB5Vj1Z0MyKPR/FwyZCJSy9VDQk1UaCW9joJyrxhSFPkcGu2xtlq
+uUHHh/+E/ilHlr3/VTfRHytMFEXK6QIDAQABo4GoMIGlMAkGA1UdEwQCMAAwHQYD
+VR0OBBYEFFNUTBIAyHywQtnxLinEV0ptSQpeME0GA1UdIwRGMESAFKDWfP1/EF2a
+AlcJyQJMPGJ9GszYoRakFDASMRAwDgYDVQQDDAdyb290X2NhghR+GM0xNsTa58A8
+5uzyVXVFBpn9GzAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwCwYDVR0P
+BAQDAgWgMA0GCSqGSIb3DQEBCwUAA4IBAQCI6nGhEj74Yr8hvMMBsvWsD2OqFy9c
+gg+5gT9+d+mSszuJPA/oXX7xeXEw0PLezKTR4OYKcZP3m9IMDuvlWAeyosNcm/VN
+rkBJD5SqbAYQPRl2uo1LlhnvpOWVI6E3ik8KcKb7D6OtPOB851kCl21bD30zr9fu
+HIg8fx07p7AbtVlJB3zAy2pF4zwMuPe0IIil0op7UJNRNhYfH8uQneUw4TPv3h5d
+ZKSHtCFgRce/T7PX+4/GcQEycmrTrbhkuJ5uY/9VcFi5j6pvFuGcT/rmlbLfqabX
+3szYaO+M+6TVvDzadMgMDObEeH56JP3lHFwj/WgEIBInkr9P/bcA4Sm/
+-----END CERTIFICATE-----'''.encode())
 
 
 class FakeRelation(object):
@@ -105,9 +175,9 @@ SHARED_DB_RELATION_ALT_RID = {
 SHARED_DB_RELATION_SSL = {
     'db_host': 'dbserver.local',
     'password': 'foo',
-    'ssl_ca': 'Zm9vCg==',
-    'ssl_cert': 'YmFyCg==',
-    'ssl_key': 'Zm9vYmFyCg==',
+    'ssl_ca': SSL_CA,
+    'ssl_cert': SSL_CERT,
+    'ssl_key': SSL_KEY,
 }
 
 SHARED_DB_CONFIG = {
@@ -265,7 +335,7 @@ AMQP_RELATION_WITH_SSL = {
     'password': 'foobar',
     'vip': '10.0.0.1',
     'ssl_port': 5671,
-    'ssl_ca': 'cert',
+    'ssl_ca': SSL_CA,
     'ha_queues': 'queues',
 }
 
@@ -661,7 +731,6 @@ ABSENT_MACS = "aa:a5:ae:ae:ab:a4 "
 
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
-    'b64decode',
     'check_call',
     'get_cert',
     'get_ca_cert',
@@ -874,12 +943,12 @@ class ContextTests(unittest.TestCase):
         for f in files:
             self.assertIn(f, _open.call_args_list)
         self.assertEquals(db_ssl_ctxt, expected)
-        decode = [
-            call(SHARED_DB_RELATION_SSL['ssl_ca']),
-            call(SHARED_DB_RELATION_SSL['ssl_cert']),
-            call(SHARED_DB_RELATION_SSL['ssl_key'])
-        ]
-        self.assertEquals(decode, self.b64decode.call_args_list)
+        #decode = [
+        #    call(SHARED_DB_RELATION_SSL['ssl_ca']),
+        #    call(SHARED_DB_RELATION_SSL['ssl_cert']),
+        #    call(SHARED_DB_RELATION_SSL['ssl_key'])
+        #]
+        #self.assertEquals(decode, _b64dec.call_args_list)
 
     def test_db_ssl_nossldir(self):
         db_ssl_ctxt = context.db_ssl(SHARED_DB_RELATION_SSL, {}, None)
@@ -1394,8 +1463,8 @@ class ContextTests(unittest.TestCase):
         }
         _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'wb')
         self.assertEquals(result, expected)
-        self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
-                          self.b64decode.call_args_list)
+        #self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
+        #                  _b64dec.call_args_list)
 
     def test_amqp_context_with_data_ssl_noca(self):
         '''Test amqp context with all required data with ssl but missing ca'''
@@ -1411,7 +1480,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_user': 'adam',
             'rabbit_ssl_port': 5671,
             'rabbitmq_virtual_host': 'foo',
-            'rabbit_ssl_ca': 'cert',
+            'rabbit_ssl_ca': SSL_CA,
             'rabbitmq_ha_queues': True,
             'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
@@ -2677,10 +2746,14 @@ class ContextTests(unittest.TestCase):
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         self.check_call.assert_called_with(ex_cmd)
 
-    def test_https_configure_cert(self):
+    @patch.object(context, 'b64decode')
+    def test_https_configure_cert(self, _b64dec):
         # Test apache2 properly installs certs and keys to disk
-        self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
-        self.b64decode.side_effect = [b'SSL_CERT', b'SSL_KEY']
+        self.get_cert.return_value = (SSL_CERT, SSL_KEY)
+        _b64dec.side_effect = [
+            base64.b64decode(SSL_CERT),
+            base64.b64decode(SSL_KEY)
+        ]
         apache = context.ApacheSSLContext()
         apache.service_namespace = 'cinder'
         apache.configure_cert('test-cn')
@@ -2688,20 +2761,24 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert_test-cn',
-                      content=b'SSL_CERT', owner='root', group='root',
+                      content=base64.b64decode(SSL_CERT), owner='root', group='root',
                       perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key_test-cn',
-                      content=b'SSL_KEY', owner='root', group='root',
+                      content=base64.b64decode(SSL_KEY), owner='root', group='root',
                       perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
-        decode = [call('SSL_CERT'), call('SSL_KEY')]
-        self.assertEquals(decode, self.b64decode.call_args_list)
+        decode = [call(SSL_CERT), call(SSL_KEY)]
+        self.assertEquals(decode, _b64dec.call_args_list)
 
-    def test_https_configure_cert_deprecated(self):
+    @patch.object(context, 'b64decode')
+    def test_https_configure_cert_deprecated(self, _b64dec):
         # Test apache2 properly installs certs and keys to disk
-        self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
-        self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
+        self.get_cert.return_value = [SSL_CERT, SSL_KEY]
+        _b64dec.side_effect = [
+            base64.b64decode(SSL_CERT),
+            base64.b64decode(SSL_KEY)
+        ]
         apache = context.ApacheSSLContext()
         apache.service_namespace = 'cinder'
         apache.configure_cert()
@@ -2709,15 +2786,15 @@ class ContextTests(unittest.TestCase):
         self.mkdir.assert_called_with(path='/etc/apache2/ssl/cinder')
         # appropriate files are written.
         files = [call(path='/etc/apache2/ssl/cinder/cert',
-                      content='SSL_CERT', owner='root', group='root',
+                      content=base64.b64decode(SSL_CERT), owner='root', group='root',
                       perms=0o640),
                  call(path='/etc/apache2/ssl/cinder/key',
-                      content='SSL_KEY', owner='root', group='root',
+                      content=base64.b64decode(SSL_KEY), owner='root', group='root',
                       perms=0o640)]
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
-        decode = [call('SSL_CERT'), call('SSL_KEY')]
-        self.assertEquals(decode, self.b64decode.call_args_list)
+        decode = [call(SSL_CERT), call(SSL_KEY)]
+        self.assertEquals(decode, _b64dec.call_args_list)
 
     def test_https_canonical_names(self):
         rel = FakeRelation(IDENTITY_RELATION_SINGLE_CERT)
