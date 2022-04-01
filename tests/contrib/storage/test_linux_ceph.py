@@ -170,6 +170,7 @@ class CephBasicUtilsTests(TestCase):
         super(CephBasicUtilsTests, self).setUp()
         [self._patch(m) for m in [
             'check_output',
+            'cmp_pkgrevno',
         ]]
 
     def _patch(self, method):
@@ -180,8 +181,15 @@ class CephBasicUtilsTests(TestCase):
 
     def test_enabled_manager_modules(self):
         self.check_output.return_value = b'{"enabled_modules": []}'
+        self.cmp_pkgrevno.return_value = -1
         ceph_utils.enabled_manager_modules()
         self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls'])
+
+    def test_enabled_manager_modules_quincy(self):
+        self.check_output.return_value = b'{"enabled_modules": []}'
+        self.cmp_pkgrevno.return_value = 0
+        ceph_utils.enabled_manager_modules()
+        self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls', '--format=json'])
 
 
 class CephUtilsTests(TestCase):
