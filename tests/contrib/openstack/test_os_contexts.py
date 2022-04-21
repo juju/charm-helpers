@@ -4449,8 +4449,9 @@ PCI_DEVICE_MAP = {
 
 class TestDPDKUtils(tests.utils.BaseTestCase):
 
-    def test_resolve_pci_from_mapping_config(self):
-        # FIXME: need to mock out the unit key value store
+    @mock.patch.object(context, "kv")
+    def test_resolve_pci_from_mapping_config(self, kv):
+        kv.return_value = TestDB()
         self.patch_object(context, 'config')
         self.config.side_effect = lambda x: {
             'data-port': DPDK_DATA_PORTS,

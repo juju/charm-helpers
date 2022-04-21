@@ -7,8 +7,6 @@ import netifaces
 import charmhelpers.contrib.network.ip as net_ip
 from mock import patch, MagicMock
 
-import nose.tools
-
 
 DUMMY_ADDRESSES = {
     'lo': {
@@ -304,7 +302,7 @@ class IPTest(unittest.TestCase):
     def test_get_ipv6_addr_no_ipv6(self, _interfaces, _ifaddresses):
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
         _ifaddresses.side_effect = DUMMY_ADDRESSES.__getitem__
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_ipv6_addr('eth0:1')
 
     @patch.object(netifaces, 'ifaddresses')
@@ -448,7 +446,7 @@ class IPTest(unittest.TestCase):
     @patch.object(netifaces, 'interfaces')
     def test_get_iface_addr_invalid_type(self, _interfaces):
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_iface_addr(iface='eth0', inet_type='AF_BOB')
 
     @patch.object(netifaces, 'ifaddresses')
@@ -461,14 +459,14 @@ class IPTest(unittest.TestCase):
     @patch.object(netifaces, 'interfaces')
     def test_get_iface_addr_invalid_interface_fatal(self, _interfaces):
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_ipv4_addr("eth3", fatal=True)
 
     @patch.object(netifaces, 'interfaces')
     def test_get_iface_addr_invalid_interface_fatal_incaliases(self,
                                                                _interfaces):
         _interfaces.return_value = DUMMY_ADDRESSES.keys()
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_ipv4_addr("eth3", fatal=True, inc_aliases=True)
 
     @patch.object(netifaces, 'ifaddresses')
@@ -580,12 +578,12 @@ class IPTest(unittest.TestCase):
     def test_get_ipv6_global_dynamic_address_invalid_address(
             self, mock_get_iface_addr, mock_check_out):
         mock_get_iface_addr.return_value = []
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_ipv6_addr()
 
         mock_get_iface_addr.return_value = ['2001:db8:1:0:2918:3444:852:5b8a']
         mock_check_out.return_value = IP_OUTPUT_NO_VALID
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_ipv6_addr()
 
     @patch('charmhelpers.contrib.network.ip.get_iface_addr')
@@ -622,7 +620,7 @@ class IPTest(unittest.TestCase):
         addr = 'fe80::3e97:eff:fe8b:1cf7'
         self.assertEqual(net_ip.get_iface_from_addr(addr), 'eth0')
 
-        with nose.tools.assert_raises(Exception):
+        with self.assertRaises(Exception):
             net_ip.get_iface_from_addr('1.2.3.4')
 
     def test_is_ip(self):

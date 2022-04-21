@@ -48,7 +48,7 @@ class GitUrlFetchHandlerTest(TestCase):
     @patch.object(giturl, 'check_output')
     def test_clone(self, check_output):
         dest_path = "/destination/path"
-        branch = "master"
+        branch = "main"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()
@@ -69,7 +69,8 @@ class GitUrlFetchHandlerTest(TestCase):
         try:
             src = tempfile.mkdtemp()
             with chdir(src):
-                subprocess.check_output(['git', 'init'])
+                subprocess.check_output(['git', 'init',
+                                         '--initial-branch', 'main'])
                 subprocess.check_output(['git', 'config', 'user.name', 'Joe'])
                 subprocess.check_output(
                     ['git', 'config', 'user.email', 'joe@test.com'])
@@ -78,9 +79,9 @@ class GitUrlFetchHandlerTest(TestCase):
                 subprocess.check_output(['git', 'commit', '-m', 'test'])
             dst = tempfile.mkdtemp()
             os.rmdir(dst)
-            self.fh.clone(src, dst)
+            self.fh.clone(src, dst, "main")
             assert os.path.exists(os.path.join(dst, '.git'))
-            self.fh.clone(src, dst)  # idempotent
+            self.fh.clone(src, dst, "main")  # idempotent
             assert os.path.exists(os.path.join(dst, '.git'))
         finally:
             if src:
