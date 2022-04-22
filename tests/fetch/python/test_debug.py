@@ -49,6 +49,8 @@ class DebugTestCase(TestCase):
     def test_debug_set_trace_ex(self):
         """Check if set_trace raises exception
         """
+        set_trace = mock.MagicMock()
+        set_trace.return_value = Exception()
+        self.Rpdb.return_value = set_trace()
         self.set_trace()
-        self.Rpdb.set_trace.side_effect = Exception()
         self.assertTrue(self._error.called)

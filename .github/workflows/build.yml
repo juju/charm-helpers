@@ -21,6 +21,8 @@ jobs:
             env: pep8,py37
           - python-version: 3.8
             env: pep8,py38
+          - python-version: "3.10"
+            env: pep8,py310
 
     steps:
     - uses: actions/checkout@v2
