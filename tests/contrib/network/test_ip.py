@@ -711,6 +711,11 @@ class IPTest(unittest.TestCase):
         self.assertEquals(nsq, None)
 
     @patch('charmhelpers.contrib.network.ip.apt_install')
+    def test_ns_query_loopup_fail_real_implementation(self, apt_install):
+        self.assertEqual(net_ip.ns_query('nonexistant'), None)
+        apt_install.assert_not_called()
+
+    @patch('charmhelpers.contrib.network.ip.apt_install')
     def test_get_hostname_with_ip(self, apt_install):
         fake_dns = FakeDNS('www.ubuntu.com')
         with patch('builtins.__import__', side_effect=[fake_dns, fake_dns]):
