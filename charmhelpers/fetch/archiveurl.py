@@ -24,11 +24,15 @@ from charmhelpers.payload.archive import (
     get_archive_handler,
     extract,
 )
+from charmhelpers.core.hookenv import (
+    env_proxy_settings,
+)
 from charmhelpers.core.host import mkdir, check_hash
 
 from urllib.request import (
     build_opener, install_opener, urlopen, urlretrieve,
     HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler,
+    ProxyHandler
 )
 from urllib.parse import urlparse, urlunparse, parse_qs
 from urllib.error import URLError
@@ -82,6 +86,18 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         proto, netloc, path, params, query, fragment = urlparse(source)
         if proto in ('http', 'https'):
             auth, barehost = splituser(netloc)
+            handlers = []
+            os_proxies = env_proxy_settings()
+            if os_proxies:
+                proxies = {}
+                if 'HTTP_PROXY' in os_proxies:
+                    proxies['http'] = os_proxies['HTTP_PROXY']
+                if 'HTTPS_PROXY' in os_proxies:
+                    proxies['https'] = os_proxies['HTTPS_PROXY']
+                if 'FTP_PROXY' in os_proxies:
+                    proxies['ftp'] = os_proxies['FTP_PROXY']
+                if proxies:
+                    handlers.append(ProxyHandler(proxies=proxies))
             if auth is not None:
                 source = urlunparse((proto, barehost, path, params, query, fragment))
                 username, password = splitpasswd(auth)
@@ -89,9 +105,9 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
                 # Realm is set to None in add_password to force the username and password
                 # to be used whatever the realm
                 passman.add_password(None, source, username, password)
-                authhandler = HTTPBasicAuthHandler(passman)
-                opener = build_opener(authhandler)
-                install_opener(opener)
+                handlers.append(HTTPBasicAuthHandler(passman))
+            opener = build_opener(*handlers)
+            install_opener(opener)
         response = urlopen(source)
         try:
             with open(dest, 'wb') as dest_file:
