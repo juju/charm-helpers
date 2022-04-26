@@ -199,9 +199,13 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
 
     # we want ansible's log output to be unbuffered
     env = os.environ.copy()
+    proxy_settings = charmhelpers.core.hookenv.env_proxy_settings()
+    if proxy_settings:
+        env.update(proxy_settings)
     env['PYTHONUNBUFFERED'] = "1"
     call = [
         'ansible-playbook',
+        '-vvv',
         '-c',
         'local',
         playbook,
@@ -210,7 +214,13 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
         call.extend(['--tags', '{}'.format(tags)])
     if extra_vars:
         call.extend(['--extra-vars', json.dumps(extra_vars)])
-    subprocess.check_call(call, env=env)
+    try:
+        subprocess.check_output(call, env=env)
+    except subprocess.CalledProcessError as e:
+        charmhelpers.core.hookenv.log("Ansible playbook failed with {} "
+                                      "Stdout: {}".format(e, e.output),
+                                      level="ERROR")
+        raise subprocess.CalledProcessError(e)
 
 
 class AnsibleHooks(charmhelpers.core.hookenv.Hooks):

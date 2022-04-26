@@ -1,6 +1,7 @@
 """Tests for the commandant code that analyzes a function signature to
 determine the parameters to argparse."""
 
+import sys
 from unittest import TestCase
 from mock import (
     patch,
@@ -12,7 +13,7 @@ from pprint import pformat
 import yaml
 import csv
 
-from six import StringIO
+from io import StringIO
 
 from charmhelpers import cli
 
@@ -42,11 +43,15 @@ class SubCommandTest(TestCase):
         def payload():
             "A function that does work."
             pass
-        with self.assertRaises(TypeError):
-            with patch("sys.argv", "tests deliberately bad input".split()):
-                with patch("sys.stderr"):
+
+        with patch("sys.argv", "tests deliberately bad input".split()):
+            with patch("sys.stderr"):
+                if sys.version_info < (3, 10):
+                    self.assertRaises(TypeError,
+                                      self.cl.argument_parser.parse_args)
+                else:
                     self.cl.argument_parser.parse_args()
-        _sys_exit.assert_called_once_with(2)
+        _sys_exit.assert_called_with(2)
 
     @patch('sys.exit')
     def test_subcommand_wrapper_cmdline_options(self, _sys_exit):

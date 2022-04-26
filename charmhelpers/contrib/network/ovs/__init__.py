@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,18 +13,22 @@
 # limitations under the License.
 
 ''' Helpers for interacting with OpenvSwitch '''
+import collections
 import hashlib
-import subprocess
 import os
-import six
+import re
+import subprocess
 
+from charmhelpers import deprecate
+from charmhelpers.contrib.network.ovs import ovsdb as ch_ovsdb
 from charmhelpers.fetch import apt_install
 
-
 from charmhelpers.core.hookenv import (
-    log, WARNING, INFO, DEBUG
+    log, WARNING, INFO, DEBUG, charm_name
 )
 from charmhelpers.core.host import (
+    CompareHostReleases,
+    lsb_release,
     service
 )
 
@@ -318,7 +322,8 @@ def add_bridge_bond(bridge, port, interfaces, portdata=None, ifdatamap=None,
     subprocess.check_call(cmd)
 
 
-def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
+@deprecate('see lp:1877594', '2021-01', log=log)
+def add_ovsbridge_linuxbridge(name, bridge, ifdata=None, portdata=None):
     """Add linux bridge to the named openvswitch bridge
 
     :param name: Name of ovs bridge to be added to Linux bridge
@@ -346,14 +351,22 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
                20dac08fdcce4b7fda1d07add3b346aa9751cfbc/
                    lib/db-ctl-base.c#L189-L215
     :type ifdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+    :param portdata: Additional data to attach to port. Similar to ifdata.
+    :type portdata: Optional[Dict[str,Union[str,Dict[str,str]]]]
+
+    WARNINGS:
+    * The `ifup` command (NetworkManager) must be available on the system for
+      this to work. Before bionic this was shipped by default. On bionic and
+      newer you need to install the package `ifupdown`. This might however cause
+      issues when deploying to LXD, see lp:1877594, which is why this function
+      isn't supported anymore.
+    * On focal and newer this function won't even try to run `ifup` and raise
+      directly.
     """
     try:
         import netifaces
     except ImportError:
-        if six.PY2:
-            apt_install('python-netifaces', fatal=True)
-        else:
-            apt_install('python3-netifaces', fatal=True)
+        apt_install('python3-netifaces', fatal=True)
         import netifaces
 
     # NOTE(jamespage):
@@ -380,25 +393,42 @@ def add_ovsbridge_linuxbridge(name, bridge, ifdata=None):
         ovsbridge_port = "cvo{}".format(base)
         linuxbridge_port = "cvb{}".format(base)
 
+    network_interface_already_exists = False
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         if interface == ovsbridge_port or interface == linuxbridge_port:
             log('Interface {} already exists'.format(interface), level=INFO)
-            return
+            network_interface_already_exists = True
+            break
 
     log('Adding linuxbridge {} to ovsbridge {}'.format(bridge, name),
         level=INFO)
 
-    check_for_eni_source()
+    if not network_interface_already_exists:
+        setup_eni()  # will raise on focal+
 
-    with open('/etc/network/interfaces.d/{}.cfg'.format(
-            linuxbridge_port), 'w') as config:
-        config.write(BRIDGE_TEMPLATE.format(linuxbridge_port=linuxbridge_port,
-                                            ovsbridge_port=ovsbridge_port,
-                                            bridge=bridge))
+        with open('/etc/network/interfaces.d/{}.cfg'.format(
+                linuxbridge_port), 'w') as config:
+            config.write(BRIDGE_TEMPLATE.format(
+                linuxbridge_port=linuxbridge_port,
+                ovsbridge_port=ovsbridge_port, bridge=bridge))
 
-    subprocess.check_call(["ifup", linuxbridge_port])
-    add_bridge_port(name, linuxbridge_port, ifdata=ifdata)
+        try:
+            # NOTE(lourot): 'ifup <name>' can't be replaced by
+            # 'ip link set <name> up' as the latter won't parse
+            # /etc/network/interfaces*
+            subprocess.check_call(['ifup', linuxbridge_port])
+        except FileNotFoundError:
+            # NOTE(lourot): on bionic and newer, 'ifup' isn't installed by
+            # default. It has been replaced by netplan.io but we can't use it
+            # yet because of lp:1876730. For the time being, charms using this
+            # have to install 'ifupdown' on bionic and newer. This will however
+            # cause issues when deploying to LXD, see lp:1877594.
+            raise RuntimeError('ifup: command not found. Did this charm forget '
+                               'to install ifupdown?')
+
+    add_bridge_port(name, linuxbridge_port, ifdata=ifdata, exclusive=False,
+                    portdata=portdata)
 
 
 def is_linuxbridge_interface(port):
@@ -458,16 +488,33 @@ def get_certificate():
         return None
 
 
-def check_for_eni_source():
-    ''' Juju removes the source line when setting up interfaces,
-    replace if missing '''
+@deprecate('see lp:1877594', '2021-01', log=log)
+def setup_eni():
+    """Makes sure /etc/network/interfaces.d/ exists and will be parsed.
 
+    When setting up interfaces, Juju removes from
+    /etc/network/interfaces the line sourcing interfaces.d/
+
+    WARNING: Not supported on focal and newer anymore. Will raise.
+    """
+    release = CompareHostReleases(lsb_release()['DISTRIB_CODENAME'])
+    if release >= 'focal':
+        raise RuntimeError("NetworkManager isn't supported anymore")
+
+    if not os.path.exists('/etc/network/interfaces.d'):
+        os.makedirs('/etc/network/interfaces.d', mode=0o755)
     with open('/etc/network/interfaces', 'r') as eni:
         for line in eni:
-            if line == 'source /etc/network/interfaces.d/*':
+            if re.search(r'^\s*source\s+/etc/network/interfaces.d/\*\s*$',
+                         line):
                 return
     with open('/etc/network/interfaces', 'a') as eni:
         eni.write('\nsource /etc/network/interfaces.d/*')
+
+
+@deprecate('use setup_eni() instead', '2021-01', log=log)
+def check_for_eni_source():
+    setup_eni()
 
 
 def full_restart():
@@ -542,3 +589,101 @@ def ovs_appctl(target, args):
     cmd = ['ovs-appctl', '-t', target]
     cmd.extend(args)
     return subprocess.check_output(cmd, universal_newlines=True)
+
+
+def uuid_for_port(port_name):
+    """Get UUID of named port.
+
+    :param port_name: Name of port.
+    :type port_name: str
+    :returns: Port UUID.
+    :rtype: Optional[uuid.UUID]
+    """
+    for port in ch_ovsdb.SimpleOVSDB(
+            'ovs-vsctl').port.find('name={}'.format(port_name)):
+        return port['_uuid']
+
+
+def bridge_for_port(port_uuid):
+    """Find which bridge a port is on.
+
+    :param port_uuid: UUID of port.
+    :type port_uuid: uuid.UUID
+    :returns: Name of bridge or None.
+    :rtype: Optional[str]
+    """
+    for bridge in ch_ovsdb.SimpleOVSDB(
+            'ovs-vsctl').bridge:
+        # If there is a single port on a bridge the ports property will not be
+        # a list. ref: juju/charm-helpers#510
+        if (isinstance(bridge['ports'], list) and
+                port_uuid in bridge['ports'] or
+                port_uuid == bridge['ports']):
+            return bridge['name']
+
+
+PatchPort = collections.namedtuple('PatchPort', ('bridge', 'port'))
+Patch = collections.namedtuple('Patch', ('this_end', 'other_end'))
+
+
+def patch_ports_on_bridge(bridge):
+    """Find patch ports on a bridge.
+
+    :param bridge: Name of bridge
+    :type bridge: str
+    :returns: Iterator with bridge and port name for both ends of a patch.
+    :rtype: Iterator[Patch[PatchPort[str,str],PatchPort[str,str]]]
+    :raises: ValueError
+    """
+    # On any given vSwitch there will be a small number of patch ports, so we
+    # start by iterating over ports with type `patch` then look up which bridge
+    # they belong to and act on any ports that match the criteria.
+    for interface in ch_ovsdb.SimpleOVSDB(
+            'ovs-vsctl').interface.find('type=patch'):
+        for port in ch_ovsdb.SimpleOVSDB(
+                'ovs-vsctl').port.find('name={}'.format(interface['name'])):
+            if bridge_for_port(port['_uuid']) == bridge:
+                this_end = PatchPort(bridge, port['name'])
+                other_end = PatchPort(bridge_for_port(
+                    uuid_for_port(
+                        interface['options']['peer'])),
+                    interface['options']['peer'])
+                yield(Patch(this_end, other_end))
+            # We expect one result and it is ok if it turns out to be a port
+            # for a different bridge. However we need a break here to satisfy
+            # the for/else check which is in place to detect interface referring
+            # to non-existent port.
+            break
+        else:
+            raise ValueError('Port for interface named "{}" does unexpectedly '
+                             'not exist.'.format(interface['name']))
+    else:
+        # Allow our caller to handle no patch ports found gracefully, in
+        # reference to PEP479 just doing a return will provide a empty iterator
+        # and not None.
+        return
+
+
+def generate_external_ids(external_id_value=None):
+    """Generate external-ids dictionary that can be used to mark OVS bridges
+    and ports as managed by the charm.
+
+    :param external_id_value: Value of the external-ids entry.
+                              Note: 'managed' will be used if not specified.
+    :type external_id_value: Optional[str]
+    :returns: Dict with a single external-ids entry.
+              {
+                  'external-ids': {
+                      charm-``charm_name``: ``external_id_value``
+                  }
+              }
+    :rtype: Dict[str, Dict[str]]
+    """
+    external_id_key = "charm-{}".format(charm_name())
+    external_id_value = ('managed' if external_id_value is None
+                         else external_id_value)
+    return {
+        'external-ids': {
+            external_id_key: external_id_value
+        }
+    }

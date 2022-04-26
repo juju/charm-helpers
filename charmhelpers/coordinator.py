@@ -226,8 +226,6 @@ from functools import wraps
 import json
 import os.path
 
-from six import with_metaclass
-
 from charmhelpers.core import hookenv
 
 
@@ -244,7 +242,8 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class BaseCoordinator(with_metaclass(Singleton, object)):
+# class BaseCoordinator(with_metaclass(Singleton, object)):
+class BaseCoordinator(metaclass=Singleton):
     relid = None  # Peer relation-id, set by __init__
     relname = None
 

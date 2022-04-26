@@ -1,6 +1,5 @@
 import io
 import os
-import contextlib
 import unittest
 from copy import copy
 from tests.helpers import patch_open, FakeRelation
@@ -12,15 +11,10 @@ from charmhelpers.fetch import ubuntu as fetch
 from charmhelpers.core.hookenv import WORKLOAD_STATES, flush
 
 import charmhelpers.contrib.openstack.utils as openstack
+import charmhelpers.contrib.openstack.deferred_events as deferred_events
+from charmhelpers.contrib.openstack.exceptions import ServiceActionError
+import contextlib
 
-import six
-
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-    builtin_import = '__builtin__.__import__'
-else:
-    builtin_open = 'builtins.open'
-    builtin_import = 'builtins.__import__'
 
 FAKE_CODENAME = 'precise'
 # mocked return of openstack.lsb_release()
@@ -80,7 +74,7 @@ FAKE_REPO = {
         'os_release': 'mitaka',
         'os_version': '2.7.0'
     },
-    # a package thats available in the cache but is not installed
+    # a package that's available in the cache but is not installed
     'cinder-common': {
         'os_release': 'havana',
         'os_version': '2013.2'
@@ -164,6 +158,11 @@ class OpenStackHelpersTestCase(TestCase):
     def setUp(self):
         super(OpenStackHelpersTestCase, self).setUp()
         self.patch(fetch, 'get_apt_dpkg_env', lambda: {})
+        # Make sleep() and log() into noops for testing
+        for funcname in ('charmhelpers.core.decorators.log', 'charmhelpers.core.decorators.time.sleep'):
+            patcher = patch(funcname, return_value=None)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def _apt_cache(self):
         # mocks out the apt cache
@@ -226,6 +225,14 @@ class OpenStackHelpersTestCase(TestCase):
                           'havana')
         self.assertEquals(openstack.get_os_codename_install_source(None),
                           '')
+
+        # check that bare ubuntu releases end up as the release.
+        self.assertEquals(openstack.get_os_codename_install_source('essex'),
+                          'essex')
+        self.assertEquals(openstack.get_os_codename_install_source('ussuri'),
+                          'ussuri')
+        self.assertEquals(openstack.get_os_codename_install_source('queens'),
+                          'queens')
 
     @patch.object(openstack, 'get_os_version_codename')
     @patch.object(openstack, 'get_os_codename_install_source')
@@ -301,13 +308,38 @@ class OpenStackHelpersTestCase(TestCase):
     def test_get_swift_codename_none(self):
         self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
 
+    @patch("charmhelpers.core.hookenv.cache", new={})
+    @patch.object(openstack, 'openstack_release')
+    @patch.object(openstack, 'filter_installed_packages')
+    @patch.object(openstack, 'apt_install')
+    def test_get_installed_os_version_no_package(self, mock_apt_install,
+                                                 mock_filter_installed_packages,
+                                                 mock_openstack_release):
+        mock_openstack_release.return_value = {}
+        self.assertEquals(
+            openstack.get_installed_os_version(), None)
+
+    @patch("charmhelpers.core.hookenv.cache", new={})
+    @patch.object(openstack, 'openstack_release')
+    @patch.object(openstack, 'filter_installed_packages')
+    @patch.object(openstack, 'apt_install')
+    def test_get_installed_os_version_with_package(self, mock_apt_install,
+                                                   mock_filter_installed_packages,
+                                                   mock_openstack_release):
+        mock_openstack_release.return_value = {'OPENSTACK_CODENAME': 'wallaby'}
+        self.assertEquals(
+            openstack.get_installed_os_version(), 'wallaby')
+
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
-    def test_os_codename_from_package(self, mock_snap_install_requested):
+    def test_os_codename_from_package(self, mock_snap_install_requested,
+                                      mock_get_installed_os_version):
         """Test deriving OpenStack codename from an installed package"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in six.iteritems(FAKE_REPO):
+            for pkg, vers in FAKE_REPO.items():
                 # test fake repo for all "installed" packages
                 if pkg.startswith('bad-'):
                     continue
@@ -316,24 +348,30 @@ class OpenStackHelpersTestCase(TestCase):
                 self.assertEquals(openstack.get_os_codename_package(pkg),
                                   vers['os_release'])
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_package_version(self, mocked_error,
-                                                  mock_snap_install_requested):
+                                                  mock_snap_install_requested,
+                                                  mock_get_installed_os_version):
         """Test deriving OpenStack codename for a poorly versioned package"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             openstack.get_os_codename_package('bad-version')
             _e = ('Could not determine OpenStack codename for version 2200.1')
             mocked_error.assert_called_with(_e)
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_bad_package(self, mocked_error,
-                                          mock_snap_install_requested):
+                                          mock_snap_install_requested,
+                                          mock_get_installed_os_version):
         """Test deriving OpenStack codename from an unavailable package"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -346,11 +384,14 @@ class OpenStackHelpersTestCase(TestCase):
                 'candidate: foo'
             mocked_error.assert_called_with(e)
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     def test_os_codename_from_bad_package_nonfatal(
-            self, mock_snap_install_requested):
+            self, mock_snap_install_requested,
+            mock_get_installed_os_version):
         """Test OpenStack codename from an unavailable package is non-fatal"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -358,12 +399,15 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_codename_package('foo', fatal=False)
             )
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_codename_from_uninstalled_package(self, mock_error,
-                                                  mock_snap_install_requested):
+                                                  mock_snap_install_requested,
+                                                  mock_get_installed_os_version):
         """Test OpenStack codename from an available but uninstalled pkg"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -374,11 +418,14 @@ class OpenStackHelpersTestCase(TestCase):
                  'cinder-common')
             mock_error.assert_called_with(e)
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     def test_os_codename_from_uninstalled_package_nonfatal(
-            self, mock_snap_install_requested):
+            self, mock_snap_install_requested,
+            mock_get_installed_os_version):
         """Test OpenStack codename from avail uninstalled pkg is non fatal"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -386,15 +433,18 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_codename_package('cinder-common', fatal=False)
             )
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_package(self, mocked_error,
-                                     mock_snap_install_requested):
+                                     mock_snap_install_requested,
+                                     mock_get_installed_os_version):
         """Test deriving OpenStack version from an installed package"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in six.iteritems(FAKE_REPO):
+            for pkg, vers in FAKE_REPO.items():
                 if pkg.startswith('bad-'):
                     continue
                 if 'pkg_vers' not in vers:
@@ -402,12 +452,15 @@ class OpenStackHelpersTestCase(TestCase):
                 self.assertEquals(openstack.get_os_version_package(pkg),
                                   vers['os_version'])
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     @patch('charmhelpers.contrib.openstack.utils.error_out')
     def test_os_version_from_bad_package(self, mocked_error,
-                                         mock_snap_install_requested):
+                                         mock_snap_install_requested,
+                                         mock_get_installed_os_version):
         """Test deriving OpenStack version from an uninstalled package"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             try:
@@ -420,11 +473,14 @@ class OpenStackHelpersTestCase(TestCase):
                 'candidate: foo'
             mocked_error.assert_called_with(e)
 
+    @patch.object(openstack, 'get_installed_os_version')
     @patch.object(openstack, 'snap_install_requested')
     def test_os_version_from_bad_package_nonfatal(
-            self, mock_snap_install_requested):
+            self, mock_snap_install_requested,
+            mock_get_installed_os_version):
         """Test OpenStack version from an uninstalled package is non-fatal"""
         mock_snap_install_requested.return_value = False
+        mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
             self.assertEquals(
@@ -432,15 +488,23 @@ class OpenStackHelpersTestCase(TestCase):
                 openstack.get_os_version_package('foo', fatal=False)
             )
 
+    @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_codename_package')
     @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_os_release_uncached(self, config, get_cn):
+    def test_os_release_uncached(self, config, get_cn, mock_lsb_release):
         openstack._os_rel = None
         get_cn.return_value = 'folsom'
+        mock_lsb_release.return_value = {
+            'DISTRIB_CODENAME': 'bionic',
+        }
         self.assertEquals('folsom', openstack.os_release('nova-common'))
 
-    def test_os_release_cached(self):
+    @patch.object(openstack, 'lsb_release')
+    def test_os_release_cached(self, mock_lsb_release):
         openstack._os_rel = 'foo'
+        mock_lsb_release.return_value = {
+            'DISTRIB_CODENAME': 'bionic',
+        }
         self.assertEquals('foo', openstack.os_release('nova-common'))
 
     @patch.object(openstack, 'juju_log')
@@ -459,7 +523,7 @@ class OpenStackHelpersTestCase(TestCase):
             "|key": ('', 'key'),
             "source": ('source', None),
         }
-        for k, v in six.iteritems(tests):
+        for k, v in tests.items():
             self.assertEqual(openstack.get_source_and_pgp_key(k), v)
 
     # These should still work, even though the bulk of the functionality has
@@ -491,7 +555,7 @@ class OpenStackHelpersTestCase(TestCase):
              'precise-havana main'], env={})
 
     @patch.object(fetch, 'get_distrib_codename')
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch('subprocess.check_call')
     def test_configure_install_source_distro_proposed(
             self, _spcc, _open, _lsb):
@@ -588,7 +652,7 @@ class OpenStackHelpersTestCase(TestCase):
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd, env={})
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch.object(fetch, 'apt_install')
     @patch.object(fetch, 'get_distrib_codename')
     @patch.object(fetch, 'filter_installed_packages')
@@ -644,7 +708,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         """Test generation of scriptrc from environment"""
         scriptrc = ['#!/bin/bash\n',
@@ -736,7 +800,7 @@ class OpenStackHelpersTestCase(TestCase):
     @patch.object(openstack, 'is_block_device')
     @patch.object(openstack, 'error_out')
     def test_ensure_nonexistent_block_device(self, error_out, is_bd):
-        """Test it will not ensure a non-existant block device"""
+        """Test it will not ensure a non-existent block device"""
         is_bd.return_value = False
         openstack.ensure_block_device(block_device='foo')
         self.assertTrue(error_out.called)
@@ -778,7 +842,7 @@ class OpenStackHelpersTestCase(TestCase):
         zap_disk.assert_called_with('/dev/vdb')
 
     @patch('os.path.isfile')
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_get_matchmaker_map(self, _open, _isfile):
         _isfile.return_value = True
         mm_data = """
@@ -796,7 +860,7 @@ class OpenStackHelpersTestCase(TestCase):
         )
 
     @patch('os.path.isfile')
-    @patch(builtin_open)
+    @patch('builtins.open')
     def test_get_matchmaker_map_nofile(self, _open, _isfile):
         _isfile.return_value = False
         self.assertEqual(
@@ -1391,6 +1455,86 @@ class OpenStackHelpersTestCase(TestCase):
         r = openstack.is_unit_upgrading_set()
         self.assertEquals(r, False)
 
+    @patch.object(openstack, 'config')
+    @patch.object(openstack, 'is_unit_paused_set')
+    @patch.object(openstack.deferred_events, 'is_restart_permitted')
+    @patch.object(openstack.deferred_events, 'set_deferred_hook')
+    @patch.object(openstack.deferred_events, 'clear_deferred_hook')
+    def test_is_hook_allowed(self, clear_deferred_hook, set_deferred_hook,
+                             is_restart_permitted, is_unit_paused_set, config):
+        # Test unit not paused and not checking whether restarts are allowed
+        is_unit_paused_set.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=False),
+            (True, ''))
+        self.assertFalse(clear_deferred_hook.called)
+
+        # Test unit paused and not checking whether restarts are allowed
+        is_unit_paused_set.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=False),
+            (False, 'Unit is pause or upgrading. Skipping config-changed'))
+
+        # Test unit not paused and restarts allowed
+        clear_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (True, ''))
+        clear_deferred_hook.assert_called_once_with('config-changed')
+
+        # Test unit not paused and restarts not allowed
+        # enable-auto-restarts not enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = False
+        config().changed.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+        set_deferred_hook.assert_called_once_with('config-changed')
+
+        # Test unit not paused and restarts not allowed.
+        # enable-auto-restarts enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = False
+        is_restart_permitted.return_value = False
+        config().changed.return_value = True
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+
+        # Test unit paused and restarts not allowed
+        # enable-auto-restarts not enabled as part of this hook
+        clear_deferred_hook.reset_mock()
+        set_deferred_hook.reset_mock()
+        is_unit_paused_set.return_value = True
+        is_restart_permitted.return_value = False
+        config().changed.return_value = False
+        self.assertEqual(
+            openstack.is_hook_allowed(
+                'config-changed',
+                check_deferred_restarts=True),
+            (False, 'Unit is pause or upgrading. Skipping config-changed and '
+                    'auto restarts are disabled'))
+        self.assertFalse(clear_deferred_hook.called)
+        set_deferred_hook.assert_called_once_with('config-changed')
+
     @patch('charmhelpers.contrib.openstack.utils.service_stop')
     def test_manage_payload_services_ok(self, service_stop):
         services = ['service1', 'service2']
@@ -1513,6 +1657,17 @@ class OpenStackHelpersTestCase(TestCase):
         except Exception as e:
             self.assertEquals(e.args[0],
                               "Couldn't pause: assess_status_func failed")
+
+    @patch('charmhelpers.contrib.openstack.utils.service_pause')
+    @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
+    @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
+    def test_pause_unit_retry_port_check_retries(
+            self, port_has_listener, set_unit_paused, service_pause):
+        service_pause.return_value = True
+        port_has_listener.side_effect = [True, False]
+        wait_for_ports_func = openstack.make_wait_for_ports_barrier([77])
+        openstack.pause_unit(None, services=['service1'], ports=[77], charm_func=wait_for_ports_func)
+        port_has_listener.assert_has_calls([call('0.0.0.0', 77), call('0.0.0.0', 77)])
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
@@ -1660,7 +1815,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('success, upgrade completed.')
+        msg = ('success, upgrade completed')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1682,7 +1837,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('no upgrade available.')
+        msg = ('no upgrade available')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1707,7 +1862,7 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = ('action-managed-upgrade config is False, skipped upgrade.')
+        msg = ('action-managed-upgrade config is False, skipped upgrade')
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(action_fail.called)
 
@@ -1733,7 +1888,75 @@ class OpenStackHelpersTestCase(TestCase):
                                               None)
 
         self.assertTrue(openstack_upgrade_available.called)
-        msg = 'do_openstack_upgrade resulted in an unexpected error'
+        msg = 'upgrade callback resulted in an unexpected error'
+        action_fail.assert_called_with(msg)
+        self.assertTrue(action_set.called)
+        self.assertTrue(traceback.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade(self, config, openstack_upgrade_available,
+                             action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            pass
+
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('success, upgrade completed')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade_skip(self, config,
+                                  openstack_upgrade_available,
+                                  action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            pass
+
+        # package upgrades are skipped if openstack uprade is available
+        openstack_upgrade_available.return_value = True
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = ('upgrade skipped because an openstack upgrade is available')
+        action_set.assert_called_with({'outcome': msg})
+        self.assertFalse(action_fail.called)
+
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'action_set')
+    @patch.object(openstack, 'action_fail')
+    @patch.object(openstack, 'openstack_upgrade_available')
+    @patch('traceback.format_exc')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_package_upgrade_traceback(self, config, traceback,
+                                       openstack_upgrade_available,
+                                       action_fail, action_set, log):
+        def do_package_upgrade(configs):
+            oops()  # noqa
+
+        openstack_upgrade_available.return_value = False
+
+        openstack.do_action_package_upgrade('package-xyz',
+                                            do_package_upgrade,
+                                            None)
+
+        self.assertTrue(openstack_upgrade_available.called)
+        msg = 'upgrade callback resulted in an unexpected error'
         action_fail.assert_called_with(msg)
         self.assertTrue(action_set.called)
         self.assertTrue(traceback.called)
@@ -1973,7 +2196,7 @@ class OpenStackHelpersTestCase(TestCase):
         # notifications but they are not the ones being looked for.
         self.assertTrue(openstack.endpoint_changed('nova'))
         # Check endpoint_changed returns False if the notification
-        # has alredy been seen
+        # has already been seen
         get_endpoint_notifications.return_value = {
             'placement-identity-service_3-keystone_0': 'd5c3'}
         self.kv_data = {
@@ -2334,6 +2557,37 @@ class OpenStackUtilsAdditionalTests(TestCase):
         self.assertEqual(
             openstack.get_api_application_status()[0].value,
             'blocked')
+
+    @patch.object(openstack.deferred_events, 'clear_deferred_restarts')
+    @patch.object(openstack, 'manage_payload_services')
+    @patch.object(openstack.deferred_events, 'get_deferred_restarts')
+    def test_restart_services_action(self, get_deferred_restarts,
+                                     manage_payload_services,
+                                     clear_deferred_restarts):
+        deferred_restarts = [
+            deferred_events.ServiceEvent(
+                timestamp=123,
+                service='svcA',
+                reason='ReasonA',
+                action='restart')]
+        get_deferred_restarts.return_value = deferred_restarts
+        manage_payload_services.return_value = (None, None)
+        openstack.restart_services_action(deferred_only=True)
+        manage_payload_services.assert_has_calls([
+            call('stop', services=['svcA'], charm_func=None),
+            call('start', services=['svcA'])])
+        clear_deferred_restarts.assert_called_once_with(['svcA'])
+        self.assertRaises(
+            ValueError,
+            openstack.restart_services_action,
+            ['svcA'],
+            deferred_only=True)
+
+        manage_payload_services.return_value = (None, 'something went wrong')
+        self.assertRaises(
+            ServiceActionError,
+            openstack.restart_services_action,
+            ['svcA'])
 
 
 if __name__ == '__main__':

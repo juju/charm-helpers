@@ -1,4 +1,3 @@
-import six
 import subprocess
 import io
 import os
@@ -13,10 +12,6 @@ from mock import (
 )
 from charmhelpers.fetch import ubuntu as fetch
 
-if six.PY3:
-    builtin_open = 'builtins.open'
-else:
-    builtin_open = '__builtin__.open'
 
 # mocked return of openstack.get_distrib_codename()
 FAKE_CODENAME = 'precise'
@@ -430,16 +425,10 @@ class FetchTest(TestCase):
         check_call.side_effect = check_call_side_effect
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
-        if six.PY3:
-            popen.return_value.communicate.return_value = [b"""
+        popen.return_value.communicate.return_value = [b"""
 pub:-:1024:1:6E85A86E4652B4E6:2009-01-18:::-:Launchpad PPA for Landscape:
 fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
-            """, b'']
-        else:
-            popen.return_value.communicate.return_value = ["""
-pub:-:1024:1:6E85A86E4652B4E6:2009-01-18:::-:Launchpad PPA for Landscape:
-fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
-            """, '']
+        """, b'']
 
         dearmor_gpg_key.return_value = PGP_KEY_BIN_PGP
 
@@ -484,17 +473,10 @@ fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
 
-        if six.PY3:
-            popen.return_value.communicate.return_value = [b"""
+        popen.return_value.communicate.return_value = [b"""
 fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
 uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
-            """, b'']
-        else:
-            # python2 on a distro with gpg2 (unlikely, but possible)
-            popen.return_value.communicate.return_value = ["""
-fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
-uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
-            """, '']
+        """, b'']
 
         dearmor_gpg_key.return_value = PGP_KEY_BIN_PGP
 
@@ -686,7 +668,7 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd, env={})
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch('charmhelpers.fetch.ubuntu.apt_install')
     @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
     @patch('charmhelpers.fetch.ubuntu.filter_installed_packages')
@@ -729,6 +711,98 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         source = "distro"
         # distro is a noop but test validate no exception is thrown
         fetch.add_source(source=source)
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_is_distro(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'focal'
+        fetch.add_source('ussuri')
+        mock_add_cloud_pocket.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_is_cloud_pocket(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'bionic'
+        fetch.add_source('ussuri')
+        mock_add_cloud_pocket.assert_called_once_with("bionic-ussuri")
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_impossible_version(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'xenial'
+        try:
+            fetch.add_source('ussuri')
+            self.fail("add_source('ussuri') on xenial should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_impossible_ubuntu(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket):
+        mock_get_distrib_codename.return_value = 'bambam'
+        try:
+            fetch.add_source('ussuri')
+            self.fail("add_source('ussuri') on bambam should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_is_distro_proposed(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'focal'
+        fetch.add_source('ussuri/proposed')
+        mock_add_cloud_pocket.assert_not_called()
+        mock_add_proposed.assert_called_once_with()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_is_cloud_pocket(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'bionic'
+        fetch.add_source('ussuri/proposed')
+        mock_add_cloud_pocket.assert_called_once_with("bionic-ussuri/proposed")
+        mock_add_proposed.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_impossible_version(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'xenial'
+        try:
+            fetch.add_source('ussuri/proposed')
+            self.fail("add_source('ussuri/proposed') on xenial should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+        mock_add_proposed.assert_not_called()
+
+    @patch('charmhelpers.fetch.ubuntu._add_proposed')
+    @patch('charmhelpers.fetch.ubuntu._add_cloud_pocket')
+    @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
+    def test_add_bare_openstack_proposed_impossible_ubuntu(
+            self, mock_get_distrib_codename, mock_add_cloud_pocket,
+            mock_add_proposed):
+        mock_get_distrib_codename.return_value = 'bambam'
+        try:
+            fetch.add_source('ussuri/proposed')
+            self.fail("add_source('ussuri/proposed') on bambam should fail")
+        except fetch.SourceConfigError:
+            pass
+        mock_add_cloud_pocket.assert_not_called()
+        mock_add_proposed.assert_not_called()
 
 
 class AptTests(TestCase):

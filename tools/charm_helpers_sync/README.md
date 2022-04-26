@@ -42,7 +42,7 @@ layout as of 12/18/2019):
             - apache
     END
 
-includes may be defined as entire module sub-directories, or as invidual
+includes may be defined as entire module sub-directories, or as individual
 .py files with in a module sub-directory.
 
 Charm author can then sync in and update helpers as needed.  The following
@@ -64,10 +64,6 @@ imports all of `charmhelpers.core` + `charmhelpers.contrib.openstack`, and only
     hooks/helpers/contrib/openstack/neutron.py
     hooks/helpers/contrib/openstack/alternatives.py
     hooks/helpers/contrib/openstack/ssh_migrations.py
-    hooks/helpers/contrib/openstack/amulet
-    hooks/helpers/contrib/openstack/amulet/utils.py
-    hooks/helpers/contrib/openstack/amulet/__init__.py
-    hooks/helpers/contrib/openstack/amulet/deployment.py
     hooks/helpers/contrib/openstack/utils.py
     hooks/helpers/contrib/openstack/files
     hooks/helpers/contrib/openstack/files/__init__.py

@@ -84,3 +84,14 @@ class DisabledModuleAuditsTest(TestCase):
         audit = apache.DisabledModuleAudit('bar')
         result = audit._get_loaded_modules()
         self.assertEqual(['foo', 'bar'], result)
+
+    @patch('subprocess.check_output')
+    def test_is_ssl_enabled(self, mock_check_output):
+        mock_check_output.return_value = (b'Loaded Modules:\n'
+                                          b' foo_module (static)\n'
+                                          b' bar_module (shared)\n'
+                                          b' ssl_module (shared)\n')
+        audit = apache.DisabledModuleAudit('bar')
+        result = audit._get_loaded_modules()
+        self.assertEqual(['foo', 'bar', 'ssl'], result)
+        self.assertTrue(audit.is_ssl_enabled())

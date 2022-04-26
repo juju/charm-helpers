@@ -1,4 +1,4 @@
-# Copyright 2019 Canonical Ltd
+# Copyright 2019-2021 Canonical Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 import collections
 import contextlib
 import os
-import six
 import shutil
 import yaml
 import zipfile
@@ -59,7 +58,7 @@ provided:
 The functions should be called from the install and upgrade hooks in the charm.
 The `maybe_do_policyd_overrides_on_config_changed` function is designed to be
 called on the config-changed hook, in that it does an additional check to
-ensure that an already overriden policy.d in an upgrade or install hooks isn't
+ensure that an already overridden policy.d in an upgrade or install hooks isn't
 repeated.
 
 In order the *enable* this functionality, the charm's install, config_changed,
@@ -204,12 +203,6 @@ class BadPolicyYamlFile(Exception):
         return self.log_message
 
 
-if six.PY2:
-    BadZipFile = zipfile.BadZipfile
-else:
-    BadZipFile = zipfile.BadZipFile
-
-
 def is_policyd_override_valid_on_this_release(openstack_release):
     """Check that the charm is running on at least Ubuntu Xenial, and at
     least the queens release.
@@ -334,7 +327,7 @@ def maybe_do_policyd_overrides(openstack_release,
         restart_handler()
 
 
-@charmhelpers.deprecate("Use maybe_do_poliyd_overrrides instead")
+@charmhelpers.deprecate("Use maybe_do_policyd_overrides instead")
 def maybe_do_policyd_overrides_on_config_changed(*args, **kwargs):
     """This function is designed to be called from the config changed hook.
 
@@ -487,10 +480,10 @@ def read_and_validate_yaml(stream_or_doc, blacklist_keys=None):
     if blacklisted_keys_present:
         raise BadPolicyYamlFile("blacklisted keys {} present."
                                 .format(", ".join(blacklisted_keys_present)))
-    if not all(isinstance(k, six.string_types) for k in keys):
+    if not all(isinstance(k, str) for k in keys):
         raise BadPolicyYamlFile("keys in yaml aren't all strings?")
     # check that the dictionary looks like a mapping of str to str
-    if not all(isinstance(v, six.string_types) for v in doc.values()):
+    if not all(isinstance(v, str) for v in doc.values()):
         raise BadPolicyYamlFile("values in yaml aren't all strings?")
     return doc
 
@@ -530,8 +523,7 @@ def clean_policyd_dir_for(service, keep_paths=None, user=None, group=None):
     hookenv.log("Cleaning path: {}".format(path), level=hookenv.DEBUG)
     if not os.path.exists(path):
         ch_host.mkdir(path, owner=_user, group=_group, perms=0o775)
-    _scanner = os.scandir if hasattr(os, 'scandir') else _fallback_scandir
-    for direntry in _scanner(path):
+    for direntry in os.scandir(path):
         # see if the path should be kept.
         if direntry.path in keep_paths:
             continue
@@ -556,36 +548,6 @@ def maybe_create_directory_for(path, user, group):
     _dir, _ = os.path.split(path)
     if not os.path.exists(_dir):
         ch_host.mkdir(_dir, owner=user, group=group, perms=0o775)
-
-
-@contextlib.contextmanager
-def _fallback_scandir(path):
-    """Fallback os.scandir implementation.
-
-    provide a fallback implementation of os.scandir if this module ever gets
-    used in a py2 or py34 charm. Uses os.listdir() to get the names in the path,
-    and then mocks the is_dir() function using os.path.isdir() to check for
-    directory.
-
-    :param path: the path to list the directories for
-    :type path: str
-    :returns: Generator that provides _FBDirectory objects
-    :rtype: ContextManager[_FBDirectory]
-    """
-    for f in os.listdir(path):
-        yield _FBDirectory(f)
-
-
-class _FBDirectory(object):
-    """Mock a scandir Directory object with enough to use in
-    clean_policyd_dir_for
-    """
-
-    def __init__(self, path):
-        self.path = path
-
-    def is_dir(self):
-        return os.path.isdir(self.path)
 
 
 def path_for_policy_file(service, name):
@@ -768,7 +730,7 @@ def process_policy_resource_file(resource_file,
                                    _group)
         # Every thing worked, so we mark up a success.
         completed = True
-    except (BadZipFile, BadPolicyZipFile, BadPolicyYamlFile) as e:
+    except (zipfile.BadZipFile, BadPolicyZipFile, BadPolicyYamlFile) as e:
         hookenv.log("Processing {} failed: {}".format(resource_file, str(e)),
                     level=POLICYD_LOG_LEVEL_DEFAULT)
     except IOError as e:

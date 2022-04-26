@@ -121,13 +121,13 @@ class Test_apt_pkg_Cache(unittest.TestCase):
             },
         }
         self.assertEquals(
-            apt_cache._dpkg_list(['package']), expect)
+            apt_cache.dpkg_list(['package']), expect)
         self.check_output.side_effect = subprocess.CalledProcessError(
             1, '', output=self.check_output.return_value)
-        self.assertEquals(apt_cache._dpkg_list(['package']), expect)
+        self.assertEquals(apt_cache.dpkg_list(['package']), expect)
         self.check_output.side_effect = subprocess.CalledProcessError(2, '')
         with self.assertRaises(subprocess.CalledProcessError):
-            _ = apt_cache._dpkg_list(['package'])
+            _ = apt_cache.dpkg_list(['package'])
 
     def test_version_compare(self):
         self.patch_object(apt_pkg.subprocess, 'check_call')
@@ -214,3 +214,65 @@ class Test_apt_pkg_Cache(unittest.TestCase):
         ]
         with self.assertRaises(subprocess.CalledProcessError):
             pkg = apt_cache['system-error-occurs-while-making-apt-inquiry']
+
+
+class Test_apt_pkg_PkgVersion(unittest.TestCase):
+
+    def test_PkgVersion(self):
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.0') <
+            apt_pkg.PkgVersion('2:20.4.1'))
+        self.assertFalse(
+            apt_pkg.PkgVersion('2:20.4.1') <
+            apt_pkg.PkgVersion('2:20.4.0'))
+
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.0') <=
+            apt_pkg.PkgVersion('2:20.4.1'))
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.0') <=
+            apt_pkg.PkgVersion('2:20.4.0'))
+        self.assertFalse(
+            apt_pkg.PkgVersion('2:20.4.1') <=
+            apt_pkg.PkgVersion('2:20.4.0'))
+
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.1') >
+            apt_pkg.PkgVersion('2:20.4.0'))
+        self.assertFalse(
+            apt_pkg.PkgVersion('2:20.4.0') >
+            apt_pkg.PkgVersion('2:20.4.1'))
+
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.1') >=
+            apt_pkg.PkgVersion('2:20.4.0'))
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.0') >=
+            apt_pkg.PkgVersion('2:20.4.0'))
+        self.assertFalse(
+            apt_pkg.PkgVersion('2:20.4.0') >=
+            apt_pkg.PkgVersion('2:20.4.1'))
+
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.0') ==
+            apt_pkg.PkgVersion('2:20.4.0'))
+        self.assertFalse(
+            apt_pkg.PkgVersion('2:20.4.0') ==
+            apt_pkg.PkgVersion('2:20.4.1'))
+
+        self.assertTrue(
+            apt_pkg.PkgVersion('2:20.4.0') !=
+            apt_pkg.PkgVersion('2:20.4.1'))
+        self.assertFalse(
+            apt_pkg.PkgVersion('2:20.4.0') !=
+            apt_pkg.PkgVersion('2:20.4.0'))
+
+        pkgs = [apt_pkg.PkgVersion('2:20.4.0'),
+                apt_pkg.PkgVersion('2:21.4.0'),
+                apt_pkg.PkgVersion('2:17.4.0')]
+        pkgs.sort()
+        self.assertEqual(
+            pkgs,
+            [apt_pkg.PkgVersion('2:17.4.0'),
+             apt_pkg.PkgVersion('2:20.4.0'),
+             apt_pkg.PkgVersion('2:21.4.0')])

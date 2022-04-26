@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
 from collections import OrderedDict
 import platform
 import re
-import six
 import subprocess
 import sys
 import time
 
+from charmhelpers import deprecate
 from charmhelpers.core.host import get_distrib_codename, get_system_env
 
 from charmhelpers.core.hookenv import (
@@ -198,12 +198,88 @@ CLOUD_ARCHIVE_POCKETS = {
     'victoria/proposed': 'focal-proposed/victoria',
     'focal-victoria/proposed': 'focal-proposed/victoria',
     'focal-proposed/victoria': 'focal-proposed/victoria',
+    # Wallaby
+    'wallaby': 'focal-updates/wallaby',
+    'focal-wallaby': 'focal-updates/wallaby',
+    'focal-wallaby/updates': 'focal-updates/wallaby',
+    'focal-updates/wallaby': 'focal-updates/wallaby',
+    'wallaby/proposed': 'focal-proposed/wallaby',
+    'focal-wallaby/proposed': 'focal-proposed/wallaby',
+    'focal-proposed/wallaby': 'focal-proposed/wallaby',
+    # Xena
+    'xena': 'focal-updates/xena',
+    'focal-xena': 'focal-updates/xena',
+    'focal-xena/updates': 'focal-updates/xena',
+    'focal-updates/xena': 'focal-updates/xena',
+    'xena/proposed': 'focal-proposed/xena',
+    'focal-xena/proposed': 'focal-proposed/xena',
+    'focal-proposed/xena': 'focal-proposed/xena',
+    # Yoga
+    'yoga': 'focal-updates/yoga',
+    'focal-yoga': 'focal-updates/yoga',
+    'focal-yoga/updates': 'focal-updates/yoga',
+    'focal-updates/yoga': 'focal-updates/yoga',
+    'yoga/proposed': 'focal-proposed/yoga',
+    'focal-yoga/proposed': 'focal-proposed/yoga',
+    'focal-proposed/yoga': 'focal-proposed/yoga',
 }
+
+
+OPENSTACK_RELEASES = (
+    'diablo',
+    'essex',
+    'folsom',
+    'grizzly',
+    'havana',
+    'icehouse',
+    'juno',
+    'kilo',
+    'liberty',
+    'mitaka',
+    'newton',
+    'ocata',
+    'pike',
+    'queens',
+    'rocky',
+    'stein',
+    'train',
+    'ussuri',
+    'victoria',
+    'wallaby',
+    'xena',
+    'yoga',
+)
+
+
+UBUNTU_OPENSTACK_RELEASE = OrderedDict([
+    ('oneiric', 'diablo'),
+    ('precise', 'essex'),
+    ('quantal', 'folsom'),
+    ('raring', 'grizzly'),
+    ('saucy', 'havana'),
+    ('trusty', 'icehouse'),
+    ('utopic', 'juno'),
+    ('vivid', 'kilo'),
+    ('wily', 'liberty'),
+    ('xenial', 'mitaka'),
+    ('yakkety', 'newton'),
+    ('zesty', 'ocata'),
+    ('artful', 'pike'),
+    ('bionic', 'queens'),
+    ('cosmic', 'rocky'),
+    ('disco', 'stein'),
+    ('eoan', 'train'),
+    ('focal', 'ussuri'),
+    ('groovy', 'victoria'),
+    ('hirsute', 'wallaby'),
+    ('impish', 'xena'),
+    ('jammy', 'yoga'),
+])
 
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
 CMD_RETRY_DELAY = 10  # Wait 10 seconds between command retries.
-CMD_RETRY_COUNT = 3  # Retry a failing fatal command X times.
+CMD_RETRY_COUNT = 10  # Retry a failing fatal command X times.
 
 
 def filter_installed_packages(packages):
@@ -236,9 +312,9 @@ def filter_missing_packages(packages):
 def apt_cache(*_, **__):
     """Shim returning an object simulating the apt_pkg Cache.
 
-    :param _: Accept arguments for compability, not used.
+    :param _: Accept arguments for compatibility, not used.
     :type _: any
-    :param __: Accept keyword arguments for compability, not used.
+    :param __: Accept keyword arguments for compatibility, not used.
     :type __: any
     :returns:Object used to interrogate the system apt and dpkg databases.
     :rtype:ubuntu_apt_pkg.Cache
@@ -251,13 +327,19 @@ def apt_cache(*_, **__):
         # Detect this situation, log a warning and make the call to
         # ``apt_pkg.init()`` to avoid the consumer Python interpreter from
         # crashing with a segmentation fault.
-        log('Support for use of upstream ``apt_pkg`` module in conjunction'
-            'with charm-helpers is deprecated since 2019-06-25', level=WARNING)
+        @deprecate(
+            'Support for use of upstream ``apt_pkg`` module in conjunction'
+            'with charm-helpers is deprecated since 2019-06-25',
+            date=None, log=lambda x: log(x, level=WARNING))
+        def one_shot_log():
+            pass
+
+        one_shot_log()
         sys.modules['apt_pkg'].init()
     return ubuntu_apt_pkg.Cache()
 
 
-def apt_install(packages, options=None, fatal=False):
+def apt_install(packages, options=None, fatal=False, quiet=False):
     """Install one or more packages.
 
     :param packages: Package(s) to install
@@ -267,6 +349,8 @@ def apt_install(packages, options=None, fatal=False):
     :param fatal: Whether the command's output should be checked and
                   retried.
     :type fatal: bool
+    :param quiet: if True (default), suppress log message to stdout/stderr
+    :type quiet: bool
     :raises: subprocess.CalledProcessError
     """
     if options is None:
@@ -275,13 +359,14 @@ def apt_install(packages, options=None, fatal=False):
     cmd = ['apt-get', '--assume-yes']
     cmd.extend(options)
     cmd.append('install')
-    if isinstance(packages, six.string_types):
+    if isinstance(packages, str):
         cmd.append(packages)
     else:
         cmd.extend(packages)
-    log("Installing {} with options: {}".format(packages,
-                                                options))
-    _run_apt_command(cmd, fatal)
+    if not quiet:
+        log("Installing {} with options: {}"
+            .format(packages, options))
+    _run_apt_command(cmd, fatal, quiet=quiet)
 
 
 def apt_upgrade(options=None, fatal=False, dist=False):
@@ -326,7 +411,7 @@ def apt_purge(packages, fatal=False):
     :raises: subprocess.CalledProcessError
     """
     cmd = ['apt-get', '--assume-yes', 'purge']
-    if isinstance(packages, six.string_types):
+    if isinstance(packages, str):
         cmd.append(packages)
     else:
         cmd.extend(packages)
@@ -353,7 +438,7 @@ def apt_mark(packages, mark, fatal=False):
     """Flag one or more packages using apt-mark."""
     log("Marking {} as {}".format(packages, mark))
     cmd = ['apt-mark', mark]
-    if isinstance(packages, six.string_types):
+    if isinstance(packages, str):
         cmd.append(packages)
     else:
         cmd.extend(packages)
@@ -378,7 +463,7 @@ def import_key(key):
     A Radix64 format keyid is also supported for backwards
     compatibility. In this case Ubuntu keyserver will be
     queried for a key via HTTPS by its keyid. This method
-    is less preferrable because https proxy servers may
+    is less preferable because https proxy servers may
     require traffic decryption which is equivalent to a
     man-in-the-middle attack (a proxy server impersonates
     keyserver TLS certificates and has to be explicitly
@@ -398,10 +483,7 @@ def import_key(key):
         if ('-----BEGIN PGP PUBLIC KEY BLOCK-----' in key and
                 '-----END PGP PUBLIC KEY BLOCK-----' in key):
             log("Writing provided PGP key in the binary format", level=DEBUG)
-            if six.PY3:
-                key_bytes = key.encode('utf-8')
-            else:
-                key_bytes = key
+            key_bytes = key.encode('utf-8')
             key_name = _get_keyid_by_gpg_key(key_bytes)
             key_gpg = _dearmor_gpg_key(key_bytes)
             _write_apt_gpg_keyfile(key_name=key_name, key_material=key_gpg)
@@ -441,9 +523,8 @@ def _get_keyid_by_gpg_key(key_material):
                           stderr=subprocess.PIPE,
                           stdin=subprocess.PIPE)
     out, err = ps.communicate(input=key_material)
-    if six.PY3:
-        out = out.decode('utf-8')
-        err = err.decode('utf-8')
+    out = out.decode('utf-8')
+    err = err.decode('utf-8')
     if 'gpg: no valid OpenPGP data found.' in err:
         raise GPGKeyError('Invalid GPG key material provided')
     # from gnupg2 docs: fpr :: Fingerprint (fingerprint is in field 10)
@@ -501,8 +582,7 @@ def _dearmor_gpg_key(key_asc):
                           stdin=subprocess.PIPE)
     out, err = ps.communicate(input=key_asc)
     # no need to decode output as it is binary (invalid utf-8), only error
-    if six.PY3:
-        err = err.decode('utf-8')
+    err = err.decode('utf-8')
     if 'gpg: no valid OpenPGP data found.' in err:
         raise GPGKeyError('Invalid GPG key material. Check your network setup'
                           ' (MTU, routing, DNS) and/or proxy server settings'
@@ -555,6 +635,10 @@ def add_source(source, key=None, fail_invalid=False):
       with be used.  If staging is NOT used then the cloud archive [3] will be
       added, and the 'ubuntu-cloud-keyring' package will be added for the
       current distro.
+    '<openstack-version>': translate to cloud:<release> based on the current
+      distro version (i.e. for 'ussuri' this will either be 'bionic-ussuri' or
+      'distro'.
+    '<openstack-version>/proposed': as above, but for proposed.
 
     Otherwise the source is not recognised and this is logged to the juju log.
     However, no error is raised, unless sys_error_on_exit is True.
@@ -573,7 +657,7 @@ def add_source(source, key=None, fail_invalid=False):
     id may also be used, but be aware that only insecure protocols are
     available to retrieve the actual public key from a public keyserver
     placing your Juju environment at risk. ppa and cloud archive keys
-    are securely added automtically, so sould not be provided.
+    are securely added automatically, so should not be provided.
 
     @param fail_invalid: (boolean) if True, then the function raises a
     SourceConfigError is there is no matching installation source.
@@ -581,6 +665,12 @@ def add_source(source, key=None, fail_invalid=False):
     @raises SourceConfigError() if for cloud:<pocket>, the <pocket> is not a
     valid pocket in CLOUD_ARCHIVE_POCKETS
     """
+    # extract the OpenStack versions from the CLOUD_ARCHIVE_POCKETS; can't use
+    # the list in contrib.openstack.utils as it might not be included in
+    # classic charms and would break everything.  Having OpenStack specific
+    # code in this file is a bit of an antipattern, anyway.
+    os_versions_regex = "({})".format("|".join(OPENSTACK_RELEASES))
+
     _mapping = OrderedDict([
         (r"^distro$", lambda: None),  # This is a NOP
         (r"^(?:proposed|distro-proposed)$", _add_proposed),
@@ -590,10 +680,13 @@ def add_source(source, key=None, fail_invalid=False):
         (r"^cloud:(.*)-(.*)$", _add_cloud_distro_check),
         (r"^cloud:(.*)$", _add_cloud_pocket),
         (r"^snap:.*-(.*)-(.*)$", _add_cloud_distro_check),
+        (r"^{}\/proposed$".format(os_versions_regex),
+         _add_bare_openstack_proposed),
+        (r"^{}$".format(os_versions_regex), _add_bare_openstack),
     ])
     if source is None:
         source = ''
-    for r, fn in six.iteritems(_mapping):
+    for r, fn in _mapping.items():
         m = re.match(r, source)
         if m:
             if key:
@@ -621,12 +714,12 @@ def _add_proposed():
     Uses get_distrib_codename to determine the correct stanza for
     the deb line.
 
-    For intel architecutres PROPOSED_POCKET is used for the release, but for
+    For Intel architectures PROPOSED_POCKET is used for the release, but for
     other architectures PROPOSED_PORTS_POCKET is used for the release.
     """
     release = get_distrib_codename()
     arch = platform.machine()
-    if arch not in six.iterkeys(ARCH_TO_PROPOSED_POCKET):
+    if arch not in ARCH_TO_PROPOSED_POCKET.keys():
         raise SourceConfigError("Arch {} not supported for (distro-)proposed"
                                 .format(arch))
     with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
@@ -642,11 +735,9 @@ def _add_apt_repository(spec):
     if '{series}' in spec:
         series = get_distrib_codename()
         spec = spec.replace('{series}', series)
-    # software-properties package for bionic properly reacts to proxy settings
-    # passed as environment variables (See lp:1433761). This is not the case
-    # LTS and non-LTS releases below bionic.
     _run_with_retries(['add-apt-repository', '--yes', spec],
-                      cmd_env=env_proxy_settings(['https']))
+                      cmd_env=env_proxy_settings(['https', 'http', 'no_proxy'])
+                      )
 
 
 def _add_cloud_pocket(pocket):
@@ -722,8 +813,75 @@ def _verify_is_ubuntu_rel(release, os_release):
             'version ({})'.format(release, os_release, ubuntu_rel))
 
 
+def _add_bare_openstack(openstack_release):
+    """Add cloud or distro based on the release given.
+
+    The spec given is, say, 'ussuri', but this could apply cloud:bionic-ussuri
+    or 'distro' depending on whether the ubuntu release is bionic or focal.
+
+    :param openstack_release: the OpenStack codename to determine the release
+        for.
+    :type openstack_release: str
+    :raises: SourceConfigError
+    """
+    # TODO(ajkavanagh) - surely this means we should be removing cloud archives
+    # if they exist?
+    __add_bare_helper(openstack_release, "{}-{}", lambda: None)
+
+
+def _add_bare_openstack_proposed(openstack_release):
+    """Add cloud of distro but with proposed.
+
+    The spec given is, say, 'ussuri' but this could apply
+    cloud:bionic-ussuri/proposed or 'distro/proposed' depending on whether the
+    ubuntu release is bionic or focal.
+
+    :param openstack_release: the OpenStack codename to determine the release
+        for.
+    :type openstack_release: str
+    :raises: SourceConfigError
+    """
+    __add_bare_helper(openstack_release, "{}-{}/proposed", _add_proposed)
+
+
+def __add_bare_helper(openstack_release, pocket_format, final_function):
+    """Helper for _add_bare_openstack[_proposed]
+
+    The bulk of the work between the two functions is exactly the same except
+    for the pocket format and the function that is run if it's the distro
+    version.
+
+    :param openstack_release: the OpenStack codename.  e.g. ussuri
+    :type openstack_release: str
+    :param pocket_format: the pocket formatter string to construct a pocket str
+        from the openstack_release and the current ubuntu version.
+    :type pocket_format: str
+    :param final_function: the function to call if it is the distro version.
+    :type final_function: Callable
+    :raises SourceConfigError on error
+    """
+    ubuntu_version = get_distrib_codename()
+    possible_pocket = pocket_format.format(ubuntu_version, openstack_release)
+    if possible_pocket in CLOUD_ARCHIVE_POCKETS:
+        _add_cloud_pocket(possible_pocket)
+        return
+    # Otherwise it's almost certainly the distro version; verify that it
+    # exists.
+    try:
+        assert UBUNTU_OPENSTACK_RELEASE[ubuntu_version] == openstack_release
+    except KeyError:
+        raise SourceConfigError(
+            "Invalid ubuntu version {} isn't known to this library"
+            .format(ubuntu_version))
+    except AssertionError:
+        raise SourceConfigError(
+            'Invalid OpenStack release specified: {} for Ubuntu version {}'
+            .format(openstack_release, ubuntu_version))
+    final_function()
+
+
 def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
-                      retry_message="", cmd_env=None):
+                      retry_message="", cmd_env=None, quiet=False):
     """Run a command and retry until success or max_retries is reached.
 
     :param cmd: The apt command to run.
@@ -738,10 +896,18 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
     :type retry_message: str
     :param: cmd_env: Environment variables to add to the command run.
     :type cmd_env: Option[None, Dict[str, str]]
+    :param quiet: if True, silence the output of the command from stdout and
+        stderr
+    :type quiet: bool
     """
     env = get_apt_dpkg_env()
     if cmd_env:
         env.update(cmd_env)
+
+    kwargs = {}
+    if quiet:
+        kwargs['stdout'] = subprocess.DEVNULL
+        kwargs['stderr'] = subprocess.DEVNULL
 
     if not retry_message:
         retry_message = "Failed executing '{}'".format(" ".join(cmd))
@@ -753,7 +919,7 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
     retry_results = (None,) + retry_exitcodes
     while result in retry_results:
         try:
-            result = subprocess.check_call(cmd, env=env)
+            result = subprocess.check_call(cmd, env=env, **kwargs)
         except subprocess.CalledProcessError as e:
             retry_count = retry_count + 1
             if retry_count > max_retries:
@@ -763,7 +929,7 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
             time.sleep(CMD_RETRY_DELAY)
 
 
-def _run_apt_command(cmd, fatal=False):
+def _run_apt_command(cmd, fatal=False, quiet=False):
     """Run an apt command with optional retries.
 
     :param cmd: The apt command to run.
@@ -771,13 +937,21 @@ def _run_apt_command(cmd, fatal=False):
     :param fatal: Whether the command's output should be checked and
                   retried.
     :type fatal: bool
+    :param quiet: if True, silence the output of the command from stdout and
+        stderr
+    :type quiet: bool
     """
     if fatal:
         _run_with_retries(
             cmd, retry_exitcodes=(1, APT_NO_LOCK,),
-            retry_message="Couldn't acquire DPKG lock")
+            retry_message="Couldn't acquire DPKG lock",
+            quiet=quiet)
     else:
-        subprocess.call(cmd, env=get_apt_dpkg_env())
+        kwargs = {}
+        if quiet:
+            kwargs['stdout'] = subprocess.DEVNULL
+            kwargs['stderr'] = subprocess.DEVNULL
+        subprocess.call(cmd, env=get_apt_dpkg_env(), **kwargs)
 
 
 def get_upstream_version(package):
@@ -797,6 +971,22 @@ def get_upstream_version(package):
         return None
 
     return ubuntu_apt_pkg.upstream_version(pkg.current_ver.ver_str)
+
+
+def get_installed_version(package):
+    """Determine installed version of a package
+
+    @returns None (if not installed) or the installed version as
+    Version object
+    """
+    cache = apt_cache()
+    dpkg_result = cache.dpkg_list([package]).get(package, {})
+    current_ver = None
+    installed_version = dpkg_result.get('version')
+
+    if installed_version:
+        current_ver = ubuntu_apt_pkg.Version({'ver_str': installed_version})
+    return current_ver
 
 
 def get_apt_dpkg_env():

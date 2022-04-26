@@ -15,7 +15,8 @@ VSCTL_BRIDGE_TBL = textwrap.dedent("""
     "br-test",["set",[]],["map",[]],["set",
     [["uuid","617f9359-77e2-41be-8af6-4c44e7a6bcc3"],
     ["uuid","da840476-8809-4107-8733-591f4696f056"]]],
-    ["set",[]],false,["map",[]],["set",[]],["map",[]],false],
+    ["set",["OpenFlow10","OpenFlow13","OpenFlow14"]],false,["map",[]],
+    ["set",[]],["map",[]],false],
     [["uuid","bb685b0f-a383-40a1-b7a5-b5c2066bfa42"],
     ["set",[]],["set",[]],"00000e5b68bba140","","<unknown>",
     ["map",[]],"secure",["set",[]],["map",[]],["set",[]],false,
@@ -74,9 +75,9 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
             'name': 'br-test',
             'netflow': [],
             'other_config': {},
-            'ports': [['uuid', '617f9359-77e2-41be-8af6-4c44e7a6bcc3'],
-                      ['uuid', 'da840476-8809-4107-8733-591f4696f056']],
-            'protocols': [],
+            'ports': [uuid.UUID('617f9359-77e2-41be-8af6-4c44e7a6bcc3'),
+                      uuid.UUID('da840476-8809-4107-8733-591f4696f056')],
+            'protocols': ['OpenFlow10', 'OpenFlow13', 'OpenFlow14'],
             'rstp_enable': False,
             'rstp_status': {},
             'sflow': [],
@@ -94,6 +95,14 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
             break
         self._run.assert_called_once_with(
             'ovs-vsctl', '-f', 'json', 'find', 'bridge', 'name=br-test')
+        # check the optional args paramenter
+        self._run.reset_mock()
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl', args=['extra', 'args'])
+        for el in self.target.bridge.find(condition='name=br-test'):
+            break
+        self._run.assert_called_once_with(
+            'ovs-vsctl', 'extra', 'args',
+            '-f', 'json', 'find', 'bridge', 'name=br-test')
 
     def test_clear(self):
         self.target = ovsdb.SimpleOVSDB('ovs-vsctl')

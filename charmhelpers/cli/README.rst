@@ -15,7 +15,7 @@ Goals
 
 * Single decorator to expose a function as a command.
   * now two decorators - one "automatic" and one that allows authors to manipulate the arguments for fine-grained control.(MW)
-* Automatic analysis of function signature through ``inspect.getargspec()``
+* Automatic analysis of function signature through ``inspect.getargspec()`` on python 2 or ``inspect.getfullargspec()`` on python 3
 * Command argument parser built automatically with ``argparse``
 * Interactive interpreter loop object made with ``Cmd``
 * Options to output structured return value data via ``pprint``, ``yaml`` or ``json`` dumps.

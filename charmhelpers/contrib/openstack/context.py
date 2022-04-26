@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,9 +25,12 @@ import socket
 import time
 
 from base64 import b64decode
-from subprocess import check_call, CalledProcessError
+from subprocess import (
+    check_call,
+    check_output,
+    CalledProcessError)
 
-import six
+import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 
 from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
     _config_ini as config_ini
@@ -47,7 +50,6 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_set,
-    unit_get,
     unit_private_ip,
     charm_name,
     DEBUG,
@@ -56,6 +58,7 @@ from charmhelpers.core.hookenv import (
     status_set,
     network_get_primary_address,
     WARNING,
+    service_name,
 )
 
 from charmhelpers.core.sysctl import create as sysctl_create
@@ -72,7 +75,6 @@ from charmhelpers.core.host import (
     pwgen,
     lsb_release,
     CompareHostReleases,
-    is_container,
 )
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
@@ -95,6 +97,7 @@ from charmhelpers.contrib.openstack.ip import (
     ADMIN,
     PUBLIC,
     ADDRESS_MAP,
+    local_address,
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
@@ -115,20 +118,12 @@ from charmhelpers.contrib.openstack.utils import (
 )
 from charmhelpers.core.unitdata import kv
 
-try:
-    from sriov_netplan_shim import pci
-except ImportError:
-    # The use of the function and contexts that require the pci module is
-    # optional.
-    pass
+from charmhelpers.contrib.hardware import pci
 
 try:
     import psutil
 except ImportError:
-    if six.PY2:
-        apt_install('python-psutil', fatal=True)
-    else:
-        apt_install('python3-psutil', fatal=True)
+    apt_install('python3-psutil', fatal=True)
     import psutil
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -145,10 +140,7 @@ def ensure_packages(packages):
 
 
 def context_complete(ctxt):
-    _missing = []
-    for k, v in six.iteritems(ctxt):
-        if v is None or v == '':
-            _missing.append(k)
+    _missing = [k for k, v in ctxt.items() if v is None or v == '']
 
     if _missing:
         log('Missing required data: %s' % ' '.join(_missing), level=INFO)
@@ -175,7 +167,7 @@ class OSContextGenerator(object):
         # Fresh start
         self.complete = False
         self.missing_data = []
-        for k, v in six.iteritems(ctxt):
+        for k, v in ctxt.items():
             if v is None or v == '':
                 if k not in self.missing_data:
                     self.missing_data.append(k)
@@ -244,7 +236,7 @@ class SharedDBContext(OSContextGenerator):
                 hostname_key = "hostname"
             access_hostname = get_address_in_network(
                 access_network,
-                unit_get('private-address'))
+                local_address(unit_get_fallback='private-address'))
             set_hostname = relation_get(attribute=hostname_key,
                                         unit=local_unit())
             if set_hostname != access_hostname:
@@ -429,6 +421,9 @@ class IdentityServiceContext(OSContextGenerator):
             ('password', ctxt.get('admin_password', '')),
             ('signing_dir', ctxt.get('signing_dir', '')),))
 
+        if ctxt.get('service_type'):
+            c.update((('service_type', ctxt.get('service_type')),))
+
         return c
 
     def __call__(self):
@@ -451,19 +446,28 @@ class IdentityServiceContext(OSContextGenerator):
                 serv_host = format_ipv6_addr(serv_host) or serv_host
                 auth_host = rdata.get('auth_host')
                 auth_host = format_ipv6_addr(auth_host) or auth_host
+                int_host = rdata.get('internal_host')
+                int_host = format_ipv6_addr(int_host) or int_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
+                int_protocol = rdata.get('internal_protocol') or 'http'
                 api_version = rdata.get('api_version') or '2.0'
                 ctxt.update({'service_port': rdata.get('service_port'),
                              'service_host': serv_host,
                              'auth_host': auth_host,
                              'auth_port': rdata.get('auth_port'),
+                             'internal_host': int_host,
+                             'internal_port': rdata.get('internal_port'),
                              'admin_tenant_name': rdata.get('service_tenant'),
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
+                             'internal_protocol': int_protocol,
                              'api_version': api_version})
+
+                if rdata.get('service_type'):
+                    ctxt['service_type'] = rdata.get('service_type')
 
                 if float(api_version) > 2:
                     ctxt.update({
@@ -535,6 +539,9 @@ class IdentityCredentialsContext(IdentityServiceContext):
                     'auth_protocol': auth_protocol,
                     'api_version': api_version
                 })
+
+                if rdata.get('service_type'):
+                    ctxt['service_type'] = rdata.get('service_type')
 
                 if float(api_version) > 2:
                     ctxt.update({'admin_domain_name':
@@ -808,6 +815,12 @@ class CephContext(OSContextGenerator):
 
         ctxt['mon_hosts'] = ' '.join(sorted(mon_hosts))
 
+        if config('pool-type') and config('pool-type') == 'erasure-coded':
+            base_pool_name = config('rbd-pool') or config('rbd-pool-name')
+            if not base_pool_name:
+                base_pool_name = service_name()
+            ctxt['rbd_default_data_pool'] = base_pool_name
+
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
 
@@ -1079,7 +1092,7 @@ class ApacheSSLContext(OSContextGenerator):
             # NOTE(jamespage): Fallback must always be private address
             #                  as this is used to bind services on the
             #                  local unit.
-            fallback = unit_get("private-address")
+            fallback = local_address(unit_get_fallback="private-address")
             if net_config:
                 addr = get_address_in_network(net_config,
                                               fallback)
@@ -1094,10 +1107,14 @@ class ApacheSSLContext(OSContextGenerator):
             endpoint = resolve_address(net_type)
             addresses.append((addr, endpoint))
 
-        return sorted(set(addresses))
+        # Log the set of addresses to have a trail log and capture if tuples
+        # change over time in the same unit (LP: #1952414).
+        sorted_addresses = sorted(set(addresses))
+        log('get_network_addresses: {}'.format(sorted_addresses))
+        return sorted_addresses
 
     def __call__(self):
-        if isinstance(self.external_ports, six.string_types):
+        if isinstance(self.external_ports, str):
             self.external_ports = [self.external_ports]
 
         if not self.external_ports or not https():
@@ -1251,7 +1268,7 @@ class NeutronContext(OSContextGenerator):
         if is_clustered():
             host = config('vip')
         else:
-            host = unit_get('private-address')
+            host = local_address(unit_get_fallback='private-address')
 
         ctxt = {'network_manager': self.network_manager,
                 'neutron_url': '%s://%s:%s' % (proto, host, '9696')}
@@ -1350,7 +1367,7 @@ class NeutronPortContext(OSContextGenerator):
         mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
         for entry in ports:
             if re.match(mac_regex, entry):
-                # NIC is in known NICs and does NOT hace an IP address
+                # NIC is in known NICs and does NOT have an IP address
                 if entry in hwaddr_to_nic and not hwaddr_to_ip[entry]:
                     # If the nic is part of a bridge then don't use it
                     if is_bridge_member(hwaddr_to_nic[entry]):
@@ -1514,9 +1531,9 @@ class SubordinateConfigContext(OSContextGenerator):
                             continue
 
                         sub_config = sub_config[self.config_file]
-                        for k, v in six.iteritems(sub_config):
+                        for k, v in sub_config.items():
                             if k == 'sections':
-                                for section, config_list in six.iteritems(v):
+                                for section, config_list in v.items():
                                     log("adding section '%s'" % (section),
                                         level=DEBUG)
                                     if ctxt[k].get(section):
@@ -1525,8 +1542,23 @@ class SubordinateConfigContext(OSContextGenerator):
                                         ctxt[k][section] = config_list
                             else:
                                 ctxt[k] = v
-        log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
-        return ctxt
+        if self.context_complete(ctxt):
+            log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
+            return ctxt
+        else:
+            return {}
+
+    def context_complete(self, ctxt):
+        """Overridden here to ensure the context is actually complete.
+
+        :param ctxt: The current context members
+        :type ctxt: Dict[str, ANY]
+        :returns: True if the context is complete
+        :rtype: bool
+        """
+        if not ctxt.get('sections'):
+            return False
+        return super(SubordinateConfigContext, self).context_complete(ctxt)
 
 
 class LogLevelContext(OSContextGenerator):
@@ -1572,16 +1604,21 @@ def _calculate_workers():
 
     @returns int: number of worker processes to use
     '''
-    multiplier = config('worker-multiplier') or DEFAULT_MULTIPLIER
+    multiplier = config('worker-multiplier')
+
+    # distinguish an empty config and an explicit config as 0.0
+    if multiplier is None:
+        multiplier = DEFAULT_MULTIPLIER
+
     count = int(_num_cpus() * multiplier)
-    if multiplier > 0 and count == 0:
+    if count <= 0:
+        # assign at least one worker
         count = 1
 
-    if config('worker-multiplier') is None and is_container():
+    if config('worker-multiplier') is None:
         # NOTE(jamespage): Limit unconfigured worker-multiplier
         #                  to MAX_DEFAULT_WORKERS to avoid insane
-        #                  worker configuration in LXD containers
-        #                  on large servers
+        #                  worker configuration on large servers
         # Reference: https://pad.lv/1665270
         count = min(count, MAX_DEFAULT_WORKERS)
 
@@ -1753,6 +1790,10 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-port-forwarding',
                 'default': False,
             },
+            'enable_fwaas': {
+                'rel_key': 'enable-fwaas',
+                'default': False,
+            },
             'global_physnet_mtu': {
                 'rel_key': 'global-physnet-mtu',
                 'default': 1500,
@@ -1786,6 +1827,11 @@ class NeutronAPIContext(OSContextGenerator):
 
         if ctxt['enable_port_forwarding']:
             l3_extension_plugins.append('port_forwarding')
+
+        if ctxt['enable_fwaas']:
+            l3_extension_plugins.append('fwaas_v2')
+            if ctxt['enable_nfg_logging']:
+                l3_extension_plugins.append('fwaas_v2_log')
 
         ctxt['l3_extension_plugins'] = l3_extension_plugins
 
@@ -1841,8 +1887,11 @@ class DataPortContext(NeutronPortContext):
             normalized.update({port: port for port in resolved
                                if port in ports})
             if resolved:
-                return {normalized[port]: bridge for port, bridge in
-                        six.iteritems(portmap) if port in normalized.keys()}
+                return {
+                    normalized[port]: bridge
+                    for port, bridge in portmap.items()
+                    if port in normalized.keys()
+                }
 
         return None
 
@@ -2245,15 +2294,10 @@ class HostInfoContext(OSContextGenerator):
         name = name or socket.gethostname()
         fqdn = ''
 
-        if six.PY2:
-            exc = socket.error
-        else:
-            exc = OSError
-
         try:
             addrs = socket.getaddrinfo(
                 name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME)
-        except exc:
+        except OSError:
             pass
         else:
             for addr in addrs:
@@ -2351,6 +2395,12 @@ class DHCPAgentContext(OSContextGenerator):
             ctxt['enable_metadata_network'] = True
             ctxt['enable_isolated_metadata'] = True
 
+        ctxt['append_ovs_config'] = False
+        cmp_release = CompareOpenStackReleases(
+            os_release('neutron-common', base='icehouse'))
+        if cmp_release >= 'queens' and config('enable-dpdk'):
+            ctxt['append_ovs_config'] = True
+
         return ctxt
 
     @staticmethod
@@ -2364,12 +2414,12 @@ class DHCPAgentContext(OSContextGenerator):
         existing_ovs_use_veth = None
         # If there is a dhcp_agent.ini file read the current setting
         if os.path.isfile(DHCP_AGENT_INI):
-            # config_ini does the right thing and returns None if the setting is
-            # commented.
+            # config_ini does the right thing and returns None if the setting
+            # is commented.
             existing_ovs_use_veth = (
                 config_ini(DHCP_AGENT_INI)["DEFAULT"].get("ovs_use_veth"))
         # Convert to Bool if necessary
-        if isinstance(existing_ovs_use_veth, six.string_types):
+        if isinstance(existing_ovs_use_veth, str):
             return bool_from_string(existing_ovs_use_veth)
         return existing_ovs_use_veth
 
@@ -2542,22 +2592,48 @@ class OVSDPDKDeviceContext(OSContextGenerator):
         :returns: hex formatted CPU mask
         :rtype: str
         """
-        num_cores = config('dpdk-socket-cores')
-        mask = 0
+        return self.cpu_masks()['dpdk_lcore_mask']
+
+    def cpu_masks(self):
+        """Get hex formatted CPU masks
+
+        The mask is based on using the first config:dpdk-socket-cores
+        cores of each NUMA node in the unit, followed by the
+        next config:pmd-socket-cores
+
+        :returns: Dict of hex formatted CPU masks
+        :rtype: Dict[str, str]
+        """
+        num_lcores = config('dpdk-socket-cores')
+        pmd_cores = config('pmd-socket-cores')
+        lcore_mask = 0
+        pmd_mask = 0
         for cores in self._numa_node_cores().values():
-            for core in cores[:num_cores]:
-                mask = mask | 1 << core
-        return format(mask, '#04x')
+            for core in cores[:num_lcores]:
+                lcore_mask = lcore_mask | 1 << core
+            for core in cores[num_lcores:][:pmd_cores]:
+                pmd_mask = pmd_mask | 1 << core
+        return {
+            'pmd_cpu_mask': format(pmd_mask, '#04x'),
+            'dpdk_lcore_mask': format(lcore_mask, '#04x')}
 
     def socket_memory(self):
-        """Formatted list of socket memory configuration per NUMA node
+        """Formatted list of socket memory configuration per socket.
 
-        :returns: socket memory configuration per NUMA node
+        :returns: socket memory configuration per socket.
         :rtype: str
         """
+        lscpu_out = check_output(
+            ['lscpu', '-p=socket']).decode('UTF-8').strip()
+        sockets = set()
+        for line in lscpu_out.split('\n'):
+            try:
+                sockets.add(int(line))
+            except ValueError:
+                # lscpu output is headed by comments so ignore them.
+                pass
         sm_size = config('dpdk-socket-memory')
-        node_regex = '/sys/devices/system/node/node*'
-        mem_list = [str(sm_size) for _ in glob.glob(node_regex)]
+        mem_list = [str(sm_size) for _ in sockets]
         if mem_list:
             return ','.join(mem_list)
         else:
@@ -2622,7 +2698,7 @@ class OVSDPDKDeviceContext(OSContextGenerator):
 
 
 class BridgePortInterfaceMap(object):
-    """Build a map of bridge ports and interaces from charm configuration.
+    """Build a map of bridge ports and interfaces from charm configuration.
 
     NOTE: the handling of this detail in the charm is pre-deprecated.
 
@@ -3041,11 +3117,14 @@ class SRIOVContext(OSContextGenerator):
         blanket = 'blanket'
         explicit = 'explicit'
 
+    PCIDeviceNumVFs = collections.namedtuple(
+        'PCIDeviceNumVFs', ['device', 'numvfs'])
+
     def _determine_numvfs(self, device, sriov_numvfs):
         """Determine number of Virtual Functions (VFs) configured for device.
 
         :param device: Object describing a PCI Network interface card (NIC)/
-        :type device: sriov_netplan_shim.pci.PCINetDevice
+        :type device: contrib.hardware.pci.PCINetDevice
         :param sriov_numvfs: Number of VFs requested for blanket configuration.
         :type sriov_numvfs: int
         :returns: Number of VFs to configure for device
@@ -3068,7 +3147,7 @@ class SRIOVContext(OSContextGenerator):
             actual = min(int(requested), int(device.sriov_totalvfs))
             if actual < int(requested):
                 log('Requested VFs ({}) too high for device {}. Falling back '
-                    'to value supprted by device: {}'
+                    'to value supported by device: {}'
                     .format(requested, device.interface_name,
                             device.sriov_totalvfs),
                     level=WARNING)
@@ -3156,14 +3235,15 @@ class SRIOVContext(OSContextGenerator):
                                'configuration.')
 
         self._map = {
-            device.interface_name: self._determine_numvfs(device, sriov_numvfs)
+            device.pci_address: self.PCIDeviceNumVFs(
+                device, self._determine_numvfs(device, sriov_numvfs))
             for device in devices.pci_devices
             if device.sriov and
             self._determine_numvfs(device, sriov_numvfs) is not None
         }
 
     def __call__(self):
-        """Provide SR-IOV context.
+        """Provide backward compatible SR-IOV context.
 
         :returns: Map interface name: min(configured, max) virtual functions.
         Example:
@@ -3174,4 +3254,108 @@ class SRIOVContext(OSContextGenerator):
            }
         :rtype: Dict[str,int]
         """
+        return {
+            pcidnvfs.device.interface_name: pcidnvfs.numvfs
+            for _, pcidnvfs in self._map.items()
+        }
+
+    @property
+    def get_map(self):
+        """Provide map of configured SR-IOV capable PCI devices.
+
+        :returns: Map PCI-address: (PCIDevice, min(configured, max) VFs.
+        Example:
+            {
+                '0000:81:00.0': self.PCIDeviceNumVFs(<PCIDevice object>, 32),
+                '0000:81:00.1': self.PCIDeviceNumVFs(<PCIDevice object>, 32),
+            }
+        :rtype: Dict[str, self.PCIDeviceNumVFs]
+        """
         return self._map
+
+
+class CephBlueStoreCompressionContext(OSContextGenerator):
+    """Ceph BlueStore compression options."""
+
+    # Tuple with Tuples that map configuration option name to CephBrokerRq op
+    # property name
+    options = (
+        ('bluestore-compression-algorithm',
+            'compression-algorithm'),
+        ('bluestore-compression-mode',
+            'compression-mode'),
+        ('bluestore-compression-required-ratio',
+            'compression-required-ratio'),
+        ('bluestore-compression-min-blob-size',
+            'compression-min-blob-size'),
+        ('bluestore-compression-min-blob-size-hdd',
+            'compression-min-blob-size-hdd'),
+        ('bluestore-compression-min-blob-size-ssd',
+            'compression-min-blob-size-ssd'),
+        ('bluestore-compression-max-blob-size',
+            'compression-max-blob-size'),
+        ('bluestore-compression-max-blob-size-hdd',
+            'compression-max-blob-size-hdd'),
+        ('bluestore-compression-max-blob-size-ssd',
+            'compression-max-blob-size-ssd'),
+    )
+
+    def __init__(self):
+        """Initialize context by loading values from charm config.
+
+        We keep two maps, one suitable for use with CephBrokerRq's and one
+        suitable for template generation.
+        """
+        charm_config = config()
+
+        # CephBrokerRq op map
+        self.op = {}
+        # Context exposed for template generation
+        self.ctxt = {}
+        for config_key, op_key in self.options:
+            value = charm_config.get(config_key)
+            self.ctxt.update({config_key.replace('-', '_'): value})
+            self.op.update({op_key: value})
+
+    def __call__(self):
+        """Get context.
+
+        :returns: Context
+        :rtype: Dict[str,any]
+        """
+        return self.ctxt
+
+    def get_op(self):
+        """Get values for use in CephBrokerRq op.
+
+        :returns: Context values with CephBrokerRq op property name as key.
+        :rtype: Dict[str,any]
+        """
+        return self.op
+
+    def get_kwargs(self):
+        """Get values for use as keyword arguments.
+
+        :returns: Context values with key suitable for use as kwargs to
+                  CephBrokerRq add_op_create_*_pool methods.
+        :rtype: Dict[str,any]
+        """
+        return {
+            k.replace('-', '_'): v
+            for k, v in self.op.items()
+        }
+
+    def validate(self):
+        """Validate options.
+
+        :raises: AssertionError
+        """
+        # We slip in a dummy name on class instantiation to allow validation of
+        # the other options. It will not affect further use.
+        #
+        # NOTE: once we retire Python 3.5 we can fold this into a in-line
+        # dictionary comprehension in the call to the initializer.
+        dummy_op = {'name': 'dummy-name'}
+        dummy_op.update(self.op)
+        pool = ch_ceph.BasePool('dummy-service', op=dummy_op)
+        pool.validate()

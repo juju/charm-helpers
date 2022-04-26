@@ -2,7 +2,6 @@ import collections
 import copy
 import json
 import mock
-import six
 import unittest
 import yaml
 
@@ -18,12 +17,6 @@ from tests.helpers import patch_open
 import tests.utils
 
 import charmhelpers.contrib.openstack.context as context
-
-
-if not six.PY3:
-    open_builtin = '__builtin__.open'
-else:
-    open_builtin = 'builtins.open'
 
 
 class FakeRelation(object):
@@ -140,13 +133,17 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'internal_host': 'keystone-internal.local',
+    'internal_port': '5000',
     'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_tenant_id': '123456',
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'http',
+    'service_type': 'volume',
     'auth_protocol': 'http',
+    'internal_protocol': 'http',
 }
 
 IDENTITY_SERVICE_RELATION_UNSET = {
@@ -154,6 +151,8 @@ IDENTITY_SERVICE_RELATION_UNSET = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'internal_host': 'keystone-internal.local',
+    'internal_port': '5000',
     'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
@@ -172,6 +171,7 @@ IDENTITY_CREDENTIALS_RELATION_UNSET = {
     'credentials_password': 'foo',
     'credentials_username': 'adam',
     'credentials_protocol': 'https',
+    'service_type': 'volume',
 }
 
 
@@ -182,10 +182,13 @@ APIIDENTITY_SERVICE_RELATION_UNSET = {
             'service_host': 'keystonehost.local',
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
+            'internal_port': '5000',
+            'internal_host': 'keystone-internal.local',
             'service_domain': 'admin_domain',
             'service_tenant': 'admin',
             'service_password': 'foo',
             'service_username': 'adam',
+            'service_type': 'volume',
         }
     }
 }
@@ -195,12 +198,16 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_host': 'keystonehost.local',
     'auth_host': 'keystone-host.local',
     'auth_port': '35357',
+    'internal_host': 'keystone-internal.local',
+    'internal_port': '5000',
     'service_domain': 'admin_domain',
     'service_tenant': 'admin',
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'https',
+    'service_type': 'volume',
     'auth_protocol': 'https',
+    'internal_protocol': 'https',
 }
 
 IDENTITY_SERVICE_RELATION_VERSIONED = {
@@ -595,6 +602,7 @@ SUB_CONFIG_RELATION = {
                 yaml.safe_load(CINDER_SUB_CONFIG2)),
         },
     },
+    'empty:0': {},
 }
 
 SUB_CONFIG_RELATION2 = {
@@ -665,7 +673,7 @@ TO_PATCH = [
     'related_units',
     'is_relation_made',
     'relation_set',
-    'unit_get',
+    'local_address',
     'https',
     'determine_api_port',
     'determine_apache_port',
@@ -684,7 +692,6 @@ TO_PATCH = [
     'kv',
     'pwgen',
     'lsb_release',
-    'is_container',
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
@@ -739,7 +746,6 @@ class ContextTests(unittest.TestCase):
         self.kv.side_effect = TestDB
         self.pwgen.return_value = 'testpassword'
         self.lsb_release.return_value = {'DISTRIB_RELEASE': '16.04'}
-        self.is_container.return_value = False
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
         self.maxDiff = None
@@ -850,7 +856,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch('os.path.exists')
-    @patch(open_builtin)
+    @patch('builtins.open')
     def test_db_ssl(self, _open, osexists):
         osexists.return_value = False
         ssl_dir = '/etc/dbssl'
@@ -1026,6 +1032,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1047,6 +1056,7 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'https',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
+            'service_type': 'volume',
             'service_protocol': 'https',
             'api_version': '2.0',
         }
@@ -1078,6 +1088,10 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1105,6 +1119,9 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'signing_dir': '/var/cache/cinder',
             'api_version': '2.0',
         }
@@ -1132,6 +1149,10 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1157,6 +1178,10 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'https',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1186,6 +1211,10 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'https',
             'api_version': '3',
         }
         result.pop('keystone_authtoken')
@@ -1210,6 +1239,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'api_version': '3',
         }
         self.assertEquals(result, expected)
@@ -1236,6 +1266,10 @@ class ContextTests(unittest.TestCase):
             'service_host': '[2001:db8:1::1]',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': '[2001:db8:1::1]',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
@@ -1279,6 +1313,7 @@ class ContextTests(unittest.TestCase):
             ('username', 'adam'),
             ('password', 'foo'),
             ('signing_dir', ''),
+            ('service_type', 'volume'),
         ))
 
         self.assertEquals(keystone_authtoken, expected)
@@ -1337,7 +1372,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch(open_builtin)
+    @patch('builtins.open')
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
         relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
@@ -1617,8 +1652,8 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy.deepcopy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            for u in six.iterkeys(v):
+        for k, v in relation.items():
+            for u in v.keys():
                 del relation[k][u]['auth']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
@@ -1642,8 +1677,8 @@ class ContextTests(unittest.TestCase):
            earlier unit it would be ignored'''
         config.side_effect = fake_config({'use-syslog': 'True'})
         relation = copy.deepcopy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            last_unit = sorted(six.iterkeys(v))[-1]
+        for k, v in relation.items():
+            last_unit = sorted(v.keys())[-1]
             unit_data = relation[k][last_unit]
             del unit_data['auth']
             relation[k][last_unit] = unit_data
@@ -1853,6 +1888,113 @@ class ContextTests(unittest.TestCase):
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_no_rbd_pool(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'testing-foo',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_rbd_pool(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded',
+            'rbd-pool': 'glance'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'glance',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
+    def test_ceph_context_ec_pool_rbd_pool_name(
+            self, ensure_packages, mkdir, isdir, mock_config):
+        '''Test ceph context with erasure coded pools'''
+        isdir.return_value = False
+        config_dict = {
+            'use-syslog': True,
+            'pool-type': 'erasure-coded',
+            'rbd-pool-name': 'nova'
+        }
+
+        def fake_config(key):
+            return config_dict.get(key)
+
+        mock_config.side_effect = fake_config
+        relation = FakeRelation(relation_data=CEPH_REL_WITH_DEFAULT_FEATURES)
+        self.relation_get.side_effect = relation.get
+        self.relation_ids.side_effect = relation.relation_ids
+        self.related_units.side_effect = relation.relation_units
+        ceph = context.CephContext()
+        result = ceph()
+        expected = {
+            'mon_hosts': 'ceph_node1 ceph_node2',
+            'auth': 'foo',
+            'key': 'bar',
+            'use_syslog': 'true',
+            'rbd_features': '1',
+            'rbd_default_data_pool': 'nova',
+        }
+        self.assertEquals(result, expected)
+        ensure_packages.assert_called_with(['ceph-common'])
+        mkdir.assert_called_with('/etc/ceph')
+
+    @patch.object(context, 'config')
+    @patch('os.path.isdir')
+    @patch('os.mkdir')
+    @patch.object(context, 'ensure_packages')
     def test_ceph_context_with_rbd_cache(self, ensure_packages, mkdir, isdir,
                                          mock_config):
         isdir.return_value = False
@@ -1956,9 +2098,9 @@ class ContextTests(unittest.TestCase):
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data(self, local_unit, unit_get):
+    def test_haproxy_context_with_data(self, local_unit, local_address):
         '''Test haproxy context with all relation data'''
         cluster_relation = {
             'cluster:0': {
@@ -2014,9 +2156,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_timeout(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_timeout(self, local_unit, local_address):
         '''Test haproxy context with all relation data and timeout'''
         cluster_relation = {
             'cluster:0': {
@@ -2077,9 +2219,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', None),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_multinet(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_multinet(self, local_unit, local_address):
         '''Test haproxy context with all relation data for network splits'''
         cluster_relation = {
             'cluster:0': {
@@ -2168,9 +2310,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_public_only(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_public_only(self, local_unit, local_address):
         '''Test haproxy context with with openstack-dashboard public only binding'''
         cluster_relation = {
             'cluster:0': {
@@ -2241,9 +2383,9 @@ class ContextTests(unittest.TestCase):
         self.get_relation_ip.assert_has_calls([call('public', None),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_ipv6(self, local_unit, unit_get):
+    def test_haproxy_context_with_data_ipv6(self, local_unit, local_address):
         '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
@@ -2314,9 +2456,9 @@ class ContextTests(unittest.TestCase):
         haproxy = context.HAProxyContext()
         self.assertEquals({}, haproxy())
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers(self, local_unit, unit_get):
+    def test_haproxy_context_with_no_peers(self, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2343,9 +2485,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_net_override(self, local_unit, unit_get):
+    def test_haproxy_context_with_net_override(self, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2377,9 +2519,9 @@ class ContextTests(unittest.TestCase):
                                                call('public', '192.168.30.0/24'),
                                                call('cluster')])
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, unit_get):
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, local_address):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2745,13 +2887,13 @@ class ContextTests(unittest.TestCase):
             'neutron_security_groups': True,
             'local_ip': '10.0.0.1'}, neutron.midonet_ctxt())
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt(self, mock_network_manager,
-                                  mock_unit_get):
+                                  mock_local_address):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
-        mock_unit_get.return_value = priv_addr
+        mock_local_address.return_value = priv_addr
         neutron = context.NeutronContext()
 
         config = {'vip': vip}
@@ -2772,13 +2914,13 @@ class ContextTests(unittest.TestCase):
             neutron.neutron_ctxt()
         )
 
-    @patch('charmhelpers.contrib.openstack.context.unit_get')
+    @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch.object(context.NeutronContext, 'network_manager')
     def test_neutron_neutron_ctxt_http(self, mock_network_manager,
-                                       mock_unit_get):
+                                       mock_local_address):
         vip = '88.11.22.33'
         priv_addr = '10.0.0.1'
-        mock_unit_get.return_value = priv_addr
+        mock_local_address.return_value = priv_addr
         neutron = context.NeutronContext()
 
         config = {'vip': vip}
@@ -2998,6 +3140,11 @@ class ContextTests(unittest.TestCase):
             config_file='/etc/foo/foo.conf',
             interface='foo-subordinate',
         )
+        empty_sub_ctxt = context.SubordinateConfigContext(
+            service='empty',
+            config_file='/etc/foo/foo.conf',
+            interface='empty-subordinate',
+        )
         self.assertEquals(
             nova_sub_ctxt(),
             {'sections': {
@@ -3024,13 +3171,18 @@ class ContextTests(unittest.TestCase):
 
             }, 'not-a-section': 1234}
         )
+        self.assertTrue(
+            cinder_sub_ctxt.context_complete(cinder_sub_ctxt()))
 
         # subrodinate supplies nothing for given config
         glance_sub_ctxt.config_file = '/etc/glance/glance-api-paste.ini'
-        self.assertEquals(glance_sub_ctxt(), {'sections': {}})
+        self.assertEquals(glance_sub_ctxt(), {})
 
         # subordinate supplies bad input
-        self.assertEquals(foo_sub_ctxt(), {'sections': {}})
+        self.assertEquals(foo_sub_ctxt(), {})
+        self.assertEquals(empty_sub_ctxt(), {})
+        self.assertFalse(
+            empty_sub_ctxt.context_complete(empty_sub_ctxt()))
 
     def test_os_subordinate_config_context_multiple(self):
         relation = FakeRelation(relation_data=SUB_CONFIG_RELATION2)
@@ -3197,20 +3349,29 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'psutil')
     def test_num_cpus_xenial(self, _psutil):
         _psutil.cpu_count.return_value = 4
-        self.assertTrue(context._num_cpus(), 4)
+        self.assertEqual(context._num_cpus(), 4)
 
     @patch.object(context, 'psutil')
     def test_num_cpus_trusty(self, _psutil):
+        _psutil.cpu_count.side_effect = AttributeError
         _psutil.NUM_CPUS = 4
-        self.assertTrue(context._num_cpus(), 4)
+        self.assertEqual(context._num_cpus(), 4)
 
     @patch.object(context, '_num_cpus')
     def test_calculate_workers_float(self, _num_cpus):
         self.config.side_effect = fake_config({
             'worker-multiplier': 0.3
         })
-        _num_cpus.return_value = 4
-        self.assertTrue(context._calculate_workers(), 4)
+        _num_cpus.return_value = 8
+        self.assertEqual(context._calculate_workers(), 2)
+
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_float_negative(self, _num_cpus):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': -4.0
+        })
+        _num_cpus.return_value = 8
+        self.assertEqual(context._calculate_workers(), 1)
 
     @patch.object(context, '_num_cpus')
     def test_calculate_workers_not_quite_0(self, _num_cpus):
@@ -3221,43 +3382,27 @@ class ContextTests(unittest.TestCase):
             'worker-multiplier': 0.001
         })
         _num_cpus.return_value = 100
-        self.assertTrue(context._calculate_workers(), 1)
+        self.assertEqual(context._calculate_workers(), 1)
 
-    @patch.object(context, 'psutil')
-    def test_calculate_workers_0(self, _psutil):
+    @patch.object(context, '_num_cpus')
+    def test_calculate_workers_0(self, _num_cpus):
         self.config.side_effect = fake_config({
             'worker-multiplier': 0
         })
-        _psutil.cpu_count.return_value = 2
-        self.assertTrue(context._calculate_workers(), 0)
+        _num_cpus.return_value = 2
+        self.assertEqual(context._calculate_workers(), 1)
 
     @patch.object(context, '_num_cpus')
     def test_calculate_workers_noconfig(self, _num_cpus):
         self.config.return_value = None
         _num_cpus.return_value = 1
-        self.assertTrue(context._calculate_workers(), 2)
+        self.assertEqual(context._calculate_workers(), 2)
 
     @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_container(self, _num_cpus):
-        self.config.return_value = None
-        self.is_container.return_value = True
-        _num_cpus.return_value = 1
-        self.assertTrue(context._calculate_workers(), 2)
-
-    @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_lotsa_cpus_container(self,
-                                                             _num_cpus):
-        self.config.return_value = None
-        self.is_container.return_value = True
-        _num_cpus.return_value = 32
-        self.assertTrue(context._calculate_workers(), 4)
-
-    @patch.object(context, '_num_cpus')
-    def test_calculate_workers_noconfig_lotsa_cpus_not_container(self,
-                                                                 _num_cpus):
+    def test_calculate_workers_noconfig_lotsa_cpus(self, _num_cpus):
         self.config.return_value = None
         _num_cpus.return_value = 32
-        self.assertTrue(context._calculate_workers(), 64)
+        self.assertEqual(context._calculate_workers(), 4)
 
     @patch.object(context, '_calculate_workers', return_value=256)
     def test_worker_context(self, calculate_workers):
@@ -3271,7 +3416,7 @@ class ContextTests(unittest.TestCase):
             'os-public-network': None
         })
         self.resolve_address.return_value = '10.5.1.50'
-        self.unit_get.return_value = '10.5.1.50'
+        self.local_address.return_value = '10.5.1.50'
 
         apache = context.ApacheSSLContext()
         apache.external_ports = '8776'
@@ -3299,7 +3444,7 @@ class ContextTests(unittest.TestCase):
                            '10.5.3.100']
         self.get_address_in_network.side_effect = _base_addresses
         self.resolve_address.side_effect = _base_addresses
-        self.unit_get.return_value = '10.5.1.50'
+        self.local_address.return_value = '10.5.1.50'
 
         apache = context.ApacheSSLContext()
 
@@ -3328,7 +3473,7 @@ class ContextTests(unittest.TestCase):
         self.network_get_primary_address.side_effect = None
         self.network_get_primary_address.return_value = '10.5.2.50'
         self.resolve_address.return_value = '10.5.2.100'
-        self.unit_get.return_value = '10.5.1.50'
+        self.local_address.return_value = '10.5.1.50'
 
         apache = context.ApacheSSLContext()
         apache.external_ports = '8776'
@@ -4042,11 +4187,7 @@ class ContextTests(unittest.TestCase):
             'host': 'myhost',
             'use_fqdn_hint': False},
             ctxt)
-        if six.PY2:
-            _socket.error = Exception
-            _socket.getaddrinfo.side_effect = Exception
-        else:
-            _socket.getaddrinfo.side_effect = OSError
+        _socket.getaddrinfo.side_effect = OSError
         _socket.gethostname.return_value = 'myhost'
         ctxt = context.HostInfoContext()()
         self.assertEqual({
@@ -4095,6 +4236,7 @@ class ContextTests(unittest.TestCase):
             "instance-mtu": None,
             "ovs-use-veth": None}
         _expect = {
+            "append_ovs_config": False,
             "debug": False,
             "dns_servers": None,
             "enable_isolated_metadata": None,
@@ -4120,6 +4262,7 @@ class ContextTests(unittest.TestCase):
             "instance-mtu": _mtu,
             "ovs-use-veth": True}
         _expect = {
+            "append_ovs_config": False,
             "debug": True,
             "dns_servers": _dns,
             "enable_isolated_metadata": True,
@@ -4144,7 +4287,8 @@ class ContextTests(unittest.TestCase):
              'ovs_use_veth': False,
              "enable_isolated_metadata": None,
              "enable_metadata_network": None,
-             "debug": None}
+             "debug": None,
+             "append_ovs_config": False}
         )
 
     def test_dhcp_agent_context_dnsmasq_flags(self):
@@ -4165,6 +4309,7 @@ class ContextTests(unittest.TestCase):
                 "enable_isolated_metadata": None,
                 "enable_metadata_network": None,
                 "debug": None,
+                "append_ovs_config": False,
             }
         )
 
@@ -4304,8 +4449,9 @@ PCI_DEVICE_MAP = {
 
 class TestDPDKUtils(tests.utils.BaseTestCase):
 
-    def test_resolve_pci_from_mapping_config(self):
-        # FIXME: need to mock out the unit key value store
+    @mock.patch.object(context, "kv")
+    def test_resolve_pci_from_mapping_config(self, kv):
+        kv.return_value = TestDB()
         self.patch_object(context, 'config')
         self.config.side_effect = lambda x: {
             'data-port': DPDK_DATA_PORTS,
@@ -4349,6 +4495,38 @@ NUMA_CORES_MULTI = {
     '0': [0, 1, 2, 3],
     '1': [4, 5, 6, 7]
 }
+
+LSCPU_ONE_SOCKET = b"""
+# The following is the parsable format, which can be fed to other
+# programs. Each different item in every column has an unique ID
+# starting from zero.
+# Socket
+0
+0
+0
+0
+"""
+
+LSCPU_TWO_SOCKET = b"""
+# The following is the parsable format, which can be fed to other
+# programs. Each different item in every column has an unique ID
+# starting from zero.
+# Socket
+0
+1
+0
+1
+0
+1
+0
+1
+0
+1
+0
+1
+0
+1
+"""
 
 
 class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
@@ -4411,16 +4589,16 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
 
     def test_socket_memory(self):
         """Test socket memory configuration"""
-        self.patch_object(context, 'glob')
+        self.patch_object(context, 'check_output')
         self.patch_object(context, 'config')
         self.config.side_effect = lambda x: {
             'dpdk-socket-memory': 1024,
         }.get(x)
-        self.glob.glob.return_value = ['a']
+        self.check_output.return_value = LSCPU_ONE_SOCKET
         self.assertEqual(self.target.socket_memory(),
                          '1024')
 
-        self.glob.glob.return_value = ['a', 'b']
+        self.check_output.return_value = LSCPU_TWO_SOCKET
         self.assertEqual(self.target.socket_memory(),
                          '1024,1024')
 
@@ -4447,6 +4625,17 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
         }.get(x)
         self.assertEqual(self.target.cpu_mask(), '0x33')
 
+    def test_cpu_masks(self):
+        self.patch_target('_numa_node_cores')
+        self._numa_node_cores.return_value = NUMA_CORES_MULTI
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 1,
+            'pmd-socket-cores': 2,
+        }.get(x)
+        self.assertEqual(
+            self.target.cpu_masks(),
+            {'dpdk_lcore_mask': '0x11', 'pmd_cpu_mask': '0x66'})
+
     def test_context_no_devices(self):
         """Ensure that DPDK is disable when no devices detected"""
         self.patch_object(context, 'resolve_pci_from_mapping_config')
@@ -4466,8 +4655,8 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
             '0000:00:1d.0': 'br-data',
         }.items()))
         self._numa_node_cores.return_value = NUMA_CORES_SINGLE
-        self.patch_object(context, 'glob')
-        self.glob.glob.return_value = ['a']
+        self.patch_object(context, 'check_output')
+        self.check_output.return_value = LSCPU_ONE_SOCKET
         self.config.side_effect = lambda x: {
             'dpdk-socket-cores': 1,
             'dpdk-socket-memory': 1024,
@@ -4525,6 +4714,7 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
 
     def test__init__(self):
         self.maxDiff = None
+        self.patch_object(context, 'log')
         self.patch_object(context, 'config')
         # system with three interfaces (eth0, eth1 and eth2) where
         # eth0 and eth1 is part of linux bond bond0.
@@ -4667,6 +4857,27 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
             },
         })
 
+    def test_wrong_bridges_keys_pattern(self):
+        self.patch_object(context, 'config')
+        # check "<str>" pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'incorrect_pattern'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(ValueError):
+            context.BridgePortInterfaceMap()
+
+        # check "<str>:<str> <str>" pattern
+        self.config.side_effect = lambda x: {
+            'data-port': (
+                'br-ex:eth2 '
+                'br-provider1'),
+            'dpdk-bond-mappings': '',
+        }.get(x)
+        with self.assertRaises(ValueError):
+            context.BridgePortInterfaceMap()
+
     def test_add_interface(self):
         self.patch_object(context, 'config')
         self.config.return_value = ''
@@ -4743,20 +4954,24 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
             self.__dict__ = _dict
 
     def test___init__(self):
+        self.patch_object(context, 'log')
         self.patch_object(context.pci, 'PCINetDevices')
         pci_devices = self.ObjectView({
             'pci_devices': [
                 self.ObjectView({
+                    'pci_address': '0000:81:00.0',
                     'sriov': True,
                     'interface_name': 'eth0',
                     'sriov_totalvfs': 16,
                 }),
                 self.ObjectView({
+                    'pci_address': '0000:81:00.1',
                     'sriov': True,
                     'interface_name': 'eth1',
                     'sriov_totalvfs': 32,
                 }),
                 self.ObjectView({
+                    'pci_address': '0000:3:00.0',
                     'sriov': False,
                     'interface_name': 'eth2',
                 }),
@@ -4840,3 +5055,92 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
         ctxt_obj = context.SRIOVContext()
         ctxt_obj._map = {}
         self.assertDictEqual(ctxt_obj(), {})
+
+    def test_get_map(self):
+        self.patch_object(context.pci, 'PCINetDevices')
+        pci_devices = self.ObjectView({
+            'pci_devices': [
+                self.ObjectView({
+                    'pci_address': '0000:81:00.0',
+                    'sriov': True,
+                    'interface_name': 'eth0',
+                    'sriov_totalvfs': 16,
+                }),
+                self.ObjectView({
+                    'pci_address': '0000:81:00.1',
+                    'sriov': True,
+                    'interface_name': 'eth1',
+                    'sriov_totalvfs': 32,
+                }),
+                self.ObjectView({
+                    'pci_address': '0000:3:00.0',
+                    'sriov': False,
+                    'interface_name': 'eth2',
+                }),
+            ]
+        })
+        self.PCINetDevices.return_value = pci_devices
+        self.patch_object(context, 'config')
+        self.config.return_value = {
+            'sriov-numvfs': 'auto',
+        }
+        self.assertDictEqual(context.SRIOVContext().get_map, {
+            '0000:81:00.0': context.SRIOVContext.PCIDeviceNumVFs(
+                mock.ANY, 16),
+            '0000:81:00.1': context.SRIOVContext.PCIDeviceNumVFs(
+                mock.ANY, 32),
+        })
+
+
+class TestCephBlueStoreContext(tests.utils.BaseTestCase):
+
+    def setUp(self):
+        super(TestCephBlueStoreContext, self,).setUp()
+        self.expected_config_map = {
+            'bluestore-compression-algorithm': 'fake-bca',
+            'bluestore-compression-mode': 'fake-bcm',
+            'bluestore-compression-required-ratio': 'fake-bcrr',
+            'bluestore-compression-min-blob-size': 'fake-bcmibs',
+            'bluestore-compression-min-blob-size-hdd': 'fake-bcmibsh',
+            'bluestore-compression-min-blob-size-ssd': 'fake-bcmibss',
+            'bluestore-compression-max-blob-size': 'fake-bcmabs',
+            'bluestore-compression-max-blob-size-hdd': 'fake-bcmabsh',
+            'bluestore-compression-max-blob-size-ssd': 'fake-bcmabss',
+        }
+        self.expected_op = {
+            key.replace('bluestore-', ''): value
+            for key, value in self.expected_config_map.items()
+        }
+        self.patch_object(context, 'config')
+        self.config.return_value = self.expected_config_map
+
+    def test___call__(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        self.assertDictEqual(ctxt(), {
+            key.replace('-', '_'): value
+            for key, value in self.expected_config_map.items()
+        })
+
+    def test_get_op(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        self.assertDictEqual(ctxt.get_op(), self.expected_op)
+
+    def test_get_kwargs(self):
+        ctxt = context.CephBlueStoreCompressionContext()
+        for arg in ctxt.get_kwargs().keys():
+            self.assertNotIn('-', arg, "get_kwargs() returned '-' in the key")
+
+    def test_validate(self):
+        self.patch_object(context.ch_ceph, 'BasePool')
+        pool = MagicMock()
+        self.BasePool.return_value = pool
+        ctxt = context.CephBlueStoreCompressionContext()
+        ctxt.validate()
+        # the order for the Dict argument is unpredictable, match on ANY and
+        # do separate check against call_args_list with assertDictEqual.
+        self.BasePool.assert_called_once_with('dummy-service', op=mock.ANY)
+        expected_op = self.expected_op.copy()
+        expected_op.update({'name': 'dummy-name'})
+        self.assertDictEqual(
+            self.BasePool.call_args_list[0][1]['op'], expected_op)
+        pool.validate.assert_called_once_with()

@@ -33,7 +33,7 @@ quickly and is difficult to understand what conditions lead to which actions.
 When using the services framework, all hooks other than ``install``
 are handled by a single call to :meth:`manager.manage() <charmhelpers.core.services.base.ServiceManager.manage>`.
 This can be done with symlinks, or by having a ``definitions.py`` file
-containing the service defintions, and every hook can be reduced to::
+containing the service definitions, and every hook can be reduced to::
 
   #!/bin/env python
   from charmhelpers.core.services import ServiceManager
@@ -88,7 +88,7 @@ Required Data Contexts
 
 Required data contexts are, at the most basic level, are just dictionaries,
 and if they evaluate as True (e.g., if the contain data), their condition is
-considered to be met.  A simple sentinal could just be a function that returns
+considered to be met.  A simple sentinel could just be a function that returns
 data if available or an empty ``dict`` otherwise.
 
 For the common case of gathering data from relations, the
