@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import os
 import hashlib
 import re
@@ -54,6 +55,20 @@ def splitpasswd(user):
     return user, None
 
 
+@contextlib.contextmanager
+def proxy_env():
+    """
+    Creates a context which temporarily modifies the proxy settings in os.environ.
+    """
+    restore = {**os.environ}  # Copy the current os.environ
+    juju_proxies = env_proxy_settings() or {}
+    os.environ.update(**juju_proxies)  # Insert or Update the os.environ
+    yield os.environ
+    for key in juju_proxies:
+        del os.environ[key]  # remove any keys which were added or updated
+    os.environ = {**restore}  # restore any original values
+
+
 class ArchiveUrlFetchHandler(BaseFetchHandler):
     """
     Handler to download archive files from arbitrary URLs.
@@ -84,20 +99,9 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         # propagate all exceptions
         # URLError, OSError, etc
         proto, netloc, path, params, query, fragment = urlparse(source)
+        handlers = []
         if proto in ('http', 'https'):
             auth, barehost = splituser(netloc)
-            handlers = []
-            os_proxies = env_proxy_settings()
-            if os_proxies:
-                proxies = {}
-                if 'HTTP_PROXY' in os_proxies:
-                    proxies['http'] = os_proxies['HTTP_PROXY']
-                if 'HTTPS_PROXY' in os_proxies:
-                    proxies['https'] = os_proxies['HTTPS_PROXY']
-                if 'FTP_PROXY' in os_proxies:
-                    proxies['ftp'] = os_proxies['FTP_PROXY']
-                if proxies:
-                    handlers.append(ProxyHandler(proxies=proxies))
             if auth is not None:
                 source = urlunparse((proto, barehost, path, params, query, fragment))
                 username, password = splitpasswd(auth)
@@ -106,9 +110,12 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
                 # to be used whatever the realm
                 passman.add_password(None, source, username, password)
                 handlers.append(HTTPBasicAuthHandler(passman))
+
+        with proxy_env():
+            handlers.append(ProxyHandler())
             opener = build_opener(*handlers)
             install_opener(opener)
-        response = urlopen(source)
+            response = urlopen(source)
         try:
             with open(dest, 'wb') as dest_file:
                 dest_file.write(response.read())
