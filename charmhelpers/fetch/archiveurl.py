@@ -66,7 +66,7 @@ def proxy_env():
     yield os.environ
     for key in juju_proxies:
         del os.environ[key]  # remove any keys which were added or updated
-    os.environ = {**restore}  # restore any original values
+    os.environ.update(**restore)  # restore any original values
 
 
 class ArchiveUrlFetchHandler(BaseFetchHandler):
