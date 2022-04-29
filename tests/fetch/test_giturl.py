@@ -1,4 +1,5 @@
 import os
+from pkg_resources import parse_version
 import shutil
 import subprocess
 import tempfile
@@ -36,6 +37,22 @@ class GitUrlFetchHandlerTest(TestCase):
             "garbage",
         )
         self.fh = giturl.GitUrlFetchHandler()
+        self._git_version_2_28_plus = None
+
+    @property
+    def is_git_version_2_28_plus(self):
+        if self._git_version_2_28_plus is None:
+            try:
+                cmd = "git --version"
+                version = subprocess.check_output(cmd.split()).decode()
+                if version:
+                    version = version.split()[-1]
+                    if parse_version(version) >= parse_version("2.28"):
+                        self._git_version_2_28_plus = True
+            except Exception:
+                # any error, assume it wasn't 2.28+
+                self._git_version_2_28_plus = False
+        return self._git_version_2_28_plus
 
     def test_handles_git_urls(self):
         for url in self.valid_urls:
@@ -48,7 +65,7 @@ class GitUrlFetchHandlerTest(TestCase):
     @patch.object(giturl, 'check_output')
     def test_clone(self, check_output):
         dest_path = "/destination/path"
-        branch = "main"
+        branch = "main" if self.is_git_version_2_28_plus else "master"
         for url in self.valid_urls:
             self.fh.remote_branch = MagicMock()
             self.fh.load_plugins = MagicMock()
@@ -69,8 +86,11 @@ class GitUrlFetchHandlerTest(TestCase):
         try:
             src = tempfile.mkdtemp()
             with chdir(src):
-                subprocess.check_output(['git', 'init',
-                                         '--initial-branch', 'main'])
+                if self.is_git_version_2_28_plus:
+                    subprocess.check_output(['git', 'init',
+                                             '--initial-branch', 'main'])
+                else:
+                    subprocess.check_output(['git', 'init'])
                 subprocess.check_output(['git', 'config', 'user.name', 'Joe'])
                 subprocess.check_output(
                     ['git', 'config', 'user.email', 'joe@test.com'])
@@ -79,10 +99,16 @@ class GitUrlFetchHandlerTest(TestCase):
                 subprocess.check_output(['git', 'commit', '-m', 'test'])
             dst = tempfile.mkdtemp()
             os.rmdir(dst)
-            self.fh.clone(src, dst, "main")
-            assert os.path.exists(os.path.join(dst, '.git'))
-            self.fh.clone(src, dst, "main")  # idempotent
-            assert os.path.exists(os.path.join(dst, '.git'))
+            if self.is_git_version_2_28_plus:
+                self.fh.clone(src, dst, "main")
+                assert os.path.exists(os.path.join(dst, '.git'))
+                self.fh.clone(src, dst, "main")  # idempotent
+                assert os.path.exists(os.path.join(dst, '.git'))
+            else:
+                self.fh.clone(src, dst)
+                assert os.path.exists(os.path.join(dst, '.git'))
+                self.fh.clone(src, dst)  # idempotent
+                assert os.path.exists(os.path.join(dst, '.git'))
         finally:
             if src:
                 shutil.rmtree(src, ignore_errors=True)
