@@ -400,13 +400,16 @@ def get_os_codename_version(vers):
         error_out(e)
 
 
-def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES):
+def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES,
+                            raise_exception=False):
     '''Determine OpenStack version number from codename.'''
     for k, v in version_map.items():
         if v == codename:
             return k
     e = 'Could not derive OpenStack version for '\
         'codename: %s' % codename
+    if raise_exception:
+        raise ValueError(str(e))
     error_out(e)
 
 

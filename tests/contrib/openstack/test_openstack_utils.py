@@ -280,6 +280,13 @@ class OpenStackHelpersTestCase(TestCase):
         expected_err = 'Could not derive OpenStack version for codename: foo'
         mocked_error.assert_called_with(expected_err)
 
+        try:
+            openstack.get_os_version_codename('foo', raise_exception=True)
+            raise Exception("Failed call should have raised ValueError")
+        except ValueError as e:
+            self.assertEquals(e.args[0],
+                              "Could not derive OpenStack version for codename: foo")
+
     def test_os_version_swift_from_codename(self):
         """Test mapping a swift codename to numerical version"""
         self.assertEquals(openstack.get_os_version_codename_swift('liberty'),
