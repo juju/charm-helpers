@@ -136,7 +136,7 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
-    def test_runs_systemctl_action(self, mock_call, systemd):
+    def test_runs_systemctl_action_on_service(self, mock_call, systemd):
         """Ensure that service calls under systemd call 'systemctl'."""
         systemd.return_value = True
         mock_call.return_value = 0
@@ -147,6 +147,19 @@ class HelpersTest(TestCase):
 
         self.assertTrue(result)
         mock_call.assert_called_with(['systemctl', action, service_name])
+
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
+    def test_runs_systemctl_action(self, mock_call, systemd):
+        """Ensure that service calls under systemd call 'systemctl' when no service name is specified."""
+        systemd.return_value = True
+        mock_call.return_value = 0
+        action = 'some-action'
+
+        result = host.service(action)
+
+        self.assertTrue(result)
+        mock_call.assert_called_with(['systemctl', action])
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
