@@ -14,12 +14,16 @@
 
 # Various utilities for dealing with Neutron and the renaming from Quantum.
 
+import yaml
 from subprocess import check_output
 
 from charmhelpers.core.hookenv import (
     config,
     log,
     ERROR,
+    relation_get,
+    relation_ids,
+    related_units,
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -349,3 +353,144 @@ def parse_vlan_range_mappings(mappings):
     """
     _mappings = parse_mappings(mappings)
     return {p: tuple(r.split(':')) for p, r in _mappings.items()}
+
+
+def get_neutron():
+    """Return authenticated neutron client.
+
+    :return: neutron client
+    :rtype: neutronclient.v2_0.client.Client
+    :raises RuntimeError: Exception is raised if authentication of neutron
+        client fails. This can be either because this unit does not have a
+        "neutron-plugin-api" relation which should contain credentials or
+        the credentials are wrong or keystone service is not available.
+    """
+    from keystoneauth1 import identity, session
+    from neutronclient.v2_0 import client
+
+    rel_name = "neutron-plugin-api"
+    neutron = None
+
+    for rid in relation_ids(rel_name):
+        for unit in related_units(rid):
+            rdata = relation_get(rid=rid, unit=unit)
+            if rdata is None:
+                continue
+
+            protocol = rdata.get("auth_protocol")
+            host = rdata.get("auth_host")
+            port = rdata.get("auth_port")
+            username = rdata.get("service_username")
+            password = rdata.get("service_password")
+            project = rdata.get("service_tenant")
+            project_domain = rdata.get("service_domain", "default")
+            user_domain_name = rdata.get("service_domain", "default")
+            if protocol and host and port \
+               and username and password and project:
+                auth_url = "{}://{}:{}/".format(protocol,
+                                                host,
+                                                port)
+                auth = identity.Password(auth_url=auth_url,
+                                         username=username,
+                                         password=password,
+                                         project_name=project,
+                                         project_domain_name=project_domain,
+                                         user_domain_name=user_domain_name)
+                sess = session.Session(auth=auth)
+                neutron = client.Client(session=sess)
+                break
+
+        if neutron is not None:
+            break
+
+    if neutron is None:
+        raise RuntimeError("Relation '{}' is either missing or does not "
+                           "contain neutron credentials".format(rel_name))
+    return neutron
+
+
+def get_network_agents_on_host(hostname, neutron, agent_type=None):
+    """Fetch list of neutron agents on specified host.
+
+    :param hostname: name of host on which the agents are running
+    :param neutron: authenticated neutron client
+    :param agent_type: If provided, filter only agents of selected type
+    :return: List of agents matching given criteria
+    :rtype: list[dict]
+    """
+    params = {'host': hostname}
+    if agent_type is not None:
+        params['agent_type'] = agent_type
+
+    agent_list = neutron.list_agents(**params).get("agents")
+
+    return agent_list
+
+
+def get_resource_list_on_agents(agent_list,
+                                list_resource_function,
+                                resource_name):
+    """Fetch resources hosted on neutron agents combined into single list.
+
+    :param agent_list: List of agents on which to search for resources
+    :type agent_list: list[dict]
+    :param list_resource_function: function that takes agent ID and returns
+        resources present on that agent.
+    :type list_resource_function: Callable
+    :param resource_name: filter only resources with given name (e.g.:
+        "networks", "routers", ...)
+    :type resource_name: str
+    :return: List of neutron resources.
+    :rtype: list[dict]
+    """
+    agent_id_list = [agent["id"] for agent in agent_list]
+    resource_list = []
+    for agent_id in agent_id_list:
+        resource_list.extend(list_resource_function(agent_id)[resource_name])
+    return resource_list
+
+
+def clean_resource_list(resource_list, allowed_keys=None):
+    """Strip resources of all fields except those in 'allowed_keys.'
+
+    resource_list is a list where each resources is represented as a dict with
+    many attributes. This function strips all but those defined in
+    'allowed_keys'
+    :param resource_list: List of resources to strip
+    :param allowed_keys: keys allowed in the resulting dictionary for each
+        resource
+    :return: List of stripped resources
+    :rtype: list[dict]
+    """
+    if allowed_keys is None:
+        allowed_keys = ["id", "status"]
+
+    clean_data_list = []
+    for resource in resource_list:
+        clean_data = {key: value for key, value in resource.items()
+                      if key in allowed_keys}
+        clean_data_list.append(clean_data)
+    return clean_data_list
+
+
+def format_status_output(data, key_attribute="id"):
+    """Reformat data from the neutron api into human-readable yaml.
+
+    Input data are expected to be list of dictionaries (as returned by neutron
+    api). This list is transformed into dict where "id" of a resource is key
+    and rest of the resource attributes are value (in form of dictionary). The
+    resulting structure is dumped as yaml text.
+
+    :param data: List of dictionaires representing neutron resources
+    :param key_attribute: attribute that will be used as a key in the
+        result. (default=id)
+    :return: yaml string representing input data.
+    """
+    output = {}
+    for entry in data:
+        header = entry.pop(key_attribute)
+        output[header] = {}
+        for attribute, value in entry.items():
+            output[header][attribute] = value
+
+    return yaml.dump(output)

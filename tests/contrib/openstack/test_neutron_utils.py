@@ -1,5 +1,6 @@
+import sys
 import unittest
-from mock import patch
+from mock import patch, call, MagicMock
 import charmhelpers.contrib.openstack.neutron as neutron
 
 TO_PATCH = [
@@ -7,6 +8,9 @@ TO_PATCH = [
     'config',
     'os_release',
     'check_output',
+    'relation_ids',
+    'related_units',
+    'relation_get',
 ]
 
 
@@ -235,3 +239,92 @@ class NeutronTests(unittest.TestCase):
         ret = neutron.parse_vlan_range_mappings('physnet1 physnet2:2001:3000')
         self.assertEqual(ret, {'physnet1': ('',),
                                'physnet2': ('2001', '3000')})
+
+    def test_get_neutron(self):
+        # lazy imports from neutron api
+        sys.modules['neutronclient'] = MagicMock()
+        sys.modules['neutronclient.v2_0'] = MagicMock()
+        sys.modules['keystoneauth1'] = MagicMock()
+
+        self.relation_ids.return_value = ['neutron-plugin-api:15']
+        self.related_units.return_value = ['neutron-api/0']
+        self.relation_get.return_value = {
+            'auth_host': '10.5.1.155',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'service_password': 'mypass',
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'service_tenant': 'services',
+            'service_username': 'neutron'
+        }
+        neutron.get_neutron()
+        expected_call = call.Password(
+            auth_url='http://10.5.1.155:35357/',
+            username='neutron',
+            password='mypass',
+            project_name='services',
+            project_domain_name='default',
+            user_domain_name='default'
+        )
+        from keystoneauth1 import identity
+        assert expected_call in identity.mock_calls
+        # delete keystoneauth1 because it's used on keystone unit-tests
+        del sys.modules['keystoneauth1']
+
+    def test_get_network_agents_on_host_no_agent_type(self):
+        host_name = 'juju-784de1-ovs-13.project.serverstack'
+        neutron_client = MagicMock()
+        neutron.get_network_agents_on_host(host_name, neutron_client)
+        expected_call = [
+            call.list_agents(host=host_name),
+            call.list_agents().get('agents')
+        ]
+        self.assertEqual(expected_call, neutron_client.mock_calls)
+
+    def test_get_network_agents_on_host_agent_type(self):
+        host_name = 'juju-784de1-ovs-13.project.serverstack'
+        agent_type = 'DHCP agent'
+        neutron_client = MagicMock()
+        neutron.get_network_agents_on_host(host_name, neutron_client, agent_type)
+        expected_call = [
+            call.list_agents(host=host_name, agent_type=agent_type),
+            call.list_agents().get('agents')
+        ]
+        self.assertEqual(expected_call, neutron_client.mock_calls)
+
+    def test_clean_resource_list(self):
+        data = [{"id": 1, "x": "data", "z": "data"},
+                {"id": 2, "y": "data", "z": "data"}]
+
+        clean_data = neutron.clean_resource_list(data)
+        for resource in clean_data:
+            self.assertTrue("id" in resource)
+            self.assertTrue("x" not in resource)
+            self.assertTrue("y" not in resource)
+            self.assertTrue("z" not in resource)
+
+        # test allowed keys
+        clean_data = neutron.clean_resource_list(data,
+                                                 allowed_keys=["id", "z"])
+        for resource in clean_data:
+            self.assertTrue("id" in resource)
+            self.assertTrue("x" not in resource)
+            self.assertTrue("y" not in resource)
+            self.assertTrue("z" in resource)
+
+    def test_get_resource_list_on_agents(self):
+        list_function = MagicMock()
+        agent_list = [{"id": 1}, {"id": 2}]
+        list_results = [{"results": ["a", "b"]}, {"results": ["c"], "x": [""]}]
+
+        expected_resource_length = 0
+        for r in list_results:
+            expected_resource_length += len(r.get("results", []))
+
+        list_function.side_effect = list_results
+        resource_list = neutron.get_resource_list_on_agents(agent_list,
+                                                            list_function,
+                                                            "results")
+        assert list_function.call_count > 0
+        self.assertEqual(len(resource_list), expected_resource_length)
