@@ -239,7 +239,7 @@ class OpenStackHelpersTestCase(TestCase):
     def test_os_version_from_install_source(self, codename, version):
         codename.return_value = 'grizzly'
         openstack.get_os_version_install_source('cloud:precise-grizzly')
-        version.assert_called_with('grizzly')
+        version.assert_called_with('grizzly', raise_exception=False)
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_os_codename_from_bad_install_source(self, mocked_lsb):

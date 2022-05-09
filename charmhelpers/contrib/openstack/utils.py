@@ -386,9 +386,9 @@ def get_os_codename_install_source(src):
                 return v
 
 
-def get_os_version_install_source(src):
+def get_os_version_install_source(src, raise_exception=False):
     codename = get_os_codename_install_source(src)
-    return get_os_version_codename(codename)
+    return get_os_version_codename(codename, raise_exception=raise_exception)
 
 
 def get_os_codename_version(vers):
@@ -849,7 +849,8 @@ def openstack_upgrade_available(package):
         avail_vers = get_os_version_codename_swift(codename)
     else:
         try:
-            avail_vers = get_os_version_install_source(src)
+            avail_vers = get_os_version_install_source(src,
+                                                       raise_exception=True)
         except Exception:
             avail_vers = cur_vers
     apt.init()
