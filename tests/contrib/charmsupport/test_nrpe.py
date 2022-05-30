@@ -464,6 +464,31 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.assertEqual(bill.checks[4].shortname, 'snap.test.test')
         self.assertEqual(bill.checks[4].check_cmd, expect_cmds['snap.test.test'])
 
+        # Test check_haproxy is not added if haproxy is monitored by pacemaker using check_crm
+        dummy_relations = {
+            'ha': ['ha:3']
+        }
+
+        self.patched['relation_ids'].side_effect = lambda relation: dummy_relations.get(relation, [])
+        self.patched['relation_get'].return_value = '{"res_ks_haproxy":"lsb:haproxy"}'
+
+        bill = nrpe.NRPE()
+        services = ['apache2', 'haproxy', 'snap.test.test']
+        self.patched['init_is_systemd'].return_value = True
+        nrpe.add_init_service_checks(bill, services, 'testunit')
+        expect_cmds = {
+            'apache2': '/usr/lib/nagios/plugins/check_systemd.py apache2',
+            'snap.test.test': '/usr/lib/nagios/plugins/check_systemd.py snap.test.test',
+        }
+        self.assertEqual(bill.checks[0].shortname, 'apache2')
+        self.assertEqual(bill.checks[0].check_cmd, expect_cmds['apache2'])
+        self.assertEqual(bill.checks[1].shortname, 'snap.test.test')
+        self.assertEqual(bill.checks[1].check_cmd, expect_cmds['snap.test.test'])
+
+        # Test that raises ValueError if can't parse json resources from ha relation
+        self.patched['relation_get'].return_value = '{"res_ks_haproxy"}'
+        self.assertRaises(ValueError, nrpe.add_init_service_checks, bill, services, 'testunit')
+
     def test_copy_nrpe_checks(self):
         file_presence = {
             'filea': True,
