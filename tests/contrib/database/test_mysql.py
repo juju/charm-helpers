@@ -594,6 +594,21 @@ class MySQLConfigHelperTests(unittest.TestCase):
 
         self.assertTrue(helper.get_innodb_change_buffering() is None)
 
+    @mock.patch.object(mysql.MySQLConfigHelper, 'get_mem_total')
+    @mock.patch.object(mysql, 'log')
+    def test_get_group_replication_message_cache_size(self, mog, mem):
+        mem.return_value = "512M"
+        self.config_data = {
+            'group-replication-message-cache-size': '256M',
+        }
+
+        helper = mysql.MySQLConfigHelper()
+
+        self.assertEqual(
+            helper.get_group_replication_message_cache_size(),
+            268435456
+        )
+
 
 class PerconaTests(unittest.TestCase):
 

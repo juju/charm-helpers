@@ -648,6 +648,17 @@ class MySQLConfigHelper(object):
 
         return innodb_buffer_pool_size
 
+    def get_group_replication_message_cache_size(self):
+        """Get value for group_replication_message_cache_size.
+
+        :returns: Numeric value for group_replication_message_cache_size
+                  None if not set.
+        :rtype: Union[None, int]
+        """
+        gr_message_cache_size = config_get('group-replication-message-cache-size')
+        if gr_message_cache_size:
+            return self.human_to_bytes(gr_message_cache_size)
+
 
 class PerconaClusterHelper(MySQLConfigHelper):
     """Percona-cluster specific configuration helper."""
