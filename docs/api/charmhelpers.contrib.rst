@@ -6,6 +6,7 @@ charmhelpers.contrib package
     charmhelpers.contrib.ansible
     charmhelpers.contrib.charmhelpers
     charmhelpers.contrib.charmsupport
+    charmhelpers.contrib.database
     charmhelpers.contrib.hahelpers
     charmhelpers.contrib.network
     charmhelpers.contrib.openstack
