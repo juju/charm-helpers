@@ -123,6 +123,7 @@ def mkfs_xfs(device, force=False, inode_size=1024):
     cmd = ['mkfs.xfs']
     if force:
         cmd.append("-f")
-
-    cmd += ['-i', "size={}".format(inode_size), device]
+    if inode_size:
+        cmd += ['-i', "size={}".format(inode_size)]
+    cmd += [device]
     check_call(cmd)
