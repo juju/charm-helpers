@@ -24,6 +24,9 @@
 
 import os
 
+from asn1crypto import pem
+from certvalidator import CertificateValidator, ValidationContext
+
 from charmhelpers.core import host
 from charmhelpers.core.hookenv import (
     config as config_get,
@@ -32,6 +35,8 @@ from charmhelpers.core.hookenv import (
     related_units as relation_list,
     log,
     INFO,
+    status_set,
+    WORKLOAD_STATES,
 )
 
 # This file contains the CA cert from the charms ssl_ca configuration
@@ -62,6 +67,38 @@ def get_cert(cn=None):
                     key = relation_get(ssl_key_attr,
                                        rid=r_id, unit=unit)
     return (cert, key)
+
+
+def validate_cert(cert, key, ca):
+    """
+    cert (bytes): cert.crt file contents (PEM armored)
+    key (bytes): cert.key file contents
+    ca (Optional[bytes]): None or private ca contents
+
+    return True if ok
+    otherwise return False, set blocked status, and set useful error message
+    """
+
+    context = None
+    if ca:
+        context = ValidationContext(trust_roots=[ca])
+
+    # split certs so we can pass intermediate certs separately to the validator
+    try:
+        certs = list(map(lambda x: x[2], pem.unarmor(cert, multiple=True)))
+    except Exception as e:
+        status_set(WORKLOAD_STATES.BLOCKED, str(e))
+        return False
+
+    validator = CertificateValidator(certs[0], certs[1:], validation_context=context)
+
+    try:
+        validator.validate_usage({"digital_signature"}, {"server_auth"})
+    except Exception as e:
+        status_set(WORKLOAD_STATES.BLOCKED, str(e))
+        return False
+
+    return True
 
 
 def get_ca_cert():
