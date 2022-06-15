@@ -89,6 +89,7 @@ from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
     get_ca_cert,
     install_ca_cert,
+    validate_cert,
 )
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -1117,6 +1118,13 @@ class ApacheSSLContext(OSContextGenerator):
         mkdir(path=ssl_dir)
         cert, key = get_cert(cn)
         if cert and key:
+            cert = b64decode(cert)
+            key = b64decode(key)
+            ca = config('ssl_ca')
+            ca = b64decode(ca) if ca else None
+            if not validate_cert(cert, key, ca):
+                return
+
             if cn:
                 cert_filename = 'cert_{}'.format(cn)
                 key_filename = 'key_{}'.format(cn)
@@ -1125,10 +1133,10 @@ class ApacheSSLContext(OSContextGenerator):
                 key_filename = 'key'
 
             write_file(path=os.path.join(ssl_dir, cert_filename),
-                       content=b64decode(cert), owner=self.user,
+                       content=cert, owner=self.user,
                        group=self.group, perms=0o640)
             write_file(path=os.path.join(ssl_dir, key_filename),
-                       content=b64decode(key), owner=self.user,
+                       content=key, owner=self.user,
                        group=self.group, perms=0o640)
 
     def configure_ca(self):

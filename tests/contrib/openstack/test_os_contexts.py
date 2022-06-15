@@ -739,6 +739,7 @@ TO_PATCH = [
     'is_ipv6_disabled',
     'get_installed_version',
     'remote_service_name',
+    'validate_cert',
 ]
 
 
@@ -3003,6 +3004,8 @@ class ContextTests(unittest.TestCase):
 
     def test_https_configure_cert(self):
         # Test apache2 properly installs certs and keys to disk
+        self.validate_cert.return_value = True
+        self.config.side_effect = fake_config({'ssl_ca': ''})
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = [b'SSL_CERT', b'SSL_KEY']
         apache = context.ApacheSSLContext()
@@ -3024,6 +3027,8 @@ class ContextTests(unittest.TestCase):
 
     def test_https_configure_cert_deprecated(self):
         # Test apache2 properly installs certs and keys to disk
+        self.validate_cert.return_value = True
+        self.config.side_effect = fake_config({'ssl_ca': ''})
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
         apache = context.ApacheSSLContext()
