@@ -1884,13 +1884,15 @@ class ContextTests(unittest.TestCase):
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
+    @patch('charmhelpers.contrib.openstack.context.service_name')
     @patch.object(context, 'config')
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_ec_pool_no_rbd_pool(
-            self, ensure_packages, mkdir, isdir, mock_config):
+            self, ensure_packages, mkdir, isdir, mock_config, service_name):
         '''Test ceph context with erasure coded pools'''
+        service_name.return_value = 'testing-foo'
         isdir.return_value = False
         config_dict = {
             'use-syslog': True,
@@ -4226,7 +4228,8 @@ class ContextTests(unittest.TestCase):
                 "Mismatched existing and configured ovs-use-veth. See log."),
             context.validate_ovs_use_veth())
 
-    def test_dhcp_agent_context(self):
+    @patch.object(context, 'os_release', return_value='yoga')
+    def test_dhcp_agent_context(self, os_release):
         # Defaults
         _config = {
             "debug": False,
@@ -4274,7 +4277,8 @@ class ContextTests(unittest.TestCase):
         ctxt = ctx_object()
         self.assertEqual(_expect, ctxt)
 
-    def test_dhcp_agent_context_no_dns_domain(self):
+    @patch.object(context, 'os_release', return_value='yoga')
+    def test_dhcp_agent_context_no_dns_domain(self, os_release):
         _config = {"dns-servers": '8.8.8.8'}
         self.config.side_effect = fake_config(_config)
         self.relation_ids.return_value = ['rid1']
@@ -4291,7 +4295,8 @@ class ContextTests(unittest.TestCase):
              "append_ovs_config": False}
         )
 
-    def test_dhcp_agent_context_dnsmasq_flags(self):
+    @patch.object(context, 'os_release', return_value='yoga')
+    def test_dhcp_agent_context_dnsmasq_flags(self, os_rlease):
         _config = {'dnsmasq-flags': 'dhcp-userclass=set:ipxe,iPXE,'
                                     'dhcp-match=set:ipxe,175,'
                                     'server=1.2.3.4'}

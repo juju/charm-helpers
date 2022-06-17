@@ -234,8 +234,9 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             '{"pkg": {"a": "present", "b": "absent"}}'],
             env={'PYTHONUNBUFFERED': '1'})
 
+    @mock.patch.object(hookenv, '_run_atstart')
     @mock.patch.object(hookenv, 'config')
-    def test_hooks_executes_playbook_with_tag(self, config):
+    def test_hooks_executes_playbook_with_tag(self, config, _run_atstart):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
         foo = mock.MagicMock()
         hooks.register('foo', foo)
@@ -247,8 +248,9 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'ansible-playbook', '-vvv', '-c', 'local', 'my/playbook.yaml',
             '--tags', 'foo'], env={'PYTHONUNBUFFERED': '1'})
 
+    @mock.patch.object(hookenv, '_run_atstart')
     @mock.patch.object(hookenv, 'config')
-    def test_specifying_ansible_handled_hooks(self, config):
+    def test_specifying_ansible_handled_hooks(self, config, _run_atstart):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks(
             'my/playbook.yaml', default_hooks=['start', 'stop'])
 

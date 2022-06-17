@@ -1965,7 +1965,9 @@ class CephUtilsTests(TestCase):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
-    def test_has_broker_rsp(self):
+    @patch.object(ceph_utils, 'local_unit')
+    def test_has_broker_rsp(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
         rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
         broker_key = ceph_utils.get_broker_rsp_key()
         self.relation_get.return_value = {broker_key:
