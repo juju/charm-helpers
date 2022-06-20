@@ -179,7 +179,7 @@ iJIwCgYIKoZIzj0EAwIDSAAwRQIgIxrw1XB6VpqCVNsqF/SEdjGbt6ROHxRBeYU6
 au6zf6sCIQCCdEBjpb2IuQibAbQZVd3NaxWnqBxH87ci3Guq7IaPNw==
 -----END CERTIFICATE-----
 '''.encode()
-        self.assertTrue(apache_utils.validate_cert(cert, key, ca))
+        self.assertIsNone(apache_utils.validate_cert(cert, key, ca))
 
     def test_validate_cert_invalid_missing_intermediate(self):
         # test the case where leaf cert is provided
@@ -221,7 +221,8 @@ iJIwCgYIKoZIzj0EAwIDSAAwRQIgIxrw1XB6VpqCVNsqF/SEdjGbt6ROHxRBeYU6
 au6zf6sCIQCCdEBjpb2IuQibAbQZVd3NaxWnqBxH87ci3Guq7IaPNw==
 -----END CERTIFICATE-----
 '''.encode()
-        self.assertFalse(apache_utils.validate_cert(cert, key, ca))
+        self.assertIn("Unable to build a validation path",
+                      apache_utils.validate_cert(cert, key, ca))
 
     def test_validate_cert_invalid_missing_ca(self):
         # test the case where leaf cert signed by a private CA,
@@ -265,4 +266,5 @@ AwEHoUQDQgAExkWwyfOpgiAhoClU2ETkZ+C2Q5FD81f4nk6IDRCZ0JEhXl6b5t1z
 -----END EC PRIVATE KEY-----
 '''.encode()
         ca = None
-        self.assertFalse(apache_utils.validate_cert(cert, key, ca))
+        self.assertIn("Unable to build a validation path",
+                      apache_utils.validate_cert(cert, key, ca))

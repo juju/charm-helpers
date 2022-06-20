@@ -35,9 +35,6 @@ from charmhelpers.core.hookenv import (
     related_units as relation_list,
     log,
     INFO,
-    ERROR,
-    status_set,
-    WORKLOAD_STATES,
 )
 
 # This file contains the CA cert from the charms ssl_ca configuration
@@ -72,12 +69,12 @@ def get_cert(cn=None):
 
 def validate_cert(cert, key, ca):
     """
-    cert (bytes): cert.crt file contents (PEM armored)
-    key (bytes): cert.key file contents
-    ca (Optional[bytes]): None or private ca contents
+    cert (bytes): PEM armored cert chain
+    key (bytes): private key for leaf cert
+    ca (Optional[bytes]): an optional PEM armored root CA chain
 
-    return True if ok
-    otherwise return False, set blocked status, and set useful error message
+    returns: None if all ok, otherwise return a string error message
+    rtype: Optional[str]
     """
 
     context = None
@@ -88,22 +85,14 @@ def validate_cert(cert, key, ca):
     try:
         certs = list(map(lambda x: x[2], pem.unarmor(cert, multiple=True)))
     except Exception as e:
-        log("Failed to read certificates: {}".format(e),
-            level=ERROR)
-        status_set(WORKLOAD_STATES.BLOCKED, str(e))
-        return False
+        return "[processing cert chain] {}".format(e)
 
     validator = CertificateValidator(certs[0], certs[1:], validation_context=context)
 
     try:
         validator.validate_usage({"digital_signature"}, {"server_auth"})
     except Exception as e:
-        log("Failed to validate certificates: {}".format(e),
-            level=ERROR)
-        status_set(WORKLOAD_STATES.BLOCKED, str(e))
-        return False
-
-    return True
+        return "[validating cert usage] {}".format(e)
 
 
 def get_ca_cert():
