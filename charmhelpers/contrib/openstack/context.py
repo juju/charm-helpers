@@ -1119,9 +1119,8 @@ class ApacheSSLContext(OSContextGenerator):
         cert, key = get_cert(cn)
         if cert and key:
             cert = b64decode(cert)
-            key = b64decode(key)
             ca = config('ssl_ca')
-            err = validate_cert(cert, key, b64decode(ca) if ca else None)
+            err = validate_cert(cert, b64decode(ca) if ca else None)
             if err:
                 log("failed to validate certs for apache2: {}".format(err),
                     level=WARNING)
@@ -1137,7 +1136,7 @@ class ApacheSSLContext(OSContextGenerator):
                        content=cert, owner=self.user,
                        group=self.group, perms=0o640)
             write_file(path=os.path.join(ssl_dir, key_filename),
-                       content=key, owner=self.user,
+                       content=b64decode(key), owner=self.user,
                        group=self.group, perms=0o640)
 
     def configure_ca(self):

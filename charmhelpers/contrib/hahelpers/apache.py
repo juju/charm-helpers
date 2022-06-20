@@ -67,10 +67,9 @@ def get_cert(cn=None):
     return (cert, key)
 
 
-def validate_cert(cert, key, ca):
+def validate_cert(cert, ca):
     """
     cert (bytes): PEM armored cert chain
-    key (bytes): private key for leaf cert
     ca (Optional[bytes]): an optional PEM armored root CA chain
 
     returns: None if all ok, otherwise return a string error message
