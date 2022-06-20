@@ -1121,9 +1121,10 @@ class ApacheSSLContext(OSContextGenerator):
             cert = b64decode(cert)
             key = b64decode(key)
             ca = config('ssl_ca')
-            ca = b64decode(ca) if ca else None
-            if not validate_cert(cert, key, ca):
-                return
+            err = validate_cert(cert, key, b64decode(ca) if ca else None)
+            if err:
+                log("failed to validate certs for apache2: {}".format(err),
+                    level=WARNING)
 
             if cn:
                 cert_filename = 'cert_{}'.format(cn)

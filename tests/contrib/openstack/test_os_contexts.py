@@ -3004,7 +3004,7 @@ class ContextTests(unittest.TestCase):
 
     def test_https_configure_cert(self):
         # Test apache2 properly installs certs and keys to disk
-        self.validate_cert.return_value = True
+        self.validate_cert.return_value = None
         self.config.side_effect = fake_config({'ssl_ca': ''})
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = [b'SSL_CERT', b'SSL_KEY']
@@ -3027,7 +3027,7 @@ class ContextTests(unittest.TestCase):
 
     def test_https_configure_cert_deprecated(self):
         # Test apache2 properly installs certs and keys to disk
-        self.validate_cert.return_value = True
+        self.validate_cert.return_value = None
         self.config.side_effect = fake_config({'ssl_ca': ''})
         self.get_cert.return_value = ('SSL_CERT', 'SSL_KEY')
         self.b64decode.side_effect = ['SSL_CERT', 'SSL_KEY']
