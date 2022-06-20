@@ -79,7 +79,11 @@ def validate_cert(cert, key, ca):
 
     context = None
     if ca:
-        context = ValidationContext(trust_roots=[ca])
+        try:
+            cas = list(map(lambda x: x[2], pem.unarmor(ca, multiple=True)))
+        except Exception as e:
+            return "[processing root ca chain] {}".format(e)
+        context = ValidationContext(extra_trust_roots=cas)
 
     # split certs so we can pass intermediate certs separately to the validator
     try:
