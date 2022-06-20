@@ -35,6 +35,7 @@ from charmhelpers.core.hookenv import (
     related_units as relation_list,
     log,
     INFO,
+    ERROR,
     status_set,
     WORKLOAD_STATES,
 )
@@ -87,6 +88,8 @@ def validate_cert(cert, key, ca):
     try:
         certs = list(map(lambda x: x[2], pem.unarmor(cert, multiple=True)))
     except Exception as e:
+        log("Failed to read certificates: {}".format(e),
+            level=ERROR)
         status_set(WORKLOAD_STATES.BLOCKED, str(e))
         return False
 
@@ -95,6 +98,8 @@ def validate_cert(cert, key, ca):
     try:
         validator.validate_usage({"digital_signature"}, {"server_auth"})
     except Exception as e:
+        log("Failed to validate certificates: {}".format(e),
+            level=ERROR)
         status_set(WORKLOAD_STATES.BLOCKED, str(e))
         return False
 
