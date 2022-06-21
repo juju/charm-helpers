@@ -15,6 +15,10 @@
 import os
 import re
 from stat import S_ISBLK
+from charmhelpers.core.hookenv import (
+    log,
+    WARNING
+)
 
 from subprocess import (
     CalledProcessError,
@@ -118,12 +122,16 @@ def mkfs_xfs(device, force=False, inode_size=1024):
     :ptype device: tr
     :param force: Force operation
     :ptype: force: boolean
-    :param inode_size: XFS inode size in bytes
+    :param inode_size: XFS inode size in bytes; if set to 0 or None,
+        the value used will be the XFS system default
     :ptype inode_size: int"""
     cmd = ['mkfs.xfs']
     if force:
         cmd.append("-f")
-    if inode_size:
+    if inode_size >= 256 and inode_size <= 2048:
         cmd += ['-i', "size={}".format(inode_size)]
+    elif inode_size != 0:
+        log("Config value xfs-inode-size={} is invalid. Using system default.".format(inode_size), level=WARNING)
+
     cmd += [device]
     check_call(cmd)
