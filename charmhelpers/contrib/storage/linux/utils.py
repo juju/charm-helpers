@@ -128,10 +128,12 @@ def mkfs_xfs(device, force=False, inode_size=1024):
     cmd = ['mkfs.xfs']
     if force:
         cmd.append("-f")
-    if inode_size >= 256 and inode_size <= 2048:
-        cmd += ['-i', "size={}".format(inode_size)]
-    elif inode_size != 0:
-        log("Config value xfs-inode-size={} is invalid. Using system default.".format(inode_size), level=WARNING)
+
+    if inode_size:
+        if inode_size >= 256 and inode_size <= 2048:
+            cmd += ['-i', "size={}".format(inode_size)]
+        elif inode_size != 0:
+            log("Config value xfs-inode-size={} is invalid. Using system default.".format(inode_size), level=WARNING)
 
     cmd += [device]
     check_call(cmd)

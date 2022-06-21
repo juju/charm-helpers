@@ -120,8 +120,15 @@ class MiscStorageUtilsTests(unittest.TestCase):
         )
 
     @patch(STORAGE_LINUX_UTILS + '.check_call')
-    def test_mkfs_xfs_default_size(self, check_call):
+    def test_mkfs_xfs_inode_size_0(self, check_call):
         storage_utils.mkfs_xfs('/dev/sdb', inode_size=0)
+        check_call.assert_called_with(
+            ['mkfs.xfs', '/dev/sdb']
+        )
+
+    @patch(STORAGE_LINUX_UTILS + '.check_call')
+    def test_mkfs_xfs_inode_size_none(self, check_call):
+        storage_utils.mkfs_xfs('/dev/sdb', inode_size=None)
         check_call.assert_called_with(
             ['mkfs.xfs', '/dev/sdb']
         )
