@@ -868,8 +868,11 @@ class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
     def __init__(self, singlenode_mode=False,
-                 address_types=ADDRESS_TYPES,
+                 address_types=None,
                  exporter_stats_port=DEFAULT_HAPROXY_EXPORTER_STATS_PORT):
+        if address_types is None:
+            address_types = ADDRESS_TYPES[:]
+
         self.address_types = address_types
         self.singlenode_mode = singlenode_mode
         self.exporter_stats_port = exporter_stats_port
