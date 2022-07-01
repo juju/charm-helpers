@@ -25,6 +25,7 @@ import socket
 import time
 
 from base64 import b64decode
+from distutils.version import LooseVersion
 from subprocess import (
     check_call,
     check_output,
@@ -39,6 +40,7 @@ from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
 from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
+    get_installed_version,
 )
 from charmhelpers.core.hookenv import (
     NoNetworkBinding,
@@ -130,6 +132,7 @@ CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 HAPROXY_RUN_DIR = '/var/run/haproxy/'
 DEFAULT_OSLO_MESSAGING_DRIVER = "messagingv2"
+DEFAULT_HAPROXY_EXPORTER_STATS_PORT = 8404
 
 
 def ensure_packages(packages):
@@ -860,9 +863,14 @@ class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
     def __init__(self, singlenode_mode=False,
-                 address_types=ADDRESS_TYPES):
+                 address_types=None,
+                 exporter_stats_port=DEFAULT_HAPROXY_EXPORTER_STATS_PORT):
+        if address_types is None:
+            address_types = ADDRESS_TYPES[:]
+
         self.address_types = address_types
         self.singlenode_mode = singlenode_mode
+        self.exporter_stats_port = exporter_stats_port
 
     def __call__(self):
         if not os.path.isdir(HAPROXY_RUN_DIR):
@@ -957,9 +965,19 @@ class HAProxyContext(OSContextGenerator):
         db = kv()
         ctxt['stat_password'] = db.get('stat-password')
         if not ctxt['stat_password']:
-            ctxt['stat_password'] = db.set('stat-password',
-                                           pwgen(32))
+            ctxt['stat_password'] = db.set('stat-password', pwgen(32))
             db.flush()
+
+        # NOTE(rgildein): configure prometheus exporter for haproxy > 2.0.0
+        #                 New bind will be created and a prometheus-exporter
+        #                 will be used for path /metrics. At the same time,
+        #                 prometheus-exporter avoids using auth.
+        haproxy_version = get_installed_version("haproxy")
+        if (haproxy_version and
+                haproxy_version.ver_str >= LooseVersion("2.0.0") and
+                is_relation_made("haproxy-exporter")):
+            ctxt["stats_exporter_host"] = get_relation_ip("haproxy-exporter")
+            ctxt["stats_exporter_port"] = self.exporter_stats_port
 
         for frontend in cluster_hosts:
             if (len(cluster_hosts[frontend]['backends']) > 1 or
