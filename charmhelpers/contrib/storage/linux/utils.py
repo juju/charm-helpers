@@ -25,7 +25,8 @@ from subprocess import (
 
 from charmhelpers.core.hookenv import (
     log,
-    WARNING
+    WARNING,
+    INFO
 )
 
 
@@ -133,8 +134,10 @@ def mkfs_xfs(device, force=False, inode_size=None):
     if inode_size:
         if inode_size >= 256 and inode_size <= 2048:
             cmd += ['-i', "size={}".format(inode_size)]
+        else:
+            log("Config value xfs-inode-size={} is invalid. Using system default.".format(inode_size), level=WARNING)
     else:
-        log("Config value xfs-inode-size={} is invalid. Using system default.".format(inode_size), level=WARNING)
+        log("Using XFS filesystem with system default inode size.", level=INFO)
 
     cmd += [device]
     check_call(cmd)
