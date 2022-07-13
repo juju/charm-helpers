@@ -151,7 +151,7 @@ def get_invalid_vips():
     A vip is invalid if it doesn't belong to the subnet in any interface.
     If all vips are valid, this returns an empty list.
 
-    :returns: A list of strings, where each string is an invalid ip address.    
+    :returns: A list of strings, where each string is an invalid vip address.    
     """
 
     clustered = is_clustered()
