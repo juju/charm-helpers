@@ -147,8 +147,11 @@ def local_address(unit_get_fallback='public-address'):
 
 
 def get_invalid_vips():
-    """Returns a list of invalid vips.
-    If all vips are valid, returns an empty list.
+    """Check if any of the provided vips are invalid.
+    A vip is invalid if it doesn't belong to the subnet in any interface.
+    If all vips are valid, this returns an empty list.
+
+    :returns: A list of strings, where each string is an invalid ip address.    
     """
 
     clustered = is_clustered()
