@@ -25,6 +25,7 @@ from charmhelpers.contrib.network.ip import (
     is_ipv6,
     get_ipv6_addr,
     resolve_network_cidr,
+    get_iface_for_address
 )
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
 
@@ -143,6 +144,26 @@ def local_address(unit_get_fallback='public-address'):
         return network_get_primary_address('juju-info')
     except (NotImplementedError, NoNetworkBinding):
         return unit_get(unit_get_fallback)
+
+
+def get_invalid_vips():
+    """Returns a list of invalid vips.
+    If all vips are valid, returns an empty list.
+    """
+
+    clustered = is_clustered()
+    vips = config('vip')
+    if vips:
+        vips = vips.split()
+    invalid_vips = []
+
+    if clustered and vips:
+        for vip in vips:
+            iface_for_vip = get_iface_for_address(vip)
+            if iface_for_vip is None:
+                invalid_vips.append(vip)
+
+    return invalid_vips
 
 
 def resolve_address(endpoint_type=PUBLIC, override=True):
