@@ -93,7 +93,7 @@ class LVMStorageUtilsTests(unittest.TestCase):
     def test_is_not_physical_volume(self):
         """It properly reports block dev is an LVM PV"""
         with patch(STORAGE_LINUX_LVM + '.check_output') as check_output:
-            check_output.side_effect = subprocess.CalledProcessError('cmd', 2)
+            check_output.side_effect = subprocess.CalledProcessError(2, 'cmd')
             self.assertFalse(lvm.is_lvm_physical_volume('/dev/loop0'))
 
     def test_pvcreate(self):

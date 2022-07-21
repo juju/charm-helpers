@@ -220,7 +220,7 @@ def apply_playbook(playbook, tags=None, extra_vars=None):
         charmhelpers.core.hookenv.log("Ansible playbook failed with {} "
                                       "Stdout: {}".format(e, e.output),
                                       level="ERROR")
-        raise subprocess.CalledProcessError(e)
+        raise e
 
 
 class AnsibleHooks(charmhelpers.core.hookenv.Hooks):

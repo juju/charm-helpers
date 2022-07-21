@@ -389,7 +389,7 @@ class IPTest(unittest.TestCase):
         # If the syscall returns an error, then return True
 
         def fake_check_call(*args, **kwargs):
-            raise subprocess.CalledProcessError(['called'], 1)
+            raise subprocess.CalledProcessError(1, ['called'])
         mock_check_output.side_effect = fake_check_call
         self.assertTrue(net_ip.is_ipv6_disabled())
 
