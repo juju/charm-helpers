@@ -118,8 +118,7 @@ def juju_state_to_yaml(yaml_path, namespace_separator=':',
 
     if os.path.exists(yaml_path):
         with open(yaml_path, "r") as existing_vars_file:
-            existing_vars = yaml.load(existing_vars_file.read(),
-                                      Loader=yaml.FullLoader)
+            existing_vars = yaml.safe_load(existing_vars_file.read())
     else:
         with open(yaml_path, "w+"):
             pass
