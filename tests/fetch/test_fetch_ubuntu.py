@@ -899,6 +899,14 @@ class AptTests(TestCase):
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')
+    def test_installs_apt_empty_packages(self, log, check_call):
+        packages = []
+        fetch.apt_install(packages, fatal=True)
+
+        check_call.assert_not_called()
+
+    @patch('subprocess.check_call')
+    @patch('charmhelpers.fetch.ubuntu.log')
     def test_purges_apt_packages_as_string_fatal(self, log, mock_call):
         packages = 'irrelevant names'
         mock_call.side_effect = OSError('fail')
