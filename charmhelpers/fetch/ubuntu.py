@@ -363,6 +363,9 @@ def apt_install(packages, options=None, fatal=False, quiet=False):
     :type quiet: bool
     :raises: subprocess.CalledProcessError
     """
+    if not packages:
+        log("Nothing to install", level=DEBUG)
+        return
     if options is None:
         options = ['--option=Dpkg::Options::=--force-confold']
 
