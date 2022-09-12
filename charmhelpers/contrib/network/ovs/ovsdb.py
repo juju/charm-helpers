@@ -240,7 +240,7 @@ class SimpleOVSDB(object):
             cmd = [self._tool]
             if self._args:
                 cmd.extend(self._args)
-            cmd += ['-f', 'json']
+            cmd.extend(['-f', 'json'])
             return cmd
 
         def _find_tbl(self, condition=None):
