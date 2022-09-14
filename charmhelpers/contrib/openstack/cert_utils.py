@@ -90,7 +90,7 @@ class CertRequest(object):
         if vip:
             addresses.append(vip)
         self.hostname_entry = {
-            'cn': get_hostname(ip),
+            'cn': get_hostname(ip) or ip,
             'addresses': addresses}
 
     def add_hostname_cn_ip(self, addresses):
