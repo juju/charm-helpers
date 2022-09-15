@@ -525,8 +525,10 @@ class IdentityServiceContext(OSContextGenerator):
                 if 'public_auth_url' in rdata:
                     ctxt.update({
                         'public_auth_url': rdata.get('public_auth_url'),
+                    })
+                if 'internal_auth_url' in rdata:
+                    ctxt.update({
                         'internal_auth_url': rdata.get('internal_auth_url'),
-
                     })
 
                 # we keep all veriables in ctxt for compatibility and

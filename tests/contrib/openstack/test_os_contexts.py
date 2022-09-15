@@ -50,9 +50,9 @@ class FakeRelation(object):
         passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
     '''
 
-    def __init__(self, relation_data={}, app_data={}):
-        self.relation_data = relation_data
-        self.app_data = app_data
+    def __init__(self, relation_data=None, app_data=None):
+        self.relation_data = relation_data or {}
+        self.app_data = app_data or {}
 
     def get(self, attribute=None, unit=None, rid=None, app=None):
         if app:
@@ -1231,7 +1231,8 @@ class ContextTests(unittest.TestCase):
     @patch.object(context, 'os_release', return_value='rocky')
     def test_identity_service_app_context_with_data_http(self, *args):
         '''Test identity-service context for forwards compatibility'''
-        relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP)
+        relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP,
+                                relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
