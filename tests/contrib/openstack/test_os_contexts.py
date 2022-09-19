@@ -50,10 +50,16 @@ class FakeRelation(object):
         passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
     '''
 
-    def __init__(self, relation_data):
-        self.relation_data = relation_data
+    def __init__(self, relation_data=None, app_data=None):
+        self.relation_data = relation_data or {}
+        self.app_data = app_data or {}
 
-    def get(self, attribute=None, unit=None, rid=None):
+    def get(self, attribute=None, unit=None, rid=None, app=None):
+        if app:
+            if attribute is None:
+                return self.app_data
+            else:
+                return self.app_data.get(attribute)
         if not rid or rid == 'foo:0':
             if attribute is None:
                 return self.relation_data
@@ -145,6 +151,36 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_type': 'volume',
     'auth_protocol': 'http',
     'internal_protocol': 'http',
+}
+
+IDENTITY_SERVICE_RELATION_APP_HTTP = {
+    'admin-auth-url': 'http://keystoneadmin.local:80/keystone',
+    'admin-domain-id': 'adm-dom-id',
+    'admin-domain-name': 'admin_domain',
+    'admin-project-id': 'adm-proj-id',
+    'admin-project-name': 'admin',
+    'admin-user-id': 'adm-user-id',
+    'admin-user-name': 'admin',
+    'api-version': 'v3',
+    'auth-host': 'keystoneadmin.local',
+    'auth-port': '5000',
+    'auth-protocol': 'http',
+    'internal-auth-url': 'http://keystoneinternal.local:80/keystone',
+    'internal-host': 'keystoneinternal.local',
+    'internal-port': '5000',
+    'internal-protocol': 'http',
+    'public-auth-url': 'http://keystonepublic.local:80/keystone',
+    'service-domain-id': 'svc-dom-id',
+    'service-domain-name': 'admin_domain',
+    'service-host': 'keystonepublic.local',
+    'service-password': 'foo',
+    'service-port': '5000',
+    'service-project-id': 'svc-proj-id',
+    'service-project-name': 'services',
+    'service-protocol': 'http',
+    'service-user-id': 'svc-user-id',
+    'service-user-name': 'svc-user-name',
+    'service-type': 'volume',
 }
 
 IDENTITY_SERVICE_RELATION_UNSET = {
@@ -697,6 +733,7 @@ TO_PATCH = [
     'resolve_address',
     'is_ipv6_disabled',
     'get_installed_version',
+    'remote_service_name',
 ]
 
 
@@ -1192,6 +1229,41 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_app_context_with_data_http(self, *args):
+        '''Test identity-service context for forwards compatibility'''
+        relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP,
+                                relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
+            'admin_tenant_name': 'services',
+            'admin_tenant_id': 'svc-proj-id',
+            'admin_domain_id': 'svc-dom-id',
+            'service_project_id': 'svc-proj-id',
+            'service_domain_id': 'svc-dom-id',
+            'admin_user': 'svc-user-name',
+            'auth_host': 'keystoneadmin.local',
+            'auth_port': '5000',
+            'auth_protocol': 'http',
+            'service_host': 'keystonepublic.local',
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': 'keystoneinternal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
+            'api_version': '3',
+            'public_auth_url': 'http://keystonepublic.local:80/keystone',
+            'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
+        }
+        result.pop('keystone_authtoken')
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
     def test_identity_service_context_with_data_versioned(self, *args):
         '''Test shared-db context with api version supplied from keystone'''
         relation = FakeRelation(
@@ -1314,6 +1386,39 @@ class ContextTests(unittest.TestCase):
             ('user_domain_name', 'admin_domain'),
             ('project_name', 'admin'),
             ('username', 'adam'),
+            ('password', 'foo'),
+            ('signing_dir', ''),
+            ('service_type', 'volume'),
+        ))
+
+        self.assertEquals(keystone_authtoken, expected)
+
+    @patch.object(context, 'filter_installed_packages')
+    @patch.object(context, 'os_release')
+    def test_keystone_authtoken_www_authenticate_uri_forwards_compat(
+            self,
+            mock_os_release,
+            mock_filter_installed_packages):
+        relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP)
+        self.relation_get.side_effect = relation.get
+
+        mock_filter_installed_packages.return_value = []
+        mock_os_release.return_value = 'stein'
+
+        identity_service = context.IdentityServiceContext()
+
+        cfg_ctx = identity_service()
+
+        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
+
+        expected = collections.OrderedDict((
+            ('auth_type', 'password'),
+            ('www_authenticate_uri', 'http://keystonepublic.local:80/keystone/v3'),
+            ('auth_url', 'http://keystoneinternal.local:80/keystone'),
+            ('project_domain_name', 'admin_domain'),
+            ('user_domain_name', 'admin_domain'),
+            ('project_name', 'services'),
+            ('username', 'svc-user-name'),
             ('password', 'foo'),
             ('signing_dir', ''),
             ('service_type', 'volume'),
