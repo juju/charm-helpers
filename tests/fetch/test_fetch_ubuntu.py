@@ -531,6 +531,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive.list', 'w')
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -547,6 +549,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive.list', 'w')
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -561,6 +565,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive.list', 'w')
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -665,6 +671,34 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
                            '&exact=on&search=0x{}').format(PGP_KEY_ID)],
                  env=None),
         ])
+
+    @patch('charmhelpers.fetch.ubuntu.log')
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'get_distrib_codename')
+    def test_add_source_cloud_ovn(self, get_distrib_codename, apt_install,
+                                  filter_pkg, log):
+        source = "cloud:focal-ovn-22.03"
+        get_distrib_codename.return_value = 'focal'
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' focal-updates/ovn-22.03 main\n')
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive-ovn.list', 'w')
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+        source = "cloud:focal-ovn-22.03/proposed"
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' focal-proposed/ovn-22.03 main\n')
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive-ovn.list', 'w')
 
     @patch('charmhelpers.fetch.ubuntu.log')
     def test_configure_bad_install_source(self, log):
