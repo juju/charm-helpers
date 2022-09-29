@@ -1,16 +1,12 @@
 {% if auth_host -%}
-[keystone_authtoken]
+[service_user]
+send_service_user_token = true
 auth_type = password
 {% if api_version == "3" -%}
-auth_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}/v3
 auth_url = {{ auth_protocol }}://{{ auth_host }}:{{ auth_port }}/v3
 project_domain_name = {{ admin_domain_name }}
 user_domain_name = {{ admin_domain_name }}
-{% if service_type -%}
-service_type = {{ service_type }}
-{% endif -%}
 {% else -%}
-auth_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}
 auth_url = {{ auth_protocol }}://{{ auth_host }}:{{ auth_port }}
 project_domain_name = default
 user_domain_name = default
@@ -18,10 +14,4 @@ user_domain_name = default
 project_name = {{ admin_tenant_name }}
 username = {{ admin_user }}
 password = {{ admin_password }}
-signing_dir = {{ signing_dir }}
-{% if use_memcache == true %}
-memcached_servers = {{ memcache_url }}
-{% endif -%}
-service_token_roles = Admin
-service_token_roles_required = True
 {% endif -%}
