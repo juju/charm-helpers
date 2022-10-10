@@ -142,7 +142,8 @@ class OVNClusterStatus(object):
     def to_yaml(self):
         """Return yaml-serializable dict representation of this object.
 
-        This dict is guaranteed to be serializable with yaml.safe_dump().
+        :returns: dictionary suitable for serialization by yaml.safe_dump()
+        :rtype: Dict[str, Any]
         """
         yaml_dict = self.__dict__
         # Convert types that are not natively convertable to yaml
