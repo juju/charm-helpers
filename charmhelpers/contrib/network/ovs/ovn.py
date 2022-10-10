@@ -139,6 +139,18 @@ class OVNClusterStatus(object):
         """
         return self.leader == 'self'
 
+    def to_yaml(self):
+        """Return yaml-serializable dict representation of this object.
+
+        This dict is guaranteed to be serializable with yaml.safe_dump().
+        """
+        yaml_dict = self.__dict__
+        # Convert types that are not natively convertable to yaml
+        yaml_dict["cluster_id"] = str(self.cluster_id)
+        yaml_dict["server_id"] = str(self.server_id)
+
+        return yaml_dict
+
 
 def cluster_status(target, schema=None, use_ovs_appctl=False, rundir=None):
     """Retrieve status information from clustered OVSDB.
