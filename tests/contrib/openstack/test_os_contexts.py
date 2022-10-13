@@ -1022,6 +1022,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1078,6 +1079,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1109,6 +1111,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1139,6 +1142,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_domain_id': None,
@@ -1168,6 +1172,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1198,6 +1203,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': 'svc-proj-id',
@@ -1256,6 +1262,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_domain_id': None,
