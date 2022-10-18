@@ -73,7 +73,7 @@ class StorageTest(unittest.TestCase):
             kv.close()
 
     def test_hook_scope(self):
-        kv = Storage(':memory:')
+        kv = Storage(':memory:', keep_revisions=True)
         try:
             with kv.hook_scope('install') as rev:
                 self.assertEqual(rev, 1)
@@ -108,8 +108,35 @@ class StorageTest(unittest.TestCase):
             [(1, 'a', 1, 'config-changed'),
              (2, 'a', True, 'start')])
 
+    def test_hook_scope_no_revisions(self):
+        kv = Storage(':memory:', keep_revisions=False)
+        try:
+            with kv.hook_scope('install') as rev:
+                self.assertEqual(rev, 1)
+                kv.set('a', 1)
+                raise RuntimeError('x')
+        except RuntimeError:
+            self.assertEqual(kv.get('a'), None)
+
+        with kv.hook_scope('config-changed') as rev:
+            self.assertEqual(rev, 1)
+            kv.set('a', 1)
+        self.assertEqual(kv.get('a'), 1)
+
+        kv.revision = None
+
+        with kv.hook_scope('start') as rev:
+            self.assertEqual(rev, 2)
+            kv.set('a', False)
+            kv.set('a', True)
+        self.assertEqual(kv.get('a'), True)
+
+        # History doesn't decode values by default
+        history = [h[:-1] for h in kv.gethistory('a')]
+        self.assertEqual(len(history), 0)
+
     def test_delta_no_previous_and_history(self):
-        kv = Storage(':memory:')
+        kv = Storage(':memory:', keep_revisions=True)
         with kv.hook_scope('install'):
             data = {'a': 0, 'c': False}
             delta = kv.delta(data, 'settings.')
@@ -131,7 +158,7 @@ class StorageTest(unittest.TestCase):
              (2, 'settings.a', '1', 'config')])
 
     def test_unset(self):
-        kv = Storage(':memory:')
+        kv = Storage(':memory:', keep_revisions=True)
         with kv.hook_scope('install'):
             kv.set('a', True)
         with kv.hook_scope('start'):
@@ -144,6 +171,18 @@ class StorageTest(unittest.TestCase):
             (1, 'a', 'true', 'install'),
             (2, 'a', 'false', 'start'),
             (3, 'a', '"DELETED"', "config-changed")])
+
+    def test_unset_norevisions(self):
+        kv = Storage(':memory:', keep_revisions=False)
+        with kv.hook_scope('install'):
+            kv.set('a', True)
+        with kv.hook_scope('start'):
+            kv.set('a', False)
+        with kv.hook_scope('config-changed'):
+            kv.unset('a')
+        history = [h[:-1] for h in kv.gethistory('a')]
+
+        self.assertEqual(len(history), 0)
 
     def test_flush_and_close_on_closed(self):
         kv = Storage(':memory:')
