@@ -46,11 +46,13 @@ class TestServiceManager(unittest.TestCase):
     @mock.patch.object(services.ServiceManager, 'reconfigure_services')
     @mock.patch.object(services.ServiceManager, 'stop_services')
     @mock.patch.object(hookenv, 'hook_name')
-    @mock.patch.object(hookenv, 'config')
-    def test_manage_stop(self, config, hook_name, stop_services, reconfigure_services):
+    @mock.patch.object(hookenv, '_run_atstart')
+    @mock.patch.object(hookenv, 'config', mock.Mock())
+    def test_manage_stop(self, _run_atstart, hook_name, stop_services, reconfigure_services):
         manager = services.ServiceManager()
         hook_name.return_value = 'stop'
         manager.manage()
+        _run_atstart.assert_called_once_with()
         stop_services.assert_called_once_with()
         assert not reconfigure_services.called
 
@@ -58,15 +60,18 @@ class TestServiceManager(unittest.TestCase):
     @mock.patch.object(services.ServiceManager, 'reconfigure_services')
     @mock.patch.object(services.ServiceManager, 'stop_services')
     @mock.patch.object(hookenv, 'hook_name')
-    @mock.patch.object(hookenv, 'config')
-    def test_manage_other(self, config, hook_name, stop_services, reconfigure_services, provide_data):
+    @mock.patch.object(hookenv, '_run_atstart')
+    @mock.patch.object(hookenv, 'config', mock.Mock())
+    def test_manage_other(self, _run_atstart, hook_name, stop_services, reconfigure_services, provide_data):
         manager = services.ServiceManager()
         hook_name.return_value = 'config-changed'
         manager.manage()
+        _run_atstart.assert_called_once_with()
         assert not stop_services.called
         reconfigure_services.assert_called_once_with()
         provide_data.assert_called_once_with()
 
+    @mock.patch.object(hookenv, '_atstart', [])
     def test_manage_calls_atstart(self):
         cb = mock.MagicMock()
         hookenv.atstart(cb)
@@ -74,19 +79,23 @@ class TestServiceManager(unittest.TestCase):
         manager.manage()
         self.assertTrue(cb.called)
 
-    def test_manage_calls_atexit(self):
+    @mock.patch.object(hookenv, '_run_atstart')
+    def test_manage_calls_atexit(self, _run_atstart):
         cb = mock.MagicMock()
         hookenv.atexit(cb)
         manager = services.ServiceManager()
         manager.manage()
+        _run_atstart.assert_called_once_with()
         self.assertTrue(cb.called)
 
     @mock.patch.object(hookenv, 'config')
-    def test_manage_config_not_saved(self, config):
+    @mock.patch.object(hookenv, '_run_atstart')
+    def test_manage_config_not_saved(self, _run_atstart, config):
         config = config.return_value
         config.implicit_save = False
         manager = services.ServiceManager()
         manager.manage()
+        _run_atstart.assert_called_once_with()
         self.assertFalse(config.save.called)
 
     @mock.patch.object(services.ServiceManager, 'save_ready')
