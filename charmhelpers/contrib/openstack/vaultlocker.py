@@ -14,7 +14,6 @@
 
 import json
 import os
-from xml.dom.minidom import Attr
 
 import charmhelpers.contrib.openstack.alternatives as alternatives
 import charmhelpers.contrib.openstack.context as context
