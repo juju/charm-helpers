@@ -485,10 +485,6 @@ class IdentityServiceContext(OSContextGenerator):
                     # Re-map some keys for backwards compatibility
                     for target, source in self._forward_compat_remaps.items():
                         adata[target] = _adata.get(source)
-                # else:
-                    # # No app data bag presented - fallback
-                    # # to legacy unit based relation data
-                    # rdata = relation_get(rid=rid, unit=unit)
                 # Now preferentially get data from the app data bag, but if
                 # it's not available, get it from the legacy based relation
                 # data.
