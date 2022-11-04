@@ -1264,6 +1264,47 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_app_context_with_app_data_nones(self, *args):
+        '''Test identity-service context for forwards compatibility'''
+        # This verifies that if there are None values in the app data that
+        # would override non-None values in the relation data, that the
+        # relation data keys are used.
+        app_data = IDENTITY_SERVICE_RELATION_APP_HTTP.copy()
+        app_data['service-user-name'] = None
+        app_data['service-host'] = None
+        relation = FakeRelation(app_data=app_data,
+                                relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_domain_name': 'admin_domain',
+            'admin_tenant_name': 'services',
+            'admin_tenant_id': 'svc-proj-id',
+            'admin_domain_id': 'svc-dom-id',
+            'service_project_id': 'svc-proj-id',
+            'service_domain_id': 'svc-dom-id',
+            'admin_user': 'adam',  # comes from the relation data
+            'auth_host': 'keystoneadmin.local',
+            'auth_port': '5000',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',  # comes from relation data
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': 'keystoneinternal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
+            'api_version': '3',
+            'public_auth_url': 'http://keystonepublic.local:80/keystone',
+            'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
+        }
+        result.pop('keystone_authtoken')
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
     def test_identity_service_context_with_data_versioned(self, *args):
         '''Test shared-db context with api version supplied from keystone'''
         relation = FakeRelation(
