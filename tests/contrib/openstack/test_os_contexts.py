@@ -1285,6 +1285,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'services',
             'admin_tenant_id': 'svc-proj-id',
