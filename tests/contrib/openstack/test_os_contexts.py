@@ -1232,6 +1232,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
     def test_identity_service_context_with_admin_role(self, *args):
         '''Test shared-db context with admin role supplied from keystone'''
         relation = FakeRelation(
