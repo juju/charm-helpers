@@ -254,6 +254,11 @@ IDENTITY_SERVICE_RELATION_VERSIONED = {
 }
 IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
 
+IDENTITY_SERVICE_RELATION_ADMIN_ROLE = {
+    'admin_role': 'Role',
+}
+IDENTITY_SERVICE_RELATION_ADMIN_ROLE.update(IDENTITY_SERVICE_RELATION_HTTPS)
+
 IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
     'api_version': '3',
     'service_tenant_id': 'svc-proj-id',
@@ -1340,6 +1345,36 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'https',
             'api_version': '3',
+        }
+        result.pop('keystone_authtoken')
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    def test_identity_service_context_with_admin_role(self, *args):
+        '''Test shared-db context with admin role supplied from keystone'''
+        relation = FakeRelation(
+            relation_data=IDENTITY_SERVICE_RELATION_ADMIN_ROLE)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_role': 'Role',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
+            'admin_domain_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https',
+            'service_type': 'volume',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'https',
+            'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
