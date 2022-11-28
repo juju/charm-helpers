@@ -2,7 +2,7 @@
 [keystone_authtoken]
 auth_type = password
 {% if api_version == "3" -%}
-auth_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}/v3
+www_authenticate_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}/v3
 auth_url = {{ auth_protocol }}://{{ auth_host }}:{{ auth_port }}/v3
 project_domain_name = {{ admin_domain_name }}
 user_domain_name = {{ admin_domain_name }}
@@ -10,7 +10,7 @@ user_domain_name = {{ admin_domain_name }}
 service_type = {{ service_type }}
 {% endif -%}
 {% else -%}
-auth_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}
+www_authenticate_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}
 auth_url = {{ auth_protocol }}://{{ auth_host }}:{{ auth_port }}
 project_domain_name = default
 user_domain_name = default
