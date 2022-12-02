@@ -33,6 +33,37 @@ VSCTL_BRIDGE_TBL = textwrap.dedent("""
     """)
 
 
+VSCTL_BRIDGE_TBL_DESERIALIZED = {
+    '_uuid': uuid.UUID('1e21ba48-61ff-4b32-b35e-cb80411da351'),
+    'auto_attach': [],
+    'controller': [],
+    'datapath_id': '0000a0369fdd3890',
+    'datapath_type': '',
+    'datapath_version': '<unknown>',
+    'external_ids': {
+        'charm-ovn-chassis': 'managed',
+        'other': 'value',
+    },
+    'fail_mode': [],
+    'flood_vlans': [],
+    'flow_tables': {},
+    'ipfix': [],
+    'mcast_snooping_enable': False,
+    'mirrors': [],
+    'name': 'br-test',
+    'netflow': [],
+    'other_config': {},
+    'ports': [uuid.UUID('617f9359-77e2-41be-8af6-4c44e7a6bcc3'),
+              uuid.UUID('da840476-8809-4107-8733-591f4696f056')],
+    'protocols': ['OpenFlow10', 'OpenFlow13', 'OpenFlow14'],
+    'rstp_enable': False,
+    'rstp_status': {},
+    'sflow': [],
+    'status': {},
+    'stp_enable': False,
+}
+
+
 class TestSimpleOVSDB(test_utils.BaseTestCase):
 
     def patch_target(self, attr, return_value=None):
@@ -55,37 +86,9 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
         self.patch_object(ovsdb.utils, '_run')
         self._run.return_value = VSCTL_BRIDGE_TBL
         self.maxDiff = None
-        expect = {
-            '_uuid': uuid.UUID('1e21ba48-61ff-4b32-b35e-cb80411da351'),
-            'auto_attach': [],
-            'controller': [],
-            'datapath_id': '0000a0369fdd3890',
-            'datapath_type': '',
-            'datapath_version': '<unknown>',
-            'external_ids': {
-                'charm-ovn-chassis': 'managed',
-                'other': 'value',
-            },
-            'fail_mode': [],
-            'flood_vlans': [],
-            'flow_tables': {},
-            'ipfix': [],
-            'mcast_snooping_enable': False,
-            'mirrors': [],
-            'name': 'br-test',
-            'netflow': [],
-            'other_config': {},
-            'ports': [uuid.UUID('617f9359-77e2-41be-8af6-4c44e7a6bcc3'),
-                      uuid.UUID('da840476-8809-4107-8733-591f4696f056')],
-            'protocols': ['OpenFlow10', 'OpenFlow13', 'OpenFlow14'],
-            'rstp_enable': False,
-            'rstp_status': {},
-            'sflow': [],
-            'status': {},
-            'stp_enable': False}
         # this in effect also tests the __iter__ front end method
         for el in self.target.bridge:
-            self.assertDictEqual(el, expect)
+            self.assertDictEqual(el, VSCTL_BRIDGE_TBL_DESERIALIZED)
             break
         self._run.assert_called_once_with(
             'ovs-vsctl', '-f', 'json', 'find', 'bridge')
@@ -103,6 +106,20 @@ class TestSimpleOVSDB(test_utils.BaseTestCase):
         self._run.assert_called_once_with(
             'ovs-vsctl', 'extra', 'args',
             '-f', 'json', 'find', 'bridge', 'name=br-test')
+
+    def test__list_tbl_record(self):
+        self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
+        self.patch_object(ovsdb.utils, '_run')
+        self._run.return_value = VSCTL_BRIDGE_TBL
+        self.maxDiff = None
+        # this in effect also tests the __getitem__ front end method
+        self.assertEqual(
+            VSCTL_BRIDGE_TBL_DESERIALIZED,
+            self.target.bridge[
+                uuid.UUID('1e21ba48-61ff-4b32-b35e-cb80411da351')])
+        self._run.assert_called_once_with(
+            'ovs-vsctl', '-f', 'json', 'list', 'bridge',
+            '1e21ba48-61ff-4b32-b35e-cb80411da351')
 
     def test_clear(self):
         self.target = ovsdb.SimpleOVSDB('ovs-vsctl')
