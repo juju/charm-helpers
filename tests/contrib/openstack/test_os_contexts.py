@@ -4748,6 +4748,13 @@ class ContextTests(unittest.TestCase):
             ctx_object.parse_ovs_use_veth()
             _bool_from_string.assert_called_with("Invalid")
 
+    def test_remote_restarts_context(self):
+        self.relation_ids.return_value = ['rid1']
+        self.related_units.return_value = ['nova-compute/0']
+        self.relation_get.return_value = '123456'
+        ctx_object = context.RemoteRestartContext(relation_name='nova-ceilometer')()
+        self.assertEqual(ctx_object, {'restart_trigger': '123456'})
+
 
 class MockPCIDevice(object):
     """Simple wrapper to mock pci.PCINetDevice class"""

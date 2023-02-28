@@ -3445,3 +3445,25 @@ class CephBlueStoreCompressionContext(OSContextGenerator):
         dummy_op.update(self.op)
         pool = ch_ceph.BasePool('dummy-service', op=dummy_op)
         pool.validate()
+
+
+class RemoteRestartContext(OSContextGenerator):
+    """Process restart trigger."""
+
+    def __init__(self, relation_name):
+        """
+        :param relation_name: Name of relation to look for restart trigger.
+        :type relation_name: str
+        """
+        self.relation_name = relation_name
+
+    def __call__(self):
+        for rid in relation_ids(self.relation_name):
+            for unit in related_units(rid):
+                restart_uuid = relation_get(
+                    attribute='restart-trigger',
+                    rid=rid,
+                    unit=unit)
+                if restart_uuid:
+                    return {'restart_trigger': restart_uuid}
+        return {}
