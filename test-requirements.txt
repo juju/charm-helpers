@@ -1,6 +1,5 @@
 # Test-only dependencies are unpinned.
 #
-git+https://git.launchpad.net/ubuntu/+source/python-distutils-extra
 pip
 coverage>=3.6
 mock>=1.0.1,<1.1.0
