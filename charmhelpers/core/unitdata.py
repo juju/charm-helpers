@@ -173,12 +173,24 @@ class Storage(object):
     """
     def __init__(self, path=None):
         self.db_path = path
+        # The following is a hack to work around a bug in which both the
+        # ops framework libraries and charmhelpers end up using the same
+        # DB path, which leads to conflicts.
+        # See: https://bugs.launchpad.net/charm-ceph-mon/+bug/2005137
+        db_suffix = '.unit-state.db'
+        try:
+            import ops
+            db_suffix = '.unit-state2.db'
+            ops = None   # Don't hold an unneeded reference.
+        except:
+            pass
+
         if path is None:
             if 'UNIT_STATE_DB' in os.environ:
                 self.db_path = os.environ['UNIT_STATE_DB']
             else:
                 self.db_path = os.path.join(
-                    os.environ.get('CHARM_DIR', ''), '.unit-state.db')
+                    os.environ.get('CHARM_DIR', ''), db_suffix)
         if self.db_path != ':memory:':
             with open(self.db_path, 'a') as f:
                 os.fchmod(f.fileno(), 0o600)
