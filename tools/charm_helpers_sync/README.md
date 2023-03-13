@@ -42,7 +42,7 @@ layout as of 12/18/2019):
             - apache
     END
 
-includes may be defined as entire module sub-directories, or as invidual
+includes may be defined as entire module sub-directories, or as individual
 .py files with in a module sub-directory.
 
 Charm author can then sync in and update helpers as needed.  The following

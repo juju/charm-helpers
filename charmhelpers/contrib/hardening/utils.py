@@ -1,4 +1,4 @@
-# Copyright 2016 Canonical Limited.
+# Copyright 2016-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ import glob
 import grp
 import os
 import pwd
-import six
 import yaml
 
 from charmhelpers.core.hookenv import (
@@ -85,13 +84,13 @@ def _get_user_provided_overrides(modules):
 
 
 def _apply_overrides(settings, overrides, schema):
-    """Get overrides config overlayed onto modules defaults.
+    """Get overrides config overlaid onto modules defaults.
 
     :param modules: require stack modules config.
     :returns: dictionary of modules config with user overrides applied.
     """
     if overrides:
-        for k, v in six.iteritems(overrides):
+        for k, v in overrides.items():
             if k in schema:
                 if schema[k] is None:
                     settings[k] = v

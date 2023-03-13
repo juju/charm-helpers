@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import subprocess
 import hashlib
 import functools
 import itertools
-import six
 
 from contextlib import contextmanager
 from collections import OrderedDict, defaultdict
@@ -115,6 +114,33 @@ def service_stop(service_name, **kwargs):
     return service('stop', service_name, **kwargs)
 
 
+def service_enable(service_name, **kwargs):
+    """Enable a system service.
+
+    The specified service name is managed via the system level init system.
+    Some init systems (e.g. upstart) require that additional arguments be
+    provided in order to directly control service instances whereas other init
+    systems allow for addressing instances of a service directly by name (e.g.
+    systemd).
+
+    The kwargs allow for the additional parameters to be passed to underlying
+    init systems for those systems which require/allow for them. For example,
+    the ceph-osd upstart script requires the id parameter to be passed along
+    in order to identify which running daemon should be restarted. The follow-
+    ing example restarts the ceph-osd service for instance id=4:
+
+    service_enable('ceph-osd', id=4)
+
+    :param service_name: the name of the service to enable
+    :param **kwargs: additional parameters to pass to the init system when
+                     managing services. These will be passed as key=value
+                     parameters to the init system's commandline. kwargs
+                     are ignored for init systems not allowing additional
+                     parameters via the commandline (systemd).
+    """
+    return service('enable', service_name, **kwargs)
+
+
 def service_restart(service_name, **kwargs):
     """Restart a system service.
 
@@ -135,7 +161,7 @@ def service_restart(service_name, **kwargs):
     :param service_name: the name of the service to restart
     :param **kwargs: additional parameters to pass to the init system when
                      managing services. These will be passed as key=value
-                     parameters to the  init system's commandline. kwargs
+                     parameters to the init system's commandline. kwargs
                      are ignored for init systems not allowing additional
                      parameters via the commandline (systemd).
     """
@@ -217,7 +243,7 @@ def service_resume(service_name, init_dir="/etc/init",
                    initd_dir="/etc/init.d", **kwargs):
     """Resume a system service.
 
-    Reenable starting again at boot. Start the service.
+    Re-enable starting again at boot. Start the service.
 
     :param service_name: the name of the service to resume
     :param init_dir: the path to the init dir
@@ -251,7 +277,7 @@ def service_resume(service_name, init_dir="/etc/init",
     return started
 
 
-def service(action, service_name, **kwargs):
+def service(action, service_name=None, **kwargs):
     """Control a system service.
 
     :param action: the action to take on the service
@@ -260,10 +286,12 @@ def service(action, service_name, **kwargs):
                     the form of key=value.
     """
     if init_is_systemd(service_name=service_name):
-        cmd = ['systemctl', action, service_name]
+        cmd = ['systemctl', action]
+        if service_name is not None:
+            cmd.append(service_name)
     else:
         cmd = ['service', service_name, action]
-        for key, value in six.iteritems(kwargs):
+        for key, value in kwargs.items():
             parameter = '%s=%s' % (key, value)
             cmd.append(parameter)
     return subprocess.call(cmd) == 0
@@ -289,7 +317,7 @@ def service_running(service_name, **kwargs):
         if os.path.exists(_UPSTART_CONF.format(service_name)):
             try:
                 cmd = ['status', service_name]
-                for key, value in six.iteritems(kwargs):
+                for key, value in kwargs.items():
                     parameter = '%s=%s' % (key, value)
                     cmd.append(parameter)
                 output = subprocess.check_output(
@@ -564,7 +592,7 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
         with open(path, 'wb') as target:
             os.fchown(target.fileno(), uid, gid)
             os.fchmod(target.fileno(), perms)
-            if six.PY3 and isinstance(content, six.string_types):
+            if isinstance(content, str):
                 content = content.encode('UTF-8')
             target.write(content)
         return
@@ -727,7 +755,7 @@ class restart_on_change(object):
         :param post_svc_restart_f: A function run after a service has
                                    restarted.
         :type post_svc_restart_f: Callable[[str], None]
-        :param pre_restarts_wait_f: A function callled before any restarts.
+        :param pre_restarts_wait_f: A function called before any restarts.
         :type pre_restarts_wait_f: Callable[None, None]
         """
         self.restart_map = restart_map
@@ -828,7 +856,7 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
     :param post_svc_restart_f: A function run after a service has
                                restarted.
     :type post_svc_restart_f: Callable[[str], None]
-    :param pre_restarts_wait_f: A function callled before any restarts.
+    :param pre_restarts_wait_f: A function called before any restarts.
     :type pre_restarts_wait_f: Callable[None, None]
     :returns: result of lambda_f()
     :rtype: ANY
@@ -880,7 +908,7 @@ def _post_restart_on_change_helper(checksums,
     :param post_svc_restart_f: A function run after a service has
                                restarted.
     :type post_svc_restart_f: Callable[[str], None]
-    :param pre_restarts_wait_f: A function callled before any restarts.
+    :param pre_restarts_wait_f: A function called before any restarts.
     :type pre_restarts_wait_f: Callable[None, None]
     """
     if restart_functions is None:
@@ -914,7 +942,7 @@ def _post_restart_on_change_helper(checksums,
 
 
 def pwgen(length=None):
-    """Generate a random pasword."""
+    """Generate a random password."""
     if length is None:
         # A random length is ok to use a weak PRNG
         length = random.choice(range(35, 45))
@@ -926,7 +954,7 @@ def pwgen(length=None):
     random_generator = random.SystemRandom()
     random_chars = [
         random_generator.choice(alphanumeric_chars) for _ in range(length)]
-    return(''.join(random_chars))
+    return ''.join(random_chars)
 
 
 def is_phy_iface(interface):
@@ -967,7 +995,7 @@ def get_bond_master(interface):
 
 def list_nics(nic_type=None):
     """Return a list of nics of given type(s)"""
-    if isinstance(nic_type, six.string_types):
+    if isinstance(nic_type, str):
         int_types = [nic_type]
     else:
         int_types = nic_type
@@ -1081,8 +1109,7 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
             try:
                 chown(full, uid, gid)
             except (IOError, OSError) as e:
-                # Intended to ignore "file not found". Catching both to be
-                # compatible with both Python 2.7 and 3.x.
+                # Intended to ignore "file not found".
                 if e.errno == errno.ENOENT:
                     pass
 

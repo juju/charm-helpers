@@ -1,6 +1,5 @@
 import unittest
 from mock import patch
-from nose.tools import raises
 import charmhelpers.contrib.openstack.neutron as neutron
 
 TO_PATCH = [
@@ -121,18 +120,16 @@ class NeutronTests(unittest.TestCase):
         plugins = neutron.neutron_plugin_attribute('ovs', 'services')
         self.assertEquals(plugins, ['neutron-plugin-openvswitch-agent'])
 
-    @raises(Exception)
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_foo(self, _network_manager):
         _network_manager.return_value = 'foo'
-        self.assertRaises(Exception, neutron.neutron_plugin_attribute('ovs', 'services'))
+        self.assertRaises(Exception, neutron.neutron_plugin_attribute, 'ovs', 'services')
 
-    @raises(Exception)
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_plugin_keyerror(self, _network_manager):
         self.config.return_value = 'foo'
         _network_manager.return_value = 'quantum'
-        self.assertRaises(Exception, neutron.neutron_plugin_attribute('foo', 'foo'))
+        self.assertRaises(Exception, neutron.neutron_plugin_attribute, 'foo', 'foo')
 
     @patch.object(neutron, 'network_manager')
     def test_neutron_plugin_attribute_attr_keyerror(self, _network_manager):
@@ -141,17 +138,18 @@ class NeutronTests(unittest.TestCase):
         plugins = neutron.neutron_plugin_attribute('ovs', 'foo')
         self.assertEquals(plugins, None)
 
-    @raises(Exception)
     def test_network_manager_essex(self):
         essex_cases = {
             'quantum': 'quantum',
             'neutron': 'quantum',
-            'newhotness': 'newhotness',
         }
         self.os_release.return_value = 'essex'
         for nwmanager in essex_cases:
             self.config.return_value = nwmanager
-            self.assertRaises(Exception, neutron.network_manager())
+            self.assertRaises(Exception, neutron.network_manager)
+
+        self.config.return_value = "newhotness"
+        self.assertEqual(neutron.network_manager(), "newhotness")
 
     def test_network_manager_folsom(self):
         folsom_cases = {

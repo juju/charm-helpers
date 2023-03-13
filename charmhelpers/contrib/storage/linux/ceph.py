@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#
-# Copyright 2012 Canonical Ltd.
-#
 # This file is sourced from lp:openstack-charm-helpers
 #
 # Authors:
@@ -26,7 +23,6 @@ import collections
 import errno
 import hashlib
 import math
-import six
 
 import os
 import shutil
@@ -221,7 +217,7 @@ def validator(value, valid_type, valid_range=None):
                 "was given {} of type {}"
                 .format(valid_range, type(valid_range)))
         # If we're dealing with strings
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             assert value in valid_range, (
                 "{} is not in the list {}".format(value, valid_range))
         # Integer, float should have a min and max
@@ -297,7 +293,6 @@ class BasePool(object):
         # NOTE: Do not perform initialization steps that require live data from
         # a running cluster here. The *Pool classes may be used for validation.
         self.service = service
-        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
         self.op = op or {}
 
         if op:
@@ -344,7 +339,8 @@ class BasePool(object):
         Do not add calls for a specific pool type here, those should go into
         one of the pool specific classes.
         """
-        if self.nautilus_or_later:
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        if nautilus_or_later:
             # Ensure we set the expected pool ratio
             update_pool(
                 client=self.service,
@@ -437,9 +433,9 @@ class BasePool(object):
         :type mode: str
         """
         # Check the input types and values
-        validator(value=cache_pool, valid_type=six.string_types)
+        validator(value=cache_pool, valid_type=str)
         validator(
-            value=mode, valid_type=six.string_types,
+            value=mode, valid_type=str,
             valid_range=["readonly", "writeback"])
 
         check_call([
@@ -605,7 +601,7 @@ class BasePool(object):
 
 
 class Pool(BasePool):
-    """Compability shim for any descendents external to this library."""
+    """Compatibility shim for any descendents external to this library."""
 
     @deprecate(
         'The ``Pool`` baseclass has been replaced by ``BasePool`` class.')
@@ -618,7 +614,8 @@ class Pool(BasePool):
 
 class ReplicatedPool(BasePool):
     def __init__(self, service, name=None, pg_num=None, replicas=None,
-                 percent_data=None, app_name=None, op=None):
+                 percent_data=None, app_name=None, op=None,
+                 profile_name='replicated_rule'):
         """Initialize ReplicatedPool object.
 
         Pool information is either initialized from individual keyword
@@ -635,6 +632,8 @@ class ReplicatedPool(BasePool):
                          to this replicated pool.
         :type replicas: int
         :raises: KeyError
+        :param profile_name: Crush Profile to use
+        :type profile_name: Optional[str]
         """
         # NOTE: Do not perform initialization steps that require live data from
         # a running cluster here. The *Pool classes may be used for validation.
@@ -649,11 +648,20 @@ class ReplicatedPool(BasePool):
             # we will fail with KeyError if it is not provided.
             self.replicas = op['replicas']
             self.pg_num = op.get('pg_num')
+            self.profile_name = op.get('crush-profile') or profile_name
         else:
             self.replicas = replicas or 2
             self.pg_num = pg_num
+            self.profile_name = profile_name or 'replicated_rule'
 
     def _create(self):
+        # Validate if crush profile exists
+        if self.profile_name is None:
+            msg = ("Failed to discover crush profile named "
+                   "{}".format(self.profile_name))
+            log(msg, level=ERROR)
+            raise PoolCreationError(msg)
+
         # Do extra validation on pg_num with data from live cluster
         if self.pg_num:
             # Since the number of placement groups were specified, ensure
@@ -663,19 +671,20 @@ class ReplicatedPool(BasePool):
         else:
             self.pg_num = self.get_pgs(self.replicas, self.percent_data)
 
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
         # Create it
-        if self.nautilus_or_later:
+        if nautilus_or_later:
             cmd = [
                 'ceph', '--id', self.service, 'osd', 'pool', 'create',
                 '--pg-num-min={}'.format(
                     min(AUTOSCALER_DEFAULT_PGS, self.pg_num)
                 ),
-                self.name, str(self.pg_num)
+                self.name, str(self.pg_num), self.profile_name
             ]
         else:
             cmd = [
                 'ceph', '--id', self.service, 'osd', 'pool', 'create',
-                self.name, str(self.pg_num)
+                self.name, str(self.pg_num), self.profile_name
             ]
         check_call(cmd)
 
@@ -694,7 +703,7 @@ class ErasurePool(BasePool):
     def __init__(self, service, name=None, erasure_code_profile=None,
                  percent_data=None, app_name=None, op=None,
                  allow_ec_overwrites=False):
-        """Initialize ReplicatedPool object.
+        """Initialize ErasurePool object.
 
         Pool information is either initialized from individual keyword
         arguments or from a individual CephBrokerRq operation Dict.
@@ -748,9 +757,9 @@ class ErasurePool(BasePool):
         k = int(erasure_profile['k'])
         m = int(erasure_profile['m'])
         pgs = self.get_pgs(k + m, self.percent_data)
-        self.nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
         # Create it
-        if self.nautilus_or_later:
+        if nautilus_or_later:
             cmd = [
                 'ceph', '--id', self.service, 'osd', 'pool', 'create',
                 '--pg-num-min={}'.format(
@@ -780,10 +789,11 @@ def enabled_manager_modules():
     :rtype: List[str]
     """
     cmd = ['ceph', 'mgr', 'module', 'ls']
+    quincy_or_later = cmp_pkgrevno('ceph-common', '17.1.0') >= 0
+    if quincy_or_later:
+        cmd.append('--format=json')
     try:
-        modules = check_output(cmd)
-        if six.PY3:
-            modules = modules.decode('UTF-8')
+        modules = check_output(cmd).decode('utf-8')
     except CalledProcessError as e:
         log("Failed to list ceph modules: {}".format(e), WARNING)
         return []
@@ -816,10 +826,10 @@ def get_mon_map(service):
              ceph command fails.
     """
     try:
-        mon_status = check_output(['ceph', '--id', service,
-                                   'mon_status', '--format=json'])
-        if six.PY3:
-            mon_status = mon_status.decode('UTF-8')
+        octopus_or_later = cmp_pkgrevno('ceph-common', '15.0.0') >= 0
+        mon_status_cmd = 'quorum_status' if octopus_or_later else 'mon_status'
+        mon_status = (check_output(['ceph', '--id', service, mon_status_cmd,
+                                   '--format=json'])).decode('utf-8')
         try:
             return json.loads(mon_status)
         except ValueError as v:
@@ -961,9 +971,7 @@ def get_erasure_profile(service, name):
     try:
         out = check_output(['ceph', '--id', service,
                             'osd', 'erasure-code-profile', 'get',
-                            name, '--format=json'])
-        if six.PY3:
-            out = out.decode('UTF-8')
+                            name, '--format=json']).decode('utf-8')
         return json.loads(out)
     except (CalledProcessError, OSError, ValueError):
         return None
@@ -1166,8 +1174,7 @@ def create_erasure_profile(service, profile_name,
         'nvme'
     ]
 
-    validator(erasure_plugin_name, six.string_types,
-              list(plugin_techniques.keys()))
+    validator(erasure_plugin_name, str, list(plugin_techniques.keys()))
 
     cmd = [
         'ceph', '--id', service,
@@ -1178,7 +1185,7 @@ def create_erasure_profile(service, profile_name,
     ]
 
     if erasure_plugin_technique:
-        validator(erasure_plugin_technique, six.string_types,
+        validator(erasure_plugin_technique, str,
                   plugin_techniques[erasure_plugin_name])
         cmd.append('technique={}'.format(erasure_plugin_technique))
 
@@ -1191,7 +1198,7 @@ def create_erasure_profile(service, profile_name,
         failure_domain = 'rack'
 
     if failure_domain:
-        validator(failure_domain, six.string_types, failure_domains)
+        validator(failure_domain, str, failure_domains)
         # failure_domain changed in luminous
         if luminous_or_later:
             cmd.append('crush-failure-domain={}'.format(failure_domain))
@@ -1200,7 +1207,7 @@ def create_erasure_profile(service, profile_name,
 
     # device class new in luminous
     if luminous_or_later and device_class:
-        validator(device_class, six.string_types, device_classes)
+        validator(device_class, str, device_classes)
         cmd.append('crush-device-class={}'.format(device_class))
     else:
         log('Skipping device class configuration (ceph < 12.0.0)',
@@ -1215,7 +1222,7 @@ def create_erasure_profile(service, profile_name,
             raise ValueError("locality must be provided for lrc plugin")
         # LRC optional configuration
         if crush_locality:
-            validator(crush_locality, six.string_types, failure_domains)
+            validator(crush_locality, str, failure_domains)
             cmd.append('crush-locality={}'.format(crush_locality))
 
     if erasure_plugin_name == 'shec':
@@ -1243,8 +1250,8 @@ def rename_pool(service, old_name, new_name):
     :param new_name: Name to rename pool to.
     :type new_name: str
     """
-    validator(value=old_name, valid_type=six.string_types)
-    validator(value=new_name, valid_type=six.string_types)
+    validator(value=old_name, valid_type=str)
+    validator(value=new_name, valid_type=str)
 
     cmd = [
         'ceph', '--id', service,
@@ -1262,7 +1269,7 @@ def erasure_profile_exists(service, name):
     :returns: True if it exists, False otherwise.
     :rtype: bool
     """
-    validator(value=name, valid_type=six.string_types)
+    validator(value=name, valid_type=str)
     try:
         check_call(['ceph', '--id', service,
                     'osd', 'erasure-code-profile', 'get',
@@ -1282,12 +1289,10 @@ def get_cache_mode(service, pool_name):
     :returns: Current cache mode.
     :rtype: Optional[int]
     """
-    validator(value=service, valid_type=six.string_types)
-    validator(value=pool_name, valid_type=six.string_types)
+    validator(value=service, valid_type=str)
+    validator(value=pool_name, valid_type=str)
     out = check_output(['ceph', '--id', service,
-                        'osd', 'dump', '--format=json'])
-    if six.PY3:
-        out = out.decode('UTF-8')
+                        'osd', 'dump', '--format=json']).decode('utf-8')
     try:
         osd_json = json.loads(out)
         for pool in osd_json['pools']:
@@ -1301,9 +1306,8 @@ def get_cache_mode(service, pool_name):
 def pool_exists(service, name):
     """Check to see if a RADOS pool already exists."""
     try:
-        out = check_output(['rados', '--id', service, 'lspools'])
-        if six.PY3:
-            out = out.decode('UTF-8')
+        out = check_output(
+            ['rados', '--id', service, 'lspools']).decode('utf-8')
     except CalledProcessError:
         return False
 
@@ -1322,13 +1326,11 @@ def get_osds(service, device_class=None):
         out = check_output(['ceph', '--id', service,
                             'osd', 'crush', 'class',
                             'ls-osd', device_class,
-                            '--format=json'])
+                            '--format=json']).decode('utf-8')
     else:
         out = check_output(['ceph', '--id', service,
                             'osd', 'ls',
-                            '--format=json'])
-    if six.PY3:
-        out = out.decode('UTF-8')
+                            '--format=json']).decode('utf-8')
     return json.loads(out)
 
 
@@ -1345,9 +1347,7 @@ def rbd_exists(service, pool, rbd_img):
     """Check to see if a RADOS block device exists."""
     try:
         out = check_output(['rbd', 'list', '--id',
-                            service, '--pool', pool])
-        if six.PY3:
-            out = out.decode('UTF-8')
+                            service, '--pool', pool]).decode('utf-8')
     except CalledProcessError:
         return False
 
@@ -1373,7 +1373,7 @@ def update_pool(client, pool, settings):
     :raises: CalledProcessError
     """
     cmd = ['ceph', '--id', client, 'osd', 'pool', 'set', pool]
-    for k, v in six.iteritems(settings):
+    for k, v in settings.items():
         check_call(cmd + [k, v])
 
 
@@ -1511,9 +1511,7 @@ def configure(service, key, auth, use_syslog):
 def image_mapped(name):
     """Determine whether a RADOS block device is mapped locally."""
     try:
-        out = check_output(['rbd', 'showmapped'])
-        if six.PY3:
-            out = out.decode('UTF-8')
+        out = check_output(['rbd', 'showmapped']).decode('utf-8')
     except CalledProcessError:
         return False
 
@@ -1535,7 +1533,7 @@ def map_block_storage(service, pool, image):
 
 
 def filesystem_mounted(fs):
-    """Determine whether a filesytems is already mounted."""
+    """Determine whether a filesystem is already mounted."""
     return fs in [f for f, m in mounts()]
 
 
@@ -1859,7 +1857,7 @@ class CephBrokerRq(object):
         }
 
     def add_op_create_replicated_pool(self, name, replica_count=3, pg_num=None,
-                                      **kwargs):
+                                      crush_profile=None, **kwargs):
         """Adds an operation to create a replicated pool.
 
         Refer to docstring for ``_partial_build_common_op_create`` for
@@ -1873,6 +1871,10 @@ class CephBrokerRq(object):
                        for pool.
         :type pg_num: int
         :raises: AssertionError if provided data is of invalid type/range
+        :param crush_profile: Name of crush profile to use. If not set the
+                              ceph-mon unit handling the broker request will
+                              set its default value.
+        :type crush_profile: Optional[str]
         """
         if pg_num and kwargs.get('weight'):
             raise ValueError('pg_num and weight are mutually exclusive')
@@ -1882,6 +1884,7 @@ class CephBrokerRq(object):
             'name': name,
             'replicas': replica_count,
             'pg_num': pg_num,
+            'crush-profile': crush_profile
         }
         op.update(self._partial_build_common_op_create(**kwargs))
 
@@ -1904,7 +1907,7 @@ class CephBrokerRq(object):
                                 set the ceph-mon unit handling the broker
                                 request will set its default value.
         :type erasure_profile: str
-        :param allow_ec_overwrites: allow EC pools to be overriden
+        :param allow_ec_overwrites: allow EC pools to be overridden
         :type allow_ec_overwrites: bool
         :raises: AssertionError if provided data is of invalid type/range
         """
@@ -1949,7 +1952,7 @@ class CephBrokerRq(object):
         :param lrc_locality: Group the coding and data chunks into sets of size locality
                              (lrc plugin)
         :type lrc_locality: int
-        :param durability_estimator: The number of parity chuncks each of which includes
+        :param durability_estimator: The number of parity chunks each of which includes
                                      a data chunk in its calculation range (shec plugin)
         :type durability_estimator: int
         :param helper_chunks: The number of helper chunks to use for recovery operations
@@ -2327,7 +2330,7 @@ class CephOSDConfContext(CephConfContext):
     settings are in conf['osd_from_client'] and finally settings which do
     clash are in conf['osd_from_client_conflict']. Rather than silently drop
     the conflicting settings they are provided in the context so they can be
-    rendered commented out to give some visability to the admin.
+    rendered commented out to give some visibility to the admin.
     """
 
     def __init__(self, permitted_sections=None):

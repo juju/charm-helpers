@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from charmhelpers.core.fstab import Fstab
-from nose.tools import (assert_is,
-                        assert_is_not,
-                        assert_equal)
 import unittest
 import tempfile
 import os
@@ -37,48 +34,52 @@ class FstabTest(unittest.TestCase):
         os.unlink(self.tempfile.name)
 
     def test_entries(self):
-        """Test if entries are correctly readed from fstab file"""
-        assert_equal(sorted(GENERATED_FSTAB_FILE.splitlines()),
-                     sorted(str(entry) for entry in self.fstab.entries))
+        """Test if entries are correctly read from fstab file"""
+        self.assertEqual(sorted(GENERATED_FSTAB_FILE.splitlines()),
+                         sorted(str(entry) for entry in self.fstab.entries))
 
     def test_get_entry_by_device_attr(self):
         """Test if the get_entry_by_attr method works for device attr"""
         for device in ('sda', 'sdb', 'sdc', ):
-            assert_is_not(self.fstab.get_entry_by_attr('device',
-                                                       '/dev/%s' % device),
-                          None)
+            self.assertIsNot(self.fstab.get_entry_by_attr('device',
+                                                          '/dev/%s' % device),
+                             None)
 
     def test_get_entry_by_mountpoint_attr(self):
         """Test if the get_entry_by_attr method works for mountpoint attr"""
         for mnt in ('sda', 'sdb', 'sdc', ):
-            assert_is_not(self.fstab.get_entry_by_attr('mountpoint',
-                                                       '/mnt/%s' % mnt), None)
+            self.assertIsNot(
+                self.fstab.get_entry_by_attr('mountpoint', '/mnt/%s' % mnt),
+                None
+            )
 
     def test_add_entry(self):
         """Test if add_entry works for a new entry"""
         for device in ('sdf', 'sdg', 'sdh'):
             entry = Fstab.Entry('/dev/%s' % device, '/mnt/%s' % device, 'ext3',
                                 None)
-            assert_is_not(self.fstab.add_entry(entry), None)
-            assert_is_not(self.fstab.get_entry_by_attr(
-                'device', '/dev/%s' % device), None)
+            self.assertIsNot(self.fstab.add_entry(entry), None)
+            self.assertIsNot(
+                self.fstab.get_entry_by_attr('device', '/dev/%s' % device),
+                None
+            )
 
-        assert_is(self.fstab.add_entry(entry), False,
-                  "Check if adding an existing entry returns false")
+        self.assertIs(self.fstab.add_entry(entry), False,
+                      "Check if adding an existing entry returns false")
 
     def test_remove_entry(self):
         """Test if remove entry works for already existing entries"""
         for entry in self.fstab.entries:
-            assert_is(self.fstab.remove_entry(entry), True)
+            self.assertIs(self.fstab.remove_entry(entry), True)
 
-        assert_equal(len([entry for entry in self.fstab.entries]), 0)
-        assert_equal(self.fstab.add_entry(entry), entry)
-        assert_equal(len([entry for entry in self.fstab.entries]), 1)
+        self.assertEqual(len([entry for entry in self.fstab.entries]), 0)
+        self.assertEqual(self.fstab.add_entry(entry), entry)
+        self.assertEqual(len([entry for entry in self.fstab.entries]), 1)
 
     def test_assert_remove_add_all(self):
         """Test if removing/adding all the entries works"""
         for entry in self.fstab.entries:
-            assert_is(self.fstab.remove_entry(entry), True)
+            self.assertIs(self.fstab.remove_entry(entry), True)
 
         for device in ('sda', 'sdb', 'sdc', ):
             self.fstab.add_entry(
@@ -89,5 +90,5 @@ class FstabTest(unittest.TestCase):
             'UUID=3af44368-c50b-4768-8e58-aff003cef8be',
             '/', 'ext4', 'errors=remount-ro', 0, 1))
 
-        assert_equal(sorted(GENERATED_FSTAB_FILE.splitlines()),
-                     sorted(str(entry) for entry in self.fstab.entries))
+        self.assertEqual(sorted(GENERATED_FSTAB_FILE.splitlines()),
+                         sorted(str(entry) for entry in self.fstab.entries))

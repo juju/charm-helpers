@@ -337,6 +337,21 @@ class NRPECheckTestCase(NRPEBaseTestCase):
         expected = 'Check command not found: check_http'
         self.assertEqual(expected, self.patched['log'].call_args[0][0])
 
+    def test_locate_cmd_argument_escape(self):
+        """Test that `_locate_cmd` properly escapes arguments.
+
+        If arguments contain symbols that have special meaning in shell, like
+        '*',';' or '`', they should be properly quoted to prevent unexpected
+        behavior.
+        """
+        self.patched['exists'].return_value = True
+        raw_cmd = "check_test -a * -b ; -c `/bin/bash` -d foo -e 1"
+        prefix = "/usr/lib/nagios/plugins/"
+        safe_cmd = "check_test -a '*' -b ';' -c '`/bin/bash`' -d foo -e 1"
+        check = nrpe.Check('shortname', 'description', raw_cmd)
+
+        self.assertEqual(check.check_cmd, prefix + safe_cmd)
+
     def test_run(self):
         self.patched['exists'].return_value = True
         command = '/usr/bin/wget foo'
@@ -448,6 +463,31 @@ class NRPEMiscTestCase(NRPEBaseTestCase):
         self.assertEqual(bill.checks[3].check_cmd, expect_cmds['haproxy'])
         self.assertEqual(bill.checks[4].shortname, 'snap.test.test')
         self.assertEqual(bill.checks[4].check_cmd, expect_cmds['snap.test.test'])
+
+        # Test check_haproxy is not added if haproxy is monitored by pacemaker using check_crm
+        dummy_relations = {
+            'ha': ['ha:3']
+        }
+
+        self.patched['relation_ids'].side_effect = lambda relation: dummy_relations.get(relation, [])
+        self.patched['relation_get'].return_value = '{"res_ks_haproxy":"lsb:haproxy"}'
+
+        bill = nrpe.NRPE()
+        services = ['apache2', 'haproxy', 'snap.test.test']
+        self.patched['init_is_systemd'].return_value = True
+        nrpe.add_init_service_checks(bill, services, 'testunit')
+        expect_cmds = {
+            'apache2': '/usr/lib/nagios/plugins/check_systemd.py apache2',
+            'snap.test.test': '/usr/lib/nagios/plugins/check_systemd.py snap.test.test',
+        }
+        self.assertEqual(bill.checks[0].shortname, 'apache2')
+        self.assertEqual(bill.checks[0].check_cmd, expect_cmds['apache2'])
+        self.assertEqual(bill.checks[1].shortname, 'snap.test.test')
+        self.assertEqual(bill.checks[1].check_cmd, expect_cmds['snap.test.test'])
+
+        # Test that raises ValueError if can't parse json resources from ha relation
+        self.patched['relation_get'].return_value = '{"res_ks_haproxy"}'
+        self.assertRaises(ValueError, nrpe.add_init_service_checks, bill, services, 'testunit')
 
     def test_copy_nrpe_checks(self):
         file_presence = {

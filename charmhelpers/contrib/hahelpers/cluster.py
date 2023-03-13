@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,8 +31,6 @@ import os
 import time
 
 from socket import gethostname as get_unit_hostname
-
-import six
 
 from charmhelpers.core.hookenv import (
     log,
@@ -86,7 +84,7 @@ def is_elected_leader(resource):
         2. If the charm is part of a corosync cluster, call corosync to
         determine leadership.
         3. If the charm is not part of a corosync cluster, the leader is
-        determined as being "the alive unit with the lowest unit numer". In
+        determined as being "the alive unit with the lowest unit number". In
         other words, the oldest surviving unit.
     """
     try:
@@ -125,16 +123,16 @@ def is_crm_dc():
     """
     cmd = ['crm', 'status']
     try:
-        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        if not isinstance(status, six.text_type):
-            status = six.text_type(status, "utf-8")
+        status = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT).decode('utf-8')
     except subprocess.CalledProcessError as ex:
         raise CRMDCNotFound(str(ex))
 
     current_dc = ''
     for line in status.split('\n'):
         if line.startswith('Current DC'):
-            # Current DC: juju-lytrusty-machine-2 (168108163) - partition with quorum
+            # Current DC: juju-lytrusty-machine-2 (168108163)
+            #  - partition with quorum
             current_dc = line.split(':')[1].split()[0]
     if current_dc == get_unit_hostname():
         return True
@@ -158,9 +156,8 @@ def is_crm_leader(resource, retry=False):
         return is_crm_dc()
     cmd = ['crm', 'resource', 'show', resource]
     try:
-        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        if not isinstance(status, six.text_type):
-            status = six.text_type(status, "utf-8")
+        status = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT).decode('utf-8')
     except subprocess.CalledProcessError:
         status = None
 
@@ -327,7 +324,7 @@ def valid_hacluster_config():
     '''
     vip = config_get('vip')
     dns = config_get('dns-ha')
-    if not(bool(vip) ^ bool(dns)):
+    if not (bool(vip) ^ bool(dns)):
         msg = ('HA: Either vip or dns-ha must be set but not both in order to '
                'use high availability')
         status_set('blocked', msg)
@@ -418,7 +415,7 @@ def get_managed_services_and_ports(services, external_ports,
 
     Return only the services and corresponding ports that are managed by this
     charm. This excludes haproxy when there is a relation with hacluster. This
-    is because this charm passes responsability for stopping and starting
+    is because this charm passes responsibility for stopping and starting
     haproxy to hacluster.
 
     Similarly, if a relation with hacluster exists then the ports returned by

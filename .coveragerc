@@ -1,0 +1,8 @@
+[run]
+source = charmhelpers/
+omit =
+    */templates/*
+    tests/*
+    tools/*
+    setup.py
+    .tox/*

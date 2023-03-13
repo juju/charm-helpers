@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import mock
-import six
 
 from unittest import TestCase
 from charmhelpers.fetch.python import packages
@@ -170,8 +169,6 @@ class PipTestCase(TestCase):
         """
         join.return_value = 'joined-path'
         packages.pip_create_virtualenv()
-        if six.PY2:
-            self.apt_install.assert_called_with('python-virtualenv')
-        else:
-            self.apt_install.assert_called_with('python3-virtualenv')
-        check_call.assert_called_with(['virtualenv', 'joined-path'])
+        self.apt_install.assert_called_with(['python3-virtualenv', 'virtualenv'])
+        expect_flags = ['--python=python3']
+        check_call.assert_called_with(['virtualenv', 'joined-path'] + expect_flags)

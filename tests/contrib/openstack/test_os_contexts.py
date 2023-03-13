@@ -2,7 +2,6 @@ import collections
 import copy
 import json
 import mock
-import six
 import unittest
 import yaml
 
@@ -13,17 +12,12 @@ from mock import (
     call
 )
 
+from charmhelpers.fetch.ubuntu_apt_pkg import Version
 from tests.helpers import patch_open
 
 import tests.utils
 
 import charmhelpers.contrib.openstack.context as context
-
-
-if not six.PY3:
-    open_builtin = '__builtin__.open'
-else:
-    open_builtin = 'builtins.open'
 
 
 class FakeRelation(object):
@@ -56,10 +50,16 @@ class FakeRelation(object):
         passwd = self.relation_get('password', rid='mysql:0', unit='mysql/0')
     '''
 
-    def __init__(self, relation_data):
-        self.relation_data = relation_data
+    def __init__(self, relation_data=None, app_data=None):
+        self.relation_data = relation_data or {}
+        self.app_data = app_data or {}
 
-    def get(self, attribute=None, unit=None, rid=None):
+    def get(self, attribute=None, unit=None, rid=None, app=None):
+        if app:
+            if attribute is None:
+                return self.app_data
+            else:
+                return self.app_data.get(attribute)
         if not rid or rid == 'foo:0':
             if attribute is None:
                 return self.relation_data
@@ -148,8 +148,39 @@ IDENTITY_SERVICE_RELATION_HTTP = {
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'http',
+    'service_type': 'volume',
     'auth_protocol': 'http',
     'internal_protocol': 'http',
+}
+
+IDENTITY_SERVICE_RELATION_APP_HTTP = {
+    'admin-auth-url': 'http://keystoneadmin.local:80/keystone',
+    'admin-domain-id': 'adm-dom-id',
+    'admin-domain-name': 'admin_domain',
+    'admin-project-id': 'adm-proj-id',
+    'admin-project-name': 'admin',
+    'admin-user-id': 'adm-user-id',
+    'admin-user-name': 'admin',
+    'api-version': 'v3',
+    'auth-host': 'keystoneadmin.local',
+    'auth-port': '5000',
+    'auth-protocol': 'http',
+    'internal-auth-url': 'http://keystoneinternal.local:80/keystone',
+    'internal-host': 'keystoneinternal.local',
+    'internal-port': '5000',
+    'internal-protocol': 'http',
+    'public-auth-url': 'http://keystonepublic.local:80/keystone',
+    'service-domain-id': 'svc-dom-id',
+    'service-domain-name': 'admin_domain',
+    'service-host': 'keystonepublic.local',
+    'service-password': 'foo',
+    'service-port': '5000',
+    'service-project-id': 'svc-proj-id',
+    'service-project-name': 'services',
+    'service-protocol': 'http',
+    'service-user-id': 'svc-user-id',
+    'service-user-name': 'svc-user-name',
+    'service-type': 'volume',
 }
 
 IDENTITY_SERVICE_RELATION_UNSET = {
@@ -177,6 +208,7 @@ IDENTITY_CREDENTIALS_RELATION_UNSET = {
     'credentials_password': 'foo',
     'credentials_username': 'adam',
     'credentials_protocol': 'https',
+    'service_type': 'volume',
 }
 
 
@@ -193,6 +225,7 @@ APIIDENTITY_SERVICE_RELATION_UNSET = {
             'service_tenant': 'admin',
             'service_password': 'foo',
             'service_username': 'adam',
+            'service_type': 'volume',
         }
     }
 }
@@ -209,6 +242,7 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_password': 'foo',
     'service_username': 'adam',
     'service_protocol': 'https',
+    'service_type': 'volume',
     'auth_protocol': 'https',
     'internal_protocol': 'https',
 }
@@ -219,6 +253,11 @@ IDENTITY_SERVICE_RELATION_VERSIONED = {
     'service_domain_id': 'svc-dom-id',
 }
 IDENTITY_SERVICE_RELATION_VERSIONED.update(IDENTITY_SERVICE_RELATION_HTTPS)
+
+IDENTITY_SERVICE_RELATION_ADMIN_ROLE = {
+    'admin_role': 'Role',
+}
+IDENTITY_SERVICE_RELATION_ADMIN_ROLE.update(IDENTITY_SERVICE_RELATION_HTTPS)
 
 IDENTITY_CREDENTIALS_RELATION_VERSIONED = {
     'api_version': '3',
@@ -698,6 +737,8 @@ TO_PATCH = [
     'network_get_primary_address',
     'resolve_address',
     'is_ipv6_disabled',
+    'get_installed_version',
+    'remote_service_name',
 ]
 
 
@@ -752,6 +793,7 @@ class ContextTests(unittest.TestCase):
         self.network_get_primary_address.side_effect = NotImplementedError()
         self.resolve_address.return_value = '10.5.1.50'
         self.maxDiff = None
+        self.get_installed_version.return_value = None
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -859,7 +901,7 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(result, expected)
 
     @patch('os.path.exists')
-    @patch(open_builtin)
+    @patch('builtins.open')
     def test_db_ssl(self, _open, osexists):
         osexists.return_value = False
         ssl_dir = '/etc/dbssl'
@@ -1025,6 +1067,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1059,6 +1102,7 @@ class ContextTests(unittest.TestCase):
             'auth_protocol': 'https',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
+            'service_type': 'volume',
             'service_protocol': 'https',
             'api_version': '2.0',
         }
@@ -1080,6 +1124,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1090,6 +1135,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'http',
@@ -1110,6 +1156,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1140,6 +1187,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_domain_id': None,
@@ -1150,6 +1198,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'http',
@@ -1168,6 +1217,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': None,
             'admin_domain_id': None,
@@ -1178,10 +1228,89 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'https',
             'api_version': '2.0',
+        }
+        result.pop('keystone_authtoken')
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_app_context_with_data_http(self, *args):
+        '''Test identity-service context for forwards compatibility'''
+        relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP,
+                                relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_role': 'Admin',
+            'admin_domain_name': 'admin_domain',
+            'admin_tenant_name': 'services',
+            'admin_tenant_id': 'svc-proj-id',
+            'admin_domain_id': 'svc-dom-id',
+            'service_project_id': 'svc-proj-id',
+            'service_domain_id': 'svc-dom-id',
+            'admin_user': 'svc-user-name',
+            'auth_host': 'keystoneadmin.local',
+            'auth_port': '5000',
+            'auth_protocol': 'http',
+            'service_host': 'keystonepublic.local',
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': 'keystoneinternal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
+            'api_version': '3',
+            'public_auth_url': 'http://keystonepublic.local:80/keystone',
+            'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
+        }
+        result.pop('keystone_authtoken')
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_app_context_with_app_data_nones(self, *args):
+        '''Test identity-service context for forwards compatibility'''
+        # This verifies that if there are None values in the app data that
+        # would override non-None values in the relation data, that the
+        # relation data keys are used.
+        app_data = IDENTITY_SERVICE_RELATION_APP_HTTP.copy()
+        app_data['service-user-name'] = None
+        app_data['service-host'] = None
+        relation = FakeRelation(app_data=app_data,
+                                relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_role': 'Admin',
+            'admin_domain_name': 'admin_domain',
+            'admin_tenant_name': 'services',
+            'admin_tenant_id': 'svc-proj-id',
+            'admin_domain_id': 'svc-dom-id',
+            'service_project_id': 'svc-proj-id',
+            'service_domain_id': 'svc-dom-id',
+            'admin_user': 'adam',  # comes from the relation data
+            'auth_host': 'keystoneadmin.local',
+            'auth_port': '5000',
+            'auth_protocol': 'http',
+            'service_host': 'keystonehost.local',  # comes from relation data
+            'service_port': '5000',
+            'service_protocol': 'http',
+            'service_type': 'volume',
+            'internal_host': 'keystoneinternal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'http',
+            'api_version': '3',
+            'public_auth_url': 'http://keystonepublic.local:80/keystone',
+            'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1197,6 +1326,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_domain_name': 'admin_domain',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': 'svc-proj-id',
@@ -1210,10 +1340,42 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'internal_host': 'keystone-internal.local',
             'internal_port': '5000',
             'internal_protocol': 'https',
             'api_version': '3',
+        }
+        result.pop('keystone_authtoken')
+        self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_with_admin_role(self, *args):
+        '''Test shared-db context with admin role supplied from keystone'''
+        relation = FakeRelation(
+            relation_data=IDENTITY_SERVICE_RELATION_ADMIN_ROLE)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        result = identity_service()
+        expected = {
+            'admin_password': 'foo',
+            'admin_role': 'Role',
+            'admin_tenant_name': 'admin',
+            'admin_tenant_id': None,
+            'admin_domain_id': None,
+            'admin_user': 'adam',
+            'auth_host': 'keystone-host.local',
+            'auth_port': '35357',
+            'auth_protocol': 'https',
+            'service_host': 'keystonehost.local',
+            'service_port': '5000',
+            'service_protocol': 'https',
+            'service_type': 'volume',
+            'internal_host': 'keystone-internal.local',
+            'internal_port': '5000',
+            'internal_protocol': 'https',
+            'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1237,6 +1399,7 @@ class ContextTests(unittest.TestCase):
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
+            'service_type': 'volume',
             'api_version': '3',
         }
         self.assertEquals(result, expected)
@@ -1253,6 +1416,7 @@ class ContextTests(unittest.TestCase):
         result = identity_service()
         expected = {
             'admin_password': 'foo',
+            'admin_role': 'Admin',
             'admin_tenant_name': 'admin',
             'admin_tenant_id': '123456',
             'admin_domain_id': None,
@@ -1263,6 +1427,7 @@ class ContextTests(unittest.TestCase):
             'service_host': '[2001:db8:1::1]',
             'service_port': '5000',
             'service_protocol': 'http',
+            'service_type': 'volume',
             'internal_host': '[2001:db8:1::1]',
             'internal_port': '5000',
             'internal_protocol': 'http',
@@ -1309,6 +1474,40 @@ class ContextTests(unittest.TestCase):
             ('username', 'adam'),
             ('password', 'foo'),
             ('signing_dir', ''),
+            ('service_type', 'volume'),
+        ))
+
+        self.assertEquals(keystone_authtoken, expected)
+
+    @patch.object(context, 'filter_installed_packages')
+    @patch.object(context, 'os_release')
+    def test_keystone_authtoken_www_authenticate_uri_forwards_compat(
+            self,
+            mock_os_release,
+            mock_filter_installed_packages):
+        relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP)
+        self.relation_get.side_effect = relation.get
+
+        mock_filter_installed_packages.return_value = []
+        mock_os_release.return_value = 'stein'
+
+        identity_service = context.IdentityServiceContext()
+
+        cfg_ctx = identity_service()
+
+        keystone_authtoken = cfg_ctx.get('keystone_authtoken', {})
+
+        expected = collections.OrderedDict((
+            ('auth_type', 'password'),
+            ('www_authenticate_uri', 'http://keystonepublic.local:80/keystone/v3'),
+            ('auth_url', 'http://keystoneinternal.local:80/keystone'),
+            ('project_domain_name', 'admin_domain'),
+            ('user_domain_name', 'admin_domain'),
+            ('project_name', 'services'),
+            ('username', 'svc-user-name'),
+            ('password', 'foo'),
+            ('signing_dir', ''),
+            ('service_type', 'volume'),
         ))
 
         self.assertEquals(keystone_authtoken, expected)
@@ -1367,7 +1566,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
-    @patch(open_builtin)
+    @patch('builtins.open')
     def test_amqp_context_with_data_ssl(self, _open):
         '''Test amqp context with all required data and ssl'''
         relation = FakeRelation(relation_data=AMQP_RELATION_WITH_SSL)
@@ -1647,8 +1846,8 @@ class ContextTests(unittest.TestCase):
     def test_ceph_context_with_missing_data(self, ensure_packages, mkdir):
         '''Test ceph context with missing relation data'''
         relation = copy.deepcopy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            for u in six.iterkeys(v):
+        for k, v in relation.items():
+            for u in v.keys():
                 del relation[k][u]['auth']
         relation = FakeRelation(relation_data=relation)
         self.relation_get.side_effect = relation.get
@@ -1672,8 +1871,8 @@ class ContextTests(unittest.TestCase):
            earlier unit it would be ignored'''
         config.side_effect = fake_config({'use-syslog': 'True'})
         relation = copy.deepcopy(CEPH_RELATION)
-        for k, v in six.iteritems(relation):
-            last_unit = sorted(six.iterkeys(v))[-1]
+        for k, v in relation.items():
+            last_unit = sorted(v.keys())[-1]
             unit_data = relation[k][last_unit]
             del unit_data['auth']
             relation[k][last_unit] = unit_data
@@ -1879,13 +2078,15 @@ class ContextTests(unittest.TestCase):
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
+    @patch('charmhelpers.contrib.openstack.context.service_name')
     @patch.object(context, 'config')
     @patch('os.path.isdir')
     @patch('os.mkdir')
     @patch.object(context, 'ensure_packages')
     def test_ceph_context_ec_pool_no_rbd_pool(
-            self, ensure_packages, mkdir, isdir, mock_config):
+            self, ensure_packages, mkdir, isdir, mock_config, service_name):
         '''Test ceph context with erasure coded pools'''
+        service_name.return_value = 'testing-foo'
         isdir.return_value = False
         config_dict = {
             'use-syslog': True,
@@ -2565,6 +2766,134 @@ class ContextTests(unittest.TestCase):
                                                call('internal', False),
                                                call('public', False),
                                                call('cluster')])
+
+    @patch('charmhelpers.contrib.openstack.context.local_address')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_without_prometheus_exporter(self, local_unit, local_address):
+        '''Test haproxy context without prometheus exporter'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet',
+                                            'prometheus1.localnet']
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.side_effect = lambda x: \
+            9103 if x == "haproxy-exporter-stats-port" else False
+        self.maxDiff = None
+        self.is_ipv6_disabled.return_value = True
+        self.get_installed_version.return_value = Version({'ver_str': '2.0.0'})
+        # test without haproxy-exporter relation
+        self.is_relation_made.return_value = False
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
+                },
+            },
+            'default_backend': 'cluster-peer0.localnet',
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster')])
+
+    @patch('charmhelpers.contrib.openstack.context.local_address')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_prometheus_exporter(self, local_unit, local_address):
+        '''Test haproxy context with prometheus exporter'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        # We are only using get_relation_ip.
+        # Setup the values it returns on each subsequent call.
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet',
+                                            'prometheus1.localnet']
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = False
+        self.maxDiff = None
+        self.is_ipv6_disabled.return_value = True
+        self.get_installed_version.return_value = Version({'ver_str': '2.0.0'})
+        # test with haproxy-exporter relation
+        self.is_relation_made.return_value = True
+        haproxy = context.HAProxyContext(exporter_stats_port=9103)
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
+                },
+            },
+            'default_backend': 'cluster-peer0.localnet',
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
+            'stats_exporter_host': 'prometheus1.localnet',
+            'stats_exporter_port': 9103,
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
+        }
+        # the context gets generated.
+        self.assertEquals(ex, result)
+        # and /etc/default/haproxy is updated.
+        self.assertEquals(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', False),
+                                               call('internal', False),
+                                               call('public', False),
+                                               call('cluster'),
+                                               call('haproxy-exporter')])
 
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''
@@ -4182,11 +4511,7 @@ class ContextTests(unittest.TestCase):
             'host': 'myhost',
             'use_fqdn_hint': False},
             ctxt)
-        if six.PY2:
-            _socket.error = Exception
-            _socket.getaddrinfo.side_effect = Exception
-        else:
-            _socket.getaddrinfo.side_effect = OSError
+        _socket.getaddrinfo.side_effect = OSError
         _socket.gethostname.return_value = 'myhost'
         ctxt = context.HostInfoContext()()
         self.assertEqual({
@@ -4225,7 +4550,8 @@ class ContextTests(unittest.TestCase):
                 "Mismatched existing and configured ovs-use-veth. See log."),
             context.validate_ovs_use_veth())
 
-    def test_dhcp_agent_context(self):
+    @patch.object(context, 'os_release', return_value='yoga')
+    def test_dhcp_agent_context(self, os_release):
         # Defaults
         _config = {
             "debug": False,
@@ -4235,6 +4561,7 @@ class ContextTests(unittest.TestCase):
             "instance-mtu": None,
             "ovs-use-veth": None}
         _expect = {
+            "append_ovs_config": False,
             "debug": False,
             "dns_servers": None,
             "enable_isolated_metadata": None,
@@ -4260,6 +4587,7 @@ class ContextTests(unittest.TestCase):
             "instance-mtu": _mtu,
             "ovs-use-veth": True}
         _expect = {
+            "append_ovs_config": False,
             "debug": True,
             "dns_servers": _dns,
             "enable_isolated_metadata": True,
@@ -4271,7 +4599,8 @@ class ContextTests(unittest.TestCase):
         ctxt = ctx_object()
         self.assertEqual(_expect, ctxt)
 
-    def test_dhcp_agent_context_no_dns_domain(self):
+    @patch.object(context, 'os_release', return_value='yoga')
+    def test_dhcp_agent_context_no_dns_domain(self, os_release):
         _config = {"dns-servers": '8.8.8.8'}
         self.config.side_effect = fake_config(_config)
         self.relation_ids.return_value = ['rid1']
@@ -4284,10 +4613,12 @@ class ContextTests(unittest.TestCase):
              'ovs_use_veth': False,
              "enable_isolated_metadata": None,
              "enable_metadata_network": None,
-             "debug": None}
+             "debug": None,
+             "append_ovs_config": False}
         )
 
-    def test_dhcp_agent_context_dnsmasq_flags(self):
+    @patch.object(context, 'os_release', return_value='yoga')
+    def test_dhcp_agent_context_dnsmasq_flags(self, os_rlease):
         _config = {'dnsmasq-flags': 'dhcp-userclass=set:ipxe,iPXE,'
                                     'dhcp-match=set:ipxe,175,'
                                     'server=1.2.3.4'}
@@ -4305,6 +4636,7 @@ class ContextTests(unittest.TestCase):
                 "enable_isolated_metadata": None,
                 "enable_metadata_network": None,
                 "debug": None,
+                "append_ovs_config": False,
             }
         )
 
@@ -4426,6 +4758,10 @@ class MockPCIDevice(object):
 TEST_CPULIST_1 = "0-3"
 TEST_CPULIST_2 = "0-7,16-23"
 TEST_CPULIST_3 = "0,4,8,12,16,20,24"
+TEST_CPULIST_4 = "0-7,^5,16-23,^20,^22"
+TEST_CPULIST_5 = "0-7,^5,16-23,wrong,$;^20,^22"
+TEST_CPULIST_6 = "wrong:format"
+TEST_CPULIST_7 = "0-7;16-23"
 DPDK_DATA_PORTS = (
     "br-phynet3:fe:16:41:df:23:fe "
     "br-phynet1:fe:16:41:df:23:fd "
@@ -4444,8 +4780,9 @@ PCI_DEVICE_MAP = {
 
 class TestDPDKUtils(tests.utils.BaseTestCase):
 
-    def test_resolve_pci_from_mapping_config(self):
-        # FIXME: need to mock out the unit key value store
+    @mock.patch.object(context, "kv")
+    def test_resolve_pci_from_mapping_config(self, kv):
+        kv.return_value = TestDB()
         self.patch_object(context, 'config')
         self.config.side_effect = lambda x: {
             'data-port': DPDK_DATA_PORTS,
@@ -4549,6 +4886,15 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
                           16, 17, 18, 19, 20, 21, 22, 23])
         self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_3),
                          [0, 4, 8, 12, 16, 20, 24])
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_4),
+                         [0, 1, 2, 3, 4, 6, 7,
+                          16, 17, 18, 19, 21, 23])
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_5),
+                         [])
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_6),
+                         [])
+        self.assertEqual(self.target._parse_cpu_list(TEST_CPULIST_7),
+                         [])
 
     def test__numa_node_cores(self):
         self.patch_target('_parse_cpu_list')
@@ -4619,6 +4965,23 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
         }.get(x)
         self.assertEqual(self.target.cpu_mask(), '0x33')
 
+    def test_pmd_cpu_mask(self):
+        """Test generation of hex pmd CPU masks"""
+        self.config.side_effect = lambda x: {
+            'pmd-cpu-set': None,
+        }.get(x)
+        self.assertEqual(self.target.pmd_cpu_mask(), '0x0')
+
+        self.config.side_effect = lambda x: {
+            'pmd-cpu-set': TEST_CPULIST_4,
+        }.get(x)
+        self.assertEqual(self.target.pmd_cpu_mask(), '0xaf00df')
+
+        self.config.side_effect = lambda x: {
+            'pmd-cpu-set': TEST_CPULIST_5,
+        }.get(x)
+        self.assertEqual(self.target.pmd_cpu_mask(), '0x0')
+
     def test_context_no_devices(self):
         """Ensure that DPDK is disable when no devices detected"""
         self.patch_object(context, 'resolve_pci_from_mapping_config')
@@ -4649,7 +5012,34 @@ class TestOVSDPDKDeviceContext(tests.utils.BaseTestCase):
             'cpu_mask': '0x01',
             'device_whitelist': '-w 0000:00:1c.0 -w 0000:00:1d.0',
             'dpdk_enabled': True,
-            'socket_memory': '1024'
+            'socket_memory': '1024',
+            'pmd_cpu_mask': '0x0'
+        })
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 1,
+            'dpdk-socket-memory': 1024,
+            'enable-dpdk': True,
+            'pmd-cpu-set': TEST_CPULIST_4,
+        }.get(x)
+        self.assertEqual(self.target(), {
+            'cpu_mask': '0x01',
+            'device_whitelist': '-w 0000:00:1c.0 -w 0000:00:1d.0',
+            'dpdk_enabled': True,
+            'socket_memory': '1024',
+            'pmd_cpu_mask': '0xaf00df'
+        })
+        self.config.side_effect = lambda x: {
+            'dpdk-socket-cores': 1,
+            'dpdk-socket-memory': 1024,
+            'enable-dpdk': True,
+            'pmd-cpu-set': TEST_CPULIST_5,
+        }.get(x)
+        self.assertEqual(self.target(), {
+            'cpu_mask': '0x01',
+            'device_whitelist': '-w 0000:00:1c.0 -w 0000:00:1d.0',
+            'dpdk_enabled': True,
+            'socket_memory': '1024',
+            'pmd_cpu_mask': '0x0'
         })
 
 
@@ -4697,6 +5087,7 @@ class TestBridgePortInterfaceMap(tests.utils.BaseTestCase):
 
     def test__init__(self):
         self.maxDiff = None
+        self.patch_object(context, 'log')
         self.patch_object(context, 'config')
         # system with three interfaces (eth0, eth1 and eth2) where
         # eth0 and eth1 is part of linux bond bond0.
@@ -4936,6 +5327,7 @@ class TestSRIOVContext(tests.utils.BaseTestCase):
             self.__dict__ = _dict
 
     def test___init__(self):
+        self.patch_object(context, 'log')
         self.patch_object(context.pci, 'PCINetDevices')
         pci_devices = self.ObjectView({
             'pci_devices': [

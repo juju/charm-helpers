@@ -28,6 +28,10 @@ UBUNTU_RELEASES = (
     'focal',
     'groovy',
     'hirsute',
+    'impish',
+    'jammy',
+    'kinetic',
+    'lunar',
 )
 
 

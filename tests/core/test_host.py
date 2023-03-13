@@ -12,7 +12,6 @@ from mock import patch, call, mock_open
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
-import six
 
 from charmhelpers.core import host
 from charmhelpers.fetch import ubuntu_apt_pkg
@@ -137,7 +136,7 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
-    def test_runs_systemctl_action(self, mock_call, systemd):
+    def test_runs_systemctl_action_on_service(self, mock_call, systemd):
         """Ensure that service calls under systemd call 'systemctl'."""
         systemd.return_value = True
         mock_call.return_value = 0
@@ -148,6 +147,19 @@ class HelpersTest(TestCase):
 
         self.assertTrue(result)
         mock_call.assert_called_with(['systemctl', action, service_name])
+
+    @patch.object(host, 'init_is_systemd')
+    @patch('subprocess.call')
+    def test_runs_systemctl_action(self, mock_call, systemd):
+        """Ensure that service calls under systemd call 'systemctl' when no service name is specified."""
+        systemd.return_value = True
+        mock_call.return_value = 0
+        action = 'some-action'
+
+        result = host.service(action)
+
+        self.assertTrue(result)
+        mock_call.assert_called_with(['systemctl', action])
 
     @patch.object(host, 'init_is_systemd')
     @patch('subprocess.call')
@@ -185,6 +197,14 @@ class HelpersTest(TestCase):
         self.assertTrue(host.service_stop(service_name))
 
         service.assert_called_with('stop', service_name)
+
+    @patch.object(host, 'service')
+    def test_enables_a_service(self, service):
+        service_name = 'foo-service'
+        service.side_effect = [True]
+        self.assertTrue(host.service_enable(service_name))
+
+        service.assert_called_with('enable', service_name)
 
     @patch.object(host, 'service')
     def test_restarts_a_service(self, service):
@@ -1195,7 +1215,7 @@ class HelpersTest(TestCase):
     @patch.object(host, 'os')
     def test_writes_binary_contents(self, os_, log):
         path = '/some/path/{baz}'
-        fmtstr = six.u('what is {juju}\N{TRADE MARK SIGN}').encode('UTF-8')
+        fmtstr = 'what is {juju}\N{TRADE MARK SIGN}'.encode('UTF-8')
         fileno = 'some-fileno'
 
         with patch_open() as (mock_open, mock_file):

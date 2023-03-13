@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 import glob
 import re
 import subprocess
-import six
 import socket
 
 from functools import partial
@@ -39,20 +38,14 @@ try:
     import netifaces
 except ImportError:
     apt_update(fatal=True)
-    if six.PY2:
-        apt_install('python-netifaces', fatal=True)
-    else:
-        apt_install('python3-netifaces', fatal=True)
+    apt_install('python3-netifaces', fatal=True)
     import netifaces
 
 try:
     import netaddr
 except ImportError:
     apt_update(fatal=True)
-    if six.PY2:
-        apt_install('python-netaddr', fatal=True)
-    else:
-        apt_install('python3-netaddr', fatal=True)
+    apt_install('python3-netaddr', fatal=True)
     import netaddr
 
 
@@ -462,22 +455,19 @@ def ns_query(address):
     try:
         import dns.resolver
     except ImportError:
-        if six.PY2:
-            apt_install('python-dnspython', fatal=True)
-        else:
-            apt_install('python3-dnspython', fatal=True)
+        apt_install('python3-dnspython', fatal=True)
         import dns.resolver
 
     if isinstance(address, dns.name.Name):
         rtype = 'PTR'
-    elif isinstance(address, six.string_types):
+    elif isinstance(address, str):
         rtype = 'A'
     else:
         return None
 
     try:
         answers = dns.resolver.query(address, rtype)
-    except dns.resolver.NXDOMAIN:
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
         return None
 
     if answers:
@@ -513,10 +503,7 @@ def get_hostname(address, fqdn=True):
         try:
             import dns.reversename
         except ImportError:
-            if six.PY2:
-                apt_install("python-dnspython", fatal=True)
-            else:
-                apt_install("python3-dnspython", fatal=True)
+            apt_install("python3-dnspython", fatal=True)
             import dns.reversename
 
         rev = dns.reversename.from_address(address)
@@ -552,7 +539,7 @@ def port_has_listener(address, port):
     """
     cmd = ['nc', '-z', address, str(port)]
     result = subprocess.call(cmd)
-    return not(bool(result))
+    return not (bool(result))
 
 
 def assert_charm_supports_ipv6():
@@ -578,7 +565,7 @@ def get_relation_ip(interface, cidr_network=None):
     @returns IPv6 or IPv4 address
     """
     # Select the interface address first
-    # For possible use as a fallback bellow with get_address_in_network
+    # For possible use as a fallback below with get_address_in_network
     try:
         # Get the interface specific IP
         address = network_get_primary_address(interface)

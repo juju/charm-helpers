@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Various utilies for dealing with Neutron and the renaming from Quantum.
+# Various utilities for dealing with Neutron and the renaming from Quantum.
 
-import six
 from subprocess import check_output
 
 from charmhelpers.core.hookenv import (
@@ -251,7 +250,7 @@ def neutron_plugin_attribute(plugin, attr, net_manager=None):
 def network_manager():
     '''
     Deals with the renaming of Quantum to Neutron in H and any situations
-    that require compatability (eg, deploying H with network-manager=quantum,
+    that require compatibility (eg, deploying H with network-manager=quantum,
     upgrading from G).
     '''
     release = os_release('nova-common')
@@ -349,11 +348,4 @@ def parse_vlan_range_mappings(mappings):
     Returns dict of the form {provider: (start, end)}.
     """
     _mappings = parse_mappings(mappings)
-    if not _mappings:
-        return {}
-
-    mappings = {}
-    for p, r in six.iteritems(_mappings):
-        mappings[p] = tuple(r.split(':'))
-
-    return mappings
+    return {p: tuple(r.split(':')) for p, r in _mappings.items()}

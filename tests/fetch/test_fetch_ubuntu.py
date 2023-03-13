@@ -1,4 +1,3 @@
-import six
 import subprocess
 import io
 import os
@@ -13,10 +12,6 @@ from mock import (
 )
 from charmhelpers.fetch import ubuntu as fetch
 
-if six.PY3:
-    builtin_open = 'builtins.open'
-else:
-    builtin_open = '__builtin__.open'
 
 # mocked return of openstack.get_distrib_codename()
 FAKE_CODENAME = 'precise'
@@ -430,16 +425,10 @@ class FetchTest(TestCase):
         check_call.side_effect = check_call_side_effect
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
-        if six.PY3:
-            popen.return_value.communicate.return_value = [b"""
+        popen.return_value.communicate.return_value = [b"""
 pub:-:1024:1:6E85A86E4652B4E6:2009-01-18:::-:Launchpad PPA for Landscape:
 fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
-            """, b'']
-        else:
-            popen.return_value.communicate.return_value = ["""
-pub:-:1024:1:6E85A86E4652B4E6:2009-01-18:::-:Launchpad PPA for Landscape:
-fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
-            """, '']
+        """, b'']
 
         dearmor_gpg_key.return_value = PGP_KEY_BIN_PGP
 
@@ -484,17 +473,10 @@ fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
 
         expected_key = '35F77D63B5CEC106C577ED856E85A86E4652B4E6'
 
-        if six.PY3:
-            popen.return_value.communicate.return_value = [b"""
+        popen.return_value.communicate.return_value = [b"""
 fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
 uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
-            """, b'']
-        else:
-            # python2 on a distro with gpg2 (unlikely, but possible)
-            popen.return_value.communicate.return_value = ["""
-fpr:::::::::35F77D63B5CEC106C577ED856E85A86E4652B4E6:
-uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
-            """, '']
+        """, b'']
 
         dearmor_gpg_key.return_value = PGP_KEY_BIN_PGP
 
@@ -531,6 +513,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive.list', 'w')
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -547,6 +531,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive.list', 'w')
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -561,6 +547,8 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         with patch_open() as (mock_open, mock_file):
             fetch.add_source(source=source)
             mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive.list', 'w')
         filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
 
     @patch('charmhelpers.fetch.ubuntu.log')
@@ -667,6 +655,34 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
         ])
 
     @patch('charmhelpers.fetch.ubuntu.log')
+    @patch.object(fetch, 'filter_installed_packages')
+    @patch.object(fetch, 'apt_install')
+    @patch.object(fetch, 'get_distrib_codename')
+    def test_add_source_cloud_ovn(self, get_distrib_codename, apt_install,
+                                  filter_pkg, log):
+        source = "cloud:focal-ovn-22.03"
+        get_distrib_codename.return_value = 'focal'
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' focal-updates/ovn-22.03 main\n')
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive-ovn.list', 'w')
+        filter_pkg.assert_called_with(['ubuntu-cloud-keyring'])
+
+        source = "cloud:focal-ovn-22.03/proposed"
+        result = ('# Ubuntu Cloud Archive\n'
+                  'deb http://ubuntu-cloud.archive.canonical.com/ubuntu'
+                  ' focal-proposed/ovn-22.03 main\n')
+        with patch_open() as (mock_open, mock_file):
+            fetch.add_source(source=source)
+            mock_file.write.assert_called_with(result)
+            mock_open.assert_called_once_with(
+                '/etc/apt/sources.list.d/cloud-archive-ovn.list', 'w')
+
+    @patch('charmhelpers.fetch.ubuntu.log')
     def test_configure_bad_install_source(self, log):
         try:
             fetch.add_source('foo', fail_invalid=True)
@@ -686,7 +702,7 @@ uid:-::::1232306042::52FE92E6867B4C099AA1A1877A804A965F41A98C::ppa::::::::::0:
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd, env={})
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch('charmhelpers.fetch.ubuntu.apt_install')
     @patch('charmhelpers.fetch.ubuntu.get_distrib_codename')
     @patch('charmhelpers.fetch.ubuntu.filter_installed_packages')
@@ -914,6 +930,14 @@ class AptTests(TestCase):
             ['apt-get', '--assume-yes',
              '--foo', '--bar', 'install', 'foo', 'bar'],
             env={})
+
+    @patch('subprocess.check_call')
+    @patch('charmhelpers.fetch.ubuntu.log')
+    def test_installs_apt_empty_packages(self, log, check_call):
+        packages = []
+        fetch.apt_install(packages, fatal=True)
+
+        check_call.assert_not_called()
 
     @patch('subprocess.check_call')
     @patch('charmhelpers.fetch.ubuntu.log')

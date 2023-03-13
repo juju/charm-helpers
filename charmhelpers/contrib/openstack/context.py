@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,12 +25,11 @@ import socket
 import time
 
 from base64 import b64decode
+from distutils.version import LooseVersion
 from subprocess import (
     check_call,
     check_output,
     CalledProcessError)
-
-import six
 
 import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 
@@ -41,6 +40,7 @@ from charmhelpers.contrib.openstack.audits.openstack_security_guide import (
 from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
+    get_installed_version,
 )
 from charmhelpers.core.hookenv import (
     NoNetworkBinding,
@@ -61,6 +61,7 @@ from charmhelpers.core.hookenv import (
     network_get_primary_address,
     WARNING,
     service_name,
+    remote_service_name,
 )
 
 from charmhelpers.core.sysctl import create as sysctl_create
@@ -120,26 +121,19 @@ from charmhelpers.contrib.openstack.utils import (
 )
 from charmhelpers.core.unitdata import kv
 
-try:
-    from sriov_netplan_shim import pci
-except ImportError:
-    # The use of the function and contexts that require the pci module is
-    # optional.
-    pass
+from charmhelpers.contrib.hardware import pci
 
 try:
     import psutil
 except ImportError:
-    if six.PY2:
-        apt_install('python-psutil', fatal=True)
-    else:
-        apt_install('python3-psutil', fatal=True)
+    apt_install('python3-psutil', fatal=True)
     import psutil
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 HAPROXY_RUN_DIR = '/var/run/haproxy/'
 DEFAULT_OSLO_MESSAGING_DRIVER = "messagingv2"
+DEFAULT_HAPROXY_EXPORTER_STATS_PORT = 8404
 
 
 def ensure_packages(packages):
@@ -150,10 +144,7 @@ def ensure_packages(packages):
 
 
 def context_complete(ctxt):
-    _missing = []
-    for k, v in six.iteritems(ctxt):
-        if v is None or v == '':
-            _missing.append(k)
+    _missing = [k for k, v in ctxt.items() if v is None or v == '']
 
     if _missing:
         log('Missing required data: %s' % ' '.join(_missing), level=INFO)
@@ -180,7 +171,7 @@ class OSContextGenerator(object):
         # Fresh start
         self.complete = False
         self.missing_data = []
-        for k, v in six.iteritems(ctxt):
+        for k, v in ctxt.items():
             if v is None or v == '':
                 if k not in self.missing_data:
                     self.missing_data.append(k)
@@ -358,6 +349,14 @@ def db_ssl(rdata, ctxt, ssl_dir):
 
 class IdentityServiceContext(OSContextGenerator):
 
+    _forward_compat_remaps = {
+        'admin_user': 'admin-user-name',
+        'service_username': 'service-user-name',
+        'service_tenant': 'service-project-name',
+        'service_tenant_id': 'service-project-id',
+        'service_domain': 'service-domain-name',
+    }
+
     def __init__(self,
                  service=None,
                  service_user=None,
@@ -410,11 +409,16 @@ class IdentityServiceContext(OSContextGenerator):
         # 'www_authenticate_uri' replaced 'auth_uri' since Stein,
         # see keystonemiddleware upstream sources for more info
         if CompareOpenStackReleases(keystonemiddleware_os_rel) >= 'stein':
-            c.update((
-                ('www_authenticate_uri', "{}://{}:{}/v3".format(
-                    ctxt.get('service_protocol', ''),
-                    ctxt.get('service_host', ''),
-                    ctxt.get('service_port', ''))),))
+            if 'public_auth_url' in ctxt:
+                c.update((
+                    ('www_authenticate_uri', '{}/v3'.format(
+                        ctxt.get('public_auth_url'))),))
+            else:
+                c.update((
+                    ('www_authenticate_uri', "{}://{}:{}/v3".format(
+                        ctxt.get('service_protocol', ''),
+                        ctxt.get('service_host', ''),
+                        ctxt.get('service_port', ''))),))
         else:
             c.update((
                 ('auth_uri', "{}://{}:{}/v3".format(
@@ -422,17 +426,26 @@ class IdentityServiceContext(OSContextGenerator):
                     ctxt.get('service_host', ''),
                     ctxt.get('service_port', ''))),))
 
+        if 'internal_auth_url' in ctxt:
+            c.update((
+                ('auth_url', ctxt.get('internal_auth_url')),))
+        else:
+            c.update((
+                ('auth_url', "{}://{}:{}/v3".format(
+                    ctxt.get('auth_protocol', ''),
+                    ctxt.get('auth_host', ''),
+                    ctxt.get('auth_port', ''))),))
+
         c.update((
-            ('auth_url', "{}://{}:{}/v3".format(
-                ctxt.get('auth_protocol', ''),
-                ctxt.get('auth_host', ''),
-                ctxt.get('auth_port', ''))),
             ('project_domain_name', ctxt.get('admin_domain_name', '')),
             ('user_domain_name', ctxt.get('admin_domain_name', '')),
             ('project_name', ctxt.get('admin_tenant_name', '')),
             ('username', ctxt.get('admin_user', '')),
             ('password', ctxt.get('admin_password', '')),
             ('signing_dir', ctxt.get('signing_dir', '')),))
+
+        if ctxt.get('service_type'):
+            c.update((('service_type', ctxt.get('service_type')),))
 
         return c
 
@@ -451,36 +464,86 @@ class IdentityServiceContext(OSContextGenerator):
         for rid in relation_ids(self.rel_name):
             self.related = True
             for unit in related_units(rid):
+                rdata = {}
+                # NOTE(jamespage):
+                # forwards compat with application data
+                # bag driven approach to relation.
+                _adata = relation_get(rid=rid, app=remote_service_name(rid))
+                adata = {}
+                # if no app data bag presented - fallback
+                # to legacy unit based relation data
                 rdata = relation_get(rid=rid, unit=unit)
-                serv_host = rdata.get('service_host')
+                if _adata:
+                    # New app data bag uses - instead of _
+                    # in key names - remap for compat with
+                    # existing relation data keys
+                    for key, value in _adata.items():
+                        if key == 'api-version':
+                            adata[key.replace('-', '_')] = value.strip('v')
+                        else:
+                            adata[key.replace('-', '_')] = value
+                    # Re-map some keys for backwards compatibility
+                    for target, source in self._forward_compat_remaps.items():
+                        adata[target] = _adata.get(source)
+                # Now preferentially get data from the app data bag, but if
+                # it's not available, get it from the legacy based relation
+                # data.
+
+                def _resolve(key):
+                    return adata.get(key) or rdata.get(key)
+
+                serv_host = _resolve('service_host')
                 serv_host = format_ipv6_addr(serv_host) or serv_host
-                auth_host = rdata.get('auth_host')
+                auth_host = _resolve('auth_host')
                 auth_host = format_ipv6_addr(auth_host) or auth_host
-                int_host = rdata.get('internal_host')
+                int_host = _resolve('internal_host',)
                 int_host = format_ipv6_addr(int_host) or int_host
-                svc_protocol = rdata.get('service_protocol') or 'http'
-                auth_protocol = rdata.get('auth_protocol') or 'http'
-                int_protocol = rdata.get('internal_protocol') or 'http'
-                api_version = rdata.get('api_version') or '2.0'
-                ctxt.update({'service_port': rdata.get('service_port'),
+                svc_protocol = _resolve('service_protocol') or 'http'
+                auth_protocol = _resolve('auth_protocol') or 'http'
+                admin_role = _resolve('admin_role') or 'Admin'
+                int_protocol = _resolve('internal_protocol') or 'http'
+                api_version = _resolve('api_version') or '2.0'
+                ctxt.update({'service_port': _resolve('service_port'),
                              'service_host': serv_host,
                              'auth_host': auth_host,
-                             'auth_port': rdata.get('auth_port'),
+                             'auth_port': _resolve('auth_port'),
                              'internal_host': int_host,
-                             'internal_port': rdata.get('internal_port'),
-                             'admin_tenant_name': rdata.get('service_tenant'),
-                             'admin_user': rdata.get('service_username'),
-                             'admin_password': rdata.get('service_password'),
+                             'internal_port': _resolve('internal_port'),
+                             'admin_tenant_name': _resolve('service_tenant'),
+                             'admin_user': _resolve('service_username'),
+                             'admin_password': _resolve('service_password'),
+                             'admin_role': admin_role,
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
                              'internal_protocol': int_protocol,
                              'api_version': api_version})
 
+                service_type = _resolve('service_type')
+                if service_type:
+                    ctxt['service_type'] = service_type
+
                 if float(api_version) > 2:
                     ctxt.update({
-                        'admin_domain_name': rdata.get('service_domain'),
-                        'service_project_id': rdata.get('service_tenant_id'),
-                        'service_domain_id': rdata.get('service_domain_id')})
+                        'admin_domain_name': _resolve('service_domain'),
+                        'service_project_id': _resolve('service_tenant_id'),
+                        'service_domain_id': _resolve('service_domain_id')})
+
+                # NOTE:
+                # keystone-k8s operator presents full URLS
+                # for all three endpoints - public and internal are
+                # externally addressable for machine based charm
+                public_auth_url = _resolve('public_auth_url')
+                # if 'public_auth_url' in rdata:
+                if public_auth_url:
+                    ctxt.update({
+                        'public_auth_url': public_auth_url,
+                    })
+                internal_auth_url = _resolve('internal_auth_url')
+                # if 'internal_auth_url' in rdata:
+                if internal_auth_url:
+                    ctxt.update({
+                        'internal_auth_url': internal_auth_url,
+                    })
 
                 # we keep all veriables in ctxt for compatibility and
                 # add nested dictionary for keystone_authtoken generic
@@ -494,8 +557,8 @@ class IdentityServiceContext(OSContextGenerator):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
-                    ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
-                    ctxt['admin_domain_id'] = rdata.get('service_domain_id')
+                    ctxt['admin_tenant_id'] = _resolve('service_tenant_id')
+                    ctxt['admin_domain_id'] = _resolve('service_domain_id')
                     return ctxt
 
         return {}
@@ -546,6 +609,9 @@ class IdentityCredentialsContext(IdentityServiceContext):
                     'auth_protocol': auth_protocol,
                     'api_version': api_version
                 })
+
+                if rdata.get('service_type'):
+                    ctxt['service_type'] = rdata.get('service_type')
 
                 if float(api_version) > 2:
                     ctxt.update({'admin_domain_name':
@@ -864,9 +930,14 @@ class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
     def __init__(self, singlenode_mode=False,
-                 address_types=ADDRESS_TYPES):
+                 address_types=None,
+                 exporter_stats_port=DEFAULT_HAPROXY_EXPORTER_STATS_PORT):
+        if address_types is None:
+            address_types = ADDRESS_TYPES[:]
+
         self.address_types = address_types
         self.singlenode_mode = singlenode_mode
+        self.exporter_stats_port = exporter_stats_port
 
     def __call__(self):
         if not os.path.isdir(HAPROXY_RUN_DIR):
@@ -961,9 +1032,19 @@ class HAProxyContext(OSContextGenerator):
         db = kv()
         ctxt['stat_password'] = db.get('stat-password')
         if not ctxt['stat_password']:
-            ctxt['stat_password'] = db.set('stat-password',
-                                           pwgen(32))
+            ctxt['stat_password'] = db.set('stat-password', pwgen(32))
             db.flush()
+
+        # NOTE(rgildein): configure prometheus exporter for haproxy > 2.0.0
+        #                 New bind will be created and a prometheus-exporter
+        #                 will be used for path /metrics. At the same time,
+        #                 prometheus-exporter avoids using auth.
+        haproxy_version = get_installed_version("haproxy")
+        if (haproxy_version and
+                haproxy_version.ver_str >= LooseVersion("2.0.0") and
+                is_relation_made("haproxy-exporter")):
+            ctxt["stats_exporter_host"] = get_relation_ip("haproxy-exporter")
+            ctxt["stats_exporter_port"] = self.exporter_stats_port
 
         for frontend in cluster_hosts:
             if (len(cluster_hosts[frontend]['backends']) > 1 or
@@ -1111,10 +1192,14 @@ class ApacheSSLContext(OSContextGenerator):
             endpoint = resolve_address(net_type)
             addresses.append((addr, endpoint))
 
-        return sorted(set(addresses))
+        # Log the set of addresses to have a trail log and capture if tuples
+        # change over time in the same unit (LP: #1952414).
+        sorted_addresses = sorted(set(addresses))
+        log('get_network_addresses: {}'.format(sorted_addresses))
+        return sorted_addresses
 
     def __call__(self):
-        if isinstance(self.external_ports, six.string_types):
+        if isinstance(self.external_ports, str):
             self.external_ports = [self.external_ports]
 
         if not self.external_ports or not https():
@@ -1367,7 +1452,7 @@ class NeutronPortContext(OSContextGenerator):
         mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
         for entry in ports:
             if re.match(mac_regex, entry):
-                # NIC is in known NICs and does NOT hace an IP address
+                # NIC is in known NICs and does NOT have an IP address
                 if entry in hwaddr_to_nic and not hwaddr_to_ip[entry]:
                     # If the nic is part of a bridge then don't use it
                     if is_bridge_member(hwaddr_to_nic[entry]):
@@ -1531,9 +1616,9 @@ class SubordinateConfigContext(OSContextGenerator):
                             continue
 
                         sub_config = sub_config[self.config_file]
-                        for k, v in six.iteritems(sub_config):
+                        for k, v in sub_config.items():
                             if k == 'sections':
-                                for section, config_list in six.iteritems(v):
+                                for section, config_list in v.items():
                                     log("adding section '%s'" % (section),
                                         level=DEBUG)
                                     if ctxt[k].get(section):
@@ -1790,6 +1875,10 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-port-forwarding',
                 'default': False,
             },
+            'enable_fwaas': {
+                'rel_key': 'enable-fwaas',
+                'default': False,
+            },
             'global_physnet_mtu': {
                 'rel_key': 'global-physnet-mtu',
                 'default': 1500,
@@ -1823,6 +1912,11 @@ class NeutronAPIContext(OSContextGenerator):
 
         if ctxt['enable_port_forwarding']:
             l3_extension_plugins.append('port_forwarding')
+
+        if ctxt['enable_fwaas']:
+            l3_extension_plugins.append('fwaas_v2')
+            if ctxt['enable_nfg_logging']:
+                l3_extension_plugins.append('fwaas_v2_log')
 
         ctxt['l3_extension_plugins'] = l3_extension_plugins
 
@@ -1878,8 +1972,11 @@ class DataPortContext(NeutronPortContext):
             normalized.update({port: port for port in resolved
                                if port in ports})
             if resolved:
-                return {normalized[port]: bridge for port, bridge in
-                        six.iteritems(portmap) if port in normalized.keys()}
+                return {
+                    normalized[port]: bridge
+                    for port, bridge in portmap.items()
+                    if port in normalized.keys()
+                }
 
         return None
 
@@ -2282,15 +2379,10 @@ class HostInfoContext(OSContextGenerator):
         name = name or socket.gethostname()
         fqdn = ''
 
-        if six.PY2:
-            exc = socket.error
-        else:
-            exc = OSError
-
         try:
             addrs = socket.getaddrinfo(
                 name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME)
-        except exc:
+        except OSError:
             pass
         else:
             for addr in addrs:
@@ -2388,6 +2480,12 @@ class DHCPAgentContext(OSContextGenerator):
             ctxt['enable_metadata_network'] = True
             ctxt['enable_isolated_metadata'] = True
 
+        ctxt['append_ovs_config'] = False
+        cmp_release = CompareOpenStackReleases(
+            os_release('neutron-common', base='icehouse'))
+        if cmp_release >= 'queens' and config('enable-dpdk'):
+            ctxt['append_ovs_config'] = True
+
         return ctxt
 
     @staticmethod
@@ -2401,12 +2499,12 @@ class DHCPAgentContext(OSContextGenerator):
         existing_ovs_use_veth = None
         # If there is a dhcp_agent.ini file read the current setting
         if os.path.isfile(DHCP_AGENT_INI):
-            # config_ini does the right thing and returns None if the setting is
-            # commented.
+            # config_ini does the right thing and returns None if the setting
+            # is commented.
             existing_ovs_use_veth = (
                 config_ini(DHCP_AGENT_INI)["DEFAULT"].get("ovs_use_veth"))
         # Convert to Bool if necessary
-        if isinstance(existing_ovs_use_veth, six.string_types):
+        if isinstance(existing_ovs_use_veth, str):
             return bool_from_string(existing_ovs_use_veth)
         return existing_ovs_use_veth
 
@@ -2547,14 +2645,18 @@ class OVSDPDKDeviceContext(OSContextGenerator):
         :rtype: List[int]
         """
         cores = []
-        ranges = cpulist.split(',')
-        for cpu_range in ranges:
-            if "-" in cpu_range:
-                cpu_min_max = cpu_range.split('-')
-                cores += range(int(cpu_min_max[0]),
-                               int(cpu_min_max[1]) + 1)
-            else:
-                cores.append(int(cpu_range))
+        if cpulist and re.match(r"^[0-9,\-^]*$", cpulist):
+            ranges = cpulist.split(',')
+            for cpu_range in ranges:
+                if "-" in cpu_range:
+                    cpu_min_max = cpu_range.split('-')
+                    cores += range(int(cpu_min_max[0]),
+                                   int(cpu_min_max[1]) + 1)
+                elif "^" in cpu_range:
+                    cpu_rm = cpu_range.split('^')
+                    cores.remove(int(cpu_rm[1]))
+                else:
+                    cores.append(int(cpu_range))
         return cores
 
     def _numa_node_cores(self):
@@ -2573,7 +2675,6 @@ class OVSDPDKDeviceContext(OSContextGenerator):
 
     def cpu_mask(self):
         """Get hex formatted CPU mask
-
         The mask is based on using the first config:dpdk-socket-cores
         cores of each NUMA node in the unit.
         :returns: hex formatted CPU mask
@@ -2585,6 +2686,21 @@ class OVSDPDKDeviceContext(OSContextGenerator):
             for core in cores[:num_cores]:
                 mask = mask | 1 << core
         return format(mask, '#04x')
+
+    @classmethod
+    def pmd_cpu_mask(cls):
+        """Get hex formatted pmd CPU mask
+
+        The mask is based on config:pmd-cpu-set.
+        :returns: hex formatted CPU mask
+        :rtype: str
+        """
+        mask = 0
+        cpu_list = cls._parse_cpu_list(config('pmd-cpu-set'))
+        if cpu_list:
+            for core in cpu_list:
+                mask = mask | 1 << core
+        return format(mask, '#x')
 
     def socket_memory(self):
         """Formatted list of socket memory configuration per socket.
@@ -2663,11 +2779,12 @@ class OVSDPDKDeviceContext(OSContextGenerator):
             ctxt['device_whitelist'] = self.device_whitelist()
             ctxt['socket_memory'] = self.socket_memory()
             ctxt['cpu_mask'] = self.cpu_mask()
+            ctxt['pmd_cpu_mask'] = self.pmd_cpu_mask()
         return ctxt
 
 
 class BridgePortInterfaceMap(object):
-    """Build a map of bridge ports and interaces from charm configuration.
+    """Build a map of bridge ports and interfaces from charm configuration.
 
     NOTE: the handling of this detail in the charm is pre-deprecated.
 
@@ -3093,7 +3210,7 @@ class SRIOVContext(OSContextGenerator):
         """Determine number of Virtual Functions (VFs) configured for device.
 
         :param device: Object describing a PCI Network interface card (NIC)/
-        :type device: sriov_netplan_shim.pci.PCINetDevice
+        :type device: contrib.hardware.pci.PCINetDevice
         :param sriov_numvfs: Number of VFs requested for blanket configuration.
         :type sriov_numvfs: int
         :returns: Number of VFs to configure for device
@@ -3116,7 +3233,7 @@ class SRIOVContext(OSContextGenerator):
             actual = min(int(requested), int(device.sriov_totalvfs))
             if actual < int(requested):
                 log('Requested VFs ({}) too high for device {}. Falling back '
-                    'to value supprted by device: {}'
+                    'to value supported by device: {}'
                     .format(requested, device.interface_name,
                             device.sriov_totalvfs),
                     level=WARNING)

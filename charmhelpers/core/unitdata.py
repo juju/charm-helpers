@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ Here's a fully worked integration example using hookenv.Hooks::
                      'previous value', prev,
                      'current value',  cur)
 
-           # Get some unit specific bookeeping
+           # Get some unit specific bookkeeping
            if not db.get('pkg_key'):
                key = urllib.urlopen('https://example.com/pkg_key').read()
                db.set('pkg_key', key)
@@ -171,7 +171,7 @@ class Storage(object):
     path parameter which causes sqlite3 to only build the db in memory.
     This should only be used for testing purposes.
     """
-    def __init__(self, path=None):
+    def __init__(self, path=None, keep_revisions=False):
         self.db_path = path
         # The following is a hack to work around a bug in which both the
         # ops framework libraries and charmhelpers end up using the same
@@ -185,6 +185,7 @@ class Storage(object):
         except:
             pass
 
+        self.keep_revisions = keep_revisions
         if path is None:
             if 'UNIT_STATE_DB' in os.environ:
                 self.db_path = os.environ['UNIT_STATE_DB']
@@ -254,7 +255,7 @@ class Storage(object):
         Remove a key from the database entirely.
         """
         self.cursor.execute('delete from kv where key=?', [key])
-        if self.revision and self.cursor.rowcount:
+        if self.keep_revisions and self.revision and self.cursor.rowcount:
             self.cursor.execute(
                 'insert into kv_revisions values (?, ?, ?)',
                 [key, self.revision, json.dumps('DELETED')])
@@ -271,14 +272,14 @@ class Storage(object):
         if keys is not None:
             keys = ['%s%s' % (prefix, key) for key in keys]
             self.cursor.execute('delete from kv where key in (%s)' % ','.join(['?'] * len(keys)), keys)
-            if self.revision and self.cursor.rowcount:
+            if self.keep_revisions and self.revision and self.cursor.rowcount:
                 self.cursor.execute(
                     'insert into kv_revisions values %s' % ','.join(['(?, ?, ?)'] * len(keys)),
                     list(itertools.chain.from_iterable((key, self.revision, json.dumps('DELETED')) for key in keys)))
         else:
             self.cursor.execute('delete from kv where key like ?',
                                 ['%s%%' % prefix])
-            if self.revision and self.cursor.rowcount:
+            if self.keep_revisions and self.revision and self.cursor.rowcount:
                 self.cursor.execute(
                     'insert into kv_revisions values (?, ?, ?)',
                     ['%s%%' % prefix, self.revision, json.dumps('DELETED')])
@@ -311,7 +312,7 @@ class Storage(object):
             where key = ?''', [serialized, key])
 
         # Save
-        if not self.revision:
+        if (not self.keep_revisions) or (not self.revision):
             return value
 
         self.cursor.execute(
@@ -461,7 +462,7 @@ class HookData(object):
                      'previous value', prev,
                      'current value',  cur)
 
-           # Get some unit specific bookeeping
+           # Get some unit specific bookkeeping
            if not db.get('pkg_key'):
                key = urllib.urlopen('https://example.com/pkg_key').read()
                db.set('pkg_key', key)

@@ -1,5 +1,6 @@
 import textwrap
 import uuid
+import yaml
 
 import charmhelpers.contrib.network.ovs.ovn as ovn
 
@@ -28,6 +29,28 @@ CLUSTER_STATUS = textwrap.dedent("""
         f6cf (f6cf at ssl:10.219.3.64:6643)
         22dd (22dd at ssl:10.219.3.137:6643)
     """)
+
+
+CLUSTER_STATUS_OBJECT = ovn.OVNClusterStatus(
+    'OVN_Northbound',
+    uuid.UUID('f6a36e77-97bf-4740-b46a-705cbe4fef45'),
+    uuid.UUID('0ea6e785-c2bb-4640-b7a2-85104c11a2c1'),
+    'ssl:10.219.3.174:6643',
+    'cluster member',
+    'follower',
+    3,
+    '22dd',
+    'unknown',
+    1000,
+    '[2, 10]',
+    0,
+    0,
+    '->f6cf ->22dd <-22dd <-f6cf',
+    [
+        ('0ea6', 'ssl:10.219.3.174:6643'),
+        ('f6cf', 'ssl:10.219.3.64:6643'),
+        ('22dd', 'ssl:10.219.3.137:6643'),
+    ])
 
 NORTHD_STATUS_ACTIVE = textwrap.dedent("""
     Status: active
@@ -65,32 +88,14 @@ class TestOVN(test_utils.BaseTestCase):
     def test_cluster_status(self):
         self.patch_object(ovn, 'ovn_appctl')
         self.ovn_appctl.return_value = CLUSTER_STATUS
-        expect = ovn.OVNClusterStatus(
-            'OVN_Northbound',
-            uuid.UUID('f6a36e77-97bf-4740-b46a-705cbe4fef45'),
-            uuid.UUID('0ea6e785-c2bb-4640-b7a2-85104c11a2c1'),
-            'ssl:10.219.3.174:6643',
-            'cluster member',
-            'follower',
-            3,
-            '22dd',
-            'unknown',
-            1000,
-            '[2, 10]',
-            0,
-            0,
-            '->f6cf ->22dd <-22dd <-f6cf',
-            [
-                ('0ea6', 'ssl:10.219.3.174:6643'),
-                ('f6cf', 'ssl:10.219.3.64:6643'),
-                ('22dd', 'ssl:10.219.3.137:6643'),
-            ])
-        self.assertEquals(ovn.cluster_status('ovnnb_db'), expect)
+        self.assertEquals(ovn.cluster_status('ovnnb_db'),
+                          CLUSTER_STATUS_OBJECT)
         self.ovn_appctl.assert_called_once_with('ovnnb_db', ('cluster/status',
                                                 'OVN_Northbound'),
                                                 rundir=None,
                                                 use_ovs_appctl=False)
-        self.assertFalse(expect.is_cluster_leader)
+        self.assertFalse(CLUSTER_STATUS_OBJECT.is_cluster_leader)
+
         expect = ovn.OVNClusterStatus(
             'OVN_Northbound',
             uuid.UUID('f6a36e77-97bf-4740-b46a-705cbe4fef45'),
@@ -112,6 +117,28 @@ class TestOVN(test_utils.BaseTestCase):
                 ('22dd', 'ssl:10.219.3.137:6643'),
             ])
         self.assertTrue(expect.is_cluster_leader)
+
+    def test_cluster_status_to_yaml_integrity(self):
+        """Test OVNClusterStatus.to_yaml() returns expected data."""
+        yaml_dict = CLUSTER_STATUS_OBJECT.to_yaml()
+        self.assertEqual(yaml_dict.keys(),
+                         CLUSTER_STATUS_OBJECT.__dict__.keys())
+
+        for key, value in yaml_dict.items():
+            self.assertEqual(value,
+                             CLUSTER_STATUS_OBJECT.__getattribute__(key))
+
+    def test_cluster_status_to_yaml(self):
+        """Test OVNClusterStatus.to_yaml() result is yaml serializable."""
+        yaml_dict = CLUSTER_STATUS_OBJECT.to_yaml()
+        try:
+            yaml.safe_dump(yaml_dict)
+        except yaml.representer.RepresenterError as exc:
+            self.fail(
+                "Failed to serialize {} to yaml: {}".format(
+                    CLUSTER_STATUS_OBJECT.__class__,
+                    exc)
+            )
 
     def test_is_northd_active(self):
         self.patch_object(ovn, 'ovn_appctl')

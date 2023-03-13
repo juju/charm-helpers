@@ -1,7 +1,6 @@
 from mock import patch, call, mock_open
 
 import collections
-import six
 import errno
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -16,7 +15,6 @@ import charmhelpers.contrib.storage.linux.ceph as ceph_utils
 from charmhelpers.core.unitdata import Storage
 from subprocess import CalledProcessError
 from tests.helpers import patch_open, FakeRelation
-import nose.plugins.attrib
 import os
 import time
 
@@ -171,6 +169,7 @@ class CephBasicUtilsTests(TestCase):
         super(CephBasicUtilsTests, self).setUp()
         [self._patch(m) for m in [
             'check_output',
+            'cmp_pkgrevno',
         ]]
 
     def _patch(self, method):
@@ -181,8 +180,15 @@ class CephBasicUtilsTests(TestCase):
 
     def test_enabled_manager_modules(self):
         self.check_output.return_value = b'{"enabled_modules": []}'
+        self.cmp_pkgrevno.return_value = -1
         ceph_utils.enabled_manager_modules()
         self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls'])
+
+    def test_enabled_manager_modules_quincy(self):
+        self.check_output.return_value = b'{"enabled_modules": []}'
+        self.cmp_pkgrevno.return_value = 0
+        ceph_utils.enabled_manager_modules()
+        self.check_output.assert_called_once_with(['ceph', 'mgr', 'module', 'ls', '--format=json'])
 
 
 class CephUtilsTests(TestCase):
@@ -325,15 +331,15 @@ class CephUtilsTests(TestCase):
                           valid_range=[0])
 
     def test_validator_invalid_string_list(self):
-        # foo is a six.string_types that isn't in the valid string list
+        # foo is a str that isn't in the valid string list
         self.assertRaises(AssertionError, ceph_utils.validator,
                           value="foo",
-                          valid_type=six.string_types,
+                          valid_type=str,
                           valid_range=["valid", "list", "of", "strings"])
 
     def test_validator_valid_string(self):
         ceph_utils.validator(value="foo",
-                             valid_type=six.string_types,
+                             valid_type=str,
                              valid_range=["foo"])
 
     def test_validator_valid_string_type(self):
@@ -496,21 +502,24 @@ class CephUtilsTests(TestCase):
         p.create()
 
         self.check_call.assert_has_calls([
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200)]),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test', str(200),
+                  'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', str(3)]),
         ])
         self.assertEqual(self.check_call.call_count, 2)
 
     @patch.object(ceph_utils, 'get_osds')
     def test_replicated_pool_create_luminous_ceph(self, get_osds):
-        self.cmp_pkgrevno.side_effect = [-1, 1]
+        self.cmp_pkgrevno.side_effect = (
+            lambda _, version: -1 if version == '14.2.0' else 1
+        )
         get_osds.return_value = None
         p = ceph_utils.ReplicatedPool(name='test', service='admin', replicas=3)
         p.create()
 
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd',
-                  'pool', 'create', 'test', str(200)]),
+                  'pool', 'create', 'test', str(200), 'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd',
                   'pool', 'set', 'test', 'size', str(3)]),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -530,7 +539,7 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 16
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '16']),
+                  '16', 'replicated_rule']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -545,8 +554,9 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '128']),
-            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test', 'size', '3']),
+                  '128', 'replicated_rule']),
+            call(['ceph', '--id', 'admin', 'osd', 'pool', 'set', 'test',
+                  'size', '3']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -562,7 +572,8 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool',
-                  'create', '--pg-num-min=32', 'test', '128']),
+                  'create', '--pg-num-min=32', 'test', '128',
+                  'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'size', '3']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -586,7 +597,7 @@ class CephUtilsTests(TestCase):
         # at 100 PGs/OSD, the number of expected placement groups will be 128
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool',
-                  'create', '--pg-num-min=2', 'test', '2']),
+                  'create', '--pg-num-min=2', 'test', '2', 'replicated_rule']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
                   'set', 'test', 'size', '3']),
             call(['ceph', '--id', 'admin', 'osd', 'pool',
@@ -610,7 +621,7 @@ class CephUtilsTests(TestCase):
         # will be 1024.
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '1024']),
+                  '1024', 'replicated_rule']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -626,7 +637,7 @@ class CephUtilsTests(TestCase):
         # will be 32768
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'admin', 'osd', 'pool', 'create', 'test',
-                  '32768']),
+                  '32768', 'replicated_rule']),
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -985,12 +996,25 @@ class CephUtilsTests(TestCase):
         self.assertRaises(CalledProcessError, ceph_utils.monitor_key_delete,
                           service='admin', key='foo')
 
-    def test_get_monmap(self):
+    @patch.object(ceph_utils, 'cmp_pkgrevno')
+    def test_get_monmap_pre_octopus(self, mock_cmp_pkgrevno):
+        mock_cmp_pkgrevno.return_value = -1
         self.check_output.return_value = MONMAP_DUMP
         cmd = ['ceph', '--id', 'admin',
                'mon_status', '--format=json']
         ceph_utils.get_mon_map(service='admin')
         self.check_output.assert_called_with(cmd)
+        mock_cmp_pkgrevno.assert_called_once_with('ceph-common', '15.0.0')
+
+    @patch.object(ceph_utils, 'cmp_pkgrevno')
+    def test_get_monmap_octopus_and_later(self, mock_cmp_pkgrevno):
+        mock_cmp_pkgrevno.return_value = 0
+        self.check_output.return_value = MONMAP_DUMP
+        cmd = ['ceph', '--id', 'admin',
+               'quorum_status', '--format=json']
+        ceph_utils.get_mon_map(service='admin')
+        self.check_output.assert_called_with(cmd)
+        mock_cmp_pkgrevno.assert_called_once_with('ceph-common', '15.0.0')
 
     @patch.object(ceph_utils, 'get_mon_map')
     def test_hash_monitor_names(self, monmap):
@@ -998,9 +1022,7 @@ class CephUtilsTests(TestCase):
             '010d57d581604d411b315dd64112bff832ab92c7323fa06077134b50',
             '8e0a9705c1aeafa1ce250cc9f1bb443fc6e5150e5edcbeb6eeb82e3c',
             'c3f8d36ba098c23ee920cb08cfb9beda6b639f8433637c190bdd56ec']
-        _monmap_dump = MONMAP_DUMP
-        if six.PY3:
-            _monmap_dump = _monmap_dump.decode('UTF-8')
+        _monmap_dump = MONMAP_DUMP.decode('UTF-8')
         monmap.return_value = json.loads(_monmap_dump)
         hashed_mon_list = ceph_utils.hash_monitor_names(service='admin')
         self.assertEqual(expected=expected_hash_list, observed=hashed_mon_list)
@@ -1167,12 +1189,12 @@ class CephUtilsTests(TestCase):
         self.check_call.assert_not_called()
 
     def test_keyring_path(self):
-        """It correctly dervies keyring path from service name"""
+        """It correctly derives keyring path from service name"""
         result = ceph_utils._keyring_path('cinder')
         self.assertEquals('/etc/ceph/ceph.client.cinder.keyring', result)
 
     def test_keyfile_path(self):
-        """It correctly dervies keyring path from service name"""
+        """It correctly derives keyring path from service name"""
         result = ceph_utils._keyfile_path('cinder')
         self.assertEquals('/etc/ceph/ceph.client.cinder.key', result)
 
@@ -1438,7 +1460,6 @@ class CephUtilsTests(TestCase):
         self.log.assert_called_with(
             'Gave up waiting on block device %s' % device, level='ERROR')
 
-    @nose.plugins.attrib.attr('slow')
     def test_make_filesystem_timeout(self):
         """
         make_filesystem() allows to specify how long it should wait for the
@@ -1455,7 +1476,6 @@ class CephUtilsTests(TestCase):
         self.log.assert_called_with(
             'Gave up waiting on block device %s' % device, level='ERROR')
 
-    @nose.plugins.attrib.attr('slow')
     def test_device_is_formatted_if_it_appears(self):
         """
         The specified device is formatted if it appears before the timeout
@@ -1945,7 +1965,9 @@ class CephUtilsTests(TestCase):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
-    def test_has_broker_rsp(self):
+    @patch.object(ceph_utils, 'local_unit')
+    def test_has_broker_rsp(self, mlocal_unit):
+        mlocal_unit.return_value = 'glance/0'
         rq_id = "3d03e9f6-4c36-11e7-89ba-fa163e7c7ec6"
         broker_key = ceph_utils.get_broker_rsp_key()
         self.relation_get.return_value = {broker_key:
@@ -2034,6 +2056,7 @@ class CephUtilsTests(TestCase):
                    'compression-min-blob-size-ssd': None,
                    'compression-mode': None,
                    'compression-required-ratio': None,
+                   'crush-profile': None,
                    'group': None,
                    'group-namespace': None,
                    'max-bytes': None,

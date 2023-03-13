@@ -158,7 +158,7 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         get_event_record_file.return_value = test_file
         deferred_events.save_event(self.exp_event_a)
         with open(test_file, 'r') as f:
-            contents = yaml.load(f)
+            contents = yaml.safe_load(f)
         self.assertEqual(contents, vars(self.exp_event_a))
 
     @patch.object(deferred_events.os, "remove")
@@ -304,10 +304,13 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
     def test_check_restart_timestamps(self, get_service_start_time, log,
                                       clear_deferred_restarts,
                                       get_deferred_restarts):
+        request_time = '2021-02-02 10:19:55'
+        timestamp = datetime.datetime.strptime(
+            'Tue ' + request_time + ' UTC',
+            '%a %Y-%m-%d %H:%M:%S %Z').timestamp()
         deferred_restarts = [
-            # 'Tue 2021-02-02 10:19:55 UTC'
             deferred_events.ServiceEvent(
-                timestamp=1612261195.0,
+                timestamp=timestamp,
                 service='svcA',
                 reason='ReasonA',
                 action='restart')]
@@ -326,7 +329,7 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
         self.assertFalse(clear_deferred_restarts.called)
         log.assert_called_once_with(
             ('Restart still required, svcA was started at 2021-02-02 10:10:55,'
-             ' restart was requested after that at 2021-02-02 10:19:55'),
+             ' restart was requested after that at {}'.format(request_time)),
             level='DEBUG')
 
     def test_set_deferred_hook(self):

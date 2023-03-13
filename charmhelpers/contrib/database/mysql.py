@@ -19,7 +19,6 @@ import sys
 import platform
 import os
 import glob
-import six
 
 # from string import upper
 
@@ -55,10 +54,7 @@ try:
     import MySQLdb
 except ImportError:
     apt_update(fatal=True)
-    if six.PY2:
-        apt_install(filter_installed_packages(['python-mysqldb']), fatal=True)
-    else:
-        apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
+    apt_install(filter_installed_packages(['python3-mysqldb']), fatal=True)
     import MySQLdb
 
 
@@ -187,7 +183,7 @@ class MySQLHelper(object):
             cursor.close()
 
     def execute(self, sql):
-        """Execute arbitary SQL against the database."""
+        """Execute arbitrary SQL against the database."""
         cursor = self.connection.cursor()
         try:
             cursor.execute(sql)
@@ -652,6 +648,17 @@ class MySQLConfigHelper(object):
 
         return innodb_buffer_pool_size
 
+    def get_group_replication_message_cache_size(self):
+        """Get value for group_replication_message_cache_size.
+
+        :returns: Numeric value for group_replication_message_cache_size
+                  None if not set.
+        :rtype: Union[None, int]
+        """
+        gr_message_cache_size = config_get('group-replication-message-cache-size')
+        if gr_message_cache_size:
+            return self.human_to_bytes(gr_message_cache_size)
+
 
 class PerconaClusterHelper(MySQLConfigHelper):
     """Percona-cluster specific configuration helper."""
@@ -729,7 +736,7 @@ class MySQL8Helper(MySQLHelper):
                 remote_ip=remote_ip,
                 password=password)
             )
-        except MySQLdb._exceptions.OperationalError:
+        except MySQLdb.OperationalError:
             log("DB user {} already exists.".format(db_user),
                 "WARNING")
         finally:

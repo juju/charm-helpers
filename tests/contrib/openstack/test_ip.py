@@ -12,6 +12,7 @@ TO_PATCH = [
     'service_name',
     'network_get_primary_address',
     'resolve_network_cidr',
+    'get_iface_for_address',
 ]
 
 
@@ -45,6 +46,29 @@ class IPTestCase(TestCase):
         mock = _m.start()
         self.addCleanup(_m.stop)
         return mock
+
+    def test_get_invalid_vips_valid_ip(self):
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '10.5.3.200')
+        self.get_iface_for_address.return_value = 'ens3'
+        self.assertEquals(ip.get_invalid_vips(), [])
+
+    def test_get_invalid_vips_invalid_ip(self):
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '10.3.2.50')
+        self.get_iface_for_address.return_value = None
+        self.assertEquals(ip.get_invalid_vips(), ['10.3.2.50'])
+
+    def test_get_invalid_vips_no_vip(self):
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '')
+        self.assertEquals(ip.get_invalid_vips(), [])
+
+    def test_get_invalid_vips_mixed(self):
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '10.3.1.100 10.5.3.200 2.3.5.6')
+        self.get_iface_for_address.side_effect = [None, 'ens3', None]
+        self.assertEquals(ip.get_invalid_vips(), ['10.3.1.100', '2.3.5.6'])
 
     def test_resolve_address_default(self):
         self.is_clustered.return_value = False

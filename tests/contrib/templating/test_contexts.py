@@ -9,8 +9,6 @@ import tempfile
 import unittest
 import yaml
 
-import six
-
 import charmhelpers.contrib.templating.contexts
 
 
@@ -136,12 +134,12 @@ class JujuState2YamlTestCase(unittest.TestCase):
         }
         self.mock_relations.return_value = {
             'wsgi-file': {
-                six.u('wsgi-file:0'): {
-                    six.u('gunicorn/1'): {
-                        six.u('private-address'): six.u('10.0.3.99'),
+                'wsgi-file:0': {
+                    'gunicorn/1': {
+                        'private-address': '10.0.3.99',
                     },
                     'click-index/3': {
-                        six.u('wsgi_group'): six.u('ubunet'),
+                        'wsgi_group': 'ubunet',
                     },
                 },
             },
@@ -165,8 +163,8 @@ class JujuState2YamlTestCase(unittest.TestCase):
             expected["relations_full"]['wsgi-file'] = {
                 'wsgi-file:0': {
                     'gunicorn/1': {
-                        six.u('private-address'): six.u('10.0.3.99')},
-                    'click-index/3': {six.u('wsgi_group'): six.u('ubunet')},
+                        'private-address': '10.0.3.99'},
+                    'click-index/3': {'wsgi_group': 'ubunet'},
                 },
             }
             expected["relations"]["wsgi-file"] = [

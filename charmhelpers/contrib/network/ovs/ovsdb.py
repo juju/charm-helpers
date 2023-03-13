@@ -126,24 +126,27 @@ class SimpleOVSDB(object):
         ),
     }
 
-    def __init__(self, tool):
+    def __init__(self, tool, args=None):
         """SimpleOVSDB constructor.
 
         :param tool: Which tool with database commands to operate on.
                      Usually one of `ovs-vsctl`, `ovn-nbctl`, `ovn-sbctl`
         :type tool: str
+        :param args: Extra arguments to pass to the tool
+        :type args: Optional[List[str]]
         """
         if tool not in self._tool_table_map:
             raise RuntimeError(
                 'tool must be one of "{}"'.format(self._tool_table_map.keys()))
         self._tool = tool
+        self._args = args
 
     def __getattr__(self, table):
         if table not in self._tool_table_map[self._tool]:
             raise AttributeError(
                 'table "{}" not known for use with "{}"'
                 .format(table, self._tool))
-        return self.Table(self._tool, table)
+        return self.Table(self._tool, table, args=self._args)
 
     class Table(object):
         """Methods to interact with contents of OVSDB tables.
@@ -153,14 +156,17 @@ class SimpleOVSDB(object):
         JSON output.
         """
 
-        def __init__(self, tool, table):
+        def __init__(self, tool, table, args=None):
             """SimpleOVSDBTable constructor.
 
             :param table: Which table to operate on
             :type table: str
+            :param args: Extra arguments to pass to the tool
+            :type args: Optional[List[str]]
             """
             self._tool = tool
             self._table = table
+            self._args = args
 
         def _deserialize_ovsdb(self, data):
             """Deserialize OVSDB RFC7047 section 5.1 data.
@@ -199,7 +205,7 @@ class SimpleOVSDB(object):
                         decoded_set = []
                         for el in data[1]:
                             decoded_set.append(self._deserialize_ovsdb(el))
-                        return(decoded_set)
+                        return decoded_set
                     # fall back to normal processing below
                     break
 
@@ -207,17 +213,14 @@ class SimpleOVSDB(object):
             f = ovs_type_cb_map.get(data[0], str)
             return f(data[1])
 
-        def _find_tbl(self, condition=None):
-            """Run and parse output of OVSDB `find` command.
+        def _cmd_deserialize_data_generator(self, cmd):
+            """Run command and provide generator with deserialized data.
 
-            :param condition: An optional RFC 7047 5.1 match condition
-            :type condition: Optional[str]
-            :returns: Dictionary with data
-            :rtype: Dict[str, any]
+            :param cmd: Command and arguments to run.
+            :type cmd: Iterable[str]
+            :returns: Deserialzed data.
+            :rtype: Generator[Dict[str,any], None, None]
             """
-            cmd = [self._tool, '-f', 'json', 'find', self._table]
-            if condition:
-                cmd.append(condition)
             output = utils._run(*cmd)
             data = json.loads(output)
             for row in data['data']:
@@ -229,8 +232,48 @@ class SimpleOVSDB(object):
                         values.append(col)
                 yield dict(zip(data['headings'], values))
 
+        def _get_command(self):
+            """Get base command.
+
+            :rtype: List[str]
+            """
+            cmd = [self._tool]
+            if self._args:
+                cmd.extend(self._args)
+            cmd.extend(['-f', 'json'])
+            return cmd
+
+        def _find_tbl(self, condition=None):
+            """Run and parse output of OVSDB `find` command.
+
+            :param condition: An optional RFC 7047 5.1 match condition
+            :type condition: Optional[str]
+            :returns: Dictionary with data
+            :rtype: Generator[Dict[str, any], None, None]
+            """
+            cmd = self._get_command()
+            cmd.extend(['find', self._table])
+            if condition:
+                cmd.append(condition)
+            return self._cmd_deserialize_data_generator(cmd)
+
+        def _list_tbl_record(self, record):
+            """Run and parse output of OVSDB `list` command for record.
+
+            :param record: The UUID of the record to list data for.
+            :type record: uuid.UUID
+            :returns: Dictionary with data
+            :rtype: Dict[str, any]
+            """
+            cmd = self._get_command()
+            cmd.extend(['list', self._table, str(record)])
+            return next(self._cmd_deserialize_data_generator(cmd))
+
         def __iter__(self):
             return self._find_tbl()
+
+        def __getitem__(self, key):
+            return self._list_tbl_record(key)
 
         def clear(self, rec, col):
             utils._run(self._tool, 'clear', self._table, rec, col)

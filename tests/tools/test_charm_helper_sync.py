@@ -4,12 +4,6 @@ import yaml
 
 import tools.charm_helpers_sync.charm_helpers_sync as sync
 
-import six
-if not six.PY3:
-    builtin_open = '__builtin__.open'
-else:
-    builtin_open = 'builtins.open'
-
 
 INCLUDE = """
 include:
@@ -53,7 +47,7 @@ class HelperSyncTests(unittest.TestCase):
         self.assertEquals('/tmp/mycharm/hooks/charmhelpers/contrib/openstack',
                           path)
 
-    @patch(builtin_open)
+    @patch('builtins.open')
     @patch('os.path.exists')
     @patch('os.walk')
     def test_ensure_init(self, walk, exists, _open):
@@ -121,7 +115,7 @@ class HelperSyncTests(unittest.TestCase):
         isfile.side_effect = _isfile
         isdir.side_effect = _isdir
         result = sync.get_filter(opts)(dir='/tmp/charm-helpers/core',
-                                       ls=six.iterkeys(files))
+                                       ls=files.keys())
         return result
 
     @patch('os.path.isdir')

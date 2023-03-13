@@ -21,12 +21,9 @@ import time
 import yaml
 import subprocess
 
-import six
-if six.PY3:
-    from urllib.request import urlopen
-    from urllib.error import (HTTPError, URLError)
-else:
-    from urllib2 import (urlopen, HTTPError, URLError)
+from urllib.request import urlopen
+from urllib.error import (HTTPError, URLError)
+
 
 """Helper functions for writing Juju charms in Python."""
 

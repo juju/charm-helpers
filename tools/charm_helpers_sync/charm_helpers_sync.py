@@ -27,8 +27,6 @@ import tempfile
 import yaml
 from fnmatch import fnmatch
 
-import six
-
 CHARM_HELPERS_REPO = 'https://github.com/juju/charm-helpers'
 
 
@@ -36,7 +34,7 @@ def parse_config(conf_file):
     if not os.path.isfile(conf_file):
         logging.error('Invalid config file: %s.' % conf_file)
         return False
-    return yaml.load(open(conf_file).read())
+    return yaml.safe_load(open(conf_file).read())
 
 
 def clone_helpers(work_dir, repo):
@@ -171,7 +169,7 @@ def parse_sync_options(options):
 
 def extract_options(inc, global_options=None):
     global_options = global_options or []
-    if global_options and isinstance(global_options, six.string_types):
+    if global_options and isinstance(global_options, str):
         global_options = [global_options]
     if '|' not in inc:
         return (inc, global_options)
@@ -194,7 +192,7 @@ def sync_helpers(include, src, dest, options=None):
             sync(src, dest, inc, opts)
         elif isinstance(inc, dict):
             # could also do nested dicts here.
-            for k, v in six.iteritems(inc):
+            for k, v in inc.items():
                 if isinstance(v, list):
                     for m in v:
                         inc, opts = extract_options(m, global_options)
