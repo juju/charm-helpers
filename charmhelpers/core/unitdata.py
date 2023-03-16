@@ -181,7 +181,7 @@ class Storage(object):
         try:
             import ops
             db_suffix = '.unit-state2.db'
-            ops = None   # Don't hold an unneeded reference.
+            del ops   # Don't hold an unneeded reference.
         except:
             pass
 
