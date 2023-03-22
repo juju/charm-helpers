@@ -242,7 +242,8 @@ def get_deferred_restarts():
     :returns: List of deferred restarts
     :rtype: List[ServiceEvent]
     """
-    return [e for e in get_deferred_events() if e.action == 'restart']
+    return [e for e in get_deferred_events() if (e.action == 'restart' or
+                                                 e.action == 'stop')]
 
 
 def clear_deferred_restarts(services):
