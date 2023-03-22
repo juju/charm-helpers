@@ -1786,7 +1786,7 @@ def restart_services_action(services=None, when_all_stopped_func=None,
                                   stopped.
     :type when_all_stopped_func: Callable[]
     :param model_name: Only restart services which have a deferred restart
-                       event.
+                       or stop event.
     :type model_name: bool
     """
     if services and deferred_only:
@@ -1794,7 +1794,9 @@ def restart_services_action(services=None, when_all_stopped_func=None,
             "services and deferred_only are mutually exclusive")
     if deferred_only:
         services = list(set(
-            [a.service for a in deferred_events.get_deferred_restarts()]))
+            [a.service for a in (
+                deferred_events.get_deferred_restarts() +
+                deferred_events.get_deferred_stops())]))
     _, messages = manage_payload_services(
         'stop',
         services=services,

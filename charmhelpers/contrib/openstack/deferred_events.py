@@ -245,6 +245,15 @@ def get_deferred_restarts():
     return [e for e in get_deferred_events() if e.action == 'restart']
 
 
+def get_deferred_stops():
+    """List of deferred stop events requested by the charm and packages.
+
+    :returns: List of deferred stops
+    :rtype: List[ServiceEvent]
+    """
+    return [e for e in get_deferred_events() if e.action == 'stop']
+
+
 def clear_deferred_restarts(services):
     """Clear deferred restart events targeted at `services`.
 
