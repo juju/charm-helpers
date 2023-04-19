@@ -18,6 +18,9 @@ from charmhelpers.core.hookenv import (
     unit_get,
     service_name,
     network_get_primary_address,
+    relation_ids,
+    related_units as relation_list,
+    relation_get,
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
@@ -27,7 +30,6 @@ from charmhelpers.contrib.network.ip import (
     resolve_network_cidr,
     get_iface_for_address
 )
-from charmhelpers.contrib.hahelpers.cluster import is_clustered
 
 PUBLIC = 'public'
 INTERNAL = 'int'
@@ -69,6 +71,21 @@ ADDRESS_MAP = {
         'override': 'os-internal-hostname',
     },
 }
+
+
+# The authoratative copy of is_clustered is in
+# charmhelpers/contrib/hahelpers/cluster.py. To avoid circular dependacy
+# it is copied here. If an update is needed please update the other copy
+# and copy any changes back here.
+def is_clustered():
+    for r_id in (relation_ids('ha') or []):
+        for unit in (relation_list(r_id) or []):
+            clustered = relation_get('clustered',
+                                     rid=r_id,
+                                     unit=unit)
+            if clustered:
+                return True
+    return False
 
 
 def canonical_url(configs, endpoint_type=PUBLIC):
