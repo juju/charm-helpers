@@ -32,7 +32,6 @@ import time
 
 from socket import gethostname as get_unit_hostname
 
-import charmhelpers.contrib.openstack.cert_utils as cert_utils
 from charmhelpers.core.hookenv import (
     log,
     relation_ids,
@@ -107,8 +106,6 @@ def is_elected_leader(resource):
     return True
 
 
-# This has been copied into charmhelpers/contrib/openstack/ip.py. If it is
-# updated please copy and update there too.
 def is_clustered():
     for r_id in (relation_ids('ha') or []):
         for unit in (relation_list(r_id) or []):
@@ -224,6 +221,8 @@ def https():
         return True
     if config_get('ssl_cert') and config_get('ssl_key'):
         return True
+    # Local import to avoid ciruclar dependency.
+    import charmhelpers.contrib.openstack.cert_utils as cert_utils
     if (
         cert_utils.get_certificate_request() and not
         cert_utils.get_requests_for_local_unit("certificates")
