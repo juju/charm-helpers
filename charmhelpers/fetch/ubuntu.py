@@ -769,13 +769,13 @@ def _add_apt_repository(spec):
     if '{series}' in spec:
         spec = spec.replace('{series}', series)
     cmd = ['add-apt-repository', '--yes']
-    if (spec.strip().startswith('deb')
-            and CompareHostReleases(series) >= 'jammy'):
+    if (spec.strip().startswith('deb') and
+            CompareHostReleases(series) >= 'jammy'):
         # if starts with deb, just add the source.list as per lp:2017014, only
         # in jammy or newer
         cmd.append('-S')
     cmd.append(spec)
-    _run_with_retries(['add-apt-repository', '--yes', spec],
+    _run_with_retries(cmd,
                       cmd_env=env_proxy_settings(['https', 'http', 'no_proxy'])
                       )
 
