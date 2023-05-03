@@ -231,8 +231,11 @@ class ClusterUtilsTests(TestCase):
         ]
         self.assertTrue(cluster_utils.https())
 
-    def test_https_cert_key_in_identity_relation(self):
+    @patch('charmhelpers.contrib.openstack.cert_utils')
+    def test_https_cert_key_in_identity_relation(self, cert_utils):
         '''It determines https is available if cert in identity-service'''
+        cert_utils.get_certificate_request.return_value = False
+        cert_utils.get_requests_for_local_unit.return_value = {}
         self.config_get.return_value = False
         self.relation_ids.return_value = 'identity-service:0'
         self.relation_list.return_value = 'keystone/0'
@@ -244,8 +247,27 @@ class ClusterUtilsTests(TestCase):
         ]
         self.assertTrue(cluster_utils.https())
 
-    def test_https_cert_key_incomplete_identity_relation(self):
+    @patch('charmhelpers.contrib.openstack.cert_utils')
+    def test_https_cert_req_pending(self, cert_utils):
+        '''It determines https is available if cert in identity-service'''
+        cert_utils.get_certificate_request.return_value = True
+        cert_utils.get_requests_for_local_unit.return_value = {}
+        self.config_get.return_value = False
+        self.relation_ids.return_value = 'identity-service:0'
+        self.relation_list.return_value = 'keystone/0'
+        self.relation_get.side_effect = [
+            'yes',  # relation_get('https_keystone')
+            'cert',  # relation_get('ssl_cert')
+            'key',  # relation_get('ssl_key')
+            'ca_cert',  # relation_get('ca_cert')
+        ]
+        self.assertTrue(cluster_utils.https())
+
+    @patch('charmhelpers.contrib.openstack.cert_utils')
+    def test_https_cert_key_incomplete_identity_relation(self, cert_utils):
         '''It determines https unavailable if cert not in identity-service'''
+        cert_utils.get_certificate_request.return_value = False
+        cert_utils.get_requests_for_local_unit.return_value = {}
         self.config_get.return_value = False
         self.relation_ids.return_value = 'identity-service:0'
         self.relation_list.return_value = 'keystone/0'
