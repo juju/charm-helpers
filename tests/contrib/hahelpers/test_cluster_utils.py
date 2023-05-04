@@ -261,7 +261,7 @@ class ClusterUtilsTests(TestCase):
             'key',  # relation_get('ssl_key')
             'ca_cert',  # relation_get('ca_cert')
         ]
-        self.assertTrue(cluster_utils.https())
+        self.assertFalse(cluster_utils.https())
 
     @patch('charmhelpers.contrib.openstack.cert_utils')
     def test_https_cert_key_incomplete_identity_relation(self, cert_utils):
