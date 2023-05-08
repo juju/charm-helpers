@@ -16,6 +16,7 @@
 
 import os
 import json
+import socket
 from base64 import b64decode
 
 from charmhelpers.contrib.network.ip import (
@@ -86,11 +87,14 @@ class CertRequest(object):
         # If a vip is being used without os-hostname config or
         # network spaces then we need to ensure the local units
         # cert has the appropriate vip in the SAN list
-        vip = get_vip_in_network(resolve_network_cidr(ip))
+        try:
+            vip = get_vip_in_network(resolve_network_cidr(ip))
+        except:
+            vip = None
         if vip:
             addresses.append(vip)
         self.hostname_entry = {
-            'cn': get_hostname(ip),
+            'cn': get_hostname(ip) or socket.getfqdn(),
             'addresses': addresses}
 
     def add_hostname_cn_ip(self, addresses):
@@ -156,7 +160,10 @@ def get_certificate_request(json_encode=True, bindings=None):
                 net_addr = None
             ip = network_get_primary_address(binding)
             addresses = [net_addr, ip]
-            vip = get_vip_in_network(resolve_network_cidr(ip))
+            try:
+                vip = get_vip_in_network(resolve_network_cidr(ip))
+            except:
+                vip = None
             if vip:
                 addresses.append(vip)
 
@@ -217,7 +224,10 @@ def get_certificate_sans(bindings=None):
             net_addr = None
         ip = get_relation_ip(binding, cidr_network=net_config)
         _sans = _sans + [net_addr, ip]
-        vip = get_vip_in_network(resolve_network_cidr(ip))
+        try:
+            vip = get_vip_in_network(resolve_network_cidr(ip))
+        except:
+            vip = None
         if vip:
             _sans.append(vip)
     # Clear any Nones and duplicates
