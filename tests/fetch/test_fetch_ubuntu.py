@@ -159,6 +159,8 @@ class FetchTest(TestCase):
             return {
                 'HTTPS_PROXY': 'http://squid.internal:3128',
                 'JUJU_CHARM_HTTPS_PROXY': None,
+                'NO_PROXY': '127.0.0.1,localhost,::1',
+                'JUJU_CHARM_NO_PROXY': None,
             }[var]
         getenv.side_effect = get_env_side_effect
 
@@ -166,6 +168,8 @@ class FetchTest(TestCase):
             proxy_settings = {
                 'HTTPS_PROXY': 'http://squid.internal:3128',
                 'https_proxy': 'http://squid.internal:3128',
+                'NO_PROXY': '127.0.0.1,localhost,::1',
+                'no_proxy': '127.0.0.1,localhost,::1',
             }
             curl_cmd = ['curl', ('https://keyserver.ubuntu.com'
                                  '/pks/lookup?op=get&options=mr'
@@ -198,6 +202,8 @@ class FetchTest(TestCase):
             return {
                 'HTTPS_PROXY': None,
                 'JUJU_CHARM_HTTPS_PROXY': 'http://squid.internal:3128',
+                'NO_PROXY': None,
+                'JUJU_CHARM_NO_PROXY': '127.0.0.1,localhost,::1',
             }[var]
         getenv.side_effect = get_env_side_effect
 
@@ -205,6 +211,8 @@ class FetchTest(TestCase):
             proxy_settings = {
                 'HTTPS_PROXY': 'http://squid.internal:3128',
                 'https_proxy': 'http://squid.internal:3128',
+                'NO_PROXY': '127.0.0.1,localhost,::1',
+                'no_proxy': '127.0.0.1,localhost,::1',
             }
             curl_cmd = ['curl', ('https://keyserver.ubuntu.com'
                                  '/pks/lookup?op=get&options=mr'
