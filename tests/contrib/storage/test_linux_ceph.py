@@ -115,7 +115,7 @@ CEPH_CLIENT_RELATION = {
     'ceph:8': {
         'ceph/0': {
             'auth': 'cephx',
-            'broker-rsp-glance-0': '{"request-id": "0bc7dc54", "exit-code": 0}',
+            'broker-rsp-glance-0': '{"request-id": "a9db5bcaf56ea404403f5a3594ea8d7517377b96", "exit-code": 0}',
             'broker-rsp-glance-1': '{"request-id": "0880e22a", "exit-code": 0}',
             'broker-rsp-glance-2': '{"request-id": "0da543b8", "exit-code": 0}',
             'broker_rsp': '{"request-id": "0da543b8", "exit-code": 0}',
@@ -136,7 +136,15 @@ CEPH_CLIENT_RELATION = {
             'private-address': '10.5.44.105',
         },
         'glance/0': {
-            'broker_req': '{"api-version": 1, "request-id": "0bc7dc54", "ops": [{"replicas": 3, "name": "glance", "op": "create-pool", "rbd-mirroring-mode": "pool"}]}',
+            'broker_req': '{"api-version": 1, "request-id": "a9db5bcaf56ea404403f5a3594ea8d7517377b96", "ops": [{"op": "create-pool", "name": "glance", '
+            '"replicas": 3, "pg_num": null, "crush-profile": null, "app-name": null, '
+            '"compression-algorithm": null, "compression-mode": null, '
+            '"compression-required-ratio": null, "compression-min-blob-size": null, '
+            '"compression-min-blob-size-hdd": null, "compression-min-blob-size-ssd": '
+            'null, "compression-max-blob-size": null, "compression-max-blob-size-hdd": '
+            'null, "compression-max-blob-size-ssd": null, "group": null, "max-bytes": '
+            'null, "max-objects": null, "group-namespace": null, "rbd-mirroring-mode": '
+            '"pool", "weight": null}]}',
             'private-address': '10.5.44.109',
         },
     }
@@ -1562,10 +1570,8 @@ class CephUtilsTests(TestCase):
         ])
 
     @patch.object(ceph_utils, 'service_name')
-    @patch.object(ceph_utils, 'uuid')
-    def test_ceph_broker_rq_class(self, uuid, service_name):
+    def test_ceph_broker_rq_class(self, service_name):
         service_name.return_value = 'service_test'
-        uuid.uuid1.return_value = 'uuid'
         rq = ceph_utils.CephBrokerRq()
         rq.add_op_create_pool('pool1', replica_count=1)
         rq.add_op_create_pool('pool1', replica_count=1)
@@ -1581,7 +1587,7 @@ class CephUtilsTests(TestCase):
             object_prefix_permissions={'rwx': ['prefix1']})
         expected = {
             'api-version': 1,
-            'request-id': 'uuid',
+            'request-id': '0bcb1775aece4b9849d21c4bc2a5f02e2cd47344',
             'ops': [{'op': 'create-pool', 'name': 'pool1', 'replicas': 1},
                     {'op': 'create-pool', 'name': 'pool2', 'replicas': 3},
                     {'op': 'create-pool', 'name': 'pool3', 'replicas': 3, 'group': 'test'},
@@ -1603,10 +1609,8 @@ class CephUtilsTests(TestCase):
                     expected_op[key])
 
     @patch.object(ceph_utils, 'service_name')
-    @patch.object(ceph_utils, 'uuid')
-    def test_ceph_broker_rq_class_test_not_equal(self, uuid, service_name):
+    def test_ceph_broker_rq_class_test_not_equal(self, service_name):
         service_name.return_value = 'service_test'
-        uuid.uuid1.return_value = 'uuid'
         rq1 = ceph_utils.CephBrokerRq()
         rq1.add_op_create_pool('pool1')
         rq1.add_op_request_access_to_group(name='test')
@@ -1651,10 +1655,6 @@ class CephUtilsTests(TestCase):
         self.relation_ids.side_effect = relation.relation_ids
         self.related_units.side_effect = relation.related_units
 
-    #    @patch.object(ceph_utils, 'uuid')
-    #    @patch.object(ceph_utils, 'local_unit')
-    #    def test_get_request_states(self, mlocal_unit, muuid):
-    #        muuid.uuid1.return_value = '0bc7dc54'
     @patch.object(ceph_utils, 'local_unit')
     def test_get_request_states(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
@@ -1746,10 +1746,8 @@ class CephUtilsTests(TestCase):
         rq.add_op_create_pool(name='glance', replica_count=3)
         self.assertTrue(ceph_utils.is_request_sent(rq))
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = '0bc7dc54'
+    def test_is_request_complete(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
         rq = ceph_utils.CephBrokerRq()
@@ -1828,30 +1826,24 @@ class CephUtilsTests(TestCase):
         rq2.add_op_create_pool(name='glance', replica_count=3)
         self.assertFalse(rq1 == rq2)
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = '0bc7dc54'
+    def test_is_request_complete_for_rid(self, mlocal_unit):
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=3)
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
         self.assertTrue(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_newrq(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = 'a44c0fa6'
+    def test_is_request_complete_for_rid_newrq(self, mlocal_unit):
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=4)
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
         self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_failed(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = '0bc7dc54'
+    def test_is_request_complete_for_rid_failed(self, mlocal_unit):
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=4)
         mlocal_unit.return_value = 'glance/0'
@@ -1860,10 +1852,8 @@ class CephUtilsTests(TestCase):
         self.setup_client_relation(rel)
         self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_pending(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = '0bc7dc54'
+    def test_is_request_complete_for_rid_pending(self, mlocal_unit):
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=4)
         mlocal_unit.return_value = 'glance/0'
@@ -1872,10 +1862,8 @@ class CephUtilsTests(TestCase):
         self.setup_client_relation(rel)
         self.assertFalse(ceph_utils.is_request_complete_for_rid(req, 'ceph:8'))
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_is_request_complete_for_rid_legacy(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = '0bc7dc54'
+    def test_is_request_complete_for_rid_legacy(self, mlocal_unit):
         req = ceph_utils.CephBrokerRq()
         req.add_op_create_pool(name='glance', replica_count=3)
         mlocal_unit.return_value = 'glance/0'
@@ -1896,10 +1884,8 @@ class CephUtilsTests(TestCase):
         ceph_utils.send_request_if_needed(rq)
         self.relation_set.assert_has_calls([])
 
-    @patch.object(ceph_utils, 'uuid')
     @patch.object(ceph_utils, 'local_unit')
-    def test_send_request_if_needed_newrq(self, mlocal_unit, muuid):
-        muuid.uuid1.return_value = 'de67511e'
+    def test_send_request_if_needed_newrq(self, mlocal_unit):
         mlocal_unit.return_value = 'glance/0'
         self.setup_client_relation(CEPH_CLIENT_RELATION)
         rq = ceph_utils.CephBrokerRq()
@@ -1907,7 +1893,7 @@ class CephUtilsTests(TestCase):
         ceph_utils.send_request_if_needed(rq)
         actual = json.loads(self.relation_set.call_args_list[0][1]['broker_req'])
         self.assertEqual(actual['api-version'], 1)
-        self.assertEqual(actual['request-id'], 'de67511e')
+        self.assertEqual(actual['request-id'], '11197d0e76c495f118c6d4c4ff3c7e8dca241cf4')
         self.assertEqual(actual['ops'][0]['replicas'], 4)
         self.assertEqual(actual['ops'][0]['op'], 'create-pool')
         self.assertEqual(actual['ops'][0]['name'], 'glance')
@@ -2229,8 +2215,7 @@ class CephUtilsTests(TestCase):
         self.relation_get.assert_called_once_with(
             attribute='broker_req', rid='aRid', unit=_local_unit())
 
-    @patch.object(ceph_utils, 'uuid')
-    def test_CephBrokerRq__init__(self, _uuid):
+    def test_CephBrokerRq__init__(self):
         raw_request = CEPH_CLIENT_RELATION['ceph:8']['glance/0']['broker_req']
         request = json.loads(raw_request)
         req1 = ceph_utils.CephBrokerRq(api_version=request['api-version'],
@@ -2240,11 +2225,10 @@ class CephUtilsTests(TestCase):
         self.assertDictEqual(
             json.loads(req1.request),
             json.loads(req2.request))
-        _uuid.uuid1.return_value = 'fake-uuid'
         new_req = ceph_utils.CephBrokerRq()
         expect = {
             'api-version': 1,
-            'request-id': 'fake-uuid',
+            'request-id': '97d170e1550eee4afc0af065b78cda302a97674c',
             'ops': [],
         }
         self.assertDictEqual(
