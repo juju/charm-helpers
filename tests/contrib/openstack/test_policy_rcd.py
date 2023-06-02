@@ -48,7 +48,7 @@ class PolicyRCDTests(unittest.TestCase):
         with tempfile.NamedTemporaryFile('w') as ftmp:
             policy_rcd.write_policy_file(ftmp.name, TEST_POLICY)
             with open(ftmp.name, 'r') as f:
-                policy = yaml.load(f)
+                policy = yaml.safe_load(f)
             self.assertEqual(policy, TEST_POLICY)
 
     @mock.patch.object(policy_rcd.os, "remove")
