@@ -52,28 +52,15 @@ userinstall:
 	.venv3/bin/pip install -I -r test-requirements.txt
 
 # Note we don't even attempt to run tests if lint isn't passing.
-test: lint test2 test3
+test: lint test-py3
 	@echo OK
 
-test2:
-	@echo Starting Py2 tests...
-	.venv/bin/nosetests -s --nologcapture tests/
-
-test3:
+test-py3:
 	@echo Starting Py3 tests...
-	.venv3/bin/nosetests -s --nologcapture tests/
+	tox -e py3
 
-ftest: lint
-	@echo Starting fast tests...
-	.venv/bin/nosetests --attr '!slow' --nologcapture tests/
-	.venv3/bin/nosetests --attr '!slow' --nologcapture tests/
-
-lint: .venv .venv3
-	@echo Checking for Python syntax...
-	@.venv/bin/flake8 --ignore=E402,E501,W504 $(PROJECT) $(TESTS) tools/ \
-	    && echo Py2 OK
-	@.venv3/bin/flake8 --ignore=E402,E501,W504 $(PROJECT) $(TESTS) tools/ \
-	    && echo Py3 OK
+lint:
+	tox -e pep8
 
 docs:
 	- [ -z "`dpkg -l | grep python-sphinx`" ] && sudo apt-get install python-sphinx -y
