@@ -93,19 +93,9 @@ class Test_apt_pkg_Cache(unittest.TestCase):
         self.patch_object(apt_pkg.subprocess, 'check_output')
         apt_cache = apt_pkg.Cache()
         self.check_output.return_value = (
-            'Desired=Unknown/Install/Remove/Purge/Hold\n'
-            '| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/'
-            'trig-aWait/Trig-pend\n'
-            '|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n'
-            '||/ Name           Version            Architecture Description\n'
-            '+++-=============================-==================-===========-'
-            '=================================\n'
-            'ii  dpkg                          1.19.0.5ubuntu2.1  amd64       '
-            'Debian package management system\n'
-            'rc  linux-image-4.15.0-42-generic 4.15.0-42.45       amd64       '
-            'Signed kernel image generic\n'
-            'ii  lsof                          4.91+dfsg-1ubuntu1 amd64       '
-            'utility to list open files\n')
+            'ii \tdpkg\t1.19.0.5ubuntu2.1\tamd64\tDebian package management system\n'
+            'rc \tlinux-image-4.15.0-42-generic\t4.15.0-42.45\tamd64\tSigned kernel image generic\n'
+            'ii \tlsof\t4.91+dfsg-1ubuntu1\tamd64\tutility to list open files\n')
         expect = {
             'dpkg': {
                 'name': 'dpkg',
@@ -167,19 +157,8 @@ class Test_apt_pkg_Cache(unittest.TestCase):
              'Version: 4.91+dfsg-1ubuntu1\n'
              '\n'
              'N: There is 1 additional record.\n'),
-            ('Desired=Unknown/Install/Remove/Purge/Hold\n'
-             '| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/'
-             'trig-aWait/Trig-pend\n'
-             '|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n'
-             '||/ Name           Version            Architecture Description\n'
-             '+++-=============================-==================-===========-'
-             '=================================\n'
-             'ii  dpkg                          1.19.0.5ubuntu2.1  amd64       '
-             'Debian package management system\n'
-             'rc  linux-image-4.15.0-42-generic 4.15.0-42.45       amd64       '
-             'Signed kernel image generic\n'
-             'ii  lsof                          4.91+dfsg-1ubuntu1 amd64       '
-             'utility to list open files\n'),
+            ('ii \tdpkg\t1.19.0.5ubuntu2.1\tamd64\tDebian package management system\n'
+             'dpkg-query: no packages found matching test\n'),
         ]
         pkg = apt_cache['dpkg']
         self.assertEquals(pkg.name, 'dpkg')
