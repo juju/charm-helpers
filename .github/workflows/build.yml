@@ -2,19 +2,21 @@ name: charm-helpers CI
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+      - 'stable/**'
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
+      - 'stable/**'
 
 jobs:
   build:
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         include:
-          - python-version: 3.5
-            env: pep8,py35
           - python-version: 3.6
             env: pep8,py36
           - python-version: 3.7
