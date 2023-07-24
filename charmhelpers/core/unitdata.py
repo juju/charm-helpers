@@ -151,6 +151,7 @@ import contextlib
 import datetime
 import itertools
 import json
+import logging
 import os
 import pprint
 import sqlite3
@@ -521,6 +522,25 @@ _KV = None
 
 def kv():
     global _KV
+
+    # If we are using zaza, it is useful to go into memory-backed KV store to
+    # avoid issues when running multiple tests concurrency. This is not a
+    # problem when juju is running normally.
+    #
+    # Note: to avoid a dependency on zaza, we check its presence by looking in
+    # sys.modules and avoid importing it, which might cause side effects.
+    # To override this, specify UNIT_STATE_DB in the environment.
+    if "UNIT_STATE_DB" in os.environ:
+        in_memory_db = False
+    else:
+        in_memory_db = "zaza" in sys.modules
+
     if _KV is None:
-        _KV = Storage()
+        if in_memory_db:
+            _KV = Storage(":memory:")
+        else:
+            _KV = Storage()
+    else:
+        if in_memory_db and _KV.db_path != ":memory:":
+            logging.warning("Running with in_memory_db and KV is not set to :memory:")
     return _KV
