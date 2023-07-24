@@ -16,12 +16,20 @@ class ConcurrencyBase(unittest.TestCase):
     def setUp(self):
         # Start a separate process to lock the db (separate process to avoid
         # any sqlite sharing of connections)
+
+        # Need to copy the current path into the subprocess too
+        subproc_env = os.environ.copy()
+        subproc_env["PYTHONPATH"] = ":".join(sys.path)
         self.locking_proc = subprocess.Popen(
             [sys.executable, os.path.join(os.path.dirname(__file__), "subprocess_task.py")],
+            env=subproc_env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+
+        # Undo any prior test's setup of _KV
+        unitdata_mod._KV = None
 
         @self.addCleanup
         def cleanup_kv():
@@ -40,10 +48,13 @@ class ConcurrencyBase(unittest.TestCase):
             time.sleep(1)
 
         try:
-            self.locking_proc.communicate(b"done\n", timeout=3)
+            outs,errs = self.locking_proc.communicate(b"done\n", timeout=3)
+            if self.locking_proc.returncode != 0:
+                print(f"Subprocess failed\nstdout={outs}\nstderr={errs}")
         except subprocess.TimeoutExpired:
             self.locking_proc.kill()
-            self.locking_proc.communicate()
+            outs,errs = self.locking_proc.communicate()
+            print(f"Had to kill subprocess\nstdout={outs}\nstderr={errs}")
         self.assertEqual(self.locking_proc.returncode, 0)
 
 
