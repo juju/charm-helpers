@@ -60,35 +60,33 @@ class ConcurrencyBase(unittest.TestCase):
 
 class ConcurrencySuccessTest(ConcurrencyBase):
     def setUp(self):
-        self.assertNotIn("CHARM_HELPERS_TESTMODE", os.environ)
-        os.environ["CHARM_HELPERS_TESTMODE"] = "1"
+        # We must have no JUJU_* environment variables that have been leftover
+        # from previous tests while running this test.
+        for key in list(os.environ):
+            if key.startswith("JUJU_"):
+                del os.environ[key]
 
         super().setUp()
-
-    def tearDown(self):
-        if "CHARM_HELPERS_TESTMODE" in os.environ:
-            del os.environ["CHARM_HELPERS_TESTMODE"]
 
     def test_concurrency(self):
         """Tests shouldn't write to same place."""
 
+        # This test suite used to require setting env vars but now the default
+        # behaviour should be to detect we are not running inside of a juju
+        # agent.
         self._concurrency_run()
         self.assertEqual(kv().db_path, ":memory:")
 
 class ConcurrencyFailureTest(ConcurrencyBase):
 
     def setUp(self):
-        # We create a special location to put the KV store so we can hammer it
-        # without failing any other tox tests
-        self.kv_dir = tempfile.mkdtemp()
-        self.kv_file = os.path.join(self.kv_dir, "kvstore")
-        os.environ["UNIT_STATE_DB"] = self.kv_file
+        os.environ["JUJU_UNIT_NAME"] = "fakeunit/0"
 
         super().setUp()
 
     def tearDown(self):
-        del os.environ["UNIT_STATE_DB"]
-        shutil.rmtree(self.kv_dir)
+        if "JUJU_UNIT_NAME" in os.environ:
+            del os.environ["JUJU_UNIT_NAME"]
 
     def test_concurrency_bug(self):
         """Check failure when writing to store while another process holds lock."""
@@ -96,6 +94,25 @@ class ConcurrencyFailureTest(ConcurrencyBase):
         with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
             self._concurrency_run()
 
+class ConcurrencyForceTestModeTest(ConcurrencyBase):
+
+    def setUp(self):
+        os.environ["JUJU_UNIT_NAME"] = "fakeunit/0"
+        os.environ["CHARM_HELPERS_TESTMODE"] = "yes"
+
+        super().setUp()
+
+    def tearDown(self):
+        if "JUJU_UNIT_NAME" in os.environ:
+            del os.environ["JUJU_UNIT_NAME"]
+        if "CHARM_HELPERS_TESTMODE" in os.environ:
+            del os.environ["CHARM_HELPERS_TESTMODE"]
+
+    def test_in_memory(self):
+        """Check success when forcing test mode despite faking juju execution."""
+
+        self._concurrency_run()
+        self.assertEqual(kv().db_path, ":memory:")
 
 if __name__ == '__main__':
     unittest.main()

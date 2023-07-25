@@ -523,13 +523,33 @@ _KV = None
 def kv():
     global _KV
 
-    # If we are running tests, it is useful to go into memory-backed KV store to
+    # If we are running unit tests, it is useful to go into memory-backed KV store to
     # avoid concurrency issues when running multiple tests. This is not a
     # problem when juju is running normally.
 
-    # UNIT_STATE_DB overrides CHARM_HELPERS_TESTMODE just in case this is ever
-    # needed for a test.
-    in_memory_db = ("UNIT_STATE_DB" not in os.environ) and ("CHARM_HELPERS_TESTMODE" in os.environ)
+    env_var = os.environ.get("CHARM_HELPERS_TESTMODE", "auto").lower()
+    if env_var not in ["auto", "no", "yes"]:
+        logging.warning(f"Unknown value for CHARM_HELPERS_TESTMODE '{env_var}', assuming 'no'")
+        env_var = "no"
+
+    if env_var == "no":
+        in_memory_db = False
+    elif env_var == "yes":
+        in_memory_db = True
+    elif env_var == "auto":
+        # If UNIT_STATE_DB is set, respect this request
+        if "UNIT_STATE_DB" in os.environ:
+            in_memory_db = False
+        # Autodetect normal juju execution by looking for juju variables
+        elif "JUJU_CHARM_DIR" in os.environ or "JUJU_UNIT_NAME" in os.environ:
+            in_memory_db = False
+        else:
+            # We are probably running in unit test mode
+            logging.warning("Auto-detected unit test environment for KV store.")
+            in_memory_db = True
+    else:
+        # Help the linter realise that in_memory_db is always set
+        raise Exception("Cannot reach this line")
 
     if _KV is None:
         if in_memory_db:
