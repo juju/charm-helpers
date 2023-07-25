@@ -60,14 +60,14 @@ class ConcurrencyBase(unittest.TestCase):
 
 class ConcurrencySuccessTest(ConcurrencyBase):
     def setUp(self):
-        # Add a fake zaza to the imports to see if that makes the store choose
-        # :memory: by default.
-        self.assertNotIn("zaza", sys.modules)
-        sys.path.append(os.path.dirname(__file__))
-        import zaza
-        sys.path.remove(os.path.dirname(__file__))
+        self.assertNotIn("CHARM_HELPERS_TESTMODE", os.environ)
+        os.environ["CHARM_HELPERS_TESTMODE"] = "1"
 
         super().setUp()
+
+    def tearDown(self):
+        if "CHARM_HELPERS_TESTMODE" in os.environ:
+            del os.environ["CHARM_HELPERS_TESTMODE"]
 
     def test_concurrency(self):
         """Tests shouldn't write to same place."""

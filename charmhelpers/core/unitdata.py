@@ -523,17 +523,13 @@ _KV = None
 def kv():
     global _KV
 
-    # If we are using zaza, it is useful to go into memory-backed KV store to
-    # avoid issues when running multiple tests concurrency. This is not a
+    # If we are running tests, it is useful to go into memory-backed KV store to
+    # avoid concurrency issues when running multiple tests. This is not a
     # problem when juju is running normally.
-    #
-    # Note: to avoid a dependency on zaza, we check its presence by looking in
-    # sys.modules and avoid importing it, which might cause side effects.
-    # To override this, specify UNIT_STATE_DB in the environment.
-    if "UNIT_STATE_DB" in os.environ:
-        in_memory_db = False
-    else:
-        in_memory_db = "zaza" in sys.modules
+
+    # UNIT_STATE_DB overrides CHARM_HELPERS_TESTMODE just in case this is ever
+    # needed for a test.
+    in_memory_db = ("UNIT_STATE_DB" not in os.environ) and ("CHARM_HELPERS_TESTMODE" in os.environ)
 
     if _KV is None:
         if in_memory_db:
