@@ -1,14 +1,13 @@
 import os
-import shutil
 import subprocess
 import sqlite3
 import sys
-import tempfile
 import time
 import unittest
 
 import charmhelpers.core.unitdata as unitdata_mod
-from charmhelpers.core.unitdata import Storage, kv
+from charmhelpers.core.unitdata import kv
+
 
 class ConcurrencyBase(unittest.TestCase):
     """Common logic for the failing and succeeding tests."""
@@ -48,12 +47,12 @@ class ConcurrencyBase(unittest.TestCase):
             time.sleep(1)
 
         try:
-            outs,errs = self.locking_proc.communicate(b"done\n", timeout=3)
+            outs, errs = self.locking_proc.communicate(b"done\n", timeout=3)
             if self.locking_proc.returncode != 0:
                 print(f"Subprocess failed\nstdout={outs}\nstderr={errs}")
         except subprocess.TimeoutExpired:
             self.locking_proc.kill()
-            outs,errs = self.locking_proc.communicate()
+            outs, errs = self.locking_proc.communicate()
             print(f"Had to kill subprocess\nstdout={outs}\nstderr={errs}")
         self.assertEqual(self.locking_proc.returncode, 0)
 
@@ -77,6 +76,7 @@ class ConcurrencySuccessTest(ConcurrencyBase):
         self._concurrency_run()
         self.assertEqual(kv().db_path, ":memory:")
 
+
 class ConcurrencyFailureTest(ConcurrencyBase):
 
     def setUp(self):
@@ -93,6 +93,7 @@ class ConcurrencyFailureTest(ConcurrencyBase):
 
         with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
             self._concurrency_run()
+
 
 class ConcurrencyForceTestModeTest(ConcurrencyBase):
 
@@ -113,6 +114,7 @@ class ConcurrencyForceTestModeTest(ConcurrencyBase):
 
         self._concurrency_run()
         self.assertEqual(kv().db_path, ":memory:")
+
 
 if __name__ == '__main__':
     unittest.main()
