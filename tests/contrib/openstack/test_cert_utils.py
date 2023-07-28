@@ -616,6 +616,30 @@ class CertUtilsTests(unittest.TestCase):
                 'chain': 'MYCHAIN'}]
         )
 
+    @mock.patch.object(cert_utils, 'local_unit')
+    @mock.patch.object(cert_utils, 'related_units')
+    @mock.patch.object(cert_utils, 'relation_ids')
+    @mock.patch.object(cert_utils, 'relation_get')
+    def test_get_requests_for_local_unit_half_done(
+            self, relation_get, relation_ids, related_units, local_unit):
+        local_unit.return_value = 'rabbitmq-server/2'
+
+        def fake_relation_get(rid, unit):
+            if unit == 'rabbitmq-server/2':
+                # i.e. legacy request
+                return {'certificate_name':
+                        'eb32103b-27c8-4feb-8771-c7097c7314e8',
+                        'common_name': 'juju-cd4bb3-5.lxd',
+                        'sans': '["10.5.100.11", "10.5.0.32"]'}
+            else:
+                return {}
+
+        relation_ids.return_value = ['certificates:12']
+        related_units.return_value = ['vault/0']
+        relation_get.side_effect = fake_relation_get
+        self.assertEqual(
+            cert_utils.get_requests_for_local_unit(), [])
+
     @mock.patch.object(cert_utils, 'get_requests_for_local_unit')
     def test_get_bundle_for_cn(self, get_requests_for_local_unit):
         get_requests_for_local_unit.return_value = [{
