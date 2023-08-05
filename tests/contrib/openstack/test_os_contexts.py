@@ -3296,7 +3296,7 @@ class ContextTests(unittest.TestCase):
     def test_wsgi_worker_config_context(self,
                                         _calculate_workers):
         self.config.side_effect = fake_config({
-            'worker-multiplier': 2, 'non-defined-wsgi-rotation': True
+            'worker-multiplier': 2, 'non-defined-wsgi-socket-rotation': True
         })
         _calculate_workers.return_value = 8
         service_name = 'service-name'
@@ -3314,7 +3314,7 @@ class ContextTests(unittest.TestCase):
             "admin_processes": 2,
             "public_processes": 6,
             "threads": 1,
-            "wsgi_rotation": True,
+            "wsgi_socket_rotation": True,
         }
         self.assertEqual(expect, ctxt())
 
@@ -3322,7 +3322,7 @@ class ContextTests(unittest.TestCase):
     def test_wsgi_worker_config_context_user_and_group(self,
                                                        _calculate_workers):
         self.config.side_effect = fake_config({
-            'worker-multiplier': 1, 'wsgi-rotation': False
+            'worker-multiplier': 1, 'wsgi-socket-rotation': False
         })
         _calculate_workers.return_value = 1
         service_name = 'service-name'
@@ -3344,7 +3344,7 @@ class ContextTests(unittest.TestCase):
             "admin_processes": 1,
             "public_processes": 1,
             "threads": 1,
-            "wsgi_rotation": False,
+            "wsgi_socket_rotation": False,
         }
         self.assertEqual(expect, ctxt())
 
