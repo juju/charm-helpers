@@ -49,11 +49,13 @@ class ConcurrencyBase(unittest.TestCase):
         try:
             outs, errs = self.locking_proc.communicate(b"done\n", timeout=3)
             if self.locking_proc.returncode != 0:
-                print(f"Subprocess failed\nstdout={outs}\nstderr={errs}")
+                print("Subprocess failed\nstdout={outs}\nstderr={errs}"
+                      .format(outs=outs, errs=errs))
         except subprocess.TimeoutExpired:
             self.locking_proc.kill()
             outs, errs = self.locking_proc.communicate()
-            print(f"Had to kill subprocess\nstdout={outs}\nstderr={errs}")
+            print("Had to kill subprocess\nstdout={outs}\nstderr={errs}"
+                  .format(outs=outs, errs=errs))
         self.assertEqual(self.locking_proc.returncode, 0)
 
 

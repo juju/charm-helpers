@@ -529,7 +529,8 @@ def kv():
 
     env_var = os.environ.get("CHARM_HELPERS_TESTMODE", "auto").lower()
     if env_var not in ["auto", "no", "yes"]:
-        logging.warning(f"Unknown value for CHARM_HELPERS_TESTMODE '{env_var}', assuming 'no'")
+        logging.warning("Unknown value for CHARM_HELPERS_TESTMODE '%s'"
+                        ", assuming 'no'", env_var)
         env_var = "no"
 
     if env_var == "no":
