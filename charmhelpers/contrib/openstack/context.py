@@ -477,7 +477,7 @@ class IdentityServiceContext(OSContextGenerator):
                         'service_project_id': rdata.get('service_tenant_id'),
                         'service_domain_id': rdata.get('service_domain_id')})
 
-                # we keep all veriables in ctxt for compatibility and
+                # we keep all variables in ctxt for compatibility and
                 # add nested dictionary for keystone_authtoken generic
                 # templating
                 if keystonemiddleware_os_release:
@@ -489,6 +489,7 @@ class IdentityServiceContext(OSContextGenerator):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
+                    ctxt['admin_user_id'] = rdata.get('service_user_id')
                     ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
                     ctxt['admin_domain_id'] = rdata.get('service_domain_id')
                     return ctxt
