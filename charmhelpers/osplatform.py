@@ -2,7 +2,7 @@ import platform
 import os
 
 
-def get_platform():
+def _get_platform():
     """Return the current OS platform.
 
     For example: if current os platform is Ubuntu then a string "ubuntu"
@@ -47,3 +47,10 @@ def _get_platform_from_fs():
     for k, v in content.items():
         content[k] = v.strip('"')
     return content["NAME"]
+
+
+## If the unit-test mode is set, the platform is always "ubuntu"
+if not os.environ.get('CHARMHELPERS_IN_UNITTEST', False):
+    get_platform = _get_platform
+else:
+    get_platform = lambda: "ubuntu"

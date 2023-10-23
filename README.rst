@@ -36,6 +36,19 @@ Dev/Test
 
 See the HACKING.md file for information about testing and development.
 
+Unit Test Mode
+==============
+
+If the environment variable `CHARMHELPERS_IN_UNITTEST` is set to a truthy value
+(e.g. 'on', 'true', 'anything') then then `osplatform.get_platform()` will
+*always* return `ubuntu`. This prevents it from attempting to call into
+platform libraries. This is needed as many charms try to call this function
+during module loading (via function decorators) and this makes it very
+difficult to mock out.
+
+Set this variable in the `tox.ini` of the charm using the `setenv` parameter in
+a testenv.
+
 License
 =======
 
