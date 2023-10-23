@@ -49,8 +49,8 @@ def _get_platform_from_fs():
     return content["NAME"]
 
 
-## If the unit-test mode is set, the platform is always "ubuntu"
+# If the unit-test mode is set, the platform is always "ubuntu"
 if not os.environ.get('CHARMHELPERS_IN_UNITTEST', False):
     get_platform = _get_platform
 else:
-    get_platform = lambda: "ubuntu"
+    get_platform = lambda: "ubuntu"  # noqa
