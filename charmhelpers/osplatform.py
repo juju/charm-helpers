@@ -21,7 +21,7 @@ def get_platform():
         return "ubuntu"
     elif "CentOS" in current_platform:
         return "centos"
-    elif "debian" in current_platform:
+    elif "debian" in current_platform.lower():
         # Stock Python does not detect Ubuntu and instead returns debian.
         # Or at least it does in some build environments like Travis CI
         return "ubuntu"
