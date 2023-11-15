@@ -287,20 +287,8 @@ class OpenStackHelpersTestCase(TestCase):
             self.assertEquals(e.args[0],
                               "Could not derive OpenStack version for codename: foo")
 
-    def test_os_version_swift_from_codename(self):
-        """Test mapping a swift codename to numerical version"""
-        self.assertEquals(openstack.get_os_version_codename_swift('liberty'),
-                          '2.5.0')
-
     def test_get_swift_codename_single_version_kilo(self):
         self.assertEquals(openstack.get_swift_codename('2.2.2'), 'kilo')
-
-    @patch('charmhelpers.contrib.openstack.utils.error_out')
-    def test_os_version_swift_from_bad_codename(self, mocked_error):
-        """Test mapping a bad swift codename to numerical version"""
-        openstack.get_os_version_codename_swift('foo')
-        expected_err = 'Could not derive swift version for codename: foo'
-        mocked_error.assert_called_with(expected_err)
 
     def test_get_swift_codename_multiple_versions_liberty(self):
         with patch('subprocess.check_output') as _subp:
@@ -737,10 +725,8 @@ class OpenStackHelpersTestCase(TestCase):
 
     @patch.object(openstack, 'lsb_release')
     @patch.object(openstack, 'get_os_version_package')
-    @patch.object(openstack, 'get_os_version_codename_swift')
     @patch.object(openstack, 'config')
-    def test_openstack_upgrade_detection_true(self, config, vers_swift,
-                                              vers_pkg, lsb):
+    def test_openstack_upgrade_detection_true(self, config, vers_pkg, lsb):
         """Test it detects when an openstack package has available upgrade"""
         lsb.return_value = FAKE_RELEASE
         config.return_value = 'cloud:precise-havana'
@@ -750,10 +736,8 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '2013.2~b1'
         self.assertTrue(openstack.openstack_upgrade_available('nova-common'))
         vers_pkg.return_value = '1.9.0'
-        vers_swift.return_value = '2.5.0'
         self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
         vers_pkg.return_value = '2.5.0'
-        vers_swift.return_value = '2.10.0'
         self.assertTrue(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'lsb_release')
@@ -769,8 +753,8 @@ class OpenStackHelpersTestCase(TestCase):
         vers_pkg.return_value = '2013.1~b1'
         self.assertFalse(openstack.openstack_upgrade_available('nova-common'))
         # ugly duckling testing
-        config.return_value = 'cloud:precise-havana'
-        vers_pkg.return_value = '1.10.0'
+        config.return_value = 'cloud:focal-wallaby'
+        vers_pkg.return_value = '2021.1'
         self.assertFalse(openstack.openstack_upgrade_available('swift-proxy'))
 
     @patch.object(openstack, 'is_block_device')
