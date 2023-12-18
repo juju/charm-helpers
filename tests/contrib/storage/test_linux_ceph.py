@@ -286,6 +286,11 @@ class CephUtilsTests(TestCase):
         self.relation_set.assert_called_once_with(
             relation_settings={'application-name': 'client'},
             relation_id='rid:1')
+        self.relation_set.reset_mock()
+        ceph_utils.send_application_name(relid='rid:1', app_name='foo')
+        self.relation_set.assert_called_once_with(
+            relation_settings={'application-name': 'foo'},
+            relation_id='rid:1')
 
     @patch.object(ceph_utils, 'get_osd_settings')
     def test_send_osd_settings(self, _get_osd_settings):
