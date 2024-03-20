@@ -181,6 +181,7 @@ IDENTITY_SERVICE_RELATION_APP_HTTP = {
     'service-user-id': 'svc-user-id',
     'service-user-name': 'svc-user-name',
     'service-type': 'volume',
+    'audit_middleware': False,
 }
 
 IDENTITY_SERVICE_RELATION_UNSET = {
@@ -209,6 +210,7 @@ IDENTITY_CREDENTIALS_RELATION_UNSET = {
     'credentials_username': 'adam',
     'credentials_protocol': 'https',
     'service_type': 'volume',
+    'audit_middleware': False,
 }
 
 
@@ -245,6 +247,7 @@ IDENTITY_SERVICE_RELATION_HTTPS = {
     'service_type': 'volume',
     'auth_protocol': 'https',
     'internal_protocol': 'https',
+    'audit_middleware': False,
 }
 
 IDENTITY_SERVICE_RELATION_VERSIONED = {
@@ -1062,6 +1065,7 @@ class ContextTests(unittest.TestCase):
     def test_identity_service_context_with_data(self, *args):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1083,6 +1087,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'http',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1090,8 +1095,9 @@ class ContextTests(unittest.TestCase):
     def test_identity_credentials_context_with_data(self):
         '''Test identity-credentials context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_CREDENTIALS_RELATION_UNSET)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
-        identity_credentials = context.IdentityCredentialsContext()
+        identity_credentials = context.IdentityCredentialsContext(service='cinder')
         result = identity_credentials()
         expected = {
             'admin_password': 'foo',
@@ -1101,6 +1107,7 @@ class ContextTests(unittest.TestCase):
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
             'auth_protocol': 'https',
+            'service': 'cinder',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_type': 'volume',
@@ -1116,6 +1123,7 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(
             relation_data=APIIDENTITY_SERVICE_RELATION_UNSET
         )
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         self.relation_ids.return_value = ['neutron-plugin-api:0']
         self.related_units.return_value = ['neutron-api/0']
@@ -1142,6 +1150,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'http',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1151,6 +1160,7 @@ class ContextTests(unittest.TestCase):
     def test_identity_service_context_with_cache(self, *args):
         '''Test shared-db context with signing cache info'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_UNSET)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         svc = 'cinder'
         identity_service = context.IdentityServiceContext(service=svc,
@@ -1175,6 +1185,7 @@ class ContextTests(unittest.TestCase):
             'internal_protocol': 'http',
             'signing_dir': '/var/cache/cinder',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         self.assertTrue(self.mkdir.called)
         result.pop('keystone_authtoken')
@@ -1185,6 +1196,7 @@ class ContextTests(unittest.TestCase):
     def test_identity_service_context_with_data_http(self, *args):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1207,6 +1219,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'http',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1216,6 +1229,7 @@ class ContextTests(unittest.TestCase):
     def test_identity_service_context_with_data_https(self, *args):
         '''Test shared-db context with all required data'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1238,6 +1252,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'https',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1248,6 +1263,7 @@ class ContextTests(unittest.TestCase):
         '''Test identity-service context for forwards compatibility'''
         relation = FakeRelation(app_data=IDENTITY_SERVICE_RELATION_APP_HTTP,
                                 relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1275,6 +1291,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '3',
             'public_auth_url': 'http://keystonepublic.local:80/keystone',
             'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1289,6 +1306,7 @@ class ContextTests(unittest.TestCase):
         app_data = IDENTITY_SERVICE_RELATION_APP_HTTP.copy()
         app_data['service-user-name'] = None
         app_data['service-host'] = None
+        self.config.return_value = None
         relation = FakeRelation(app_data=app_data,
                                 relation_data=IDENTITY_SERVICE_RELATION_HTTPS)
         self.relation_get.side_effect = relation.get
@@ -1318,9 +1336,25 @@ class ContextTests(unittest.TestCase):
             'api_version': '3',
             'public_auth_url': 'http://keystonepublic.local:80/keystone',
             'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
+
+    @patch.object(context, 'filter_installed_packages', return_value=[])
+    @patch.object(context, 'os_release', return_value='rocky')
+    def test_identity_service_context_audit_middleware(self, *args):
+        '''Test shared-db context with api version supplied from keystone'''
+        relation = FakeRelation(
+            relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
+        self.relation_get.side_effect = relation.get
+        identity_service = context.IdentityServiceContext()
+        self.config.return_value = True
+        self.assertTrue(identity_service()['audit_middleware'])
+        self.config.return_value = False
+        self.assertFalse(identity_service()['audit_middleware'])
+        self.config.return_value = None
+        self.assertFalse(identity_service()['audit_middleware'])
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1328,6 +1362,7 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with api version supplied from keystone'''
         relation = FakeRelation(
             relation_data=IDENTITY_SERVICE_RELATION_VERSIONED)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1353,6 +1388,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'https',
             'api_version': '3',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1363,6 +1399,7 @@ class ContextTests(unittest.TestCase):
         '''Test shared-db context with admin role supplied from keystone'''
         relation = FakeRelation(
             relation_data=IDENTITY_SERVICE_RELATION_ADMIN_ROLE)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1385,6 +1422,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'https',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
@@ -1393,8 +1431,9 @@ class ContextTests(unittest.TestCase):
         '''Test identity-credentials context with api version supplied from keystone'''
         relation = FakeRelation(
             relation_data=IDENTITY_CREDENTIALS_RELATION_VERSIONED)
+        self.config.return_value = None
         self.relation_get.side_effect = relation.get
-        identity_credentials = context.IdentityCredentialsContext()
+        identity_credentials = context.IdentityCredentialsContext(service='cinder')
         result = identity_credentials()
         expected = {
             'admin_password': 'foo',
@@ -1405,6 +1444,7 @@ class ContextTests(unittest.TestCase):
             'auth_host': 'keystone-host.local',
             'auth_port': '35357',
             'auth_protocol': 'https',
+            'service': 'cinder',
             'service_host': 'keystonehost.local',
             'service_port': '5000',
             'service_protocol': 'https',
@@ -1420,6 +1460,7 @@ class ContextTests(unittest.TestCase):
         '''Test identity-service context with ipv6'''
         relation = FakeRelation(relation_data=IDENTITY_SERVICE_RELATION_HTTP)
         self.relation_get.side_effect = relation.get
+        self.config.return_value = None
         format_ipv6_addr.return_value = '[2001:db8:1::1]'
         identity_service = context.IdentityServiceContext()
         result = identity_service()
@@ -1442,6 +1483,7 @@ class ContextTests(unittest.TestCase):
             'internal_port': '5000',
             'internal_protocol': 'http',
             'api_version': '2.0',
+            'audit_middleware': False,
         }
         result.pop('keystone_authtoken')
         self.assertEquals(result, expected)
