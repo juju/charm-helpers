@@ -225,8 +225,18 @@ class HelpersTest(TestCase):
         service_name = 'foo-service'
         service_running.return_value = False
         systemd.return_value = True
+
+        def fake_service(action, name):
+            if action == 'is-enabled':
+                return False
+
+            if action == 'start':
+                return True
+
+        service.side_effect = fake_service
         self.assertTrue(host.service_resume(service_name))
         service.assert_has_calls([
+            call('is-enabled', service_name),
             call('unmask', service_name),
             # Ensures a package starts up if disabled but not masked,
             # per lp:1692178
@@ -441,6 +451,23 @@ class HelpersTest(TestCase):
         # Start isn't called because service is already running
         self.assertFalse(service.called)
         check_call.assert_called_with(["update-rc.d", service_name, "enable"])
+
+    @patch.object(host, 'service_running')
+    @patch.object(host, 'init_is_systemd')
+    @patch.object(host, 'service')
+    def test_resume_an_enabled_systemd_service(self, service, systemd,
+                                               service_running):
+        service_name = 'foo-service'
+        systemd.return_value = True
+        service_running.return_value = True
+
+        def fake_service(action, name):
+            if action == 'is-enabled':
+                return True
+
+        service.side_effect = fake_service
+        self.assertTrue(host.service_resume(service_name))
+        service.assert_has_calls([call('is-enabled', service_name)])
 
     @patch.object(host, 'service_running')
     @patch.object(host, 'init_is_systemd')
