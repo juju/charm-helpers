@@ -16,6 +16,7 @@ import glob
 import re
 import subprocess
 import socket
+import ssl
 
 from functools import partial
 
@@ -540,6 +541,30 @@ def port_has_listener(address, port):
     cmd = ['nc', '-z', address, str(port)]
     result = subprocess.call(cmd)
     return not (bool(result))
+
+
+def port_has_listener_ssl(address, port, key, cert, ca_cert):
+    """
+    Returns True if the address:port is open and being listened to,
+    else False.
+
+    @param address: an IP address or hostname
+    @param port: integer port
+    @param: cert: path to cert
+    @param: key: path to key
+    @param: ca_cert: path to ca cert
+    """
+    hostname = address
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.load_cert_chain(cert, key)
+    context.load_verify_locations(ca_cert)
+    try:
+        with socket.create_connection((hostname, port)) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname):
+                return True
+    except ConnectionRefusedError:
+        return False
 
 
 def assert_charm_supports_ipv6():

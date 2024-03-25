@@ -1,5 +1,6 @@
 import subprocess
 import unittest
+from contextlib import contextmanager
 
 import mock
 import netifaces
@@ -783,6 +784,53 @@ class IPTest(unittest.TestCase):
         subprocess_call.return_value = 0
         self.assertEqual(net_ip.port_has_listener('ip-address', 70), True)
         subprocess_call.assert_called_with(['nc', '-z', 'ip-address', '70'])
+
+    @patch('charmhelpers.contrib.network.ip.socket')
+    @patch('charmhelpers.contrib.network.ip.ssl')
+    def test_port_has_listener_ssl(self, mock_ssl, mock_socket):
+        ctxt = mock.MagicMock()
+        mock_ssl.create_default_context.return_value = ctxt
+
+        @contextmanager
+        def mock_create_connection(*args, **kwargs):
+            for x in [1]:
+                yield x
+
+        @contextmanager
+        def mock_wrap_socket(*args, **kwargs):
+            for x in [1]:
+                yield x
+
+        ctxt.wrap_socket = mock_wrap_socket
+        mock_socket.create_connection = mock_create_connection
+        self.assertEqual(net_ip.port_has_listener_ssl('10.0.0.1', 50,
+                                                      '/etc/ssl/key',
+                                                      '/etc/ssl/cert',
+                                                      '/etc/ssl/ca_cert'),
+                         True)
+
+    @patch('charmhelpers.contrib.network.ip.socket')
+    @patch('charmhelpers.contrib.network.ip.ssl')
+    def test_port_has_listener_ssl_false(self, mock_ssl, mock_socket):
+        ctxt = mock.MagicMock()
+        mock_ssl.create_default_context.return_value = ctxt
+
+        @contextmanager
+        def mock_create_connection(*args, **kwargs):
+            raise ConnectionRefusedError
+
+        @contextmanager
+        def mock_wrap_socket(*args, **kwargs):
+            for x in [1]:
+                yield x
+
+        ctxt.wrap_socket = mock_wrap_socket
+        mock_socket.create_connection = mock_create_connection
+        self.assertEqual(net_ip.port_has_listener_ssl('10.0.0.1', 50,
+                                                      '/etc/ssl/key',
+                                                      '/etc/ssl/cert',
+                                                      '/etc/ssl/ca_cert'),
+                         False)
 
     @patch.object(net_ip, 'log', lambda *args, **kwargs: None)
     @patch.object(net_ip, 'config')
