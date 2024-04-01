@@ -22,6 +22,8 @@ PyYAML
 # https://jinja.palletsprojects.com/en/2.11.x/changelog/
 Jinja2
 
+git+https://github.com/wbond/certvalidator@fc82b7975f61fc1b2d1cf7ac77b2e4b2964aedb1#egg=certvalidator
+
 ##############################################################
 
 netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.

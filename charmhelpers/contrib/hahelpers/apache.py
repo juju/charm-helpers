@@ -24,6 +24,9 @@
 
 import os
 
+from asn1crypto import pem
+from certvalidator import CertificateValidator, ValidationContext
+
 from charmhelpers.core import host
 from charmhelpers.core.hookenv import (
     config as config_get,
@@ -62,6 +65,37 @@ def get_cert(cn=None):
                     key = relation_get(ssl_key_attr,
                                        rid=r_id, unit=unit)
     return (cert, key)
+
+
+def validate_cert(cert, ca):
+    """
+    cert (bytes): PEM armored cert chain
+    ca (Optional[bytes]): an optional PEM armored root CA chain
+
+    returns: None if all ok, otherwise return a string error message
+    rtype: Optional[str]
+    """
+
+    context = None
+    if ca:
+        try:
+            cas = list(map(lambda x: x[2], pem.unarmor(ca, multiple=True)))
+        except Exception as e:
+            return "[processing root ca chain] {}".format(e)
+        context = ValidationContext(extra_trust_roots=cas)
+
+    # split certs so we can pass intermediate certs separately to the validator
+    try:
+        certs = list(map(lambda x: x[2], pem.unarmor(cert, multiple=True)))
+    except Exception as e:
+        return "[processing cert chain] {}".format(e)
+
+    validator = CertificateValidator(certs[0], certs[1:], validation_context=context)
+
+    try:
+        validator.validate_usage({"digital_signature"}, {"server_auth"})
+    except Exception as e:
+        return "[validating cert usage] {}".format(e)
 
 
 def get_ca_cert():
