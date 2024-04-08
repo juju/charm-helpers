@@ -1,6 +1,7 @@
 import collections
 import copy
 import json
+from logging import config
 import mock
 import unittest
 import yaml
@@ -12,6 +13,7 @@ from mock import (
     call
 )
 
+from charmhelpers.cli.host import service
 from charmhelpers.fetch.ubuntu_apt_pkg import Version
 from tests.helpers import patch_open
 
@@ -804,6 +806,30 @@ class ContextTests(unittest.TestCase):
     def test_base_class_not_implemented(self):
         base = context.OSContextGenerator()
         self.assertRaises(NotImplementedError, base)
+
+    @patch.object(context, 'config')
+    def test_keystone_audit_middleware_ctxt_enabled(self, mock_config):
+        '''Test KeystoneAuditMiddleware ctxt contents when enabled'''
+        mock_config.return_value = True
+        audit_middleware = context.KeystoneAuditMiddleware(service='cinder')
+        ctxt = audit_middleware()
+        expected_ctxt = {
+            'audit_middleware': True,
+            'service_name': 'cinder'
+        }
+        self.assertEqual(ctxt, expected_ctxt)
+
+    @patch.object(context, 'config')
+    def test_keystone_audit_middleware_ctxt_disabled(self, mock_config):
+        '''Test KeystoneAuditMiddleware ctxt contents when disabled'''
+        mock_config.return_value = False
+        audit_middleware = context.KeystoneAuditMiddleware(service='cinder')
+        ctxt = audit_middleware()
+        expected_ctxt = {
+            'audit_middleware': False,
+            'service_name': 'cinder'
+        }
+        self.assertEqual(ctxt, expected_ctxt)
 
     @patch.object(context, 'get_os_codename_install_source')
     def test_shared_db_context_with_data(self, os_codename):
