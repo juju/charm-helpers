@@ -824,6 +824,30 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEquals(result, expected)
 
+    @patch.object(context, 'config')
+    def test_keystone_audit_middleware_ctxt_enabled(self, mock_config):
+        '''Test KeystoneAuditMiddleware ctxt contents when enabled'''
+        mock_config.return_value = True
+        audit_middleware = context.KeystoneAuditMiddleware(service='cinder')
+        ctxt = audit_middleware()
+        expected_ctxt = {
+            'audit_middleware': True,
+            'service_name': 'cinder'
+        }
+        self.assertEqual(ctxt, expected_ctxt)
+
+    @patch.object(context, 'config')
+    def test_keystone_audit_middleware_ctxt_disabled(self, mock_config):
+        '''Test KeystoneAuditMiddleware ctxt contents when disabled'''
+        mock_config.return_value = False
+        audit_middleware = context.KeystoneAuditMiddleware(service='cinder')
+        ctxt = audit_middleware()
+        expected_ctxt = {
+            'audit_middleware': False,
+            'service_name': 'cinder'
+        }
+        self.assertEqual(ctxt, expected_ctxt)
+
     def test_shared_db_context_with_data_and_access_net_mismatch(self):
         """Mismatch between hostname and hostname for access net - defers
         execution"""
