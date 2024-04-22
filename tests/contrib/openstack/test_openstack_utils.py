@@ -1658,7 +1658,7 @@ class OpenStackHelpersTestCase(TestCase):
         port_has_listener.side_effect = [True, False]
         wait_for_ports_func = openstack.make_wait_for_ports_barrier([77])
         openstack.pause_unit(None, services=['service1'], ports=[77], charm_func=wait_for_ports_func)
-        port_has_listener.assert_has_calls([call('0.0.0.0', 77), call('0.0.0.0', 77)])
+        port_has_listener.assert_has_calls([call('0.0.0.0', 77, None), call('0.0.0.0', 77, None)])
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
