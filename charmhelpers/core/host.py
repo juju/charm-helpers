@@ -390,6 +390,8 @@ def adduser(username, password=None, shell='/bin/bash',
             cmd.extend(['--home', str(home_dir)])
         if system_user or password is None:
             cmd.append('--system')
+            if shell != adduser.__defaults__[1]:
+                cmd.extend(['--shell', shell])
         else:
             cmd.extend([
                 '--create-home',
