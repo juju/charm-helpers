@@ -755,6 +755,7 @@ class HelpersTest(TestCase):
     @patch.object(host, 'log')
     def test_adds_a_systemuser(self, log, check_call, getpwnam):
         username = 'johndoe'
+        shell = '/usr/sbin/nologin'
         existing_user_pwnam = KeyError('user not found')
         new_user_pwnam = 'some user pwnam'
 
@@ -766,6 +767,7 @@ class HelpersTest(TestCase):
         check_call.assert_called_with([
             'useradd',
             '--system',
+            '--shell', shell,
             username
         ])
         getpwnam.assert_called_with(username)
@@ -775,6 +777,7 @@ class HelpersTest(TestCase):
     @patch.object(host, 'log')
     def test_adds_a_systemuser_with_home_dir(self, log, check_call, getpwnam):
         username = 'johndoe'
+        shell = '/usr/sbin/nologin'
         existing_user_pwnam = KeyError('user not found')
         new_user_pwnam = 'some user pwnam'
 
@@ -789,6 +792,7 @@ class HelpersTest(TestCase):
             '--home',
             '/var/lib/johndoe',
             '--system',
+            '--shell', shell,
             username
         ])
         getpwnam.assert_called_with(username)
@@ -798,7 +802,7 @@ class HelpersTest(TestCase):
     @patch.object(host, 'log')
     def test_adds_a_systemuser_with_different_shell(self, log, check_call, getpwnam):
         username = 'johndoe'
-        shell = '/usr/sbin/nologin'
+        shell = '/bin/bash'
         existing_user_pwnam = KeyError('user not found')
         new_user_pwnam = 'some user pwnam'
 
@@ -823,6 +827,7 @@ class HelpersTest(TestCase):
     def test_add_user_uid(self, log, check_call, getgrnam, getpwuid, getpwnam):
         user_name = 'james'
         user_id = 1111
+        shell = '/usr/sbin/nologin'
         uid_key_error = KeyError('user not found')
         getpwuid.side_effect = uid_key_error
         host.adduser(user_name, uid=user_id)
@@ -832,6 +837,7 @@ class HelpersTest(TestCase):
             '--uid',
             str(user_id),
             '--system',
+            '--shell', shell,
             '-g',
             user_name,
             user_name
