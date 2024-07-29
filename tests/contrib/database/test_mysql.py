@@ -1,10 +1,11 @@
-import os
-import mock
 import json
-import unittest
+import mock
+import os
+import re
 import sys
 import shutil
 import tempfile
+import unittest
 
 from collections import OrderedDict
 
@@ -249,6 +250,8 @@ class MysqlTests(unittest.TestCase):
     def test_set_mysql_password(self, mock_connect, mock_get_passwd,
                                 mock_compare_releases, mock_leader_set,
                                 mock_leader_get, mock_is_leader):
+        # NOTE: this tests set_mysql_password_using_current_connection
+        # implicitly as it is a follow-on function from set_mysql_password.
         mock_connection = mock.MagicMock()
         mock_cursor = mock.MagicMock()
         mock_connection.cursor.return_value = mock_cursor
@@ -858,6 +861,52 @@ class Mysql8Tests(unittest.TestCase):
             "GRANT ALL PRIVILEGES ON `{}`.* TO '{}'@'{}'"
             .format(self.db, self.user, self.host))
         self.helper.create_user.assert_called_with(self.user, self.host, self.password)
+
+    def test_user_host_list(self):
+        self.cursor.fetchall.return_value = (
+            ("user1", "host1"),
+            ("user2", "host2"),
+            ("user1", "host2"))
+        self.assertEqual(
+            self.helper.user_host_list(),
+            [("user1", "host1"),
+             ("user2", "host2"),
+             ("user1", "host2")])
+        self.cursor.execute.assert_called_once_with(
+            "SELECT user, host from mysql.user")
+        self.cursor.close.assert_called_once_with()
+
+    @mock.patch.object(mysql, 'log')
+    def test_user_host_list__error(self, mock_log):
+
+        class FakeOperationalError(Exception):
+            def __str__(self):
+                return 'some-error'
+
+        mysql.MySQLdb.OperationalError = FakeOperationalError
+
+        def _error(*args, **kwargs):
+            raise FakeOperationalError("bang")
+
+        self.cursor.execute.side_effect = _error
+        self.helper.user_host_list()
+        self.cursor.execute.assert_called_once_with(
+            "SELECT user, host from mysql.user")
+        self.cursor.close.assert_called_once_with()
+        self._assert_regex_in_log(
+            r"^Couldn't return user list.*some-error",
+            mock_log)
+
+    def _assert_regex_in_log(self, regex, mock_log):
+        pattern = re.compile(regex)
+        calls = mock_log.call_args_list
+        for call in calls:
+            args = call[0]
+            msg = args[0]
+            print("Log message: {}".format(msg))
+            if pattern.match(msg):
+                return
+        self.fail("regex {} not found in any log.".format(regex))
 
     def test_create_user(self):
         self.helper.create_user(self.user, self.host, self.password)
