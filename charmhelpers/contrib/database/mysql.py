@@ -342,9 +342,9 @@ class MySQLHelper(object):
         # changes to root-password were not supported) the user changed the
         # password, so leader-get is more reliable source than
         # config.previous('root-password').
-        rel_username = None if username == 'root' else username
         if not current_password:
-            current_password = self.get_mysql_password(rel_username)
+            current_password = self.get_mysql_password(
+                None if username == 'root' else username)
 
         # password that needs to be set
         new_passwd = password
@@ -352,12 +352,62 @@ class MySQLHelper(object):
         # update password for all users (e.g. root@localhost, root@::1, etc)
         try:
             self.connect(user=username, password=current_password)
-            cursor = self.connection.cursor()
         except MySQLdb.OperationalError as ex:
             raise MySQLSetPasswordError(('Cannot connect using password in '
                                          'leader settings (%s)') % ex, ex)
+        self.set_mysql_password_using_current_connection(
+            username, new_passwd)
 
+    def set_mysql_password_using_current_connection(
+            self, username, new_passwd, hosts=None):
+        """Update a mysql password using the current connection.
+
+        Update the password for a username using the current connection in
+        `self.connection`.  It is expected that the connect is a root
+        connection that can change the password for any user.  The leader
+        settings (if the unit is the leader) are also changed to match the
+        password in the database.
+
+        Note: passwords have to be changed on each mysql unit as they are not
+        propagated using replication in clusters.
+
+        :param username: the username to change the password for.
+        :type username: str
+        :param new_passwd: the new password for the user.
+        :type new_passwd: str
+        :param hosts: optional list of hosts.
+        :type hosts: Optional[List[str]]
+        :raises MySQLSetPasswordError: if the password can't be changed.
+        """
+        # update the password using the self.connection
+        self._update_password(username, new_passwd, hosts=hosts)
+
+        # check the password was changed, only if it is local (i.e. no hosts
+        # are assigned) as otherwise this will fail.
+        if not hosts:
+            self._check_user_can_connect(username, new_passwd)
+
+        # Update the leader settings (if leader) with the new password.
+        # It's a no-op on a non-leader
+        self._update_leader_settings(username, new_passwd)
+
+    def _update_password(self, username, new_passwd, hosts=None):
+        """Update the password for a user using the existing self.connection
+
+        :param username: the user to connect for
+        :type username: str
+        :param password: the password to use.
+        :type password: str
+        :param hosts: optional list of hosts.
+        :type hosts: Optional[List[str]]
+        :raises MySQLSetPasswordError: if the user can't connect.
+        """
+        if not hosts:
+            hosts = None
+        user_sub = "%s" if hosts is None else "%s@%s"
+        cursor = None
         try:
+            cursor = self.connection.cursor()
             # NOTE(freyes): Due to skip-name-resolve root@$HOSTNAME account
             # fails when using SET PASSWORD so using UPDATE against the
             # mysql.user table is needed, but changes to this table are not
@@ -367,40 +417,67 @@ class MySQLHelper(object):
             release = CompareHostReleases(lsb_release()['DISTRIB_CODENAME'])
             if release < 'bionic':
                 SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET password = "
-                                     "PASSWORD( %s ) WHERE user = %s;")
+                                     "PASSWORD( %s ) WHERE user = {};"
+                                     .format(user_sub))
             else:
                 # PXC 5.7 (introduced in Bionic) uses authentication_string
                 SQL_UPDATE_PASSWD = ("UPDATE mysql.user SET "
                                      "authentication_string = "
-                                     "PASSWORD( %s ) WHERE user = %s;")
-            cursor.execute(SQL_UPDATE_PASSWD, (new_passwd, username))
+                                     "PASSWORD( %s ) WHERE user = {};"
+                                     .format(user_sub))
+            if hosts is None:
+                cursor.execute(SQL_UPDATE_PASSWD, (new_passwd, username))
+            else:
+                for host in hosts:
+                    cursor.execute(SQL_UPDATE_PASSWD,
+                                   (new_passwd, username, host))
             cursor.execute('FLUSH PRIVILEGES;')
             self.connection.commit()
         except MySQLdb.OperationalError as ex:
             raise MySQLSetPasswordError('Cannot update password: %s' % str(ex),
                                         ex)
         finally:
-            cursor.close()
+            if cursor is not None:
+                cursor.close()
 
-        # check the password was changed
+    def _check_user_can_connect(self, username, password):
+        """Verify that a user can connect using a password.
+
+        :param username: the user to connect for
+        :type username: str
+        :param password: the password to use.
+        :type password: str
+        :raises MySQLSetPasswordError: if the user can't connect.
+        """
         try:
-            self.connect(user=username, password=new_passwd)
+            self.connect(user=username, password=password)
             self.execute('select 1;')
         except MySQLdb.OperationalError as ex:
             raise MySQLSetPasswordError(('Cannot connect using new password: '
                                          '%s') % str(ex), ex)
 
+    def _update_leader_settings(self, username, password):
+        """Update the leader settings for the username & password.
+
+        This is a no-op if not the leader.  If the username hasn't previous had
+        the password set, then this does not store the new password.
+
+        :param username: the user to connect for
+        :type username: str
+        :param password: the password to use.
+        :type password: str
+        """
         if not is_leader():
             log('Only the leader can set a new password in the relation',
                 level=DEBUG)
             return
 
-        for key in self.passwd_keys(rel_username):
+        for key in self.passwd_keys(None if username == 'root' else username):
             _password = leader_get(key)
             if _password:
-                log('Updating password for %s (%s)' % (key, rel_username),
+                log('Updating password for %s (%s)' % (key, username),
                     level=DEBUG)
-                leader_set(settings={key: new_passwd})
+                leader_set(settings={key: password})
 
     def set_mysql_root_password(self, password, current_password=None):
         """Update mysql root password changing the leader settings
@@ -712,6 +789,28 @@ class MySQL8Helper(MySQLHelper):
         finally:
             cursor.close()
 
+    def user_host_list(self):
+        """Return a list of (user, host) tuples from the database.
+
+        This requires that self.connection has the permissions to perform the
+        action.
+
+        :returns: list of (user, host) tuples.
+        :rtype: List[Tuple[str, str]]
+        """
+        SQL_USER_LIST = "SELECT user, host from mysql.user"
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(SQL_USER_LIST)
+            return [(i[0], i[1]) for i in cursor.fetchall()]
+        except MySQLdb.OperationalError as e:
+            log("Couldn't return user list: reason {}".format(str(e)),
+                "WARNING")
+        finally:
+            cursor.close()
+        return []
+
     def create_user(self, db_user, remote_ip, password):
 
         SQL_USER_CREATE = (
@@ -730,6 +829,44 @@ class MySQL8Helper(MySQLHelper):
                 "WARNING")
         finally:
             cursor.close()
+
+    def _update_password(self, username, new_passwd, hosts=None):
+        """Update the password for a user using the existing self.connection
+
+        :param username: the user to connect for
+        :type username: str
+        :param password: the password to use.
+        :type password: str
+        :param hosts: optional list of hosts.
+        :type hosts: Optional[List[str]]
+        :raises MySQLSetPasswordError: if the user can't connect.
+        """
+        if not hosts:
+            hosts = None
+        user_sub = "%s" if hosts is None else "%s@%s"
+        cursor = None
+        try:
+            cursor = self.connection.cursor()
+            SQL_UPDATE_PASSWD = ("ALTER USER {} IDENTIFIED BY %s;"
+                                 .format(user_sub))
+            if hosts is None:
+                log("Updating password for username: {}".format(username),
+                    "DEBUG")
+                cursor.execute(SQL_UPDATE_PASSWD, (username, new_passwd))
+            else:
+                for host in hosts:
+                    log("Updating password for username: {}".format(username),
+                        "DEBUG")
+                    cursor.execute(SQL_UPDATE_PASSWD,
+                                   (username, host, new_passwd))
+            cursor.execute('FLUSH PRIVILEGES;')
+            self.connection.commit()
+        except MySQLdb.OperationalError as ex:
+            raise MySQLSetPasswordError('Cannot update password: %s' % str(ex),
+                                        ex)
+        finally:
+            if cursor is not None:
+                cursor.close()
 
     def create_router_grant(self, db_user, remote_ip, password):
 
