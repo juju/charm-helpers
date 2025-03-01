@@ -12,7 +12,96 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Compatibility with the nrpe-external-master charm"""
+"""Compatibility with the nrpe charm.
+
+This module adds compatibility with the nrpe subordinate charm using "in-model"
+or "external" checks (via the `export_nagios_definitions` config option at
+deploy time). To use it in your charm::
+
+1. Update metadata.yaml::
+
+  provides:
+    (...)
+    nrpe:
+      interface: nrpe
+      scope: container
+
+  # and/or
+
+  provides:
+    (...)
+    local-monitors:
+      interface: local-monitors
+      scope: container
+
+
+2. Add the following to config.yaml::
+
+  nagios_context:
+    default: "juju"
+     type: string
+     description: |
+       Used by the nrpe subordinate charms.
+       A string that will be prepended to instance name to set the host name
+       in nagios. So for instance the hostname would be something like:
+         juju-myservice-0
+       If you're running multiple environments with the same services in them
+       this allows you to differentiate between them.
+  nagios_servicegroups:
+    default: ""
+    type: string
+    description: |
+      A comma-separated list of nagios servicegroups.
+      If left empty, the nagios_context will be used as the servicegroup
+
+3. Add custom checks (Nagios plugins) to files/nrpe. You can then copy them to
+/usr/local/lib/nagios/plugins for use by the charm using::
+
+    nrpe.copy_nrpe_checks(os.path.join(os.getenv('CHARM_DIR'), 'files/nrpe'))
+
+If your charm only uses checks provided by the nrpe packages this will not be
+needed.
+
+4. Update your hooks.py with something like this::
+
+    from charmsupport.nrpe import NRPE
+    (...)
+    def update_nrpe_config():
+        nrpe_compat = NRPE()
+        nrpe_compat.add_check(
+            shortname = "myservice",
+            description = "Check MyService",
+            check_cmd = "check_http -w 2 -c 10 http://localhost"
+            )
+        nrpe_compat.add_check(
+            "myservice_other",
+            "Check for widget failures",
+            check_cmd = "widget_check"
+            )
+        nrpe_compat.write()
+
+    def config_changed():
+        (...)
+        update_nrpe_config()
+
+    def nrpe_relation_changed():
+        update_nrpe_config()
+
+    def local_monitors_relation_changed():
+        update_nrpe_config()
+
+4.a If your charm is a subordinate charm set primary=False::
+
+    from charmsupport.nrpe import NRPE
+    (...)
+    def update_nrpe_config():
+        nrpe_compat = NRPE(primary=False)
+
+5. Add the following::
+
+    ln -s hooks.py nrpe-relation-changed
+    ln -s hooks.py local-monitors-relation-changed
+"""
 #
 # Authors:
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
@@ -43,85 +132,6 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import service
 from charmhelpers.core import host
-
-# This module adds compatibility with the nrpe-external-master and plain nrpe
-# subordinate charms. To use it in your charm:
-#
-# 1. Update metadata.yaml
-#
-#   provides:
-#     (...)
-#     nrpe-external-master:
-#       interface: nrpe-external-master
-#       scope: container
-#
-#   and/or
-#
-#   provides:
-#     (...)
-#     local-monitors:
-#       interface: local-monitors
-#       scope: container
-
-#
-# 2. Add the following to config.yaml
-#
-#    nagios_context:
-#      default: "juju"
-#      type: string
-#      description: |
-#        Used by the nrpe subordinate charms.
-#        A string that will be prepended to instance name to set the host name
-#        in nagios. So for instance the hostname would be something like:
-#            juju-myservice-0
-#        If you're running multiple environments with the same services in them
-#        this allows you to differentiate between them.
-#    nagios_servicegroups:
-#      default: ""
-#      type: string
-#      description: |
-#        A comma-separated list of nagios servicegroups.
-#        If left empty, the nagios_context will be used as the servicegroup
-#
-# 3. Add custom checks (Nagios plugins) to files/nrpe-external-master
-#
-# 4. Update your hooks.py with something like this:
-#
-#    from charmsupport.nrpe import NRPE
-#    (...)
-#    def update_nrpe_config():
-#        nrpe_compat = NRPE()
-#        nrpe_compat.add_check(
-#            shortname = "myservice",
-#            description = "Check MyService",
-#            check_cmd = "check_http -w 2 -c 10 http://localhost"
-#            )
-#        nrpe_compat.add_check(
-#            "myservice_other",
-#            "Check for widget failures",
-#            check_cmd = "/srv/myapp/scripts/widget_check"
-#            )
-#        nrpe_compat.write()
-#
-#    def config_changed():
-#        (...)
-#        update_nrpe_config()
-#
-#    def nrpe_external_master_relation_changed():
-#        update_nrpe_config()
-#
-#    def local_monitors_relation_changed():
-#        update_nrpe_config()
-#
-# 4.a If your charm is a subordinate charm set primary=False
-#
-#    from charmsupport.nrpe import NRPE
-#    (...)
-#    def update_nrpe_config():
-#        nrpe_compat = NRPE(primary=False)
-#
-# 5. ln -s hooks.py nrpe-external-master-relation-changed
-#    ln -s hooks.py local-monitors-relation-changed
 
 
 class CheckException(Exception):
