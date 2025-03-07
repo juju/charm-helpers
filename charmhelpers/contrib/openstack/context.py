@@ -1125,7 +1125,7 @@ class ApacheSSLContext(OSContextGenerator):
     user = group = 'root'
 
     def enable_modules(self):
-        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
+        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         check_call(cmd)
 
     def configure_cert(self, cn=None):
