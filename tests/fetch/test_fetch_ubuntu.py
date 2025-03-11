@@ -1073,7 +1073,7 @@ class AptTests(TestCase):
     def test_apt_update_fatal(self, check_call):
         fetch.apt_update(fatal=True)
         check_call.assert_called_with(
-            ['apt-get', 'update'],
+            ['apt-get', 'update', '--error-on=any'],
             env={})
 
     @patch('subprocess.call')
