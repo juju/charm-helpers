@@ -1125,7 +1125,8 @@ class ApacheSSLContext(OSContextGenerator):
     user = group = 'root'
 
     def enable_modules(self):
-        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
+        # NOTE(seyeongkim) : remoteip is for proxy protocol v2
+        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         check_call(cmd)
 
     def configure_cert(self, cn=None):
@@ -1762,11 +1763,17 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         self.admin_process_weight = admin_process_weight
         self.public_process_weight = public_process_weight
 
+    def enable_modules(self):
+        # NOTE(seyeongkim): this is for proxy protocol v2 and non ssl case.
+        cmd = ['a2enmod', 'remoteip']
+        check_call(cmd)
+
     def __call__(self):
         total_processes = _calculate_workers()
         enable_wsgi_socket_rotation = config('wsgi-socket-rotation')
         if enable_wsgi_socket_rotation is None:
             enable_wsgi_socket_rotation = True
+        self.enable_modules()
         ctxt = {
             "service_name": self.service_name,
             "user": self.user,
