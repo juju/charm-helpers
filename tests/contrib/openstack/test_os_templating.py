@@ -136,8 +136,8 @@ class TemplatingTests(unittest.TestCase):
         renderer._get_template = MagicMock()
         renderer.register('/etc/nova/nova.conf', contexts=[])
         renderer.render('/etc/nova/nova.conf')
-        self.assertEquals(1, len(renderer._get_template.call_args_list))
-        self.assertEquals(
+        self.assertEqual(1, len(renderer._get_template.call_args_list))
+        self.assertEqual(
             [call('nova.conf')], renderer._get_template.call_args_list)
 
     def test_render_template_by_munged_full_path_last(self):
@@ -152,8 +152,8 @@ class TemplatingTests(unittest.TestCase):
         renderer._get_template.side_effect = [e, tmp]
         renderer.register('/etc/nova/nova.conf', contexts=[])
         renderer.render('/etc/nova/nova.conf')
-        self.assertEquals(2, len(renderer._get_template.call_args_list))
-        self.assertEquals(
+        self.assertEqual(2, len(renderer._get_template.call_args_list))
+        self.assertEqual(
             [call('nova.conf'), call('etc_nova_nova.conf')],
             renderer._get_template.call_args_list)
 
@@ -183,7 +183,7 @@ class TemplatingTests(unittest.TestCase):
         ]
         with patch.object(self.renderer, 'write') as _write:
             self.renderer.write_all()
-            self.assertEquals(sorted(ex_calls), sorted(_write.call_args_list))
+            self.assertEqual(sorted(ex_calls), sorted(_write.call_args_list))
             pass
 
     @patch.object(templating, 'get_loader')
@@ -238,7 +238,7 @@ class TemplatingTests(unittest.TestCase):
                     ['/tmp/foo/diablo'],
                     ['/tmp/foo'],
                     [common_tmplts]]
-        self.assertEquals(dirs, expected)
+        self.assertEqual(dirs, expected)
 
     @patch('os.path.isdir')
     def test_get_loader_some_search_paths(self, isdir):
@@ -256,7 +256,7 @@ class TemplatingTests(unittest.TestCase):
                     ['/tmp/foo/diablo'],
                     ['/tmp/foo'],
                     [common_tmplts]]
-        self.assertEquals(dirs, expected)
+        self.assertEqual(dirs, expected)
 
     def test_register_template_with_list_of_contexts(self):
         '''Ensure registering a template with a list of context generators'''
@@ -267,7 +267,7 @@ class TemplatingTests(unittest.TestCase):
             pass
         tmpl = templating.OSConfigTemplate(config_file='/tmp/foo',
                                            contexts=[_c1, _c2])
-        self.assertEquals(tmpl.contexts, [_c1, _c2])
+        self.assertEqual(tmpl.contexts, [_c1, _c2])
 
     def test_register_template_with_single_context(self):
         '''Ensure registering a template with a single non-list context'''
@@ -275,7 +275,7 @@ class TemplatingTests(unittest.TestCase):
             pass
         tmpl = templating.OSConfigTemplate(config_file='/tmp/foo',
                                            contexts=_c1)
-        self.assertEquals(tmpl.contexts, [_c1])
+        self.assertEqual(tmpl.contexts, [_c1])
 
 
 class TemplatingStringTests(unittest.TestCase):
@@ -320,7 +320,7 @@ class TemplatingStringTests(unittest.TestCase):
         # template source
         output = self.renderer.render(self.config_file)
 
-        self.assertEquals(output, expected_output)
+        self.assertEqual(output, expected_output)
 
     def test_render_template_from_string_incomplete_context(self):
         '''
@@ -345,7 +345,7 @@ class TemplatingStringTests(unittest.TestCase):
         # template source
         output = self.renderer.render(self.config_file)
 
-        self.assertEquals(output, expected_output)
+        self.assertEqual(output, expected_output)
 
     def test_register_string_template_with_single_context(self):
         '''Template rendering from a provided string with a context'''
@@ -360,6 +360,6 @@ class TemplatingStringTests(unittest.TestCase):
             config_template=config_template
         )
 
-        self.assertEquals(tmpl.contexts, [_c1])
-        self.assertEquals(tmpl.config_file, config_file)
-        self.assertEquals(tmpl.config_template, config_template)
+        self.assertEqual(tmpl.contexts, [_c1])
+        self.assertEqual(tmpl.config_file, config_file)
+        self.assertEqual(tmpl.config_template, config_template)

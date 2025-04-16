@@ -92,12 +92,12 @@ class InfinibandTest(unittest.TestCase):
 
         info = infiniband.device_info("mlx4_0")
 
-        self.assertEquals(info.num_ports, "2")
-        self.assertEquals(info.device_type, "MT4103")
-        self.assertEquals(info.fw_ver, "2.33.5000")
-        self.assertEquals(info.hw_ver, "0")
-        self.assertEquals(info.node_guid, "0xe41d2d03000a1120")
-        self.assertEquals(info.sys_guid, "0xe41d2d03000a1123")
+        self.assertEqual(info.num_ports, "2")
+        self.assertEqual(info.device_type, "MT4103")
+        self.assertEqual(info.fw_ver, "2.33.5000")
+        self.assertEqual(info.hw_ver, "0")
+        self.assertEqual(info.node_guid, "0xe41d2d03000a1120")
+        self.assertEqual(info.sys_guid, "0xe41d2d03000a1123")
 
     @patch("subprocess.check_output")
     def test_ipoib_interfaces(self, check_output):
@@ -112,4 +112,4 @@ class InfinibandTest(unittest.TestCase):
                 return "driver: mock"
 
         check_output.side_effect = c
-        self.assertEquals(infiniband.ipoib_interfaces(), [ipoib_nic])
+        self.assertEqual(infiniband.ipoib_interfaces(), [ipoib_nic])

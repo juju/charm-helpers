@@ -39,5 +39,8 @@ jobs:
         fi
         sudo apt -qq update
         sudo apt install --yes $PKG
+
+    - name: Install tox
+      run: pip install tox
     - name: Test
       run: tox -c tox.ini -e ${{ matrix.env }}
