@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - python-version: 3.8
+          - python-version: "3.8"
             env: pep8,py38
           - python-version: "3.10"
             env: pep8,py310
@@ -25,21 +25,23 @@ jobs:
             env: pep8,py312
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
+    - uses: actions/checkout@v4
     - name: Install juju
       run: |
         sudo snap install juju --classic
     - name: Install packages
+      env:
+        PYVERSION: ${{ matrix.python-version }}
       run: |
+        PKG="libapt-pkg-dev bzr rustc cargo python3-dev tox"
+        if [ "$PYVERSION" != "3.10" ]; then
+          sudo add-apt-repository --yes ppa:deadsnakes/ppa
+          PKG="$PKG python$PYVERSION-dev"
+          if [ "$PYVERSION" = "3.8" ]; then
+            PKG="$PKG python3.8-distutils"
+          fi
+        fi
         sudo apt -qq update
-        sudo apt install --yes libapt-pkg-dev # For python-apt wheel build
-        sudo apt install --yes bzr
-        sudo apt install --yes rustc cargo
-    - name: Install tox
-      run: pip install tox
+        sudo apt install --yes $PKG
     - name: Test
       run: tox -c tox.ini -e ${{ matrix.env }}
