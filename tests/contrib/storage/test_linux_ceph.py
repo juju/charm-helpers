@@ -487,21 +487,21 @@ class CephUtilsTests(TestCase):
 
         self.test_config.set('pgs-per-osd', 300)
         pg_num = p.get_pgs(pool_size=3, percent_data=100)
-        self.assertEquals(1024, pg_num)
+        self.assertEqual(1024, pg_num)
 
         # Tests the case in which the expected OSD count is provided (and is
         # greater than the found OSD count).
         self.test_config.set('pgs-per-osd', 100)
         self.test_config.set('expected-osd-count', 20)
         pg_num = p.get_pgs(pool_size=3, percent_data=100)
-        self.assertEquals(512, pg_num)
+        self.assertEqual(512, pg_num)
 
         # Test small % weight with minimal OSD count (3)
         get_osds.return_value = range(1, 3)
         self.test_config.set('expected-osd-count', None)
         self.test_config.set('pgs-per-osd', None)
         pg_num = p.get_pgs(pool_size=3, percent_data=0.1)
-        self.assertEquals(2, pg_num)
+        self.assertEqual(2, pg_num)
 
         # Check device_class is passed to get_osds
         p.get_pgs(pool_size=3, percent_data=90, device_class='nvme')
@@ -1129,15 +1129,15 @@ class CephUtilsTests(TestCase):
 
     def test_get_osds(self):
         self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
-        self.assertEquals(ceph_utils.get_osds('test'), [1, 2, 3])
+        self.assertEqual(ceph_utils.get_osds('test'), [1, 2, 3])
 
     def test_get_osds_none(self):
         self.check_output.return_value = json.dumps(None).encode('UTF-8')
-        self.assertEquals(ceph_utils.get_osds('test'), None)
+        self.assertEqual(ceph_utils.get_osds('test'), None)
 
     def test_get_osds_device_class(self):
         self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
-        self.assertEquals(ceph_utils.get_osds('test', 'nvme'), [1, 2, 3])
+        self.assertEqual(ceph_utils.get_osds('test', 'nvme'), [1, 2, 3])
         self.check_output.assert_called_once_with(
             ['ceph', '--id', 'test',
              'osd', 'crush', 'class',
@@ -1147,7 +1147,7 @@ class CephUtilsTests(TestCase):
     def test_get_osds_device_class_older(self):
         self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
         self.cmp_pkgrevno.return_value = -1
-        self.assertEquals(ceph_utils.get_osds('test', 'nvme'), [1, 2, 3])
+        self.assertEqual(ceph_utils.get_osds('test', 'nvme'), [1, 2, 3])
         self.check_output.assert_called_once_with(
             ['ceph', '--id', 'test', 'osd', 'ls', '--format=json']
         )
@@ -1204,12 +1204,12 @@ class CephUtilsTests(TestCase):
     def test_keyring_path(self):
         """It correctly derives keyring path from service name"""
         result = ceph_utils._keyring_path('cinder')
-        self.assertEquals('/etc/ceph/ceph.client.cinder.keyring', result)
+        self.assertEqual('/etc/ceph/ceph.client.cinder.keyring', result)
 
     def test_keyfile_path(self):
         """It correctly derives keyring path from service name"""
         result = ceph_utils._keyfile_path('cinder')
-        self.assertEquals('/etc/ceph/ceph.client.cinder.key', result)
+        self.assertEqual('/etc/ceph/ceph.client.cinder.key', result)
 
     def test_pool_exists(self):
         """It detects an rbd pool exists"""
@@ -1272,12 +1272,12 @@ class CephUtilsTests(TestCase):
         self.relation_ids.return_value = ['ceph:0']
         self.related_units.return_value = units
         self.relation_get.return_value = '192.168.1.1'
-        self.assertEquals(len(ceph_utils.get_ceph_nodes()), 3)
+        self.assertEqual(len(ceph_utils.get_ceph_nodes()), 3)
 
     def test_get_ceph_nodes_not_related(self):
         self._patch('relation_ids')
         self.relation_ids.return_value = []
-        self.assertEquals(ceph_utils.get_ceph_nodes(), [])
+        self.assertEqual(ceph_utils.get_ceph_nodes(), [])
 
     def test_configure(self):
         self._patch('add_key')
@@ -1467,9 +1467,9 @@ class CephUtilsTests(TestCase):
         device = '/no/such/device'
         e = self.assertRaises(IOError, ceph_utils.make_filesystem, device,
                               timeout=0)
-        self.assertEquals(device, e.filename)
-        self.assertEquals(errno.ENOENT, e.errno)
-        self.assertEquals(os.strerror(errno.ENOENT), e.strerror)
+        self.assertEqual(device, e.filename)
+        self.assertEqual(errno.ENOENT, e.errno)
+        self.assertEqual(os.strerror(errno.ENOENT), e.strerror)
         self.log.assert_called_with(
             'Gave up waiting on block device %s' % device, level='ERROR')
 
@@ -1528,11 +1528,11 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'relation_get')
     def test_ensure_ceph_keyring_no_relation_no_data(self, rget, runits, rids):
         rids.return_value = []
-        self.assertEquals(False, ceph_utils.ensure_ceph_keyring(service='foo'))
+        self.assertEqual(False, ceph_utils.ensure_ceph_keyring(service='foo'))
         rids.return_value = ['ceph:0']
         runits.return_value = ['ceph/0']
         rget.return_value = ''
-        self.assertEquals(False, ceph_utils.ensure_ceph_keyring(service='foo'))
+        self.assertEqual(False, ceph_utils.ensure_ceph_keyring(service='foo'))
 
     @patch.object(ceph_utils, '_keyring_path')
     @patch.object(ceph_utils, 'add_key')
@@ -1555,14 +1555,14 @@ class CephUtilsTests(TestCase):
         rids.return_value = ['ceph:0']
         runits.return_value = ['ceph/0']
         rget.return_value = 'fookey'
-        self.assertEquals(True,
+        self.assertEqual(True,
                           ceph_utils.ensure_ceph_keyring(service='foo'))
         create.assert_called_with(service='foo', key='fookey')
         _path.assert_called_with('foo')
         self.assertFalse(self.check_call.called)
 
         _path.return_value = '/etc/ceph/client.foo.keyring'
-        self.assertEquals(
+        self.assertEqual(
             True,
             ceph_utils.ensure_ceph_keyring(
                 service='foo', user='adam', group='users'))

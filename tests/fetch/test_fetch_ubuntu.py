@@ -92,21 +92,21 @@ class FetchTest(TestCase):
     def test_filter_packages_missing_ubuntu(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim', 'emacs'])
-        self.assertEquals(result, ['emacs'])
+        self.assertEqual(result, ['emacs'])
 
     @patch("charmhelpers.fetch.ubuntu.log")
     @patch.object(fetch, 'apt_cache')
     def test_filter_packages_none_missing_ubuntu(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim'])
-        self.assertEquals(result, [])
+        self.assertEqual(result, [])
 
     @patch('charmhelpers.fetch.ubuntu.log')
     @patch.object(fetch, 'apt_cache')
     def test_filter_packages_not_available_ubuntu(self, cache, log):
         cache.side_effect = fake_apt_cache
         result = fetch.filter_installed_packages(['vim', 'joe'])
-        self.assertEquals(result, ['joe'])
+        self.assertEqual(result, ['joe'])
         log.assert_called_with('Package joe has no installation candidate.',
                                level='WARNING')
 
@@ -1138,6 +1138,6 @@ class TestAptDpkgEnv(TestCase):
     @patch.object(fetch, 'get_system_env')
     def test_get_apt_dpkg_env(self, mock_get_system_env):
         mock_get_system_env.return_value = '/a/path'
-        self.assertEquals(
+        self.assertEqual(
             fetch.get_apt_dpkg_env(),
             {'DEBIAN_FRONTEND': 'noninteractive', 'PATH': '/a/path'})

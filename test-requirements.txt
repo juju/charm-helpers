@@ -23,7 +23,10 @@ Jinja2
 
 ##############################################################
 
-netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.
+netifaces
 psutil
 python-keystoneclient
 dnspython
+breezy==3.0.2; python_version < '3.10' # Focal version
+breezy==3.2.1; python_version >= '3.10' and python_version < '3.12' # Jammy version
+breezy==3.3.4; python_version >= '3.12' # Close to Noble version

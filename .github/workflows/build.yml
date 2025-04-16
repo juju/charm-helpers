@@ -38,6 +38,7 @@ jobs:
         sudo apt -qq update
         sudo apt install --yes libapt-pkg-dev # For python-apt wheel build
         sudo apt install --yes bzr
+        sudo apt install --yes rustc cargo
     - name: Install tox
       run: pip install tox
     - name: Test

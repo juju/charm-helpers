@@ -44,14 +44,14 @@ class TestTemplating(unittest.TestCase):
             templating.render('fake_cc.yml', fn1.name,
                               context, templates_dir=TEMPLATES_DIR)
             contents = open(fn1.name).read()
-            self.assertRegexpMatches(contents, 'port: 1234')
-            self.assertRegexpMatches(contents, 'host: example.com')
-            self.assertRegexpMatches(contents, 'domain: api.foo.com')
+            self.assertRegex(contents, 'port: 1234')
+            self.assertRegex(contents, 'host: example.com')
+            self.assertRegex(contents, 'domain: api.foo.com')
 
             templating.render('test.conf', fn2.name, context,
                               templates_dir=TEMPLATES_DIR)
             contents = open(fn2.name).read()
-            self.assertRegexpMatches(contents, 'listen 80')
+            self.assertRegex(contents, 'listen 80')
             self.assertEqual(fchown.call_count, 2)
             # Not called, because the target directory exists. Calling
             # it would make the target directory world readable and
@@ -72,7 +72,7 @@ class TestTemplating(unittest.TestCase):
                               context, templates_dir=TEMPLATES_DIR,
                               config_template=config_template)
             contents = open(fn.name).read()
-            self.assertRegexpMatches(contents, 'bar')
+            self.assertRegex(contents, 'bar')
 
             self.assertEqual(fchown.call_count, 1)
             # Not called, because the target directory exists. Calling
@@ -99,9 +99,9 @@ class TestTemplating(unittest.TestCase):
             templating.render('fake_cc.yml', fn1.name,
                               context, template_loader=template_loader)
             contents = open(fn1.name).read()
-            self.assertRegexpMatches(contents, 'port: 1234')
-            self.assertRegexpMatches(contents, 'host: example.com')
-            self.assertRegexpMatches(contents, 'domain: api.foo.com')
+            self.assertRegex(contents, 'port: 1234')
+            self.assertRegex(contents, 'host: example.com')
+            self.assertRegex(contents, 'domain: api.foo.com')
 
     @mock.patch.object(templating.os.path, 'exists')
     @mock.patch.object(templating.host.os, 'fchown')
@@ -124,14 +124,14 @@ class TestTemplating(unittest.TestCase):
             templating.render('fake_cc.yml', fn1.name,
                               context, templates_dir=TEMPLATES_DIR)
             contents = open(fn1.name).read()
-            self.assertRegexpMatches(contents, 'port: 1234')
-            self.assertRegexpMatches(contents, 'host: example.com')
-            self.assertRegexpMatches(contents, 'domain: api.foo.com')
+            self.assertRegex(contents, 'port: 1234')
+            self.assertRegex(contents, 'host: example.com')
+            self.assertRegex(contents, 'domain: api.foo.com')
 
             templating.render('test.conf', fn2.name, context,
                               templates_dir=TEMPLATES_DIR)
             contents = open(fn2.name).read()
-            self.assertRegexpMatches(contents, 'listen 80')
+            self.assertRegex(contents, 'listen 80')
             self.assertEqual(fchown.call_count, 2)
             # Target directory was created, world readable (!).
             self.assertEqual(mkdir.call_count, 2)
@@ -150,7 +150,7 @@ class TestTemplating(unittest.TestCase):
             with open(fn1) as f:
                 contents = f.read()
 
-            self.assertRegexpMatches(contents, 'something')
+            self.assertRegex(contents, 'something')
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
