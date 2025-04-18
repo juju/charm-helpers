@@ -296,6 +296,8 @@ class IPTest(unittest.TestCase):
     def test_is_ipv6(self):
         self.assertFalse(net_ip.is_ipv6('myhost'))
         self.assertFalse(net_ip.is_ipv6('172.4.5.5'))
+        self.assertFalse(net_ip.is_ipv6(None))
+        self.assertFalse(net_ip.is_ipv6(""))
         self.assertTrue(net_ip.is_ipv6('2a01:348:2f4:0:685e:5748:ae62:209f'))
 
     @patch.object(netifaces, 'ifaddresses')
