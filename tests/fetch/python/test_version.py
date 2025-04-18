@@ -19,9 +19,9 @@ class VersionTestCase(TestCase):
         Check if version.current_version and version.current_version_string
         works correctly
         """
-        self.assertEquals(version.current_version(),
+        self.assertEqual(version.current_version(),
                           sys.version_info)
-        self.assertEquals(version.current_version_string(),
+        self.assertEqual(version.current_version_string(),
                           "{0}.{1}.{2}".format(sys.version_info.major,
                                                sys.version_info.minor,
                                                sys.version_info.micro))

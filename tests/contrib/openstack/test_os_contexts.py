@@ -822,7 +822,7 @@ class ContextTests(unittest.TestCase):
             'database_password': 'foo',
             'database_type': 'mysql+pymysql',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'config')
     def test_keystone_audit_middleware_ctxt_enabled(self, mock_config):
@@ -858,7 +858,7 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = fake_config(SHARED_DB_CONFIG)
         shared_db = context.SharedDBContext()
         result = shared_db()
-        self.assertEquals(result, None)
+        self.assertEqual(result, None)
         self.relation_set.assert_called_with(
             relation_settings={
                 'hostname': '10.5.5.1'})
@@ -882,7 +882,7 @@ class ContextTests(unittest.TestCase):
             'database_password': 'foo',
             'database_type': 'mysql+pymysql',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'get_os_codename_install_source')
     def test_shared_db_context_explicit_relation_id(self, os_codename):
@@ -902,7 +902,7 @@ class ContextTests(unittest.TestCase):
             'database_password': 'flump',
             'database_type': 'mysql+pymysql',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'get_os_codename_install_source')
     def test_shared_db_context_with_port(self, os_codename):
@@ -922,7 +922,7 @@ class ContextTests(unittest.TestCase):
             'database_type': 'mysql+pymysql',
             'database_port': 3306,
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch('os.path.exists')
     @patch('builtins.open')
@@ -942,17 +942,17 @@ class ContextTests(unittest.TestCase):
         ]
         for f in files:
             self.assertIn(f, _open.call_args_list)
-        self.assertEquals(db_ssl_ctxt, expected)
+        self.assertEqual(db_ssl_ctxt, expected)
         decode = [
             call(SHARED_DB_RELATION_SSL['ssl_ca']),
             call(SHARED_DB_RELATION_SSL['ssl_cert']),
             call(SHARED_DB_RELATION_SSL['ssl_key'])
         ]
-        self.assertEquals(decode, self.b64decode.call_args_list)
+        self.assertEqual(decode, self.b64decode.call_args_list)
 
     def test_db_ssl_nossldir(self):
         db_ssl_ctxt = context.db_ssl(SHARED_DB_RELATION_SSL, {}, None)
-        self.assertEquals(db_ssl_ctxt, {})
+        self.assertEqual(db_ssl_ctxt, {})
 
     @patch.object(context, 'get_os_codename_install_source')
     def test_shared_db_context_with_missing_relation(self, os_codename):
@@ -965,7 +965,7 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = SHARED_DB_CONFIG
         shared_db = context.SharedDBContext()
         result = shared_db()
-        self.assertEquals(result, {})
+        self.assertEqual(result, {})
 
     def test_shared_db_context_with_missing_config(self):
         '''Test shared-db context missing relation data'''
@@ -990,7 +990,7 @@ class ContextTests(unittest.TestCase):
         self.assertIn(
             call(rid='foo:0', unit='foo/0'),
             self.relation_get.call_args_list)
-        self.assertEquals(
+        self.assertEqual(
             result, {'database': 'quantum',
                      'database_user': 'quantum',
                      'database_password': 'bar2',
@@ -1009,7 +1009,7 @@ class ContextTests(unittest.TestCase):
         self.assertIn(
             call(rid='foo:0', unit='foo/0'),
             self.relation_get.call_args_list)
-        self.assertEquals(
+        self.assertEqual(
             result, {'database': 'quantum',
                      'database_user': 'quantum',
                      'database_password': 'bar2',
@@ -1030,7 +1030,7 @@ class ContextTests(unittest.TestCase):
         self.assertIn(
             call(rid='foo:0', unit='foo/0'),
             self.relation_get.call_args_list)
-        self.assertEquals(
+        self.assertEqual(
             result, {'database': 'quantum',
                      'database_user': 'quantum',
                      'database_password': 'bar2',
@@ -1051,7 +1051,7 @@ class ContextTests(unittest.TestCase):
             'database_password': 'foo',
             'database_type': 'postgresql',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_postgresql_db_context_with_missing_relation(self):
         '''Test postgresql-db context missing relation data'''
@@ -1062,7 +1062,7 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = POSTGRESQL_DB_CONFIG
         postgresql_db = context.PostgresqlDBContext()
         result = postgresql_db()
-        self.assertEquals(result, {})
+        self.assertEqual(result, {})
 
     def test_postgresql_db_context_with_missing_config(self):
         '''Test postgresql-db context missing relation data'''
@@ -1079,7 +1079,7 @@ class ContextTests(unittest.TestCase):
         '''Test postgresql-db context with object parameters'''
         postgresql_db = context.PostgresqlDBContext(database='quantum')
         result = postgresql_db()
-        self.assertEquals(result['database'], 'quantum')
+        self.assertEqual(result['database'], 'quantum')
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1109,7 +1109,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_identity_credentials_context_with_data(self):
         '''Test identity-credentials context with all required data'''
@@ -1131,7 +1131,7 @@ class ContextTests(unittest.TestCase):
             'service_protocol': 'https',
             'api_version': '2.0',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1168,7 +1168,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1202,7 +1202,7 @@ class ContextTests(unittest.TestCase):
         }
         self.assertTrue(self.mkdir.called)
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1233,7 +1233,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1264,7 +1264,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1301,7 +1301,7 @@ class ContextTests(unittest.TestCase):
             'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1344,7 +1344,7 @@ class ContextTests(unittest.TestCase):
             'internal_auth_url': 'http://keystoneinternal.local:80/keystone',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1379,7 +1379,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '3',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1411,7 +1411,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_identity_credentials_context_with_data_versioned(self):
         '''Test identity-credentials context with api version supplied from keystone'''
@@ -1435,7 +1435,7 @@ class ContextTests(unittest.TestCase):
             'service_type': 'volume',
             'api_version': '3',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1468,7 +1468,7 @@ class ContextTests(unittest.TestCase):
             'api_version': '2.0',
         }
         result.pop('keystone_authtoken')
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
@@ -1480,7 +1480,7 @@ class ContextTests(unittest.TestCase):
         self.relation_get.side_effect = relation.get
         identity_service = context.IdentityServiceContext()
         result = identity_service()
-        self.assertEquals(result, {})
+        self.assertEqual(result, {})
 
     @patch.object(context, 'filter_installed_packages')
     @patch.object(context, 'os_release')
@@ -1511,7 +1511,7 @@ class ContextTests(unittest.TestCase):
             ('service_type', 'volume'),
         ))
 
-        self.assertEquals(keystone_authtoken, expected)
+        self.assertEqual(keystone_authtoken, expected)
 
     @patch.object(context, 'filter_installed_packages')
     @patch.object(context, 'os_release')
@@ -1544,7 +1544,7 @@ class ContextTests(unittest.TestCase):
             ('service_type', 'volume'),
         ))
 
-        self.assertEquals(keystone_authtoken, expected)
+        self.assertEqual(keystone_authtoken, expected)
 
     def test_amqp_context_with_data(self):
         '''Test amqp context with all required data'''
@@ -1561,7 +1561,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_explicit_relation_id(self):
         '''Test amqp context setting the relation_id'''
@@ -1579,7 +1579,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'transport_url': 'rabbit://adam:flump@rabbitalthost1:5672/foo'
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_data_altname(self):
         '''Test amqp context with alternative relation name'''
@@ -1598,7 +1598,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch('builtins.open')
     def test_amqp_context_with_data_ssl(self, _open):
@@ -1621,8 +1621,8 @@ class ContextTests(unittest.TestCase):
             'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
         _open.assert_called_once_with(ssl_dir + '/rabbit-client-ca.pem', 'wb')
-        self.assertEquals(result, expected)
-        self.assertEquals([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
+        self.assertEqual(result, expected)
+        self.assertEqual([call(AMQP_RELATION_WITH_SSL['ssl_ca'])],
                           self.b64decode.call_args_list)
 
     def test_amqp_context_with_data_ssl_noca(self):
@@ -1643,7 +1643,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_ha_queues': True,
             'transport_url': 'rabbit://adam:foobar@rabbithost:5671/foo'
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_data_clustered(self):
         '''Test amqp context with all required data with clustered rabbit'''
@@ -1663,7 +1663,7 @@ class ContextTests(unittest.TestCase):
             'rabbitmq_virtual_host': 'foo',
             'transport_url': 'rabbit://adam:foobar@10.0.0.1:5672/foo'
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_data_active_active(self):
         '''Test amqp context with required data with active/active rabbit'''
@@ -1685,7 +1685,7 @@ class ContextTests(unittest.TestCase):
             'transport_url': ('rabbit://adam:foobar@rabbithost1:5672'
                               ',adam:foobar@rabbithost2:5672/foo')
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_missing_relation(self):
         '''Test amqp context missing relation data'''
@@ -1696,7 +1696,7 @@ class ContextTests(unittest.TestCase):
         self.config.return_value = AMQP_CONFIG
         amqp = context.AMQPContext()
         result = amqp()
-        self.assertEquals({}, result)
+        self.assertEqual({}, result)
 
     def test_amqp_context_with_missing_config(self):
         '''Test amqp context missing relation data'''
@@ -1730,7 +1730,7 @@ class ContextTests(unittest.TestCase):
             'transport_url': ('rabbit://adam:foobar@[2001:db8:1::1]:5672'
                               ',adam:foobar@[2001:db8:1::1]:5672/foo')
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_oslo_messaging(self):
         """Test amqp context with oslo-messaging-flags option"""
@@ -1754,7 +1754,7 @@ class ContextTests(unittest.TestCase):
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_notification_format(self):
         """Test amqp context with notification_format option"""
@@ -1774,7 +1774,7 @@ class ContextTests(unittest.TestCase):
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_notification_topics(self):
         """Test amqp context with notification_topics option"""
@@ -1794,7 +1794,7 @@ class ContextTests(unittest.TestCase):
             'transport_url': 'rabbit://adam:foobar@rabbithost:5672/foo'
         }
 
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_amqp_context_with_notifications_to_logs(self):
         """Test amqp context with send_notifications_to_logs"""
@@ -1814,7 +1814,7 @@ class ContextTests(unittest.TestCase):
             'send_notifications_to_logs': True,
         }
 
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_libvirt_config_flags(self):
         self.config.side_effect = fake_config({
@@ -1822,7 +1822,7 @@ class ContextTests(unittest.TestCase):
         })
 
         results = context.LibvirtConfigFlagsContext()()
-        self.assertEquals(results, {
+        self.assertEqual(results, {
             'libvirt_flags': {
                 'chap_auth': 'False',
                 'iscsi_use_multipath': 'True'
@@ -1835,7 +1835,7 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.side_effect = relation.get
         ceph = context.CephContext()
         result = ceph()
-        self.assertEquals(result, {})
+        self.assertEqual(result, {})
 
     def test_ceph_rel_with_no_units(self):
         '''Test ceph context with missing related units'''
@@ -1844,7 +1844,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = []
         ceph = context.CephContext()
         result = ceph()
-        self.assertEquals(result, {})
+        self.assertEqual(result, {})
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
@@ -1872,7 +1872,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
 
     @patch('os.mkdir')
@@ -1889,7 +1889,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = relation.relation_units
         ceph = context.CephContext()
         result = ceph()
-        self.assertEquals(result, {})
+        self.assertEqual(result, {})
         self.assertFalse(ensure_packages.called)
 
     @patch.object(context, 'config')
@@ -1922,7 +1922,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, 'config')
     @patch('os.path.isdir')
@@ -1951,7 +1951,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -1982,7 +1982,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2013,7 +2013,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2045,7 +2045,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2076,7 +2076,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2108,7 +2108,7 @@ class ContextTests(unittest.TestCase):
             'use_syslog': 'true',
             'rbd_features': '1',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2145,7 +2145,7 @@ class ContextTests(unittest.TestCase):
             'rbd_features': '1',
             'rbd_default_data_pool': 'testing-foo',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2181,7 +2181,7 @@ class ContextTests(unittest.TestCase):
             'rbd_features': '1',
             'rbd_default_data_pool': 'glance',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2217,7 +2217,7 @@ class ContextTests(unittest.TestCase):
             'rbd_features': '1',
             'rbd_default_data_pool': 'nova',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2324,7 +2324,7 @@ class ContextTests(unittest.TestCase):
             'key': 'bar',
             'use_syslog': 'true',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
@@ -2377,9 +2377,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', False),
                                                call('internal', False),
@@ -2440,9 +2440,9 @@ class ContextTests(unittest.TestCase):
             'haproxy_server_timeout': 50000,
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', None),
                                                call('internal', None),
@@ -2531,9 +2531,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', False),
                                                call('internal', False),
@@ -2606,9 +2606,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('public', None),
                                                call('cluster')])
@@ -2671,9 +2671,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', None),
                                                call('internal', None),
@@ -2684,7 +2684,7 @@ class ContextTests(unittest.TestCase):
         '''Test haproxy context with missing relation data'''
         self.relation_ids.return_value = []
         haproxy = context.HAProxyContext()
-        self.assertEquals({}, haproxy())
+        self.assertEqual({}, haproxy())
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
@@ -2709,7 +2709,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = relation.relation_units
         self.config.return_value = False
         haproxy = context.HAProxyContext()
-        self.assertEquals({}, haproxy())
+        self.assertEqual({}, haproxy())
         self.get_relation_ip.assert_has_calls([call('admin', False),
                                                call('internal', False),
                                                call('public', False),
@@ -2743,7 +2743,7 @@ class ContextTests(unittest.TestCase):
         c.data['os-public-network'] = '192.168.30.0/24'
         self.config.side_effect = c
         haproxy = context.HAProxyContext()
-        self.assertEquals({}, haproxy())
+        self.assertEqual({}, haproxy())
         self.get_relation_ip.assert_has_calls([call('admin', '192.168.10.0/24'),
                                                call('internal', '192.168.20.0/24'),
                                                call('public', '192.168.30.0/24'),
@@ -2792,9 +2792,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
             'stat_password': 'testpassword',
         }
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', False),
                                                call('internal', False),
@@ -2855,9 +2855,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', False),
                                                call('internal', False),
@@ -2919,9 +2919,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', False),
                                                call('internal', False),
@@ -2933,7 +2933,7 @@ class ContextTests(unittest.TestCase):
         '''Test apache2 https when no https data available'''
         apache = context.ApacheSSLContext()
         self.https.return_value = False
-        self.assertEquals({}, apache())
+        self.assertEqual({}, apache())
 
     def _https_context_setup(self):
         '''
@@ -2978,7 +2978,7 @@ class ContextTests(unittest.TestCase):
 
         apache, ex = self._https_context_setup()
 
-        self.assertEquals(ex, apache())
+        self.assertEqual(ex, apache())
 
         apache.configure_cert.assert_has_calls([
             call('10.5.1.1'),
@@ -2996,7 +2996,7 @@ class ContextTests(unittest.TestCase):
 
         apache, ex = self._https_context_setup()
 
-        self.assertEquals(ex, apache())
+        self.assertEqual(ex, apache())
 
         self.assertFalse(apache.configure_cert.called)
         self.assertFalse(apache.configure_ca.called)
@@ -3010,7 +3010,7 @@ class ContextTests(unittest.TestCase):
         self.resolve_address.side_effect = (
             '10.5.1.4', '10.5.2.5', '10.5.3.6')
 
-        self.assertEquals(ex, apache())
+        self.assertEqual(ex, apache())
 
         apache.configure_cert.assert_has_calls([
             call('10.5.1.4'),
@@ -3054,7 +3054,7 @@ class ContextTests(unittest.TestCase):
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
-        self.assertEquals(decode, self.b64decode.call_args_list)
+        self.assertEqual(decode, self.b64decode.call_args_list)
 
     def test_https_configure_cert_deprecated(self):
         # Test apache2 properly installs certs and keys to disk
@@ -3075,7 +3075,7 @@ class ContextTests(unittest.TestCase):
         self.write_file.assert_has_calls(files)
         # appropriate bits are b64decoded.
         decode = [call('SSL_CERT'), call('SSL_KEY')]
-        self.assertEquals(decode, self.b64decode.call_args_list)
+        self.assertEqual(decode, self.b64decode.call_args_list)
 
     def test_https_canonical_names(self):
         rel = FakeRelation(IDENTITY_RELATION_SINGLE_CERT)
@@ -3083,24 +3083,24 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = rel.relation_units
         self.relation_get.side_effect = rel.get
         apache = context.ApacheSSLContext()
-        self.assertEquals(apache.canonical_names(), ['cinderhost1'])
+        self.assertEqual(apache.canonical_names(), ['cinderhost1'])
         rel.relation_data = IDENTITY_RELATION_MULTIPLE_CERT
-        self.assertEquals(apache.canonical_names(),
+        self.assertEqual(apache.canonical_names(),
                           sorted(['cinderhost1-adm-network',
                                   'cinderhost1-int-network',
                                   'cinderhost1-pub-network']))
         rel.relation_data = IDENTITY_RELATION_NO_CERT
-        self.assertEquals(apache.canonical_names(), [])
+        self.assertEqual(apache.canonical_names(), [])
 
     def test_image_service_context_missing_data(self):
         '''Test image-service with missing relation and missing data'''
         image_service = context.ImageServiceContext()
         self.relation_ids.return_value = []
-        self.assertEquals({}, image_service())
+        self.assertEqual({}, image_service())
         self.relation_ids.return_value = ['image-service:0']
         self.related_units.return_value = ['glance/0']
         self.relation_get.return_value = None
-        self.assertEquals({}, image_service())
+        self.assertEqual({}, image_service())
 
     def test_image_service_context_with_data(self):
         '''Test image-service with required data'''
@@ -3108,7 +3108,7 @@ class ContextTests(unittest.TestCase):
         self.relation_ids.return_value = ['image-service:0']
         self.related_units.return_value = ['glance/0']
         self.relation_get.return_value = 'http://glancehost:9292'
-        self.assertEquals({'glance_api_servers': 'http://glancehost:9292'},
+        self.assertEqual({'glance_api_servers': 'http://glancehost:9292'},
                           image_service())
 
     @patch.object(context, 'neutron_plugin_attribute')
@@ -3116,10 +3116,10 @@ class ContextTests(unittest.TestCase):
         '''Test neutron context base properties'''
         neutron = context.NeutronContext()
         attr.return_value = 'quantum-plugin-package'
-        self.assertEquals(None, neutron.plugin)
-        self.assertEquals(None, neutron.network_manager)
-        self.assertEquals(None, neutron.neutron_security_groups)
-        self.assertEquals('quantum-plugin-package', neutron.packages)
+        self.assertEqual(None, neutron.plugin)
+        self.assertEqual(None, neutron.network_manager)
+        self.assertEqual(None, neutron.neutron_security_groups)
+        self.assertEqual('quantum-plugin-package', neutron.packages)
 
     @patch.object(context, 'neutron_plugin_attribute')
     @patch.object(context, 'apt_install')
@@ -3140,7 +3140,7 @@ class ContextTests(unittest.TestCase):
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'ovs',
@@ -3155,7 +3155,7 @@ class ContextTests(unittest.TestCase):
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'nvp',
@@ -3172,7 +3172,7 @@ class ContextTests(unittest.TestCase):
         attr.return_value = 'some.quantum.driver.class'
         config.return_value = 'n1kv'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'n1kv',
             'neutron_security_groups': True,
@@ -3193,7 +3193,7 @@ class ContextTests(unittest.TestCase):
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'Calico',
@@ -3208,7 +3208,7 @@ class ContextTests(unittest.TestCase):
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'plumgrid',
@@ -3223,7 +3223,7 @@ class ContextTests(unittest.TestCase):
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'vsp',
@@ -3238,7 +3238,7 @@ class ContextTests(unittest.TestCase):
         sec_groups.__get__ = MagicMock(return_value=True)
         attr.return_value = 'some.quantum.driver.class'
         neutron = context.NeutronContext()
-        self.assertEquals({
+        self.assertEqual({
             'config': 'some.quantum.driver.class',
             'core_plugin': 'some.quantum.driver.class',
             'neutron_plugin': 'midonet',
@@ -3259,14 +3259,14 @@ class ContextTests(unittest.TestCase):
         mock_network_manager.__get__ = Mock(return_value='neutron')
 
         self.is_clustered.return_value = False
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'neutron_url': 'https://%s:9696' % (priv_addr)},
             neutron.neutron_ctxt()
         )
 
         self.is_clustered.return_value = True
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'neutron_url': 'https://%s:9696' % (vip)},
             neutron.neutron_ctxt()
@@ -3287,14 +3287,14 @@ class ContextTests(unittest.TestCase):
         mock_network_manager.__get__ = Mock(return_value='neutron')
 
         self.is_clustered.return_value = False
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'neutron_url': 'http://%s:9696' % (priv_addr)},
             neutron.neutron_ctxt()
         )
 
         self.is_clustered.return_value = True
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'neutron_url': 'http://%s:9696' % (vip)},
             neutron.neutron_ctxt()
@@ -3319,18 +3319,18 @@ class ContextTests(unittest.TestCase):
         mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
         mock_plugin.__get__ = Mock()
 
-        self.assertEquals({}, neutron())
+        self.assertEqual({}, neutron())
         self.assertTrue(mock_network_manager.__get__.called)
         self.assertFalse(mock_plugin.__get__.called)
 
         mock_network_manager.__get__.return_value = 'neutron'
         mock_plugin.__get__ = Mock(return_value=None)
-        self.assertEquals({}, neutron())
+        self.assertEqual({}, neutron())
         self.assertTrue(mock_plugin.__get__.called)
 
         mock_ovs_ctxt.return_value = {'ovs': 'ovs_context'}
         mock_plugin.__get__.return_value = 'ovs'
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'ovs': 'ovs_context',
              'neutron_url': 'https://foo:9696'},
@@ -3358,18 +3358,18 @@ class ContextTests(unittest.TestCase):
         mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
         mock_plugin.__get__ = Mock()
 
-        self.assertEquals({}, neutron())
+        self.assertEqual({}, neutron())
         self.assertTrue(mock_network_manager.__get__.called)
         self.assertFalse(mock_plugin.__get__.called)
 
         mock_network_manager.__get__.return_value = 'neutron'
         mock_plugin.__get__ = Mock(return_value=None)
-        self.assertEquals({}, neutron())
+        self.assertEqual({}, neutron())
         self.assertTrue(mock_plugin.__get__.called)
 
         mock_nvp_ctxt.return_value = {'nvp': 'nvp_context'}
         mock_plugin.__get__.return_value = 'nvp'
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'nvp': 'nvp_context',
              'neutron_alchemy_flags': {'pool_size': '20'},
@@ -3396,18 +3396,18 @@ class ContextTests(unittest.TestCase):
         mock_network_manager.__get__ = Mock(return_value='flatdhcpmanager')
         mock_plugin.__get__ = Mock()
 
-        self.assertEquals({}, neutron())
+        self.assertEqual({}, neutron())
         self.assertTrue(mock_network_manager.__get__.called)
         self.assertFalse(mock_plugin.__get__.called)
 
         mock_network_manager.__get__.return_value = 'neutron'
         mock_plugin.__get__ = Mock(return_value=None)
-        self.assertEquals({}, neutron())
+        self.assertEqual({}, neutron())
         self.assertTrue(mock_plugin.__get__.called)
 
         mock_ovs_ctxt.return_value = {'Calico': 'calico_context'}
         mock_plugin.__get__.return_value = 'Calico'
-        self.assertEquals(
+        self.assertEqual(
             {'network_manager': 'neutron',
              'Calico': 'calico_context',
              'neutron_url': 'https://foo:9696'},
@@ -3422,7 +3422,7 @@ class ContextTests(unittest.TestCase):
 
         # single
         config.return_value = 'deadbeef=True'
-        self.assertEquals({
+        self.assertEqual({
             'user_config_flags': {
                 'deadbeef': 'True',
             }
@@ -3430,7 +3430,7 @@ class ContextTests(unittest.TestCase):
 
         # multi
         config.return_value = 'floating_ip=True,use_virtio=False,max=5'
-        self.assertEquals({
+        self.assertEqual({
             'user_config_flags': {
                 'floating_ip': 'True',
                 'use_virtio': 'False',
@@ -3440,11 +3440,11 @@ class ContextTests(unittest.TestCase):
 
         for empty in [None, '']:
             config.return_value = empty
-            self.assertEquals({}, flags())
+            self.assertEqual({}, flags())
 
         # multi with commas
         config.return_value = 'good_flag=woot,badflag,great_flag=w00t'
-        self.assertEquals({
+        self.assertEqual({
             'user_config_flags': {
                 'good_flag': 'woot,badflag',
                 'great_flag': 'w00t',
@@ -3467,7 +3467,7 @@ class ContextTests(unittest.TestCase):
 
         # single
         config.return_value = 'deadbeef=True'
-        self.assertEquals({
+        self.assertEqual({
             'api_config_flags': {
                 'deadbeef': 'True',
             }
@@ -3503,7 +3503,7 @@ class ContextTests(unittest.TestCase):
             config_file='/etc/foo/foo.conf',
             interface='empty-subordinate',
         )
-        self.assertEquals(
+        self.assertEqual(
             nova_sub_ctxt(),
             {'sections': {
                 'DEFAULT': [
@@ -3511,7 +3511,7 @@ class ContextTests(unittest.TestCase):
                     ['nova-key2', 'value2']]
             }}
         )
-        self.assertEquals(
+        self.assertEqual(
             glance_sub_ctxt(),
             {'sections': {
                 'DEFAULT': [
@@ -3519,7 +3519,7 @@ class ContextTests(unittest.TestCase):
                     ['glance-key2', 'value2']]
             }}
         )
-        self.assertEquals(
+        self.assertEqual(
             cinder_sub_ctxt(),
             {'sections': {
                 'cinder-1-section': [
@@ -3534,11 +3534,11 @@ class ContextTests(unittest.TestCase):
 
         # subrodinate supplies nothing for given config
         glance_sub_ctxt.config_file = '/etc/glance/glance-api-paste.ini'
-        self.assertEquals(glance_sub_ctxt(), {})
+        self.assertEqual(glance_sub_ctxt(), {})
 
         # subordinate supplies bad input
-        self.assertEquals(foo_sub_ctxt(), {})
-        self.assertEquals(empty_sub_ctxt(), {})
+        self.assertEqual(foo_sub_ctxt(), {})
+        self.assertEqual(empty_sub_ctxt(), {})
         self.assertFalse(
             empty_sub_ctxt.context_complete(empty_sub_ctxt()))
 
@@ -3552,7 +3552,7 @@ class ContextTests(unittest.TestCase):
             config_file='/etc/nova/nova.conf',
             interface=['nova-ceilometer', 'neutron-plugin'],
         )
-        self.assertEquals(
+        self.assertEqual(
             nova_sub_ctxt(),
             {'sections': {
                 'DEFAULT': [
@@ -3572,7 +3572,7 @@ class ContextTests(unittest.TestCase):
         expected = {
             'use_syslog': 'foo',
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_loglevel_context_set(self):
         self.config.side_effect = fake_config({
@@ -3585,7 +3585,7 @@ class ContextTests(unittest.TestCase):
             'debug': True,
             'verbose': True,
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     def test_loglevel_context_unset(self):
         self.config.side_effect = fake_config({
@@ -3598,7 +3598,7 @@ class ContextTests(unittest.TestCase):
             'debug': False,
             'verbose': False,
         }
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_context(self,
@@ -3658,14 +3658,14 @@ class ContextTests(unittest.TestCase):
 
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
-        self.assertEquals(context.ZeroMQContext()(), {})
+        self.assertEqual(context.ZeroMQContext()(), {})
 
     def test_zeromq_context_related(self):
         self.is_relation_made.return_value = True
         self.relation_ids.return_value = ['zeromq-configuration:1']
         self.related_units.return_value = ['openstack-zeromq/0']
         self.relation_get.side_effect = ['nonce-data', 'hostname', 'redis']
-        self.assertEquals(context.ZeroMQContext()(),
+        self.assertEqual(context.ZeroMQContext()(),
                           {'zmq_host': 'hostname',
                            'zmq_nonce': 'nonce-data',
                            'zmq_redis_address': 'redis'})
@@ -3677,7 +3677,7 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.assertEquals(context.NotificationDriverContext()(),
+        self.assertEqual(context.NotificationDriverContext()(),
                           {'notifications': 'False'})
 
     def test_notificationdriver_context_zmq_nometer(self):
@@ -3687,7 +3687,7 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.assertEquals(context.NotificationDriverContext()(),
+        self.assertEqual(context.NotificationDriverContext()(),
                           {'notifications': 'False'})
 
     def test_notificationdriver_context_zmq_meter(self):
@@ -3697,7 +3697,7 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.assertEquals(context.NotificationDriverContext()(),
+        self.assertEqual(context.NotificationDriverContext()(),
                           {'notifications': 'False'})
 
     def test_notificationdriver_context_amq(self):
@@ -3707,7 +3707,7 @@ class ContextTests(unittest.TestCase):
         }
         rels = fake_is_relation_made(relations=relations)
         self.is_relation_made.side_effect = rels.rel_made
-        self.assertEquals(context.NotificationDriverContext()(),
+        self.assertEqual(context.NotificationDriverContext()(),
                           {'notifications': 'True'})
 
     @patch.object(context, 'psutil')
@@ -3889,7 +3889,7 @@ class ContextTests(unittest.TestCase):
     def test_no_ext_port(self, mock_config):
         self.config.side_effect = config = fake_config({})
         mock_config.side_effect = config
-        self.assertEquals(context.ExternalPortContext()(), {})
+        self.assertEqual(context.ExternalPortContext()(), {})
 
     @patch('charmhelpers.contrib.openstack.context.list_nics')
     @patch('charmhelpers.contrib.openstack.context.config')
@@ -3898,7 +3898,7 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = config
         mock_config.side_effect = config
         mock_list_nics.return_value = ['eth1010']
-        self.assertEquals(context.ExternalPortContext()(),
+        self.assertEqual(context.ExternalPortContext()(),
                           {'ext_port': 'eth1010'})
 
     @patch('charmhelpers.contrib.openstack.context.list_nics')
@@ -3908,7 +3908,7 @@ class ContextTests(unittest.TestCase):
         self.config.side_effect = config
         mock_config.side_effect = config
         mock_list_nics.return_value = []
-        self.assertEquals(context.ExternalPortContext()(), {})
+        self.assertEqual(context.ExternalPortContext()(), {})
 
     @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
            lambda arg: True)
@@ -3930,14 +3930,14 @@ class ContextTests(unittest.TestCase):
         mock_list_nics.return_value = MACHINE_MACS.keys()
         mock_get_nic_hwaddr.side_effect = self._fake_get_hwaddr
 
-        self.assertEquals(context.ExternalPortContext()(),
+        self.assertEqual(context.ExternalPortContext()(),
                           {'ext_port': 'eth2'})
 
         config = fake_config({'ext-port': ABSENT_MACS})
         self.config.side_effect = config
         mock_config.side_effect = config
 
-        self.assertEquals(context.ExternalPortContext()(), {})
+        self.assertEqual(context.ExternalPortContext()(), {})
 
     @patch('charmhelpers.contrib.openstack.context.is_phy_iface',
            lambda arg: True)
@@ -3966,7 +3966,7 @@ class ContextTests(unittest.TestCase):
         config = fake_config({'ext-port': config_macs})
         self.config.side_effect = config
         mock_config.side_effect = config
-        self.assertEquals(context.ExternalPortContext()(),
+        self.assertEqual(context.ExternalPortContext()(),
                           {'ext_port': 'eth2', 'ext_port_mtu': 1234})
 
     @patch('charmhelpers.contrib.openstack.context.NeutronPortContext.'
@@ -3976,7 +3976,7 @@ class ContextTests(unittest.TestCase):
                                                'phybr1:eth1010 '
                                                'phybr1:eth1011'})
         mock_resolve.side_effect = lambda ports: ['eth1010']
-        self.assertEquals(context.DataPortContext()(),
+        self.assertEqual(context.DataPortContext()(),
                           {'eth1010': 'phybr1'})
 
     @patch.object(context, 'get_nic_hwaddr')
@@ -3999,7 +3999,7 @@ class ContextTests(unittest.TestCase):
         mock_get_nic_hwaddr.side_effect = lambda nic: extant_mac
         mock_resolve.side_effect = fake_resolve
 
-        self.assertEquals(context.DataPortContext()(),
+        self.assertEqual(context.DataPortContext()(),
                           {'eth1010': 'phybr1'})
 
     @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
@@ -4061,11 +4061,11 @@ class ContextTests(unittest.TestCase):
         api_ctxt = context.NeutronAPIContext()()
         for key in expected_keys:
             self.assertTrue(key in api_ctxt)
-        self.assertEquals(api_ctxt['polling_interval'], 2)
-        self.assertEquals(api_ctxt['rpc_response_timeout'], 60)
-        self.assertEquals(api_ctxt['report_interval'], 30)
-        self.assertEquals(api_ctxt['enable_nsg_logging'], False)
-        self.assertEquals(api_ctxt['global_physnet_mtu'], 1500)
+        self.assertEqual(api_ctxt['polling_interval'], 2)
+        self.assertEqual(api_ctxt['rpc_response_timeout'], 60)
+        self.assertEqual(api_ctxt['report_interval'], 30)
+        self.assertEqual(api_ctxt['enable_nsg_logging'], False)
+        self.assertEqual(api_ctxt['global_physnet_mtu'], 1500)
         self.assertIsNone(api_ctxt['physical_network_mtus'])
 
     def setup_neutron_api_context_relation(self, cfg):
@@ -4081,7 +4081,7 @@ class ContextTests(unittest.TestCase):
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertTrue(api_ctxt['enable_qos'])
-        self.assertEquals(api_ctxt['extension_drivers'], 'qos')
+        self.assertEqual(api_ctxt['extension_drivers'], 'qos')
 
     def test_neutronapicontext_extension_drivers_qos_off(self):
         self.setup_neutron_api_context_relation({
@@ -4089,28 +4089,28 @@ class ContextTests(unittest.TestCase):
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertFalse(api_ctxt['enable_qos'])
-        self.assertEquals(api_ctxt['extension_drivers'], '')
+        self.assertEqual(api_ctxt['extension_drivers'], '')
 
     def test_neutronapicontext_extension_drivers_qos_absent(self):
         self.setup_neutron_api_context_relation({
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
         self.assertFalse(api_ctxt['enable_qos'])
-        self.assertEquals(api_ctxt['extension_drivers'], '')
+        self.assertEqual(api_ctxt['extension_drivers'], '')
 
     def test_neutronapicontext_extension_drivers_log_off(self):
         self.setup_neutron_api_context_relation({
             'enable-nsg-logging': 'False',
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['extension_drivers'], '')
+        self.assertEqual(api_ctxt['extension_drivers'], '')
 
     def test_neutronapicontext_extension_drivers_log_on(self):
         self.setup_neutron_api_context_relation({
             'enable-nsg-logging': 'True',
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['extension_drivers'], 'log')
+        self.assertEqual(api_ctxt['extension_drivers'], 'log')
 
     def test_neutronapicontext_extension_drivers_log_qos_on(self):
         self.setup_neutron_api_context_relation({
@@ -4118,7 +4118,7 @@ class ContextTests(unittest.TestCase):
             'enable-nsg-logging': 'True',
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['extension_drivers'], 'qos,log')
+        self.assertEqual(api_ctxt['extension_drivers'], 'qos,log')
 
     def test_neutronapicontext_firewall_group_logging_on(self):
         self.setup_neutron_api_context_relation({
@@ -4126,7 +4126,7 @@ class ContextTests(unittest.TestCase):
             'l2-population': 'True'
         })
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['enable_nfg_logging'], True)
+        self.assertEqual(api_ctxt['enable_nfg_logging'], True)
 
     def test_neutronapicontext_firewall_group_logging_off(self):
         self.setup_neutron_api_context_relation({
@@ -4134,7 +4134,7 @@ class ContextTests(unittest.TestCase):
             'l2-population': 'True'
         })
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['enable_nfg_logging'], False)
+        self.assertEqual(api_ctxt['enable_nfg_logging'], False)
 
     def test_neutronapicontext_port_forwarding_on(self):
         self.setup_neutron_api_context_relation({
@@ -4142,7 +4142,7 @@ class ContextTests(unittest.TestCase):
             'l2-population': 'True'
         })
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['enable_port_forwarding'], True)
+        self.assertEqual(api_ctxt['enable_port_forwarding'], True)
 
     def test_neutronapicontext_port_forwarding_off(self):
         self.setup_neutron_api_context_relation({
@@ -4150,26 +4150,26 @@ class ContextTests(unittest.TestCase):
             'l2-population': 'True'
         })
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['enable_port_forwarding'], False)
+        self.assertEqual(api_ctxt['enable_port_forwarding'], False)
 
     def test_neutronapicontext_string_converted(self):
         self.setup_neutron_api_context_relation({
             'l2-population': 'True'})
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['l2_population'], True)
+        self.assertEqual(api_ctxt['l2_population'], True)
 
     def test_neutronapicontext_none(self):
         self.relation_ids.return_value = ['neutron-plugin-api:1']
         self.related_units.return_value = ['neutron-api/0']
         self.relation_get.return_value = {'l2-population': 'True'}
         api_ctxt = context.NeutronAPIContext()()
-        self.assertEquals(api_ctxt['network_device_mtu'], None)
+        self.assertEqual(api_ctxt['network_device_mtu'], None)
 
     def test_network_service_ctxt_no_units(self):
         self.relation_ids.return_value = []
         self.relation_ids.return_value = ['foo']
         self.related_units.return_value = []
-        self.assertEquals(context.NetworkServiceContext()(), {})
+        self.assertEqual(context.NetworkServiceContext()(), {})
 
     @patch.object(context.OSContextGenerator, 'context_complete')
     def test_network_service_ctxt_no_data(self, mock_context_complete):
@@ -4179,7 +4179,7 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
         self.relation_get.side_effect = relation.get
         mock_context_complete.return_value = False
-        self.assertEquals(context.NetworkServiceContext()(), {})
+        self.assertEqual(context.NetworkServiceContext()(), {})
 
     def test_network_service_ctxt_data(self):
         data_result = {
@@ -4202,7 +4202,7 @@ class ContextTests(unittest.TestCase):
         self.related_units.side_effect = rel.relation_units
         relation = FakeRelation(relation_data=QUANTUM_NETWORK_SERVICE_RELATION)
         self.relation_get.side_effect = relation.get
-        self.assertEquals(context.NetworkServiceContext()(), data_result)
+        self.assertEqual(context.NetworkServiceContext()(), data_result)
 
     def test_network_service_ctxt_data_api_version(self):
         data_result = {
@@ -4226,7 +4226,7 @@ class ContextTests(unittest.TestCase):
         relation = FakeRelation(
             relation_data=QUANTUM_NETWORK_SERVICE_RELATION_VERSIONED)
         self.relation_get.side_effect = relation.get
-        self.assertEquals(context.NetworkServiceContext()(), data_result)
+        self.assertEqual(context.NetworkServiceContext()(), data_result)
 
     def test_internal_endpoint_context(self):
         config = {'use-internal-endpoints': False}
@@ -4266,14 +4266,14 @@ class ContextTests(unittest.TestCase):
         mock_aa_object = context.AppArmorContext()
         # Test with invalid config
         self.config.return_value = 'NOTVALID'
-        self.assertEquals(mock_aa_object.__call__(), None)
+        self.assertEqual(mock_aa_object.__call__(), None)
 
     def test_apparmor_context_call_complain(self):
         ''' Tests for the apparmor context'''
         mock_aa_object = context.AppArmorContext()
         # Test complain mode
         self.config.return_value = 'complain'
-        self.assertEquals(mock_aa_object.__call__(),
+        self.assertEqual(mock_aa_object.__call__(),
                           {'aa_profile_mode': 'complain',
                            'ubuntu_release': '16.04'})
 
@@ -4282,7 +4282,7 @@ class ContextTests(unittest.TestCase):
         mock_aa_object = context.AppArmorContext()
         # Test enforce mode
         self.config.return_value = 'enforce'
-        self.assertEquals(mock_aa_object.__call__(),
+        self.assertEqual(mock_aa_object.__call__(),
                           {'aa_profile_mode': 'enforce',
                            'ubuntu_release': '16.04'})
 
@@ -4291,7 +4291,7 @@ class ContextTests(unittest.TestCase):
         mock_aa_object = context.AppArmorContext()
         # Test complain mode
         self.config.return_value = 'disable'
-        self.assertEquals(mock_aa_object.__call__(),
+        self.assertEqual(mock_aa_object.__call__(),
                           {'aa_profile_mode': 'disable',
                            'ubuntu_release': '16.04'})
 
@@ -4428,7 +4428,7 @@ class ContextTests(unittest.TestCase):
             'logrotate_interval': 'weekly',
             'logrotate_count': 'rotate 4',
         }
-        self.assertEquals(ctxt, expected_ctxt)
+        self.assertEqual(ctxt, expected_ctxt)
 
     @patch.object(context, 'os_release')
     def test_vendordata_static(self, os_release):

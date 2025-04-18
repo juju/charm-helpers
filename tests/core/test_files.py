@@ -27,6 +27,6 @@ class FileTests(unittest.TestCase):
         files.sed(tmp.name, "IPV6=.*", "IPV6=no")
 
         with open(tmp.name) as tmp:
-            self.assertEquals(tmp.read(), "IPV6=no")
+            self.assertEqual(tmp.read(), "IPV6=no")
 
         os.unlink(tmp.name)

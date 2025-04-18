@@ -63,9 +63,9 @@ class TestStrUtils(unittest.TestCase):
             _list = ('zomg', 'bartlet', 'over', 'and')
 
         x = MyComparator('zomg')
-        self.assertEquals(x.index, 0)
+        self.assertEqual(x.index, 0)
         y = MyComparator('over')
-        self.assertEquals(y.index, 2)
+        self.assertEqual(y.index, 2)
         self.assertTrue(x == 'zomg')
         self.assertTrue(x != 'bartlet')
         self.assertTrue(x == x)

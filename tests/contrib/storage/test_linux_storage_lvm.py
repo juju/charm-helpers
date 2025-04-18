@@ -61,14 +61,14 @@ class LVMStorageUtilsTests(unittest.TestCase):
         with patch(STORAGE_LINUX_LVM + '.check_output') as check_output:
             check_output.return_value = PVDISPLAY
             vg = lvm.list_lvm_volume_group('/dev/loop0')
-            self.assertEquals(vg, 'foo')
+            self.assertEqual(vg, 'foo')
 
     def test_find_empty_volume_group_on_pv(self):
         """Return empty string when no volume group is assigned to the PV"""
         with patch(STORAGE_LINUX_LVM + '.check_output') as check_output:
             check_output.return_value = EMPTY_VG_IN_PVDISPLAY
             vg = lvm.list_lvm_volume_group('/dev/loop0')
-            self.assertEquals(vg, '')
+            self.assertEqual(vg, '')
 
     @patch(STORAGE_LINUX_LVM + '.list_lvm_volume_group')
     def test_deactivate_lvm_volume_groups(self, ls_vg):

@@ -200,7 +200,7 @@ class TestOVS(test_utils.BaseTestCase):
             {'_uuid': fake_uuid},
         ]
         self.SimpleOVSDB.return_value = ovsdb
-        self.assertEquals(ovs.uuid_for_port('fake-port'), fake_uuid)
+        self.assertEqual(ovs.uuid_for_port('fake-port'), fake_uuid)
         ovsdb.port.find.assert_called_once_with('name=fake-port')
 
     def test_bridge_for_port(self):
@@ -214,7 +214,7 @@ class TestOVS(test_utils.BaseTestCase):
             },
         ]
         self.SimpleOVSDB.return_value = ovsdb
-        self.assertEquals(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
+        self.assertEqual(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
         # If there is a single port on a bridge the ports property will not be
         # a list. ref: juju/charm-helpers#510
         ovsdb.bridge.__iter__.return_value = [
@@ -223,7 +223,7 @@ class TestOVS(test_utils.BaseTestCase):
                 'ports': fake_uuid,
             },
         ]
-        self.assertEquals(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
+        self.assertEqual(ovs.bridge_for_port(fake_uuid), 'fake-bridge')
 
     def test_patch_ports_on_bridge(self):
         self.patch_object(ovs.ch_ovsdb, 'SimpleOVSDB')
@@ -258,7 +258,7 @@ class TestOVS(test_utils.BaseTestCase):
         self.SimpleOVSDB.return_value = ovsdb
         self.bridge_for_port.side_effect = ['some-other-bridge', 'fake-bridge', 'fake-peer-bridge']
         for patch in ovs.patch_ports_on_bridge('fake-bridge'):
-            self.assertEquals(
+            self.assertEqual(
                 patch,
                 ovs.Patch(
                     this_end=ovs.PatchPort(

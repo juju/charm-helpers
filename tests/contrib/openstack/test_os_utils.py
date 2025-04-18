@@ -279,19 +279,19 @@ class UtilsTests(unittest.TestCase):
         f = utils.sequence_status_check_functions(f1, f2, f3)
         expected = ('blocked', 'status 1, status 2, status 3')
         result = f(mock.Mock())
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         # empty status must be replaced by "unknown"
         f4 = mock.Mock(return_value=('', 'status 4'))
         f5 = mock.Mock(return_value=('', 'status 5'))
         f = utils.sequence_status_check_functions(f4, f5)
         expected = ('unknown', 'status 4, status 5')
         result = f(mock.Mock())
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
         # sequencing 0 status checks must return state 'unknown', ''
         f = utils.sequence_status_check_functions()
         expected = ('unknown', '')
         result = f(mock.Mock())
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @mock.patch.object(utils, 'relation_get')
     @mock.patch.object(utils, 'related_units')
@@ -337,18 +337,18 @@ class UtilsTests(unittest.TestCase):
         ]
         # None of the subordinate relations have information about rocky or
         # earlier for deb installations
-        self.assertEquals(
+        self.assertEqual(
             utils.get_subordinate_release_packages('rocky'),
             utils.SubordinatePackages(set(), set()))
         # Information on most recent earlier release with matching package
         # type will be provided when requesting a release not specifically
         # provided by subordinates
-        self.assertEquals(
+        self.assertEqual(
             utils.get_subordinate_release_packages(
                 'rocky', package_type='snap'),
             utils.SubordinatePackages(
                 {'q_inst'}, {'q_purg'}))
-        self.assertEquals(
+        self.assertEqual(
             utils.get_subordinate_release_packages('train'),
             utils.SubordinatePackages(
                 {'s_inst'}, {'s_purg'}))
@@ -361,7 +361,7 @@ class UtilsTests(unittest.TestCase):
             json.dumps(rdata),
             json.dumps(rdata2),
         ]
-        self.assertEquals(
+        self.assertEqual(
             utils.get_subordinate_release_packages('train'),
             utils.SubordinatePackages(
                 {'s_inst', 't_inst'}, {'s_purg', 't_purg'}))
@@ -371,7 +371,7 @@ class UtilsTests(unittest.TestCase):
             json.dumps(rdata),
             None,
         ]
-        self.assertEquals(
+        self.assertEqual(
             utils.get_subordinate_release_packages('train'),
             utils.SubordinatePackages(
                 {'s_inst'}, {'s_purg'}))

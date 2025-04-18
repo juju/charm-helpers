@@ -41,7 +41,7 @@ class FetchTest(TestCase):
         import yum
         yum.YumBase.return_value.doPackageLists.return_value = yum_dict
         result = fetch.filter_installed_packages(['vim', 'emacs'])
-        self.assertEquals(result, ['emacs'])
+        self.assertEqual(result, ['emacs'])
 
     @patch("charmhelpers.fetch.log")
     def test_filter_packages_none_missing_centos(self, log):
@@ -61,7 +61,7 @@ class FetchTest(TestCase):
         import yum
         yum.yumBase.return_value.doPackageLists.return_value = yum_dict
         result = fetch.filter_installed_packages(['vim'])
-        self.assertEquals(result, [])
+        self.assertEqual(result, [])
 
     @patch('charmhelpers.fetch.centos.log')
     @patch('yum.YumBase.doPackageLists')
@@ -80,7 +80,7 @@ class FetchTest(TestCase):
         yum.YumBase.return_value.doPackageLists.return_value = yum_dict
 
         result = fetch.filter_installed_packages(['vim', 'joe'])
-        self.assertEquals(result, ['joe'])
+        self.assertEqual(result, ['joe'])
 
     @patch('charmhelpers.fetch.centos.log')
     def test_add_source_none_centos(self, log):

@@ -88,7 +88,7 @@ class TestOVN(test_utils.BaseTestCase):
     def test_cluster_status(self):
         self.patch_object(ovn, 'ovn_appctl')
         self.ovn_appctl.return_value = CLUSTER_STATUS
-        self.assertEquals(ovn.cluster_status('ovnnb_db'),
+        self.assertEqual(ovn.cluster_status('ovnnb_db'),
                           CLUSTER_STATUS_OBJECT)
         self.ovn_appctl.assert_called_once_with('ovnnb_db', ('cluster/status',
                                                 'OVN_Northbound'),

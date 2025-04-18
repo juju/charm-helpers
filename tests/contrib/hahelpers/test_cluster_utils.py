@@ -149,7 +149,7 @@ class ClusterUtilsTests(TestCase):
         peers = ['peer_node/1', 'peer_node/2']
         self.relation_ids.return_value = ['cluster:0']
         self.relation_list.return_value = peers
-        self.assertEquals(peers, cluster_utils.peer_units())
+        self.assertEqual(peers, cluster_utils.peer_units())
 
     def test_peer_ips(self):
         '''Get a dict of peers and their ips'''
@@ -163,7 +163,7 @@ class ClusterUtilsTests(TestCase):
         self.relation_ids.return_value = ['cluster:0']
         self.relation_list.return_value = peers.keys()
         self.relation_get.side_effect = _relation_get
-        self.assertEquals(peers, cluster_utils.peer_ips())
+        self.assertEqual(peers, cluster_utils.peer_ips())
 
     @patch('os.getenv')
     def test_is_oldest_peer(self, getenv):
@@ -280,7 +280,7 @@ class ClusterUtilsTests(TestCase):
         '''It determines API port in presence of peers'''
         peer_units.return_value = ['peer1']
         https.return_value = False
-        self.assertEquals(9686, cluster_utils.determine_api_port(9696))
+        self.assertEqual(9686, cluster_utils.determine_api_port(9696))
 
     @patch.object(cluster_utils, 'https')
     @patch.object(cluster_utils, 'peer_units')
@@ -289,7 +289,7 @@ class ClusterUtilsTests(TestCase):
         peer_units.return_value = []
         https.return_value = False
         port = cluster_utils.determine_api_port(9696, singlenode_mode=True)
-        self.assertEquals(9686, port)
+        self.assertEqual(9686, port)
 
     @patch.object(cluster_utils, 'is_clustered')
     @patch.object(cluster_utils, 'https')
@@ -300,7 +300,7 @@ class ClusterUtilsTests(TestCase):
         peer_units.return_value = []
         is_clustered.return_value = True
         https.return_value = False
-        self.assertEquals(9686, cluster_utils.determine_api_port(9696))
+        self.assertEqual(9686, cluster_utils.determine_api_port(9696))
 
     @patch.object(cluster_utils, 'is_clustered')
     @patch.object(cluster_utils, 'https')
@@ -311,13 +311,13 @@ class ClusterUtilsTests(TestCase):
         peer_units.return_value = []
         is_clustered.return_value = True
         https.return_value = True
-        self.assertEquals(9676, cluster_utils.determine_api_port(9696))
+        self.assertEqual(9676, cluster_utils.determine_api_port(9696))
 
     @patch.object(cluster_utils, 'https')
     def test_determine_apache_port_https(self, https):
         '''It determines haproxy port with https enabled'''
         https.return_value = True
-        self.assertEquals(9696, cluster_utils.determine_apache_port(9696))
+        self.assertEqual(9696, cluster_utils.determine_apache_port(9696))
 
     @patch.object(cluster_utils, 'https')
     @patch.object(cluster_utils, 'is_clustered')
@@ -325,7 +325,7 @@ class ClusterUtilsTests(TestCase):
         '''It determines haproxy port with https disabled'''
         https.return_value = True
         is_clustered.return_value = True
-        self.assertEquals(9686, cluster_utils.determine_apache_port(9696))
+        self.assertEqual(9686, cluster_utils.determine_apache_port(9696))
 
     @patch.object(cluster_utils, 'peer_units')
     @patch.object(cluster_utils, 'https')
@@ -338,7 +338,7 @@ class ClusterUtilsTests(TestCase):
         https.return_value = False
         is_clustered.return_value = False
         port = cluster_utils.determine_apache_port(9696, singlenode_mode=True)
-        self.assertEquals(9686, port)
+        self.assertEqual(9686, port)
 
     @patch.object(cluster_utils, 'valid_hacluster_config')
     def test_get_hacluster_config_complete(self, valid_hacluster_config):
@@ -359,7 +359,7 @@ class ClusterUtilsTests(TestCase):
             return conf[setting]
 
         self.config_get.side_effect = _fake_config_get
-        self.assertEquals(conf, cluster_utils.get_hacluster_config())
+        self.assertEqual(conf, cluster_utils.get_hacluster_config())
 
     @patch.object(cluster_utils, 'valid_hacluster_config')
     def test_get_hacluster_config_incomplete(self, valid_hacluster_config):
@@ -399,7 +399,7 @@ class ClusterUtilsTests(TestCase):
         exclude_keys = ['vip', 'os-admin-hostname', 'os-internal-hostname',
                         'os-public-hostname', 'os-access-hostname']
         result = cluster_utils.get_hacluster_config(exclude_keys)
-        self.assertEquals(conf, result)
+        self.assertEqual(conf, result)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_bare(self, is_clustered):
@@ -410,7 +410,7 @@ class ClusterUtilsTests(TestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
         url = cluster_utils.canonical_url(configs)
-        self.assertEquals('http://foohost1', url)
+        self.assertEqual('http://foohost1', url)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_https_no_cluster(self, is_clustered):
@@ -421,7 +421,7 @@ class ClusterUtilsTests(TestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         url = cluster_utils.canonical_url(configs)
-        self.assertEquals('https://foohost1', url)
+        self.assertEqual('https://foohost1', url)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_https_cluster(self, is_clustered):
@@ -432,7 +432,7 @@ class ClusterUtilsTests(TestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         url = cluster_utils.canonical_url(configs)
-        self.assertEquals('https://10.0.0.1', url)
+        self.assertEqual('https://10.0.0.1', url)
 
     @patch.object(cluster_utils, 'is_clustered')
     def test_canonical_url_cluster_no_https(self, is_clustered):
@@ -444,7 +444,7 @@ class ClusterUtilsTests(TestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
         url = cluster_utils.canonical_url(configs)
-        self.assertEquals('http://10.0.0.1', url)
+        self.assertEqual('http://10.0.0.1', url)
 
     @patch.object(cluster_utils, 'status_set')
     def test_valid_hacluster_config_incomplete(self, status_set):

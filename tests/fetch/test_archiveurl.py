@@ -112,7 +112,7 @@ class ArchiveUrlFetchHandlerTest(TestCase):
         self.fh.download = MagicMock()
         url = "file://example.com/foo.tar.bz2#sha512=a&sha512=b"
         with patch.dict('os.environ', {'CHARM_DIR': 'foo'}):
-            with self.assertRaisesRegexp(
+            with self.assertRaisesRegex(
                     TypeError, "Expected 1 hash value, not 2"):
                 self.fh.install(url)
 
