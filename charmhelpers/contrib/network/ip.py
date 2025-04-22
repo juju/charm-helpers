@@ -384,7 +384,6 @@ def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
             key_scope_link_local = re.compile("^fe80::..(.+)%(.+)")
             m = re.match(key_scope_link_local, addr)
             if m:
-                eui_64_mac = m.group(1)
                 iface = m.group(2)
             else:
                 global_addrs.append(addr)
@@ -407,8 +406,7 @@ def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
                     # Return the first valid address we find
                     for addr in global_addrs:
                         if m.group(1) == addr:
-                            if not dynamic_only or \
-                                    m.group(1).endswith(eui_64_mac):
+                            if not dynamic_only or 'dynamic' in line:
                                 addrs.append(addr)
 
             if addrs:
@@ -470,7 +468,9 @@ def ns_query(address):
 
     try:
         answers = dns.resolver.query(address, rtype)
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
+        # If we hit a non-authoritative recursor it's going
+        # to raise a dns.resolver.NoAnswer exception
+    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
         return None
 
     if answers:
