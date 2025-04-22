@@ -3032,7 +3032,7 @@ class ContextTests(unittest.TestCase):
         # Test apache2 context also loads required apache modules
         apache = context.ApacheSSLContext()
         apache.enable_modules()
-        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
+        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         self.check_call.assert_called_with(ex_cmd)
 
     def test_https_configure_cert(self):
@@ -3655,6 +3655,13 @@ class ContextTests(unittest.TestCase):
             "wsgi_socket_rotation": False,
         }
         self.assertEqual(expect, ctxt())
+
+    def test_wsgi_worker_config_context_apache_mods(self):
+        # Test apache2 context also loads required apache modules
+        apache = context.WSGIWorkerConfigContext()
+        apache.enable_modules()
+        ex_cmd = ['a2enmod', 'remoteip']
+        self.check_call.assert_called_with(ex_cmd)
 
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
