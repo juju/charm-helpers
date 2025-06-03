@@ -137,7 +137,10 @@ def is_ipv6(address):
     if not address:
         return False
     try:
-        address = netaddr.IPAddress(address)
+        if address:
+            address = netaddr.IPAddress(address)
+        else:
+            return False
     except netaddr.AddrFormatError:
         # probably a hostname - so not an address at all!
         return False
@@ -162,7 +165,10 @@ def is_address_in_network(network, address):
                          network)
 
     try:
-        address = netaddr.IPAddress(address)
+        if address:
+            address = netaddr.IPAddress(address)
+        else:
+            return False
     except (netaddr.core.AddrFormatError, ValueError):
         raise ValueError("Address (%s) is not in correct presentation format" %
                          address)
@@ -183,7 +189,10 @@ def _get_for_address(address, key):
         of the configured interface, for example 'netmask'.
     :returns str: Requested attribute or None if address is not bindable.
     """
-    address = netaddr.IPAddress(address)
+    if address:
+        address = netaddr.IPAddress(address)
+    else:
+        return None
     for iface in netifaces.interfaces():
         addresses = netifaces.ifaddresses(iface)
         if address.version == 4 and netifaces.AF_INET in addresses:
@@ -448,7 +457,10 @@ def is_ip(address):
     """
     try:
         # Test to see if already an IPv4/IPv6 address
-        address = netaddr.IPAddress(address)
+        if address:
+            address = netaddr.IPAddress(address)
+        else:
+            return False
         return True
     except (netaddr.AddrFormatError, ValueError):
         return False
