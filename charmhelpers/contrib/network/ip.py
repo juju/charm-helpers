@@ -469,8 +469,17 @@ def ns_query(address):
         return None
 
     try:
-        answers = dns.resolver.query(address, rtype)
+        resolv = dns.resolver.Resolver()
+        resolv.lifetime = config('dns-query-timeout') or 5.0
+        if hasattr(resolv, 'resolve'):
+            answers = resolv.resolve(address, rtype)
+        else:
+            answers = resolv.query(address, rtype)
     except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
+        return None
+    except dns.exception.Timeout:
+        log("DNS query timed out for address {} with rtype {} and timeout "
+            "{}".format(address, rtype, resolv.lifetime), level=WARNING)
         return None
 
     if answers:
