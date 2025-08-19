@@ -256,7 +256,7 @@ def validate_uses_tls_for_keystone(audit_options):
     section = _config_section(audit_options, 'keystone_authtoken')
     assert section is not None, "Missing section 'keystone_authtoken'"
     assert not section.get('insecure') and \
-        "https://" in section.get("auth_uri"), \
+        "https://" in section.get("www_authenticate_uri"), \
         "TLS is not used for Keystone"
 
 
