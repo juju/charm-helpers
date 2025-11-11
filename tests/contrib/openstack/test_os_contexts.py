@@ -2984,9 +2984,9 @@ class ContextTests(unittest.TestCase):
             'haproxy_enable_proxyv2': True,
         }
         # the context gets generated.
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
-        self.assertEquals(_file.write.call_args_list,
+        self.assertEqual(_file.write.call_args_list,
                           [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', None),
                                                call('internal', None),
