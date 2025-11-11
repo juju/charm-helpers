@@ -1037,6 +1037,9 @@ class HAProxyContext(OSContextGenerator):
         if config('haproxy-connect-timeout'):
             ctxt['haproxy_connect_timeout'] = config('haproxy-connect-timeout')
 
+        if config('haproxy-enable-proxyv2'):
+            ctxt['haproxy_enable_proxyv2'] = config('haproxy-enable-proxyv2')
+
         if config('prefer-ipv6'):
             ctxt['local_host'] = 'ip6-localhost'
             ctxt['haproxy_host'] = '::'
@@ -1128,7 +1131,8 @@ class ApacheSSLContext(OSContextGenerator):
     user = group = 'root'
 
     def enable_modules(self):
-        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
+        # NOTE(seyeongkim) : remoteip is for proxy protocol v2
+        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         check_call(cmd)
 
     def configure_cert(self, cn=None):
@@ -1261,6 +1265,8 @@ class ApacheSSLContext(OSContextGenerator):
                 ctxt['ext_ports'].append(int(ext_port))
 
         ctxt['ext_ports'] = sorted(list(set(ctxt['ext_ports'])))
+        if config('haproxy-enable-proxyv2'):
+            ctxt['haproxy_enable_proxyv2'] = config('haproxy-enable-proxyv2')
         return ctxt
 
 
@@ -1765,11 +1771,17 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         self.admin_process_weight = admin_process_weight
         self.public_process_weight = public_process_weight
 
+    def enable_modules(self):
+        # NOTE(seyeongkim): this is for proxy protocol v2 and non ssl case.
+        cmd = ['a2enmod', 'remoteip']
+        check_call(cmd)
+
     def __call__(self):
         total_processes = _calculate_workers()
         enable_wsgi_socket_rotation = config('wsgi-socket-rotation')
         if enable_wsgi_socket_rotation is None:
             enable_wsgi_socket_rotation = True
+        self.enable_modules()
         ctxt = {
             "service_name": self.service_name,
             "user": self.user,
@@ -1785,6 +1797,8 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
             "threads": 1,
             "wsgi_socket_rotation": enable_wsgi_socket_rotation,
         }
+        if config('haproxy-enable-proxyv2'):
+            ctxt['haproxy_enable_proxyv2'] = config('haproxy-enable-proxyv2')
         return ctxt
 
 
