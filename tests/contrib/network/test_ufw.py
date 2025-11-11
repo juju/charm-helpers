@@ -545,4 +545,4 @@ class TestUFW(unittest.TestCase):
             for n, r in ufw.status():
                 self.assertDictEqual(r, expect[n])
                 n_rules += 1
-            self.assertEquals(n_rules, 3)
+            self.assertEqual(n_rules, 3)

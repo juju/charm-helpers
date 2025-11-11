@@ -30,21 +30,21 @@ class HelperSyncTests(unittest.TestCase):
 
     def test_module_path(self):
         '''It converts a python module path to a filesystem path'''
-        self.assertEquals(sync._module_path('some.test.module'),
+        self.assertEqual(sync._module_path('some.test.module'),
                           'some/test/module')
 
     def test_src_path(self):
         '''It renders the correct path to module within charm-helpers tree'''
         path = sync._src_path(src='/tmp/charm-helpers',
                               module='contrib.openstack')
-        self.assertEquals('/tmp/charm-helpers/charmhelpers/contrib/openstack',
+        self.assertEqual('/tmp/charm-helpers/charmhelpers/contrib/openstack',
                           path)
 
     def test_dest_path(self):
         '''It correctly finds the correct install path within a charm'''
         path = sync._dest_path(dest='/tmp/mycharm/hooks/charmhelpers',
                                module='contrib.openstack')
-        self.assertEquals('/tmp/mycharm/hooks/charmhelpers/contrib/openstack',
+        self.assertEqual('/tmp/mycharm/hooks/charmhelpers/contrib/openstack',
                           path)
 
     @patch('builtins.open')
@@ -124,7 +124,7 @@ class HelperSyncTests(unittest.TestCase):
         '''It filters out all non-py files by default'''
         result = self._test_filter_dir(opts=None, isfile=isfile, isdir=isdir)
         ex = ['bad_file.bin', 'bad_file.img', 'some_dir']
-        self.assertEquals(sorted(ex), sorted(result))
+        self.assertEqual(sorted(ex), sorted(result))
 
     @patch('os.path.isdir')
     @patch('os.path.isfile')
@@ -133,13 +133,13 @@ class HelperSyncTests(unittest.TestCase):
         result = sorted(self._test_filter_dir(opts=['inc=*.img'],
                                               isfile=isfile, isdir=isdir))
         ex = sorted(['bad_file.bin', 'some_dir'])
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
 
     @patch('os.path.isdir')
     @patch('os.path.isfile')
     def test_filter_dir_include_all(self, isfile, isdir):
         '''It does not filter anything if option specified to include all'''
-        self.assertEquals(sync.get_filter(opts=['inc=*']), None)
+        self.assertEqual(sync.get_filter(opts=['inc=*']), None)
 
     @patch('tools.charm_helpers_sync.charm_helpers_sync.get_filter')
     @patch('tools.charm_helpers_sync.charm_helpers_sync.ensure_init')
@@ -233,7 +233,7 @@ class HelperSyncTests(unittest.TestCase):
         [ex_calls.append(
             call('/tmp/charm-helpers', 'hooks/charmhelpers', c, [])
         ) for c in mods]
-        self.assertEquals(ex_calls, _sync.call_args_list)
+        self.assertEqual(ex_calls, _sync.call_args_list)
 
     @patch('tools.charm_helpers_sync.charm_helpers_sync.sync')
     @patch('os.path.isdir')
@@ -265,14 +265,14 @@ class HelperSyncTests(unittest.TestCase):
         [ex_calls.append(
             call('/tmp/charm-helpers', 'hooks/charmhelpers', c, [])
         ) for c in mods]
-        self.assertEquals(ex_calls, _sync.call_args_list)
+        self.assertEqual(ex_calls, _sync.call_args_list)
 
     def test_extract_option_no_globals(self):
         '''It extracts option from an included item with no global options'''
         inc = 'contrib.openstack.templates|inc=*.template'
         result = sync.extract_options(inc)
         ex = ('contrib.openstack.templates', ['inc=*.template'])
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
 
     def test_extract_option_with_global_as_string(self):
         '''It extracts option for include with global options as str'''
@@ -280,14 +280,14 @@ class HelperSyncTests(unittest.TestCase):
         result = sync.extract_options(inc, global_options='inc=foo.*')
         ex = ('contrib.openstack.templates',
               ['inc=*.template', 'inc=foo.*'])
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
 
     def test_extract_option_with_globals(self):
         '''It extracts option from an included item with global options'''
         inc = 'contrib.openstack.templates|inc=*.template'
         result = sync.extract_options(inc, global_options=['inc=*.cfg'])
         ex = ('contrib.openstack.templates', ['inc=*.template', 'inc=*.cfg'])
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)
 
     def test_extract_multiple_options_with_globals(self):
         '''It extracts multiple options from an included item'''
@@ -295,4 +295,4 @@ class HelperSyncTests(unittest.TestCase):
         result = sync.extract_options(inc, global_options=['inc=*.cfg'])
         ex = ('contrib.openstack.templates',
               ['inc=*.template', 'inc=foo.*', 'inc=*.cfg'])
-        self.assertEquals(ex, result)
+        self.assertEqual(ex, result)

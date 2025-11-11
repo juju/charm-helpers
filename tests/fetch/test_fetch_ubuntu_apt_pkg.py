@@ -73,7 +73,7 @@ class Test_apt_pkg_Cache(unittest.TestCase):
             'Version: 4.91+dfsg-1ubuntu1\n'
             '\n'
             'N: There is 1 additional record.\n')
-        self.assertEquals(
+        self.assertEqual(
             apt_cache._apt_cache_show(['package']),
             {'dpkg': {
                 'package': 'dpkg', 'version': '1.19.0.5ubuntu2.1',
@@ -110,18 +110,18 @@ class Test_apt_pkg_Cache(unittest.TestCase):
                 'description': 'utility to list open files'
             },
         }
-        self.assertEquals(
+        self.assertEqual(
             apt_cache.dpkg_list(['package']), expect)
         self.check_output.side_effect = subprocess.CalledProcessError(
             1, '', output=self.check_output.return_value)
-        self.assertEquals(apt_cache.dpkg_list(['package']), expect)
+        self.assertEqual(apt_cache.dpkg_list(['package']), expect)
         self.check_output.side_effect = subprocess.CalledProcessError(2, '')
         with self.assertRaises(subprocess.CalledProcessError):
             _ = apt_cache.dpkg_list(['package'])
 
     def test_version_compare(self):
         self.patch_object(apt_pkg.subprocess, 'check_call')
-        self.assertEquals(apt_pkg.version_compare('2', '1'), 1)
+        self.assertEqual(apt_pkg.version_compare('2', '1'), 1)
         self.check_call.assert_called_once_with(
             ['dpkg', '--compare-versions', '2', 'gt', '1'],
             stderr=subprocess.STDOUT,
@@ -131,13 +131,13 @@ class Test_apt_pkg_Cache(unittest.TestCase):
             None,
             None,
         ]
-        self.assertEquals(apt_pkg.version_compare('2', '2'), 0)
+        self.assertEqual(apt_pkg.version_compare('2', '2'), 0)
         self.check_call.side_effect = [
             subprocess.CalledProcessError(1, '', ''),
             subprocess.CalledProcessError(1, '', ''),
             None,
         ]
-        self.assertEquals(apt_pkg.version_compare('1', '2'), -1)
+        self.assertEqual(apt_pkg.version_compare('1', '2'), -1)
         self.check_call.side_effect = subprocess.CalledProcessError(2, '', '')
         self.assertRaises(subprocess.CalledProcessError,
                           apt_pkg.version_compare, '2', '2')
@@ -161,9 +161,9 @@ class Test_apt_pkg_Cache(unittest.TestCase):
              'dpkg-query: no packages found matching test\n'),
         ]
         pkg = apt_cache['dpkg']
-        self.assertEquals(pkg.name, 'dpkg')
-        self.assertEquals(pkg.current_ver.ver_str, '1.19.0.5ubuntu2.1')
-        self.assertEquals(pkg.architecture, 'amd64')
+        self.assertEqual(pkg.name, 'dpkg')
+        self.assertEqual(pkg.current_ver.ver_str, '1.19.0.5ubuntu2.1')
+        self.assertEqual(pkg.architecture, 'amd64')
         self.check_output.side_effect = [
             subprocess.CalledProcessError(100, ''),
             subprocess.CalledProcessError(1, ''),

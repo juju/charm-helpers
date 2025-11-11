@@ -73,11 +73,11 @@ class ApacheUtilsTests(TestCase):
             'some_ca_key',  # config_Get('ssl_key')
         ]
         result = apache_utils.get_cert('test-cn')
-        self.assertEquals(('some_ca_cert', 'some_ca_key'), result)
+        self.assertEqual(('some_ca_cert', 'some_ca_key'), result)
 
     def test_get_ca_cert_from_config(self):
         self.config_get.return_value = "some_ca_cert"
-        self.assertEquals('some_ca_cert', apache_utils.get_ca_cert())
+        self.assertEqual('some_ca_cert', apache_utils.get_ca_cert())
 
     def test_get_cert_from_relation(self):
         self.config_get.return_value = None
@@ -86,7 +86,7 @@ class ApacheUtilsTests(TestCase):
         self.relation_list.side_effect = rel.relation_units
         self.relation_get.side_effect = rel.get
         result = apache_utils.get_cert('test-cn')
-        self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
+        self.assertEqual(('keystone_provided_cert', 'keystone_provided_key'),
                           result)
 
     def test_get_cert_from_relation_deprecated(self):
@@ -96,7 +96,7 @@ class ApacheUtilsTests(TestCase):
         self.relation_list.side_effect = rel.relation_units
         self.relation_get.side_effect = rel.get
         result = apache_utils.get_cert()
-        self.assertEquals(('keystone_provided_cert', 'keystone_provided_key'),
+        self.assertEqual(('keystone_provided_cert', 'keystone_provided_key'),
                           result)
 
     def test_get_ca_cert_from_relation(self):
@@ -110,7 +110,7 @@ class ApacheUtilsTests(TestCase):
         result = apache_utils.get_ca_cert()
         self.relation_ids.assert_has_calls([call('identity-service'),
                                             call('identity-credentials')])
-        self.assertEquals('keystone_provided_ca',
+        self.assertEqual('keystone_provided_ca',
                           result)
 
     @patch.object(apache_utils.os.path, 'isfile')

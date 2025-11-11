@@ -187,7 +187,7 @@ class OpenStackHelpersTestCase(TestCase):
         def _filter_missing_packages(pkgs):
             return [x for x in pkgs if x in ['cinder-common']]
         mock_filter.side_effect = _filter_missing_packages
-        self.assertEquals(
+        self.assertEqual(
             openstack.get_installed_semantic_versioned_packages(),
             ['cinder-common'])
 
@@ -197,41 +197,41 @@ class OpenStackHelpersTestCase(TestCase):
         mocked_lsb.return_value = FAKE_RELEASE
 
         # the openstack release shipped with respective ubuntu/lsb release.
-        self.assertEquals(openstack.get_os_codename_install_source('distro'),
+        self.assertEqual(openstack.get_os_codename_install_source('distro'),
                           'essex')
         # proposed pocket
-        self.assertEquals(openstack.get_os_codename_install_source(
+        self.assertEqual(openstack.get_os_codename_install_source(
             'distro-proposed'),
             'essex')
-        self.assertEquals(openstack.get_os_codename_install_source(
+        self.assertEqual(openstack.get_os_codename_install_source(
             'proposed'),
             'essex')
 
         # various cloud archive pockets
         src = 'cloud:precise-grizzly'
-        self.assertEquals(openstack.get_os_codename_install_source(src),
+        self.assertEqual(openstack.get_os_codename_install_source(src),
                           'grizzly')
         src = 'cloud:precise-grizzly/proposed'
-        self.assertEquals(openstack.get_os_codename_install_source(src),
+        self.assertEqual(openstack.get_os_codename_install_source(src),
                           'grizzly')
 
         # ppas and full repo urls.
         src = 'ppa:openstack-ubuntu-testing/havana-trunk-testing'
-        self.assertEquals(openstack.get_os_codename_install_source(src),
+        self.assertEqual(openstack.get_os_codename_install_source(src),
                           'havana')
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main')
-        self.assertEquals(openstack.get_os_codename_install_source(src),
+        self.assertEqual(openstack.get_os_codename_install_source(src),
                           'havana')
-        self.assertEquals(openstack.get_os_codename_install_source(None),
+        self.assertEqual(openstack.get_os_codename_install_source(None),
                           '')
 
         # check that bare ubuntu releases end up as the release.
-        self.assertEquals(openstack.get_os_codename_install_source('essex'),
+        self.assertEqual(openstack.get_os_codename_install_source('essex'),
                           'essex')
-        self.assertEquals(openstack.get_os_codename_install_source('ussuri'),
+        self.assertEqual(openstack.get_os_codename_install_source('ussuri'),
                           'ussuri')
-        self.assertEquals(openstack.get_os_codename_install_source('queens'),
+        self.assertEqual(openstack.get_os_codename_install_source('queens'),
                           'queens')
 
     @patch.object(openstack, 'get_os_version_codename')
@@ -257,7 +257,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_os_codename_from_version(self):
         """Test mapping OpenStack numerical versions to code name"""
-        self.assertEquals(openstack.get_os_codename_version('2013.1'),
+        self.assertEqual(openstack.get_os_codename_version('2013.1'),
                           'grizzly')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
@@ -270,7 +270,7 @@ class OpenStackHelpersTestCase(TestCase):
 
     def test_os_version_from_codename(self):
         """Test mapping a OpenStack codename to numerical version"""
-        self.assertEquals(openstack.get_os_version_codename('folsom'),
+        self.assertEqual(openstack.get_os_version_codename('folsom'),
                           '2012.2')
 
     @patch('charmhelpers.contrib.openstack.utils.error_out')
@@ -284,24 +284,24 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.get_os_version_codename('foo', raise_exception=True)
             raise Exception("Failed call should have raised ValueError")
         except ValueError as e:
-            self.assertEquals(e.args[0],
+            self.assertEqual(e.args[0],
                               "Could not derive OpenStack version for codename: foo")
 
     def test_get_swift_codename_single_version_kilo(self):
-        self.assertEquals(openstack.get_swift_codename('2.2.2'), 'kilo')
+        self.assertEqual(openstack.get_swift_codename('2.2.2'), 'kilo')
 
     def test_get_swift_codename_multiple_versions_liberty(self):
         with patch('subprocess.check_output') as _subp:
             _subp.return_value = b"... trusty-updates/liberty/main ..."
-            self.assertEquals(openstack.get_swift_codename('2.5.0'), 'liberty')
+            self.assertEqual(openstack.get_swift_codename('2.5.0'), 'liberty')
 
     def test_get_swift_codename_multiple_versions_mitaka(self):
         with patch('subprocess.check_output') as _subp:
             _subp.return_value = b"... trusty-updates/mitaka/main ..."
-            self.assertEquals(openstack.get_swift_codename('2.5.0'), 'mitaka')
+            self.assertEqual(openstack.get_swift_codename('2.5.0'), 'mitaka')
 
     def test_get_swift_codename_none(self):
-        self.assertEquals(openstack.get_swift_codename('1.2.3'), None)
+        self.assertEqual(openstack.get_swift_codename('1.2.3'), None)
 
     @patch("charmhelpers.core.hookenv.cache", new={})
     @patch.object(openstack, 'openstack_release')
@@ -311,7 +311,7 @@ class OpenStackHelpersTestCase(TestCase):
                                                  mock_filter_installed_packages,
                                                  mock_openstack_release):
         mock_openstack_release.return_value = {}
-        self.assertEquals(
+        self.assertEqual(
             openstack.get_installed_os_version(), None)
 
     @patch("charmhelpers.core.hookenv.cache", new={})
@@ -322,7 +322,7 @@ class OpenStackHelpersTestCase(TestCase):
                                                    mock_filter_installed_packages,
                                                    mock_openstack_release):
         mock_openstack_release.return_value = {'OPENSTACK_CODENAME': 'wallaby'}
-        self.assertEquals(
+        self.assertEqual(
             openstack.get_installed_os_version(), 'wallaby')
 
     @patch.object(openstack, 'get_installed_os_version')
@@ -340,7 +340,7 @@ class OpenStackHelpersTestCase(TestCase):
                     continue
                 if 'pkg_vers' not in vers:
                     continue
-                self.assertEquals(openstack.get_os_codename_package(pkg),
+                self.assertEqual(openstack.get_os_codename_package(pkg),
                                   vers['os_release'])
 
     @patch.object(openstack, 'get_installed_os_version')
@@ -389,7 +389,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            self.assertEquals(
+            self.assertEqual(
                 None,
                 openstack.get_os_codename_package('foo', fatal=False)
             )
@@ -423,7 +423,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            self.assertEquals(
+            self.assertEqual(
                 None,
                 openstack.get_os_codename_package('cinder-common', fatal=False)
             )
@@ -444,7 +444,7 @@ class OpenStackHelpersTestCase(TestCase):
                     continue
                 if 'pkg_vers' not in vers:
                     continue
-                self.assertEquals(openstack.get_os_version_package(pkg),
+                self.assertEqual(openstack.get_os_version_package(pkg),
                                   vers['os_version'])
 
     @patch.object(openstack, 'get_installed_os_version')
@@ -478,7 +478,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_get_installed_os_version.return_value = None
         with patch.object(openstack, 'apt_cache') as cache:
             cache.return_value = self._apt_cache()
-            self.assertEquals(
+            self.assertEqual(
                 None,
                 openstack.get_os_version_package('foo', fatal=False)
             )
@@ -492,7 +492,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_lsb_release.return_value = {
             'DISTRIB_CODENAME': 'bionic',
         }
-        self.assertEquals('folsom', openstack.os_release('nova-common'))
+        self.assertEqual('folsom', openstack.os_release('nova-common'))
 
     @patch.object(openstack, 'lsb_release')
     def test_os_release_cached(self, mock_lsb_release):
@@ -500,7 +500,7 @@ class OpenStackHelpersTestCase(TestCase):
         mock_lsb_release.return_value = {
             'DISTRIB_CODENAME': 'bionic',
         }
-        self.assertEquals('foo', openstack.os_release('nova-common'))
+        self.assertEqual('foo', openstack.os_release('nova-common'))
 
     @patch.object(openstack, 'juju_log')
     @patch('sys.exit')
@@ -774,12 +774,12 @@ class OpenStackHelpersTestCase(TestCase):
         ensure_loopback.return_value = '/tmp/cinder.img'
         result = openstack.ensure_block_device('/tmp/cinder.img')
         ensure_loopback.assert_called_with('/tmp/cinder.img', defsize)
-        self.assertEquals(result, '/tmp/cinder.img')
+        self.assertEqual(result, '/tmp/cinder.img')
 
         ensure_loopback.return_value = '/tmp/cinder-2.img'
         result = openstack.ensure_block_device('/tmp/cinder-2.img|15G')
         ensure_loopback.assert_called_with('/tmp/cinder-2.img', '15G')
-        self.assertEquals(result, '/tmp/cinder-2.img')
+        self.assertEqual(result, '/tmp/cinder-2.img')
 
     @patch.object(openstack, 'is_block_device')
     def test_ensure_standard_block_device(self, is_bd):
@@ -1285,8 +1285,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             services)
-        self.assertEquals(state, None)
-        self.assertEquals(message, None)
+        self.assertEqual(state, None)
+        self.assertEqual(message, None)
 
     @patch('charmhelpers.contrib.openstack.utils.service_running')
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
@@ -1298,8 +1298,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             services)
-        self.assertEquals(state, 'blocked')
-        self.assertEquals(
+        self.assertEqual(state, 'blocked')
+        self.assertEqual(
             message,
             "Services should be paused but these services running: identity")
 
@@ -1317,8 +1317,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             services)
-        self.assertEquals(state, None)
-        self.assertEquals(message, None)
+        self.assertEqual(state, None)
+        self.assertEqual(message, None)
 
     @patch('charmhelpers.contrib.openstack.utils.service_running')
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
@@ -1334,8 +1334,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             services)
-        self.assertEquals(state, 'blocked')
-        self.assertEquals(
+        self.assertEqual(state, 'blocked')
+        self.assertEqual(
             message,
             "Services should be paused but these services running: identity")
 
@@ -1353,8 +1353,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             services)
-        self.assertEquals(state, 'blocked')
-        self.assertEquals(message,
+        self.assertEqual(state, 'blocked')
+        self.assertEqual(message,
                           'Services should be paused but these service:ports'
                           ' are open: database: [20]')
 
@@ -1368,8 +1368,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             ports=ports)
-        self.assertEquals(state, None)
-        self.assertEquals(state, None)
+        self.assertEqual(state, None)
+        self.assertEqual(state, None)
 
     @patch('charmhelpers.contrib.openstack.utils.service_running')
     @patch('charmhelpers.contrib.openstack.utils.port_has_listener')
@@ -1381,8 +1381,8 @@ class OpenStackHelpersTestCase(TestCase):
 
         state, message = openstack.check_actually_paused(
             ports=ports)
-        self.assertEquals(state, 'blocked')
-        self.assertEquals(message,
+        self.assertEqual(state, 'blocked')
+        self.assertEqual(message,
                           'Services should be paused but these ports '
                           'which should be closed, but are open: 60')
 
@@ -1430,10 +1430,10 @@ class OpenStackHelpersTestCase(TestCase):
         kv.get.return_value = True
         r = openstack.is_unit_paused_set()
         kv.get.assert_called_once_with('unit-paused')
-        self.assertEquals(r, True)
+        self.assertEqual(r, True)
         kv.get.return_value = False
         r = openstack.is_unit_paused_set()
-        self.assertEquals(r, False)
+        self.assertEqual(r, False)
 
     @patch('charmhelpers.contrib.openstack.utils.unitdata.HookData')
     def test_is_unit_upgrading_set(self, hook_data):
@@ -1441,10 +1441,10 @@ class OpenStackHelpersTestCase(TestCase):
         kv.get.return_value = True
         r = openstack.is_unit_upgrading_set()
         kv.get.assert_called_once_with('unit-upgrading')
-        self.assertEquals(r, True)
+        self.assertEqual(r, True)
         kv.get.return_value = False
         r = openstack.is_unit_upgrading_set()
-        self.assertEquals(r, False)
+        self.assertEqual(r, False)
 
     @patch.object(openstack, 'config')
     @patch.object(openstack, 'is_unit_paused_set')
@@ -1591,7 +1591,7 @@ class OpenStackHelpersTestCase(TestCase):
         service_pause.side_effect = [True, True]
         openstack.pause_unit(None, services=services)
         set_unit_paused.assert_called_once_with()
-        self.assertEquals(service_pause.call_count, 2)
+        self.assertEqual(service_pause.call_count, 2)
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
     @patch('charmhelpers.contrib.openstack.utils.set_unit_paused')
@@ -1600,14 +1600,14 @@ class OpenStackHelpersTestCase(TestCase):
         service_pause.side_effect = [True, True]
         openstack.pause_unit(None, services=services)
         set_unit_paused.assert_called_once_with()
-        self.assertEquals(service_pause.call_count, 2)
+        self.assertEqual(service_pause.call_count, 2)
         # Fail the 2nd service
         service_pause.side_effect = [True, False]
         try:
             openstack.pause_unit(None, services=services)
             raise Exception("pause_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(e.args[0],
+            self.assertEqual(e.args[0],
                               "Couldn't pause: service2 didn't pause cleanly.")
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
@@ -1627,7 +1627,7 @@ class OpenStackHelpersTestCase(TestCase):
                 None, services=services, charm_func=charm_func)
             raise Exception("pause_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(e.args[0],
+            self.assertEqual(e.args[0],
                               "Couldn't pause: Custom charm failed")
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
@@ -1646,7 +1646,7 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.pause_unit(assess_status_func, services=services)
             raise Exception("pause_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(e.args[0],
+            self.assertEqual(e.args[0],
                               "Couldn't pause: assess_status_func failed")
 
     @patch('charmhelpers.contrib.openstack.utils.service_pause')
@@ -1667,7 +1667,7 @@ class OpenStackHelpersTestCase(TestCase):
         service_resume.side_effect = [True, True]
         openstack.resume_unit(None, services=services)
         clear_unit_paused.assert_called_once_with()
-        self.assertEquals(service_resume.call_count, 2)
+        self.assertEqual(service_resume.call_count, 2)
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
     @patch('charmhelpers.contrib.openstack.utils.clear_unit_paused')
@@ -1677,14 +1677,14 @@ class OpenStackHelpersTestCase(TestCase):
         service_resume.side_effect = [True, True]
         openstack.resume_unit(None, services=services)
         clear_unit_paused.assert_called_once_with()
-        self.assertEquals(service_resume.call_count, 2)
+        self.assertEqual(service_resume.call_count, 2)
         # Fail the 2nd service
         service_resume.side_effect = [True, False]
         try:
             openstack.resume_unit(None, services=services)
             raise Exception("resume_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(
+            self.assertEqual(
                 e.args[0], "Couldn't resume: service2 didn't resume cleanly.")
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
@@ -1704,7 +1704,7 @@ class OpenStackHelpersTestCase(TestCase):
                 None, services=services, charm_func=charm_func)
             raise Exception("resume_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(e.args[0],
+            self.assertEqual(e.args[0],
                               "Couldn't resume: Custom charm failed")
 
     @patch('charmhelpers.contrib.openstack.utils.service_resume')
@@ -1723,7 +1723,7 @@ class OpenStackHelpersTestCase(TestCase):
             openstack.resume_unit(assess_status_func, services=services)
             raise Exception("resume_unit should have raised Exception")
         except Exception as e:
-            self.assertEquals(e.args[0],
+            self.assertEqual(e.args[0],
                               "Couldn't resume: assess_status_func failed")
 
     @patch('charmhelpers.contrib.openstack.utils.status_set')
@@ -1734,14 +1734,14 @@ class OpenStackHelpersTestCase(TestCase):
         _determine_os_workload_status.return_value = ('active', 'fine')
         f = openstack.make_assess_status_func('one', 'two', three='three')
         r = f()
-        self.assertEquals(r, None)
+        self.assertEqual(r, None)
         _determine_os_workload_status.assert_called_once_with(
             'one', 'two', three='three')
         status_set.assert_called_once_with('active', 'fine')
         # return something other than 'active' or 'maintenance'
         _determine_os_workload_status.return_value = ('broken', 'damaged')
         r = f()
-        self.assertEquals(r, 'damaged')
+        self.assertEqual(r, 'damaged')
 
     # TODO(ajkavanagh) -- there should be a test for
     # _determine_os_workload_status() as the policyd override code has changed
@@ -1758,12 +1758,12 @@ class OpenStackHelpersTestCase(TestCase):
         # test with pause: restart_on_change_helper should not be called.
         is_unit_paused_set.return_value = True
         test_func()
-        self.assertEquals(restart_on_change_helper.call_count, 0)
+        self.assertEqual(restart_on_change_helper.call_count, 0)
 
         # test without pause: restart_on_change_helper should be called.
         is_unit_paused_set.return_value = False
         test_func()
-        self.assertEquals(restart_on_change_helper.call_count, 1)
+        self.assertEqual(restart_on_change_helper.call_count, 1)
 
     @patch.object(openstack, 'restart_on_change_helper')
     @patch.object(openstack, 'is_unit_paused_set')
@@ -1783,7 +1783,7 @@ class OpenStackHelpersTestCase(TestCase):
         self.assertFalse(mock_test.called_set)
         is_unit_paused_set.return_value = False
         test_func()
-        self.assertEquals(restart_on_change_helper.call_count, 1)
+        self.assertEqual(restart_on_change_helper.call_count, 1)
         self.assertTrue(mock_test.called_set)
 
     @patch.object(openstack, 'juju_log')

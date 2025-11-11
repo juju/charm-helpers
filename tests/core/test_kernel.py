@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import imp
+try:
+    import imp
+except ImportError:
+    import importlib as imp
 
 from charmhelpers import osplatform
 from mock import patch

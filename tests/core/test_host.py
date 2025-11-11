@@ -5,7 +5,10 @@ from tempfile import mkdtemp
 from shutil import rmtree
 from textwrap import dedent
 
-import imp
+try:
+    import imp
+except ImportError:
+    import importlib as imp
 
 from charmhelpers import osplatform
 from mock import patch, call, mock_open
@@ -1550,7 +1553,7 @@ class HelpersTest(TestCase):
         # Restart should only happen once per service
         for svc in ['test-service2', 'test-service']:
             c = call('restart', svc)
-            self.assertEquals(1, service.call_args_list.count(c))
+            self.assertEqual(1, service.call_args_list.count(c))
 
         exists.assert_has_calls([
             call(file_name_one),
@@ -1586,7 +1589,7 @@ class HelpersTest(TestCase):
             call('restart', 'some-api'),
             call('restart', 'haproxy')
         ]
-        self.assertEquals(expected, service.call_args_list)
+        self.assertEqual(expected, service.call_args_list)
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
@@ -1611,7 +1614,7 @@ class HelpersTest(TestCase):
                                           b'content', b'content2']
             make_some_changes()
 
-        self.assertEquals([], service.call_args_list)
+        self.assertEqual([], service.call_args_list)
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
@@ -1636,7 +1639,7 @@ class HelpersTest(TestCase):
                                           b'changed', b'content2']
             make_some_changes()
 
-        self.assertEquals([call('restart', 'service')], service.call_args_list)
+        self.assertEqual([call('restart', 'service')], service.call_args_list)
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
@@ -1661,7 +1664,7 @@ class HelpersTest(TestCase):
                                           b'exists', b'created']
             make_some_changes()
 
-        self.assertEquals([call('restart', 'service')], service.call_args_list)
+        self.assertEqual([call('restart', 'service')], service.call_args_list)
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
@@ -1686,7 +1689,7 @@ class HelpersTest(TestCase):
                                           b'exists2']
             make_some_changes()
 
-        self.assertEquals([call('restart', 'service')], service.call_args_list)
+        self.assertEqual([call('restart', 'service')], service.call_args_list)
 
     @patch.object(host, 'service_reload')
     @patch.object(host, 'service')
@@ -1716,8 +1719,8 @@ class HelpersTest(TestCase):
             mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
-        self.assertEquals([call('restart', 'haproxy')], service.call_args_list)
-        self.assertEquals([call('some-api')], service_reload.call_args_list)
+        self.assertEqual([call('restart', 'haproxy')], service.call_args_list)
+        self.assertEqual([call('some-api')], service_reload.call_args_list)
 
     @patch.object(osplatform, 'get_platform')
     def test_lsb_release_ubuntu(self, platform):
@@ -1764,7 +1767,7 @@ class HelpersTest(TestCase):
 
     def test_pwgen(self):
         pw = host.pwgen()
-        self.assert_(len(pw) >= 35, 'Password is too short')
+        self.assertTrue(len(pw) >= 35, 'Password is too short')
 
         pw = host.pwgen(10)
         self.assertEqual(len(pw), 10, 'Password incorrect length')
@@ -2119,14 +2122,14 @@ class HelpersTest(TestCase):
     @patch('subprocess.check_output')
     def test_get_system_env(self, check_output):
         check_output.return_value = ''
-        self.assertEquals(
+        self.assertEqual(
             host.get_system_env('aKey', 'aDefault'), 'aDefault')
-        self.assertEquals(host.get_system_env('aKey'), None)
+        self.assertEqual(host.get_system_env('aKey'), None)
         check_output.return_value = 'aKey=aValue\n'
-        self.assertEquals(
+        self.assertEqual(
             host.get_system_env('aKey', 'aDefault'), 'aValue')
         check_output.return_value = 'otherKey=shell=wicked\n'
-        self.assertEquals(
+        self.assertEqual(
             host.get_system_env('otherKey', 'aDefault'), 'shell=wicked')
 
 

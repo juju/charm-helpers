@@ -51,30 +51,30 @@ class IPTestCase(TestCase):
         self.is_clustered.return_value = True
         self.test_config.set('vip', '10.5.3.200')
         self.get_iface_for_address.return_value = 'ens3'
-        self.assertEquals(ip.get_invalid_vips(), [])
+        self.assertEqual(ip.get_invalid_vips(), [])
 
     def test_get_invalid_vips_invalid_ip(self):
         self.is_clustered.return_value = True
         self.test_config.set('vip', '10.3.2.50')
         self.get_iface_for_address.return_value = None
-        self.assertEquals(ip.get_invalid_vips(), ['10.3.2.50'])
+        self.assertEqual(ip.get_invalid_vips(), ['10.3.2.50'])
 
     def test_get_invalid_vips_no_vip(self):
         self.is_clustered.return_value = True
         self.test_config.set('vip', '')
-        self.assertEquals(ip.get_invalid_vips(), [])
+        self.assertEqual(ip.get_invalid_vips(), [])
 
     def test_get_invalid_vips_mixed(self):
         self.is_clustered.return_value = True
         self.test_config.set('vip', '10.3.1.100 10.5.3.200 2.3.5.6')
         self.get_iface_for_address.side_effect = [None, 'ens3', None]
-        self.assertEquals(ip.get_invalid_vips(), ['10.3.1.100', '2.3.5.6'])
+        self.assertEqual(ip.get_invalid_vips(), ['10.3.1.100', '2.3.5.6'])
 
     def test_resolve_address_default(self):
         self.is_clustered.return_value = False
         self.unit_get.return_value = 'unit1'
         self.get_address_in_network.return_value = 'unit1'
-        self.assertEquals(ip.resolve_address(), 'unit1')
+        self.assertEqual(ip.resolve_address(), 'unit1')
         self.unit_get.assert_called_with('public-address')
         calls = [call('os-public-network'),
                  call('prefer-ipv6')]
@@ -84,7 +84,7 @@ class IPTestCase(TestCase):
         self.is_clustered.return_value = False
         self.unit_get.return_value = 'unit1'
         self.get_address_in_network.return_value = 'unit1'
-        self.assertEquals(ip.resolve_address(ip.INTERNAL), 'unit1')
+        self.assertEqual(ip.resolve_address(ip.INTERNAL), 'unit1')
         self.unit_get.assert_called_with('private-address')
         calls = [call('os-internal-network'),
                  call('prefer-ipv6')]
@@ -95,7 +95,7 @@ class IPTestCase(TestCase):
         self.test_config.set('os-public-network', '192.168.20.0/24')
         self.unit_get.return_value = 'unit1'
         self.get_address_in_network.return_value = '192.168.20.1'
-        self.assertEquals(ip.resolve_address(), '192.168.20.1')
+        self.assertEqual(ip.resolve_address(), '192.168.20.1')
         self.unit_get.assert_called_with('public-address')
         calls = [call('os-public-network'),
                  call('prefer-ipv6')]
@@ -108,12 +108,12 @@ class IPTestCase(TestCase):
         self.is_clustered.return_value = True
         self.test_config.set('os-public-network', '192.168.20.0/24')
         self.test_config.set('vip', '192.168.20.100 10.5.3.1')
-        self.assertEquals(ip.resolve_address(), '192.168.20.100')
+        self.assertEqual(ip.resolve_address(), '192.168.20.100')
 
     def test_resolve_address_default_clustered(self):
         self.is_clustered.return_value = True
         self.test_config.set('vip', '10.5.3.1')
-        self.assertEquals(ip.resolve_address(), '10.5.3.1')
+        self.assertEqual(ip.resolve_address(), '10.5.3.1')
         self.config.assert_has_calls(
             [call('vip'),
              call('os-public-network')])

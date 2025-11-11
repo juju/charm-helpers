@@ -24,7 +24,7 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
             '/dev/loop0': '/tmp/foo.img',
             '/dev/loop2': '/tmp/baz.img (deleted)'
         }
-        self.assertEquals(loopback.loopback_devices(), ex)
+        self.assertEqual(loopback.loopback_devices(), ex)
 
     @patch(STORAGE_LINUX_LOOPBACK + '.create_loopback')
     @patch('subprocess.check_call')
@@ -34,7 +34,7 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
         """It finds existing loopback device for requested file"""
         loopbacks.return_value = {'/dev/loop1': '/tmp/bar.img'}
         res = loopback.ensure_loopback_device('/tmp/bar.img', '5G')
-        self.assertEquals(res, '/dev/loop1')
+        self.assertEqual(res, '/dev/loop1')
         self.assertFalse(create.called)
         self.assertFalse(check_call.called)
 
@@ -72,11 +72,11 @@ class LoopbackStorageUtilsTests(unittest.TestCase):
             check_call.return_value = ''
             result = loopback.create_loopback('/tmp/foo')
             check_call.assert_called_with(['losetup', '--find', '/tmp/foo'])
-            self.assertEquals(result, '/dev/loop0')
+            self.assertEqual(result, '/dev/loop0')
 
     @patch.object(loopback, 'loopback_devices')
     def test_create_is_mapped_loopback_device(self, devs):
         devs.return_value = {'/dev/loop0': "/tmp/manco"}
-        self.assertEquals(loopback.is_mapped_loopback_device("/dev/loop0"),
+        self.assertEqual(loopback.is_mapped_loopback_device("/dev/loop0"),
                           "/tmp/manco")
         self.assertFalse(loopback.is_mapped_loopback_device("/dev/loop1"))

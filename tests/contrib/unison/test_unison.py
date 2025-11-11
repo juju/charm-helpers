@@ -60,7 +60,7 @@ class UnisonHelperTests(TestCase):
         fake_user = MagicMock()
         fake_user.pw_dir = '/home/foo'
         pwnam.return_value = fake_user
-        self.assertEquals(unison.get_homedir('foo'),
+        self.assertEqual(unison.get_homedir('foo'),
                           '/home/foo')
 
     @patch('pwd.getpwnam')
@@ -185,8 +185,8 @@ class UnisonHelperTests(TestCase):
             for f in ['/home/foo/.ssh/id_rsa',
                       '/home/foo/.ssh/id_rsa.pub']:
                 self.assertIn(call(f, 'r'), _open.call_args_list)
-        self.assertEquals(priv, 'foopriv')
-        self.assertEquals(pub, 'foopub')
+        self.assertEqual(priv, 'foopriv')
+        self.assertEqual(pub, 'foopub')
 
     @patch.object(unison, 'get_homedir')
     @patch('os.chown')
@@ -279,7 +279,7 @@ class UnisonHelperTests(TestCase):
         fake_user.pw_dir = '/home/foo'
         pwnam.return_value = fake_user
         inner = unison._run_as_user('foo')
-        self.assertEquals(fake_env['HOME'], '/home/foo')
+        self.assertEqual(fake_env['HOME'], '/home/foo')
         inner()
         setgid.assert_called_with(1011)
         setuid.assert_called_with(1010)
@@ -302,7 +302,7 @@ class UnisonHelperTests(TestCase):
         fake_group_id = 2000
         pwnam.return_value = fake_user
         inner = unison._run_as_user('foo', gid=fake_group_id)
-        self.assertEquals(fake_env['HOME'], '/home/foo')
+        self.assertEqual(fake_env['HOME'], '/home/foo')
         inner()
         setgid.assert_called_with(2000)
         setuid.assert_called_with(1010)
@@ -378,13 +378,13 @@ class UnisonHelperTests(TestCase):
         # only one of the hosts in fake environment has auth'd
         # the local peer
         hosts = unison.collect_authed_hosts('cluster')
-        self.assertEquals(hosts, ['cluster0.local'])
+        self.assertEqual(hosts, ['cluster0.local'])
 
     def test_collect_authed_hosts_none_authed(self):
         with patch.object(unison, 'relation_get') as relation_get:
             relation_get.return_value = ''
             hosts = unison.collect_authed_hosts('cluster')
-            self.assertEquals(hosts, [])
+            self.assertEqual(hosts, [])
 
     @patch.object(unison, 'run_as_user')
     def test_sync_path_to_host(self, run_as_user, verbose=True, gid=None):

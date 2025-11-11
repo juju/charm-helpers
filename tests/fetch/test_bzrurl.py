@@ -94,7 +94,7 @@ class BzrUrlFetchHandlerTest(TestCase):
         dst = None
         try:
             src = tempfile.mkdtemp()
-            subprocess.check_output(['bzr', 'init', src], stderr=subprocess.STDOUT)
+            subprocess.check_output(['bzr', 'init', src])
             dst = tempfile.mkdtemp()
             os.rmdir(dst)
             self.fh.branch(src, dst)

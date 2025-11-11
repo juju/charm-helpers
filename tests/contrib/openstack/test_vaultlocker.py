@@ -216,7 +216,7 @@ class VaultLockerTestCase(unittest.TestCase):
                           'vault_url': 'http://vault:8200'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
         self.assertTrue(vaultlocker.vault_relation_complete())
-        self.assertEquals(self.db.get('secret-id'),
+        self.assertEqual(self.db.get('secret-id'),
                           '31be8e65-20a3-45e0-a4a8-4d5a0554fb60')
         calls = [mock.call(url='http://vault:8200',
                            token='67b36149-dc86-4b80-96c4-35b91847d16e')]
@@ -236,7 +236,7 @@ class VaultLockerTestCase(unittest.TestCase):
                           'vault_url': 'http://vault:8200'})
         self.hookenv.relation_ids.assert_called_with('secrets-storage')
         self.assertTrue(vaultlocker.vault_relation_complete())
-        self.assertEquals(self.db.get('secret-id'),
+        self.assertEqual(self.db.get('secret-id'),
                           '31be8e65-20a3-45e0-a4a8-4d5a0554fb60')
         calls = [mock.call(url='http://vault:8200',
                            token='67b36149-dc86-4b80-96c4-35b91847d16e')]
