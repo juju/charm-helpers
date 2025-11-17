@@ -3600,6 +3600,93 @@ class ContextTests(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
+    def test_calculate_workers_with_multiplier(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': None
+        })
+        with patch.object(context, '_num_cpus', return_value=8):
+            result = context._calculate_workers(2.0)
+        self.assertEqual(result, 16)
+
+    def test_calculate_workers_no_multiplier(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': None
+        })
+        with patch.object(context, '_num_cpus', return_value=12):
+            result = context._calculate_workers()
+        self.assertEqual(result, context.MAX_DEFAULT_WORKERS)
+
+    def test_calculate_workers_with_worker_multiplier(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 1.5
+        })
+        with patch.object(context, '_num_cpus', return_value=4):
+            result = context._calculate_workers()
+        self.assertEqual(result, 6)
+
+    def test_calculate_workers_with_negative_multiplier(self):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': None
+        })
+        with patch.object(context, '_num_cpus', return_value=2):
+            result = context._calculate_workers(-2.0)
+        self.assertEqual(result, 4)
+
+    @patch.object(context, '_calculate_workers')
+    def test_wsgi_worker_config_admin_multiplier(self,
+                                                  _calculate_workers):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 1, 'admin-worker-multiplier': 2.5,
+            'wsgi-socket-rotation': False
+        })
+        _calculate_workers.side_effect = [4, 10]
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": service_name,
+            "group": service_name,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 4,
+            "admin_processes": 10,
+            "public_processes": 3,  # 75% of 4
+            "threads": 1,
+            "wsgi_socket_rotation": False,
+        }
+        self.assertEqual(expect, ctxt())
+
+    @patch.object(context, '_calculate_workers')
+    def test_wsgi_worker_config_admin_and_public_multiplier(self,
+                                                             _calculate_workers):
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 1, 'admin-worker-multiplier': 2,
+            'public-worker-multiplier': 4,
+            'wsgi-socket-rotation': False
+        })
+        _calculate_workers.side_effect = [4, 8, 16]
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": service_name,
+            "group": service_name,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 4,
+            "admin_processes": 8,
+            "public_processes": 16,
+            "threads": 1,
+            "wsgi_socket_rotation": False,
+        }
+        self.assertEqual(expect, ctxt())
+
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_context(self,
                                         _calculate_workers):
