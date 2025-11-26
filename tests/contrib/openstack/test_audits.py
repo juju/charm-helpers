@@ -336,7 +336,7 @@ class OpenstackSecurityGuideTestCase(TestCase):
            '.openstack_security_guide._config_section')
     def test_validate_uses_tls_for_keystone(self, _config_section):
         _config_section.return_value = {
-            'auth_uri': 'https://10.10.10.10',
+            'www_authenticate_uri': 'https://10.10.10.10',
         }
         guide.validate_uses_tls_for_keystone({})
         _config_section.assert_called_with({}, 'keystone_authtoken')
