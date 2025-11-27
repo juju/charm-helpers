@@ -361,6 +361,10 @@ HAPROXY_CONFIG = {
     'haproxy-client-timeout': 50000,
 }
 
+PROXYV2_CONFIG = {
+    'haproxy-enable-proxyv2': True,
+}
+
 CEPH_RELATION = {
     'ceph:0': {
         'ceph/0': {
@@ -2929,6 +2933,64 @@ class ContextTests(unittest.TestCase):
                                                call('cluster'),
                                                call('haproxy-exporter')])
 
+    @patch('charmhelpers.contrib.openstack.context.local_address')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_proxyv2(self, local_unit, local_address):
+        '''Test haproxy context with proxyv2 enabled'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet']
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.config.return_value = False
+        self.maxDiff = None
+        self.config.side_effect = fake_config(PROXYV2_CONFIG)
+        self.is_ipv6_disabled.return_value = True
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        ex = {
+            'frontends': {
+                'cluster-peer0.localnet': {
+                    'network': 'cluster-peer0.localnet/255.255.0.0',
+                    'backends': collections.OrderedDict([
+                        ('peer-0', 'cluster-peer0.localnet'),
+                        ('peer-1', 'cluster-peer1.localnet'),
+                        ('peer-2', 'cluster-peer2.localnet'),
+                    ]),
+                }
+            },
+            'default_backend': 'cluster-peer0.localnet',
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'ipv6_enabled': False,
+            'stat_password': 'testpassword',
+            'stat_port': '8888',
+            'haproxy_enable_proxyv2': True,
+        }
+        # Verify the context is generated with proxyv2 enabled.
+        self.assertEqual(ex, result)
+        # Verify /etc/default/haproxy is updated.
+        self.assertEqual(_file.write.call_args_list,
+                          [call('ENABLED=1\n')])
+        self.get_relation_ip.assert_has_calls([call('admin', None),
+                                               call('internal', None),
+                                               call('public', None),
+                                               call('cluster')])
+
     def test_https_context_with_no_https(self):
         '''Test apache2 https when no https data available'''
         apache = context.ApacheSSLContext()
@@ -2960,6 +3022,8 @@ class ContextTests(unittest.TestCase):
             ('10.5.2.100', '10.5.2.1'),
             ('10.5.3.100', '10.5.3.1'),
         ]
+        config = {'haproxy-enable-proxyv2': False}
+        self.config.side_effect = lambda key: config[key]
         apache.external_ports = '8776'
         apache.service_namespace = 'cinder'
 
@@ -3030,10 +3094,22 @@ class ContextTests(unittest.TestCase):
 
     def test_https_context_loads_correct_apache_mods(self):
         # Test apache2 context also loads required apache modules
+        # When haproxy-enable-proxyv2 is False, remoteip should be disabled
+        self.config.side_effect = fake_config({'haproxy-enable-proxyv2': False})
         apache = context.ApacheSSLContext()
         apache.enable_modules()
-        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
-        self.check_call.assert_called_with(ex_cmd)
+        self.check_call.assert_any_call(
+            ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers'])
+        self.check_call.assert_any_call(['a2dismod', 'remoteip'])
+
+    def test_https_context_loads_correct_apache_mods_proxyv2(self):
+        # Test apache2 context loads remoteip module when proxyv2 is enabled
+        self.config.side_effect = fake_config({'haproxy-enable-proxyv2': True})
+        apache = context.ApacheSSLContext()
+        apache.enable_modules()
+        self.check_call.assert_any_call(
+            ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers'])
+        self.check_call.assert_any_call(['a2enmod', 'remoteip'])
 
     def test_https_configure_cert(self):
         # Test apache2 properly installs certs and keys to disk
@@ -3740,6 +3816,50 @@ class ContextTests(unittest.TestCase):
             "public_processes": 1,
             "threads": 1,
             "wsgi_socket_rotation": False,
+        }
+        self.assertEqual(expect, ctxt())
+
+    def test_wsgi_worker_config_context_apache_mods(self):
+        # Test apache2 context disables remoteip when proxyv2 is not enabled
+        self.config.side_effect = fake_config({'haproxy-enable-proxyv2': False})
+        apache = context.WSGIWorkerConfigContext()
+        apache.enable_modules()
+        self.check_call.assert_called_with(['a2dismod', 'remoteip'])
+
+    def test_wsgi_worker_config_context_apache_mods_proxyv2(self):
+        # Test apache2 context enables remoteip when proxyv2 is enabled
+        self.config.side_effect = fake_config({'haproxy-enable-proxyv2': True})
+        apache = context.WSGIWorkerConfigContext()
+        apache.enable_modules()
+        self.check_call.assert_called_with(['a2enmod', 'remoteip'])
+
+    @patch.object(context, '_calculate_workers')
+    def test_wsgi_worker_config_context_proxyv2(self,
+                                                _calculate_workers):
+        # Test WSGI worker config context with proxyv2 enabled
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 2,
+            'non-defined-wsgi-socket-rotation': True,
+            'haproxy-enable-proxyv2': True
+        })
+        _calculate_workers.return_value = 8
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        expect = {
+            "service_name": service_name,
+            "user": service_name,
+            "group": service_name,
+            "script": script,
+            "admin_script": None,
+            "public_script": None,
+            "processes": 8,
+            "admin_processes": 2,
+            "public_processes": 6,
+            "threads": 1,
+            "wsgi_socket_rotation": True,
+            "haproxy_enable_proxyv2": True
         }
         self.assertEqual(expect, ctxt())
 
