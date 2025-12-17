@@ -27,4 +27,9 @@ Jinja2
 netifaces==0.10    # trusty is 0.8, but using py3 compatible version for tests.
 psutil
 python-keystoneclient
+# Fixes:
+#  File ".../.tox/py3/lib/python3.10/site-packages/pip/_vendor/toml/decoder.py", line 997, in load_array
+#    a[b] = a[b] + ',' + a[b + 1]
+# IndexError: list index out of range
+MarkupSafe<3.0.3
 dnspython
