@@ -156,6 +156,22 @@ def context_complete(ctxt):
     return True
 
 
+def _enable_remoteip_module():
+    """Enable or disable Apache remoteip module based on proxy protocol v2 config.
+
+    When haproxy-enable-proxyv2 is True, enables the remoteip module.
+    When False, disables the remoteip module (ignoring errors if not enabled).
+    """
+    if config('haproxy-enable-proxyv2'):
+        check_call(['a2enmod', 'remoteip'])
+    else:
+        try:
+            check_call(['a2dismod', 'remoteip'])
+        except CalledProcessError:
+            # Module may not be enabled, ignore error
+            pass
+
+
 class OSContextGenerator(object):
     """Base class for all context generators."""
     interfaces = []
@@ -1062,6 +1078,9 @@ class HAProxyContext(OSContextGenerator):
         if config('haproxy-connect-timeout'):
             ctxt['haproxy_connect_timeout'] = config('haproxy-connect-timeout')
 
+        if config('haproxy-enable-proxyv2'):
+            ctxt['haproxy_enable_proxyv2'] = True
+
         if config('prefer-ipv6'):
             ctxt['local_host'] = 'ip6-localhost'
             ctxt['haproxy_host'] = '::'
@@ -1155,6 +1174,7 @@ class ApacheSSLContext(OSContextGenerator):
     def enable_modules(self):
         cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
         check_call(cmd)
+        _enable_remoteip_module()
 
     def configure_cert(self, cn=None):
         ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
@@ -1286,6 +1306,8 @@ class ApacheSSLContext(OSContextGenerator):
                 ctxt['ext_ports'].append(int(ext_port))
 
         ctxt['ext_ports'] = sorted(list(set(ctxt['ext_ports'])))
+        if config('haproxy-enable-proxyv2'):
+            ctxt['haproxy_enable_proxyv2'] = True
         return ctxt
 
 
@@ -1794,6 +1816,9 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         self.admin_process_weight = admin_process_weight
         self.public_process_weight = public_process_weight
 
+    def enable_modules(self):
+        _enable_remoteip_module()
+
     def __call__(self):
         total_processes = _calculate_workers()
         enable_wsgi_socket_rotation = config('wsgi-socket-rotation')
@@ -1822,6 +1847,8 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         else:
             public_processes = _calculate_workers(public_worker_multiplier)
 
+        self.enable_modules()
+
         ctxt = {
             "service_name": self.service_name,
             "user": self.user,
@@ -1835,6 +1862,8 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
             "threads": 1,
             "wsgi_socket_rotation": enable_wsgi_socket_rotation,
         }
+        if config('haproxy-enable-proxyv2'):
+            ctxt['haproxy_enable_proxyv2'] = True
         return ctxt
 
 
