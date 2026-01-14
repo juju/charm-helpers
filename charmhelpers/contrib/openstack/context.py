@@ -87,6 +87,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     https,
     is_clustered,
+    peer_ips,
 )
 from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
@@ -1046,6 +1047,8 @@ class HAProxyContext(OSContextGenerator):
 
         ctxt['ipv6_enabled'] = not is_ipv6_disabled()
 
+        ctxt['internal_proxy_ips'] = _get_cluster_ips()
+
         ctxt['stat_port'] = '8888'
 
         db = kv()
@@ -1128,7 +1131,7 @@ class ApacheSSLContext(OSContextGenerator):
     user = group = 'root'
 
     def enable_modules(self):
-        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
+        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         check_call(cmd)
 
     def configure_cert(self, cn=None):
@@ -1261,6 +1264,8 @@ class ApacheSSLContext(OSContextGenerator):
                 ctxt['ext_ports'].append(int(ext_port))
 
         ctxt['ext_ports'] = sorted(list(set(ctxt['ext_ports'])))
+        ctxt['internal_proxy_ips'] = _get_cluster_ips()
+
         return ctxt
 
 
@@ -1697,6 +1702,19 @@ MAX_DEFAULT_WORKERS = 4
 DEFAULT_MULTIPLIER = 2
 
 
+def _get_cluster_ips():
+    '''
+    Collect all cluster IPs for RemoteIPInternalProxy configuration.
+
+    @returns: list: sorted list of cluster IP addresses
+    '''
+    internal_proxy_ips = set(peer_ips().values())
+    local_addr = get_relation_ip('cluster')
+    if local_addr:
+        internal_proxy_ips.add(local_addr)
+    return sorted(internal_proxy_ips)
+
+
 def _calculate_workers(multiplier=None):
     '''
     Determine the number of worker processes based on the CPU count of the
@@ -1769,6 +1787,9 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         self.admin_process_weight = admin_process_weight
         self.public_process_weight = public_process_weight
 
+    def enable_modules(self):
+        check_call(['a2enmod', 'remoteip'])
+
     def __call__(self):
         total_processes = _calculate_workers()
         enable_wsgi_socket_rotation = config('wsgi-socket-rotation')
@@ -1797,6 +1818,8 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         else:
             public_processes = _calculate_workers(public_worker_multiplier)
 
+        self.enable_modules()
+
         ctxt = {
             "service_name": self.service_name,
             "user": self.user,
@@ -1809,6 +1832,7 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
             "public_processes": public_processes,
             "threads": 1,
             "wsgi_socket_rotation": enable_wsgi_socket_rotation,
+            "internal_proxy_ips": _get_cluster_ips(),
         }
         return ctxt
 
