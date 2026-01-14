@@ -2371,9 +2371,11 @@ class ContextTests(unittest.TestCase):
         ensure_packages.assert_called_with(['ceph-common'])
         mkdir.assert_called_with('/etc/ceph')
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data(self, local_unit, local_address):
+    def test_haproxy_context_with_data(self, local_unit, local_address,
+                                       _get_cluster_ips):
         '''Test haproxy context with all relation data'''
         cluster_relation = {
             'cluster:0': {
@@ -2390,6 +2392,9 @@ class ContextTests(unittest.TestCase):
         # Setup the values it returns on each subsequent call.
         self.get_relation_ip.side_effect = [None, None, None,
                                             'cluster-peer0.localnet']
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2418,6 +2423,9 @@ class ContextTests(unittest.TestCase):
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -2429,9 +2437,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_timeout(self, local_unit, local_address):
+    def test_haproxy_context_with_data_timeout(self, local_unit, local_address,
+                                               _get_cluster_ips):
         '''Test haproxy context with all relation data and timeout'''
         cluster_relation = {
             'cluster:0': {
@@ -2448,6 +2458,9 @@ class ContextTests(unittest.TestCase):
         # Setup the values it returns on each subsequent call.
         self.get_relation_ip.side_effect = [None, None, None,
                                             'cluster-peer0.localnet']
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2481,6 +2494,9 @@ class ContextTests(unittest.TestCase):
             'stat_port': '8888',
             'haproxy_client_timeout': 50000,
             'haproxy_server_timeout': 50000,
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -2492,9 +2508,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', None),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_multinet(self, local_unit, local_address):
+    def test_haproxy_context_with_data_multinet(self, local_unit, local_address,
+                                                _get_cluster_ips):
         '''Test haproxy context with all relation data for network splits'''
         cluster_relation = {
             'cluster:0': {
@@ -2524,6 +2542,9 @@ class ContextTests(unittest.TestCase):
                                             'cluster-peer0.internal',
                                             'cluster-peer0.public',
                                             'cluster-peer0.localnet']
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = False
         self.maxDiff = None
@@ -2572,6 +2593,9 @@ class ContextTests(unittest.TestCase):
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -2583,9 +2607,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_public_only(self, local_unit, local_address):
+    def test_haproxy_context_with_data_public_only(self, local_unit, local_address,
+                                                   _get_cluster_ips):
         '''Test haproxy context with with openstack-dashboard public only binding'''
         cluster_relation = {
             'cluster:0': {
@@ -2615,6 +2641,9 @@ class ContextTests(unittest.TestCase):
             lambda binding, config_opt=None:
                 _network_get_map[binding]
         )
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         self.get_netmask_for_address.return_value = '255.255.0.0'
         self.config.return_value = None
         self.maxDiff = None
@@ -2647,6 +2676,9 @@ class ContextTests(unittest.TestCase):
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -2656,9 +2688,11 @@ class ContextTests(unittest.TestCase):
         self.get_relation_ip.assert_has_calls([call('public', None),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_data_ipv6(self, local_unit, local_address):
+    def test_haproxy_context_with_data_ipv6(self, local_unit, local_address,
+                                            _get_cluster_ips):
         '''Test haproxy context with all relation data ipv6'''
         cluster_relation = {
             'cluster:0': {
@@ -2676,6 +2710,9 @@ class ContextTests(unittest.TestCase):
         # Setup the values it returns on each subsequent call.
         self.get_relation_ip.side_effect = [None, None, None,
                                             'cluster-peer0.localnet']
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2712,6 +2749,9 @@ class ContextTests(unittest.TestCase):
             'ipv6_enabled': True,
             'stat_password': 'testpassword',
             'stat_port': '8888',
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -2729,9 +2769,11 @@ class ContextTests(unittest.TestCase):
         haproxy = context.HAProxyContext()
         self.assertEqual({}, haproxy())
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers(self, local_unit, local_address):
+    def test_haproxy_context_with_no_peers(self, local_unit, local_address,
+                                           _get_cluster_ips):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2746,6 +2788,7 @@ class ContextTests(unittest.TestCase):
         # We are only using get_relation_ip.
         # Setup the values it returns on each subsequent call.
         self.get_relation_ip.side_effect = [None, None, None, None]
+        _get_cluster_ips.return_value = []
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2758,9 +2801,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_net_override(self, local_unit, local_address):
+    def test_haproxy_context_with_net_override(self, local_unit, local_address,
+                                               _get_cluster_ips):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2775,6 +2820,7 @@ class ContextTests(unittest.TestCase):
         # We are only using get_relation_ip.
         # Setup the values it returns on each subsequent call.
         self.get_relation_ip.side_effect = [None, None, None, None]
+        _get_cluster_ips.return_value = []
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2792,9 +2838,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', '192.168.30.0/24'),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, local_address):
+    def test_haproxy_context_with_no_peers_singlemode(self, local_unit, local_address,
+                                                      _get_cluster_ips):
         '''Test haproxy context with single unit'''
         # peer relations always show at least one peer relation, even
         # if unit is alone. should be an incomplete context.
@@ -2810,6 +2858,7 @@ class ContextTests(unittest.TestCase):
         # Setup the values it returns on each subsequent call.
         self.get_relation_ip.side_effect = [None, None, None,
                                             'lonely.clusterpeer.howsad']
+        _get_cluster_ips.return_value = ['lonely.clusterpeer.howsad']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2834,6 +2883,7 @@ class ContextTests(unittest.TestCase):
             'ipv6_enabled': False,
             'stat_port': '8888',
             'stat_password': 'testpassword',
+            'internal_proxy_ips': ['lonely.clusterpeer.howsad'],
         }
         self.assertEqual(ex, result)
         # and /etc/default/haproxy is updated.
@@ -2844,9 +2894,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_without_prometheus_exporter(self, local_unit, local_address):
+    def test_haproxy_context_without_prometheus_exporter(self, local_unit, local_address,
+                                                         _get_cluster_ips):
         '''Test haproxy context without prometheus exporter'''
         cluster_relation = {
             'cluster:0': {
@@ -2864,6 +2916,9 @@ class ContextTests(unittest.TestCase):
         self.get_relation_ip.side_effect = [None, None, None,
                                             'cluster-peer0.localnet',
                                             'prometheus1.localnet']
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2896,6 +2951,9 @@ class ContextTests(unittest.TestCase):
             'ipv6_enabled': False,
             'stat_password': 'testpassword',
             'stat_port': '8888',
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -2907,9 +2965,11 @@ class ContextTests(unittest.TestCase):
                                                call('public', False),
                                                call('cluster')])
 
+    @patch.object(context, '_get_cluster_ips')
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
-    def test_haproxy_context_with_prometheus_exporter(self, local_unit, local_address):
+    def test_haproxy_context_with_prometheus_exporter(self, local_unit, local_address,
+                                                      _get_cluster_ips):
         '''Test haproxy context with prometheus exporter'''
         cluster_relation = {
             'cluster:0': {
@@ -2927,6 +2987,9 @@ class ContextTests(unittest.TestCase):
         self.get_relation_ip.side_effect = [None, None, None,
                                             'cluster-peer0.localnet',
                                             'prometheus1.localnet']
+        _get_cluster_ips.return_value = ['cluster-peer0.localnet',
+                                         'cluster-peer1.localnet',
+                                         'cluster-peer2.localnet']
         relation = FakeRelation(cluster_relation)
         self.relation_ids.side_effect = relation.relation_ids
         self.relation_get.side_effect = relation.get
@@ -2960,6 +3023,9 @@ class ContextTests(unittest.TestCase):
             'stats_exporter_port': 9103,
             'stat_password': 'testpassword',
             'stat_port': '8888',
+            'internal_proxy_ips': ['cluster-peer0.localnet',
+                                   'cluster-peer1.localnet',
+                                   'cluster-peer2.localnet'],
         }
         # the context gets generated.
         self.assertEqual(ex, result)
@@ -3011,13 +3077,16 @@ class ContextTests(unittest.TestCase):
             'endpoints': [('10.5.1.100', '10.5.1.1', 8766, 8756),
                           ('10.5.2.100', '10.5.2.1', 8766, 8756),
                           ('10.5.3.100', '10.5.3.1', 8766, 8756)],
-            'ext_ports': [8766]
+            'ext_ports': [8766],
+            'internal_proxy_ips': [],
         }
 
         return apache, ex
 
-    def test_https_context(self):
+    @patch.object(context, '_get_cluster_ips')
+    def test_https_context(self, _get_cluster_ips):
         self.relation_ids.return_value = []
+        _get_cluster_ips.return_value = []
 
         apache, ex = self._https_context_setup()
 
@@ -3033,9 +3102,11 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(apache.enable_modules.called)
         self.assertTrue(apache.configure_cert.called)
 
-    def test_https_context_vault_relation(self):
+    @patch.object(context, '_get_cluster_ips')
+    def test_https_context_vault_relation(self, _get_cluster_ips):
         self.relation_ids.return_value = ['certificates:2']
         self.related_units.return_value = 'vault/0'
+        _get_cluster_ips.return_value = []
 
         apache, ex = self._https_context_setup()
 
@@ -3044,8 +3115,10 @@ class ContextTests(unittest.TestCase):
         self.assertFalse(apache.configure_cert.called)
         self.assertFalse(apache.configure_ca.called)
 
-    def test_https_context_no_canonical_names(self):
+    @patch.object(context, '_get_cluster_ips')
+    def test_https_context_no_canonical_names(self, _get_cluster_ips):
         self.relation_ids.return_value = []
+        _get_cluster_ips.return_value = []
 
         apache, ex = self._https_context_setup()
         apache.canonical_names.return_value = []
@@ -3072,11 +3145,11 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(apache.configure_cert.called)
 
     def test_https_context_loads_correct_apache_mods(self):
-        # Test apache2 context also loads required apache modules
+        # Test apache2 context loads required apache modules including remoteip
         apache = context.ApacheSSLContext()
         apache.enable_modules()
-        ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers']
-        self.check_call.assert_called_with(ex_cmd)
+        self.check_call.assert_called_with(
+            ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip'])
 
     def test_https_configure_cert(self):
         # Test apache2 properly installs certs and keys to disk
@@ -3675,14 +3748,17 @@ class ContextTests(unittest.TestCase):
             result = context._calculate_workers(-2.0)
         self.assertEqual(result, 4)
 
+    @patch.object(context, '_get_cluster_ips')
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_admin_multiplier(self,
-                                                  _calculate_workers):
+                                                  _calculate_workers,
+                                                  _get_cluster_ips):
         self.config.side_effect = fake_config({
             'worker-multiplier': 1, 'admin-worker-multiplier': 2.5,
             'wsgi-socket-rotation': False
         })
         _calculate_workers.side_effect = [4, 10]
+        _get_cluster_ips.return_value = ['10.0.0.1']
         service_name = 'service-name'
         script = '/usr/bin/script'
         ctxt = context.WSGIWorkerConfigContext(name=service_name,
@@ -3699,18 +3775,22 @@ class ContextTests(unittest.TestCase):
             "public_processes": 3,  # 75% of 4
             "threads": 1,
             "wsgi_socket_rotation": False,
+            "internal_proxy_ips": ['10.0.0.1'],
         }
         self.assertEqual(expect, ctxt())
 
+    @patch.object(context, '_get_cluster_ips')
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_admin_and_public_multiplier(self,
-                                                             _calculate_workers):
+                                                             _calculate_workers,
+                                                             _get_cluster_ips):
         self.config.side_effect = fake_config({
             'worker-multiplier': 1, 'admin-worker-multiplier': 2,
             'public-worker-multiplier': 4,
             'wsgi-socket-rotation': False
         })
         _calculate_workers.side_effect = [4, 8, 16]
+        _get_cluster_ips.return_value = ['10.0.0.1']
         service_name = 'service-name'
         script = '/usr/bin/script'
         ctxt = context.WSGIWorkerConfigContext(name=service_name,
@@ -3727,16 +3807,20 @@ class ContextTests(unittest.TestCase):
             "public_processes": 16,
             "threads": 1,
             "wsgi_socket_rotation": False,
+            "internal_proxy_ips": ['10.0.0.1'],
         }
         self.assertEqual(expect, ctxt())
 
+    @patch.object(context, '_get_cluster_ips')
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_context(self,
-                                        _calculate_workers):
+                                        _calculate_workers,
+                                        _get_cluster_ips):
         self.config.side_effect = fake_config({
             'worker-multiplier': 2, 'non-defined-wsgi-socket-rotation': True
         })
         _calculate_workers.return_value = 8
+        _get_cluster_ips.return_value = ['10.0.0.1']
         service_name = 'service-name'
         script = '/usr/bin/script'
         ctxt = context.WSGIWorkerConfigContext(name=service_name,
@@ -3753,16 +3837,20 @@ class ContextTests(unittest.TestCase):
             "public_processes": 6,
             "threads": 1,
             "wsgi_socket_rotation": True,
+            "internal_proxy_ips": ['10.0.0.1'],
         }
         self.assertEqual(expect, ctxt())
 
+    @patch.object(context, '_get_cluster_ips')
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_context_user_and_group(self,
-                                                       _calculate_workers):
+                                                       _calculate_workers,
+                                                       _get_cluster_ips):
         self.config.side_effect = fake_config({
             'worker-multiplier': 1, 'wsgi-socket-rotation': False
         })
         _calculate_workers.return_value = 1
+        _get_cluster_ips.return_value = ['10.0.0.1']
         service_name = 'service-name'
         script = '/usr/bin/script'
         user = 'nova'
@@ -3783,8 +3871,15 @@ class ContextTests(unittest.TestCase):
             "public_processes": 1,
             "threads": 1,
             "wsgi_socket_rotation": False,
+            "internal_proxy_ips": ['10.0.0.1'],
         }
         self.assertEqual(expect, ctxt())
+
+    def test_wsgi_worker_config_context_apache_mods(self):
+        # Test WSGIWorkerConfigContext enables remoteip module
+        apache = context.WSGIWorkerConfigContext()
+        apache.enable_modules()
+        self.check_call.assert_called_with(['a2enmod', 'remoteip'])
 
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
