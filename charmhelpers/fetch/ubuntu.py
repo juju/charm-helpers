@@ -20,7 +20,12 @@ import sys
 import time
 
 from charmhelpers import deprecate
-from charmhelpers.core.host import get_distrib_codename, get_system_env
+from charmhelpers.core.host import (
+    CompareHostReleases,
+    get_distrib_codename,
+    get_system_env,
+)
+
 
 from charmhelpers.core.hookenv import (
     log,
@@ -822,10 +827,17 @@ def _add_apt_repository(spec):
     :param spec: the parameter to pass to add_apt_repository
     :type spec: str
     """
+    series = get_distrib_codename()
     if '{series}' in spec:
-        series = get_distrib_codename()
         spec = spec.replace('{series}', series)
-    _run_with_retries(['add-apt-repository', '--yes', spec],
+    cmd = ['add-apt-repository', '--yes']
+    if (spec.strip().startswith('deb') and
+            CompareHostReleases(series) >= 'jammy'):
+        # if starts with deb, just add the source.list as per lp:2017014, only
+        # in jammy or newer
+        cmd.append('-S')
+    cmd.append(spec)
+    _run_with_retries(cmd,
                       cmd_env=env_proxy_settings(['https', 'http', 'no_proxy'])
                       )
 
