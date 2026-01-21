@@ -1598,6 +1598,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1616,6 +1617,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbitalthost1',
             'rabbitmq_password': 'flump',
             'rabbitmq_user': 'adam',
@@ -1635,6 +1637,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1654,6 +1657,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1677,6 +1681,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1700,6 +1705,7 @@ class ContextTests(unittest.TestCase):
         expected = {
             'oslo_messaging_driver': 'messagingv2',
             'clustered': True,
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': relation_data['vip'],
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1720,6 +1726,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost1',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1765,6 +1772,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': '[2001:db8:1::1]',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1784,6 +1792,7 @@ class ContextTests(unittest.TestCase):
         amqp = context.AMQPContext()
         result = amqp()
         expected = {
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1809,6 +1818,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1829,6 +1839,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
@@ -1849,6 +1860,7 @@ class ContextTests(unittest.TestCase):
         result = amqp()
         expected = {
             'oslo_messaging_driver': 'messagingv2',
+            'rabbit_heartbeat_timeout_threshold': None,
             'rabbitmq_host': 'rabbithost',
             'rabbitmq_password': 'foobar',
             'rabbitmq_user': 'adam',
