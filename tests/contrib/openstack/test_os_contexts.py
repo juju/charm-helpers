@@ -1041,6 +1041,49 @@ class ContextTests(unittest.TestCase):
         result = postgresql_db()
         self.assertEquals(result['database'], 'quantum')
 
+    def test_oslo_db_context_unset_values(self):
+        '''Test oslo-db context with unset config values'''
+        self.config.side_effect = fake_config({})
+        ctxt = context.OsloDBContext()()
+        self.assertNotIn('db_max_pool_size', ctxt)
+        self.assertNotIn('db_max_overflow', ctxt)
+
+    def test_oslo_db_context_negative_values(self):
+        '''Test oslo-db context with negative config values'''
+        self.config.side_effect = fake_config({
+            'db-max-pool-size': -1,
+            'db-max-overflow': -5,
+        })
+        ctxt = context.OsloDBContext()()
+        self.assertNotIn('db_max_pool_size', ctxt)
+        self.assertNotIn('db_max_overflow', ctxt)
+
+    def test_oslo_db_context_valid_values(self):
+        '''Test oslo-db context with both config values set'''
+        self.config.side_effect = fake_config({
+            'db-max-pool-size': 10,
+            'db-max-overflow': 20,
+        })
+        ctxt = context.OsloDBContext()()
+        expected = {
+            'db_max_pool_size': 10,
+            'db_max_overflow': 20,
+        }
+        self.assertEqual(ctxt, expected)
+
+    def test_oslo_db_context_partial_values(self):
+        '''Test oslo-db context with only one value set'''
+        self.config.side_effect = fake_config({
+            'db-max-pool-size': 8,
+            'db-max-overflow': None,
+        })
+        ctxt = context.OsloDBContext()()
+
+        expected = {
+            'db_max_pool_size': 8,
+        }
+        self.assertEqual(ctxt, expected)
+
     @patch.object(context, 'filter_installed_packages', return_value=[])
     @patch.object(context, 'os_release', return_value='rocky')
     def test_identity_service_context_with_data(self, *args):
@@ -3719,14 +3762,16 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.DataPortContext()(),
                           {'eth1010': 'phybr1'})
 
+    @patch.object(context.glob, 'glob')
     @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
                   {'network_device_mtu': 5000})
     @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
     @patch.object(context.NeutronPortContext, 'resolve_ports',
                   lambda inst, ports: ports)
-    def test_phy_nic_mtu_context(self):
+    def test_phy_nic_mtu_context(self, mock_glob):
         self.config.side_effect = fake_config({'data-port':
                                                'phybr1:eth0'})
+        mock_glob.return_value = []
         ctxt = context.PhyNICMTUContext()()
         self.assertEqual(ctxt, {'devs': 'eth0', 'mtu': 5000})
 
