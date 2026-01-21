@@ -4045,14 +4045,16 @@ class ContextTests(unittest.TestCase):
         self.assertEquals(context.DataPortContext()(),
                           {'eth1010': 'phybr1'})
 
+    @patch.object(context.glob, 'glob')
     @patch.object(context.NeutronAPIContext, '__call__', lambda *args:
                   {'network_device_mtu': 5000})
     @patch.object(context, 'get_nic_hwaddr', lambda inst, port: port)
     @patch.object(context.NeutronPortContext, 'resolve_ports',
                   lambda inst, ports: ports)
-    def test_phy_nic_mtu_context(self):
+    def test_phy_nic_mtu_context(self, mock_glob):
         self.config.side_effect = fake_config({'data-port':
                                                'phybr1:eth0'})
+        mock_glob.return_value = []
         ctxt = context.PhyNICMTUContext()()
         self.assertEqual(ctxt, {'devs': 'eth0', 'mtu': 5000})
 
