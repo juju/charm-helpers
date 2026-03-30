@@ -24,7 +24,7 @@ Listen {{ ext_port }}
     RequestHeader set X-Forwarded-Proto "https"
     {% if haproxy_enable_proxy_protocol -%}
     RemoteIPProxyProtocol On
-    RemoteIPProxyProtocolExceptions 127.0.0.1
+    RemoteIPProxyProtocolExceptions 127.0.0.1 ::1
     {% endif -%}
     KeepAliveTimeout 75
     MaxKeepAliveRequests 1000
