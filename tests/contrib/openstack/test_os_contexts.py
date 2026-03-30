@@ -3859,7 +3859,7 @@ class ContextTests(unittest.TestCase):
 
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_context_proxy_protocol(self,
-                                                _calculate_workers):
+                                                       _calculate_workers):
         # Test WSGI worker config context with proxy protocol enabled
         self.config.side_effect = fake_config({
             'worker-multiplier': 2,
