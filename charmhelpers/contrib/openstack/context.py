@@ -2660,24 +2660,28 @@ def resolve_pci_from_mapping_config(config_key):
     :returns: PCI device address to Tuple(entity, mac) map
     :rtype: collections.OrderedDict[str,Tuple[str,str]]
     """
-    devices = pci.PCINetDevices()
-    resolved_devices = collections.OrderedDict()
-    db = kv()
-    # Note that ``parse_data_port_mappings`` returns Dict regardless of input
-    for mac, entity in parse_data_port_mappings(config(config_key)).items():
-        pcidev = devices.get_device_from_mac(mac)
-        if pcidev:
-            # NOTE: store mac->pci allocation as post binding
-            #       it disappears from PCIDevices.
-            db.set(mac, pcidev.pci_address)
-            db.flush()
+    PCI_REGEX = r'^([0-9a-fA-F]{4}:)?[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$'
+    data_port_mappings = parse_data_port_mappings(config(config_key))
+    if re.fullmatch(PCI_REGEX, next(iter(data_port_mappings.keys()))):
+        return collections.OrderedDict(enumerate(data_port_mappings.keys()))
+    else:
+        devices = pci.PCINetDevices()
+        resolved_devices = collections.OrderedDict()
+        db = kv()
+        # Note that ``parse_data_port_mappings`` returns Dict regardless of input
+        for mac, entity in data_port_mappings.items():
+            pcidev = devices.get_device_from_mac(mac)
+            if pcidev:
+                # NOTE: store mac->pci allocation as post binding
+                #       it disappears from PCIDevices.
+                db.set(mac, pcidev.pci_address)
+                db.flush()
 
-        pci_address = db.get(mac)
-        if pci_address:
-            resolved_devices[pci_address] = EntityMac(entity, mac)
+            pci_address = db.get(mac)
+            if pci_address:
+                resolved_devices[pci_address] = EntityMac(entity, mac)
 
-    return resolved_devices
-
+        return resolved_devices
 
 class DPDKDeviceContext(OSContextGenerator):
 
