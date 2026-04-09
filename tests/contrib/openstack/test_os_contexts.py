@@ -3028,7 +3028,7 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(ex, result)
         # Verify /etc/default/haproxy is updated.
         self.assertEqual(_file.write.call_args_list,
-                          [call('ENABLED=1\n')])
+                         [call('ENABLED=1\n')])
         self.get_relation_ip.assert_has_calls([call('admin', None),
                                                call('internal', None),
                                                call('public', None),
