@@ -26,10 +26,35 @@ Listen {{ ext_port }}
     RemoteIPProxyProtocol On
     RemoteIPProxyProtocolExceptions 127.0.0.1 ::1
     {% endif -%}
+    {% if lua_real_ip_script -%}
+    LuaScope thread
+    LuaCodeCache forever
+    LuaHookTranslateName {{ lua_real_ip_script }} translate early
+    {% endif -%}
     KeepAliveTimeout 75
     MaxKeepAliveRequests 1000
+    {% if apache_rate_limit_enabled -%}
+    <IfModule mod_qos.c>
+        SetEnvIf Request_URI "." QS_Limit
+        {% if rate_limit_exempt_ips -%}
+        {% for ip in rate_limit_exempt_ips -%}
+        SetEnvIf Remote_Addr "^{{ ip | replace('.', '\.') }}$" !QS_Limit
+        {% endfor -%}
+        {% endif -%}
+    </IfModule>
+    {% endif -%}
 </VirtualHost>
 {% endfor -%}
+{% if apache_rate_limit_enabled -%}
+<IfModule mod_qos.c>
+    QS_ClientEntries 100000
+    QS_ErrorResponseCode 429
+    QS_ClientEventLimitCount {{ apache_rate_limit_requests }} {{ apache_rate_limit_window }}
+    {% if lua_real_ip_script -%}
+    QS_ClientIpFromHeader X-Real-Client-IP
+    {% endif -%}
+</IfModule>
+{% endif -%}
 <Proxy *>
     Order deny,allow
     Allow from all

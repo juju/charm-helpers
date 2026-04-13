@@ -1133,6 +1133,70 @@ class ImageServiceContext(OSContextGenerator):
         return {}
 
 
+# Script used with apache mod_qos to copy the real client IP from
+# mod_remoteip into a header
+LUA_QOS_REAL_IP_SCRIPT = '/etc/apache2/qos_real_ip.lua'
+LUA_QOS_REAL_IP_CONTENT = """\
+-- Copy the real client IP (extracted from the PROXY protocol
+-- header by mod_remoteip) into a request header that
+-- mod_qos can read via QS_ClientIpFromHeader.
+function translate(r)
+    r.headers_in['X-Real-Client-IP'] = r.useragent_ip
+    return apache2.DECLINED
+end
+"""
+
+
+def _get_rate_limit_context():
+    """Return rate-limit template context if the charm has opted in.
+
+    Returns an empty dict when the config option is absent or False.
+    """
+    ctxt = {}
+    try:
+        enabled = config('apache-rate-limit-enabled')
+    except Exception:
+        return ctxt
+    if not enabled:
+        return ctxt
+
+    ctxt['apache_rate_limit_enabled'] = True
+    ctxt['apache_rate_limit_requests'] = config(
+        'apache-rate-limit-requests')
+    ctxt['apache_rate_limit_window'] = config(
+        'apache-rate-limit-window')
+
+    try:
+        proxy_protocol = config('haproxy-enable-proxy-protocol')
+    except Exception:
+        proxy_protocol = False
+
+    if proxy_protocol:
+        with open(LUA_QOS_REAL_IP_SCRIPT, 'w') as f:
+            f.write(LUA_QOS_REAL_IP_CONTENT)
+        ctxt['lua_real_ip_script'] = LUA_QOS_REAL_IP_SCRIPT
+
+    # Collect peer IPs to exempt from rate limiting.
+    # Health checks and inter-unit API traffic originate from these
+    # IPs and should not be rate limited.
+    exempt_ips = set()
+    try:
+        local_ip = get_relation_ip('cluster')
+        if local_ip:
+            exempt_ips.add(local_ip)
+    except Exception:
+        pass
+    for rid in relation_ids('cluster'):
+        for unit in related_units(rid):
+            _addr = relation_get('private-address', rid=rid, unit=unit)
+            if _addr:
+                exempt_ips.add(_addr)
+    if exempt_ips:
+        ctxt['rate_limit_exempt_ips'] = sorted(exempt_ips)
+
+    return ctxt
+
+
 class ApacheSSLContext(OSContextGenerator):
     """Generates a context for an apache vhost configuration that configures
     HTTPS reverse proxying for one or many endpoints.  Generated context
@@ -1159,6 +1223,12 @@ class ApacheSSLContext(OSContextGenerator):
         # NOTE(seyeongkim) : remoteip is for proxy protocol
         cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         check_call(cmd)
+        try:
+            if config('apache-rate-limit-enabled'):
+                ensure_packages(['libapache2-mod-qos'])
+                check_call(['a2enmod', 'qos', 'lua'])
+        except Exception:
+            pass
 
     def configure_cert(self, cn=None):
         ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
@@ -1292,6 +1362,7 @@ class ApacheSSLContext(OSContextGenerator):
         ctxt['ext_ports'] = sorted(list(set(ctxt['ext_ports'])))
         if config('haproxy-enable-proxy-protocol'):
             ctxt['haproxy_enable_proxy_protocol'] = True
+        ctxt.update(_get_rate_limit_context())
         return ctxt
 
 
@@ -1804,6 +1875,12 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         # NOTE(seyeongkim): this is for proxy protocol and non ssl case.
         cmd = ['a2enmod', 'remoteip']
         check_call(cmd)
+        try:
+            if config('apache-rate-limit-enabled'):
+                ensure_packages(['libapache2-mod-qos'])
+                check_call(['a2enmod', 'qos', 'lua'])
+        except Exception:
+            pass
 
     def __call__(self):
         total_processes = _calculate_workers()
@@ -1850,6 +1927,7 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         }
         if config('haproxy-enable-proxy-protocol'):
             ctxt['haproxy_enable_proxy_protocol'] = True
+        ctxt.update(_get_rate_limit_context())
         return ctxt
 
 
