@@ -547,16 +547,10 @@ def get_os_version_package(pkg, fatal=True):
     if not codename:
         return None
 
-    if 'swift' in pkg:
-        vers_map = SWIFT_CODENAMES
-        for cname, version in vers_map.items():
-            if cname == codename:
-                return version[-1]
-    else:
-        vers_map = OPENSTACK_CODENAMES
-        for version, cname in vers_map.items():
-            if cname == codename:
-                return version
+    vers_map = OPENSTACK_CODENAMES
+    for version, cname in vers_map.items():
+        if cname == codename:
+            return version
 
 
 def get_installed_os_version():
