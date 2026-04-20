@@ -870,22 +870,13 @@ class AMQPContext(OSContextGenerator):
             ctxt['oslo_messaging_flags'] = config_flags_parser(
                 oslo_messaging_flags)
 
-        oslo_messaging_driver = conf.get(
+        ctxt['oslo_messaging_driver'] = conf.get(
             'oslo-messaging-driver', DEFAULT_OSLO_MESSAGING_DRIVER)
-        if oslo_messaging_driver:
-            ctxt['oslo_messaging_driver'] = oslo_messaging_driver
-
-        notification_format = conf.get('notification-format', None)
-        if notification_format:
-            ctxt['notification_format'] = notification_format
-
-        notification_topics = conf.get('notification-topics', None)
-        if notification_topics:
-            ctxt['notification_topics'] = notification_topics
-
-        send_notifications_to_logs = conf.get('send-notifications-to-logs', None)
-        if send_notifications_to_logs:
-            ctxt['send_notifications_to_logs'] = send_notifications_to_logs
+        ctxt['notification_format'] = conf.get('notification-format')
+        ctxt['notification_topics'] = conf.get('notification-topics')
+        ctxt['send_notifications_to_logs'] = conf.get('send-notifications-to-logs')
+        ctxt['rabbit_heartbeat_timeout_threshold'] = conf.get(
+            'rabbit-heartbeat-timeout-threshold')
 
         if not self.complete:
             return {}
