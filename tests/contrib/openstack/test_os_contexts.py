@@ -9,7 +9,7 @@ from mock import (
     patch,
     Mock,
     MagicMock,
-    call
+    call,
 )
 
 from charmhelpers.fetch.ubuntu_apt_pkg import Version
@@ -707,8 +707,10 @@ ABSENT_MACS = "aa:a5:ae:ae:ab:a4 "
 
 # Imported in contexts.py and needs patching in setUp()
 TO_PATCH = [
+    'apt_install',
     'b64decode',
     'check_call',
+    'filter_installed_packages',
     'get_cert',
     'get_ca_cert',
     'install_ca_cert',
@@ -798,6 +800,7 @@ class ContextTests(unittest.TestCase):
         self.resolve_address.return_value = '10.5.1.50'
         self.maxDiff = None
         self.get_installed_version.return_value = None
+        self.filter_installed_packages.return_value = []
 
     def _patch(self, method):
         _m = patch('charmhelpers.contrib.openstack.context.' + method)
@@ -3137,10 +3140,104 @@ class ContextTests(unittest.TestCase):
 
     def test_https_context_loads_correct_apache_mods(self):
         # Test apache2 context also loads required apache modules
+        self.config.side_effect = fake_config({})
         apache = context.ApacheSSLContext()
         apache.enable_modules()
         ex_cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip']
         self.check_call.assert_called_with(ex_cmd)
+
+    @patch.object(context, 'ensure_packages')
+    def test_https_context_loads_rate_limit_mods(self, mock_ensure):
+        # Test apache2 context loads qos and lua when rate limiting enabled
+        self.config.side_effect = fake_config({
+            'apache-rate-limit-enabled': True
+        })
+        apache = context.ApacheSSLContext()
+        apache.enable_modules()
+        self.check_call.assert_any_call(
+            ['a2enmod', 'ssl', 'proxy', 'proxy_http', 'headers', 'remoteip'])
+        mock_ensure.assert_called_with(['libapache2-mod-qos'])
+        self.check_call.assert_any_call(['a2enmod', 'qos', 'lua'])
+
+    @patch.object(context, 'write_file')
+    def test_https_context_rate_limit_with_proxy_protocol(self, mock_write):
+        # Test rate limit + proxy protocol deploys Lua script
+        self.relation_ids.return_value = []
+
+        apache = context.ApacheSSLContext()
+        apache.configure_cert = MagicMock()
+        apache.enable_modules = MagicMock()
+        apache.configure_ca = MagicMock()
+        apache.canonical_names = MagicMock()
+        apache.canonical_names.return_value = ['10.5.1.1']
+        apache.get_network_addresses = MagicMock()
+        apache.get_network_addresses.return_value = [
+            ('10.5.1.100', '10.5.1.1'),
+        ]
+        self.determine_api_port.return_value = 8756
+        self.determine_apache_port.return_value = 8766
+
+        self.config.side_effect = fake_config({
+            'haproxy-enable-proxy-protocol': True,
+            'apache-rate-limit-enabled': True,
+            'apache-rate-limit-requests': 200,
+            'apache-rate-limit-window': 60,
+        })
+        apache.external_ports = '8776'
+        apache.service_namespace = 'cinder'
+
+        result = apache()
+        self.assertTrue(result['apache_rate_limit_enabled'])
+        self.assertTrue(result['haproxy_enable_proxy_protocol'])
+        self.assertEqual(result['lua_real_ip_script'],
+                         '/etc/apache2/qos_real_ip.lua')
+        mock_write.assert_called_with(
+            path='/etc/apache2/qos_real_ip.lua',
+            content=context.LUA_QOS_REAL_IP_CONTENT,
+            owner='root',
+            group='root',
+            perms=0o644,
+        )
+
+    def test_https_context_rate_limit_exempt_ips(self):
+        # Test that peer IPs are collected for exemption
+        self.relation_ids.return_value = ['cluster:0']
+        self.related_units.return_value = ['unit/1', 'unit/2']
+        self.relation_get.side_effect = lambda *args, **kwargs: {
+            'unit/1': '10.0.0.2',
+            'unit/2': '10.0.0.3',
+        }.get(kwargs.get('unit', ''), None)
+        self.get_relation_ip.return_value = '10.0.0.1'
+
+        apache = context.ApacheSSLContext()
+        apache.configure_cert = MagicMock()
+        apache.enable_modules = MagicMock()
+        apache.configure_ca = MagicMock()
+        apache.canonical_names = MagicMock()
+        apache.canonical_names.return_value = ['10.5.1.1']
+        apache.get_network_addresses = MagicMock()
+        apache.get_network_addresses.return_value = [
+            ('10.5.1.100', '10.5.1.1'),
+        ]
+        self.determine_api_port.return_value = 8756
+        self.determine_apache_port.return_value = 8766
+
+        self.config.side_effect = fake_config({
+            'haproxy-enable-proxy-protocol': True,
+            'apache-rate-limit-enabled': True,
+            'apache-rate-limit-requests': 200,
+            'apache-rate-limit-window': 60,
+        })
+        apache.external_ports = '8776'
+        apache.service_namespace = 'cinder'
+
+        result = apache()
+        self.assertIn('rate_limit_exempt_ips', result)
+        exempt = result['rate_limit_exempt_ips']
+        self.assertIn('10.0.0.1', exempt)
+        self.assertIn('10.0.0.2', exempt)
+        self.assertIn('10.0.0.3', exempt)
+        self.assertEqual(len(exempt), 3)
 
     def test_https_configure_cert(self):
         # Test apache2 properly installs certs and keys to disk
@@ -3852,10 +3949,23 @@ class ContextTests(unittest.TestCase):
 
     def test_wsgi_worker_config_context_apache_mods(self):
         # Test apache2 context also loads required apache modules
+        self.config.side_effect = fake_config({})
         apache = context.WSGIWorkerConfigContext()
         apache.enable_modules()
         ex_cmd = ['a2enmod', 'remoteip']
         self.check_call.assert_called_with(ex_cmd)
+
+    @patch.object(context, 'ensure_packages')
+    def test_wsgi_worker_config_context_rate_limit_mods(self, mock_ensure):
+        # Test WSGI context loads qos and lua when rate limiting enabled
+        self.config.side_effect = fake_config({
+            'apache-rate-limit-enabled': True
+        })
+        apache = context.WSGIWorkerConfigContext()
+        apache.enable_modules()
+        self.check_call.assert_any_call(['a2enmod', 'remoteip'])
+        mock_ensure.assert_called_with(['libapache2-mod-qos'])
+        self.check_call.assert_any_call(['a2enmod', 'qos', 'lua'])
 
     @patch.object(context, '_calculate_workers')
     def test_wsgi_worker_config_context_proxy_protocol(self,
@@ -3886,6 +3996,71 @@ class ContextTests(unittest.TestCase):
             "haproxy_enable_proxy_protocol": True
         }
         self.assertEqual(expect, ctxt())
+
+    @patch.object(context, 'write_file')
+    @patch.object(context, '_calculate_workers')
+    def test_wsgi_worker_config_context_rate_limit(self,
+                                                   _calculate_workers,
+                                                   mock_write):
+        # Test WSGI worker config context with rate limiting enabled
+        self.config.side_effect = fake_config({
+            'worker-multiplier': 2,
+            'non-defined-wsgi-socket-rotation': True,
+            'haproxy-enable-proxy-protocol': True,
+            'apache-rate-limit-enabled': True,
+            'apache-rate-limit-requests': 150,
+            'apache-rate-limit-window': 45,
+        })
+        _calculate_workers.return_value = 8
+        self.relation_ids.return_value = ['cluster:0']
+        self.related_units.return_value = ['unit/1']
+        self.relation_get.return_value = '10.0.0.2'
+        self.get_relation_ip.return_value = '10.0.0.1'
+        service_name = 'service-name'
+        script = '/usr/bin/script'
+        ctxt = context.WSGIWorkerConfigContext(name=service_name,
+                                               script=script)
+        result = ctxt()
+        self.assertTrue(result['apache_rate_limit_enabled'])
+        self.assertEqual(result['apache_rate_limit_requests'], 150)
+        self.assertEqual(result['apache_rate_limit_window'], 45)
+        self.assertTrue(result['haproxy_enable_proxy_protocol'])
+        self.assertEqual(result['lua_real_ip_script'],
+                         '/etc/apache2/qos_real_ip.lua')
+        mock_write.assert_called_with(
+            path='/etc/apache2/qos_real_ip.lua',
+            content=context.LUA_QOS_REAL_IP_CONTENT,
+            owner='root',
+            group='root',
+            perms=0o644,
+        )
+        self.assertIn('10.0.0.1', result['rate_limit_exempt_ips'])
+        self.assertIn('10.0.0.2', result['rate_limit_exempt_ips'])
+
+    @patch.object(context, '_calculate_workers')
+    def test_wsgi_worker_config_context_rate_limit_invalid_config(
+            self, _calculate_workers):
+        _calculate_workers.return_value = 4
+        self.relation_ids.return_value = []
+        for bad_requests, bad_window, exp_requests, exp_window in [
+                (None, 60, 200, 60),
+                (200, None, 200, 60),
+                (0, 60, 200, 60),
+                (200, -1, 200, 60)]:
+            self.config.side_effect = fake_config({
+                'apache-rate-limit-enabled': True,
+                'apache-rate-limit-requests': bad_requests,
+                'apache-rate-limit-window': bad_window,
+            })
+            ctxt = context.WSGIWorkerConfigContext(
+                name='svc', script='/usr/bin/svc')
+            result = ctxt()
+            self.assertTrue(
+                result.get('apache_rate_limit_enabled'),
+                "Rate limiting should stay enabled for requests={!r} "
+                "window={!r}".format(bad_requests, bad_window))
+            self.assertEqual(result['apache_rate_limit_requests'], exp_requests)
+            self.assertEqual(result['apache_rate_limit_window'], exp_window)
 
     def test_zeromq_context_unrelated(self):
         self.is_relation_made.return_value = False
