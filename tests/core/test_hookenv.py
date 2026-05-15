@@ -289,7 +289,7 @@ class SerializableTest(TestCase):
         pickled = pickle.dumps(wrapped)
         unpickled = pickle.loads(pickled)
 
-        self.assert_(isinstance(unpickled, hookenv.Serializable))
+        self.assertTrue(isinstance(unpickled, hookenv.Serializable))
         self.assertEqual(unpickled, foo)
 
     def test_boolean(self):
@@ -366,7 +366,7 @@ class HelpersTest(TestCase):
         self.assertEqual(result[1], 'a')
 
         # ... because the result is actually a string
-        self.assert_(isinstance(result, str))
+        self.assertTrue(isinstance(result, str))
 
     @patch('charmhelpers.core.hookenv.log', lambda *args, **kwargs: None)
     @patch('charmhelpers.core.hookenv._cache_config', None)
@@ -472,7 +472,7 @@ class HelpersTest(TestCase):
         self.assertEqual(result[1], 'a')
 
         # ... because the result is actually a string
-        self.assert_(isinstance(result, str))
+        self.assertTrue(isinstance(result, str))
 
         self.assertFalse(check_output.called)
 
@@ -1492,13 +1492,13 @@ class HelpersTest(TestCase):
             calls.append(attribute)
             return values[attribute]
 
-        self.assertEquals(cache_function('hello'), 'world')
-        self.assertEquals(cache_function('hello'), 'world')
-        self.assertEquals(cache_function('foo'), 'bar')
-        self.assertEquals(cache_function('baz'), None)
-        self.assertEquals(cache_function('baz'), None)
-        self.assertEquals(cache_function(unserializable), 'qux')
-        self.assertEquals(calls, ['hello', 'foo', 'baz', unserializable])
+        self.assertEqual(cache_function('hello'), 'world')
+        self.assertEqual(cache_function('hello'), 'world')
+        self.assertEqual(cache_function('foo'), 'bar')
+        self.assertEqual(cache_function('baz'), None)
+        self.assertEqual(cache_function('baz'), None)
+        self.assertEqual(cache_function(unserializable), 'qux')
+        self.assertEqual(calls, ['hello', 'foo', 'baz', unserializable])
 
     def test_gets_charm_dir(self):
         with patch.dict('os.environ', {}):
@@ -2253,7 +2253,7 @@ class HooksTest(TestCase):
         juju_version.return_value = '2.1.4'
         self.assertRaises(NotImplementedError, hookenv.network_get, 'binding')
         juju_version.return_value = '2.2.0'
-        self.assertEquals(hookenv.network_get('endpoint'), 'result')
+        self.assertEqual(hookenv.network_get('endpoint'), 'result')
 
     @patch('charmhelpers.core.hookenv.juju_version')
     @patch('subprocess.check_output')

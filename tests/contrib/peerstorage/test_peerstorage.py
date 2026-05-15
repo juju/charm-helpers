@@ -158,7 +158,7 @@ class TestPeerStorage(TestCase):
         }
         peer_settings = {rel_id + '_' + k: v for k, v in settings.items()}
         peer_retrieve.return_value = peer_settings
-        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id), settings)
+        self.assertEqual(peerstorage.peer_retrieve_by_prefix(rel_id), settings)
 
     @patch.object(peerstorage, 'peer_retrieve')
     def test_peer_retrieve_by_prefix_empty_relation(self, peer_retrieve):
@@ -166,7 +166,7 @@ class TestPeerStorage(TestCase):
         # an empty dictionary.
         peer_retrieve.return_value = None
         rel_id = 'db:2'
-        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id), {})
+        self.assertEqual(peerstorage.peer_retrieve_by_prefix(rel_id), {})
 
     @patch.object(peerstorage, 'peer_retrieve')
     def test_peer_retrieve_by_prefix_exc_list(self, peer_retrieve):
@@ -179,7 +179,7 @@ class TestPeerStorage(TestCase):
         peer_settings = {rel_id + '_' + k: v for k, v in settings.items()}
         del settings['host']
         peer_retrieve.return_value = peer_settings
-        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id,
+        self.assertEqual(peerstorage.peer_retrieve_by_prefix(rel_id,
                                                               exc_list=['host']),
                           settings)
 
@@ -193,7 +193,7 @@ class TestPeerStorage(TestCase):
         }
         peer_settings = {rel_id + '_' + k: v for k, v in settings.items()}
         peer_retrieve.return_value = peer_settings
-        self.assertEquals(peerstorage.peer_retrieve_by_prefix(rel_id,
+        self.assertEqual(peerstorage.peer_retrieve_by_prefix(rel_id,
                                                               inc_list=['host']),
                           {'host': 'myhost'})
 

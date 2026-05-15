@@ -19,6 +19,8 @@ jobs:
             env: pep8,py38
           - python-version: "3.10"
             env: pep8,py310
+          - python-version: "3.12"
+            env: pep8,py312
 
     steps:
     - uses: actions/checkout@v4
@@ -39,5 +41,8 @@ jobs:
         fi
         sudo apt -qq update
         sudo apt install --yes $PKG
+
+    - name: Install tox
+      run: pip install tox
     - name: Test
       run: tox -c tox.ini -e ${{ matrix.env }}
