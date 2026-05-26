@@ -2678,6 +2678,56 @@ def resolve_pci_from_mapping_config(config_key):
 
     return resolved_devices
 
+def is_pci_address(value):
+    parts = value.split(':')
+
+    # Expected: 0000:3b:00.0
+    if len(parts) != 3:
+        return False
+
+    last = parts[-1]
+
+    if '.' not in last:
+        return False
+
+    slot, function = last.split('.', 1)
+
+    return (
+        len(parts[0]) == 4 and
+        len(parts[1]) == 2 and
+        len(slot) == 2 and
+        len(function) == 1
+    )
+
+
+def is_mac_address(value):
+    parts = value.split(':')
+
+    # Expected: aa:bb:cc:dd:ee:ff
+    return len(parts) == 6 and all(len(part) == 2 for part in parts)
+
+def split_ports(mapping):
+    """Split a map of mixed bond-pci, bond-mac elements into two.
+    :returns mac-ifname bond map, pci bond map
+    :returns: Dict,Dict
+    """
+    pci = {}
+    macs = {}
+    names = {}
+
+    for port, bond in mapping.items():
+        if is_pci_address(port):
+            pci[port] = bond
+        elif is_mac_address(port):
+            macs[port] = bond
+        else:
+            names[port] = bond
+
+    return names, macs, pci
+
+def build_mapping_string(mapping):
+    """ Create dpdk-bond-mappings config option string from port, bond map."""
+    return ' '.join(f"{bond}:{port}" for port, bond in mapping.items())
 
 class DPDKDeviceContext(OSContextGenerator):
 
@@ -2706,8 +2756,14 @@ class DPDKDeviceContext(OSContextGenerator):
             return {}
         # Resolve PCI devices for both directly used devices (_bridges)
         # and devices for use in dpdk bonds (_bonds)
+        data_port_mappings = parse_data_port_mappings(config(self.bonds_key))
+        ifname_bonds, mac_bonds, pci_bonds = split_ports(data_port_mappings)
+
+        updated_bonds_key = build_mapping_string(ifname_bonds | mac_bonds)
+
         pci_devices = resolve_pci_from_mapping_config(self.bridges_key)
-        pci_devices.update(resolve_pci_from_mapping_config(self.bonds_key))
+        pci_devices.update(pci_bonds)
+        pci_devices.update(resolve_pci_from_mapping_config(updated_bonds_key))
         return {'devices': pci_devices,
                 'driver': driver}
 
@@ -2818,8 +2874,14 @@ class OVSDPDKDeviceContext(OSContextGenerator):
         :returns: List of PCI devices for use by DPDK
         :rtype: collections.OrderedDict[str,str]
         """
+        data_port_mappings = parse_data_port_mappings(config(self.bonds_key))
+        ifname_bonds, mac_bonds, pci_bonds = split_ports(data_port_mappings)
+
+        updated_bonds_key = build_mapping_string(ifname_bonds | mac_bonds)
+
         pci_devices = resolve_pci_from_mapping_config(self.bridges_key)
-        pci_devices.update(resolve_pci_from_mapping_config(self.bonds_key))
+        pci_devices.update(pci_bonds)
+        pci_devices.update(resolve_pci_from_mapping_config(updated_bonds_key))
         return pci_devices
 
     def _formatted_whitelist(self, flag):
