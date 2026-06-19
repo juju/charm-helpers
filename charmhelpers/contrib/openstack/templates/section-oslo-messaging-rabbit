@@ -8,3 +8,6 @@ ssl = True
 {% if rabbit_ssl_ca -%}
 ssl_ca_file = {{ rabbit_ssl_ca }}
 {% endif -%}
+{% if rabbit_heartbeat_timeout_threshold -%}
+heartbeat_timeout_threshold = {{ rabbit_heartbeat_timeout_threshold }}
+{% endif -%}
