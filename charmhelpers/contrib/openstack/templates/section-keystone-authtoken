@@ -1,6 +1,6 @@
 {% if auth_host -%}
 [keystone_authtoken]
-auth_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}
+www_authenticate_uri = {{ service_protocol }}://{{ service_host }}:{{ service_port }}
 auth_url = {{ auth_protocol }}://{{ auth_host }}:{{ auth_port }}
 auth_plugin = password
 project_domain_id = default
