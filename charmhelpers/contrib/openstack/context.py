@@ -1062,6 +1062,12 @@ class HAProxyContext(OSContextGenerator):
         if config('haproxy-connect-timeout'):
             ctxt['haproxy_connect_timeout'] = config('haproxy-connect-timeout')
 
+        if config('haproxy-check-timeout'):
+            ctxt['haproxy_check_timeout'] = config('haproxy-check-timeout')
+
+        if config('haproxy-check-inter'):
+            ctxt['haproxy_check_inter'] = config('haproxy-check-inter')
+
         if config('haproxy-enable-proxy-protocol'):
             ctxt['haproxy_enable_proxy_protocol'] = True
 
@@ -1131,6 +1137,52 @@ class ImageServiceContext(OSContextGenerator):
         log("ImageService context is incomplete. Missing required relation "
             "data.", level=INFO)
         return {}
+
+
+class ApacheMPMEventContext(OSContextGenerator):
+    """Context for tuning the Apache mpm_event module.
+
+    Only returns data when at least one of the mpm-* config options is set, so
+    that an unconfigured deployment keeps the distro-provided mpm_event.conf
+    untouched. MPM configuration is global to the Apache server instance.
+
+    This context assumes the consuming charm defines the following config
+    options in its config.yaml: ``mpm-max-request-workers``,
+    ``mpm-server-limit`` and ``mpm-threads-per-child``. It is intended to be
+    rendered through the ``mpm_event.conf`` template shipped alongside this
+    module.
+    """
+
+    # Apache/Ubuntu defaults
+    DEFAULT_SERVER_LIMIT = 16
+    DEFAULT_THREADS_PER_CHILD = 25
+
+    def __call__(self):
+        max_request_workers = config('mpm-max-request-workers')
+        server_limit = config('mpm-server-limit')
+        threads_per_child = config('mpm-threads-per-child')
+
+        if not any([max_request_workers, server_limit, threads_per_child]):
+            return {}
+
+        server_limit = server_limit or self.DEFAULT_SERVER_LIMIT
+        threads_per_child = (
+            threads_per_child or self.DEFAULT_THREADS_PER_CHILD)
+        # When MaxRequestWorkers is not explicitly set, derive the maximum
+        # effective value (ServerLimit * ThreadsPerChild).
+        max_request_workers = (
+            max_request_workers or server_limit * threads_per_child)
+
+        # ThreadLimit caps ThreadsPerChild and can only be set at server start;
+        # keep it at least as large as ThreadsPerChild (and the default 64).
+        thread_limit = max(64, threads_per_child)
+
+        return {
+            'mpm_server_limit': server_limit,
+            'mpm_threads_per_child': threads_per_child,
+            'mpm_thread_limit': thread_limit,
+            'mpm_max_request_workers': max_request_workers,
+        }
 
 
 class ApacheSSLContext(OSContextGenerator):

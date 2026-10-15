@@ -361,6 +361,11 @@ HAPROXY_CONFIG = {
     'haproxy-client-timeout': 50000,
 }
 
+HAPROXY_CHECK_CONFIG = {
+    'haproxy-check-timeout': 5000,
+    'haproxy-check-inter': 2000,
+}
+
 PROXY_PROTOCOL_CONFIG = {
     'haproxy-enable-proxy-protocol': True,
 }
@@ -2495,6 +2500,79 @@ class ContextTests(unittest.TestCase):
                                                call('internal', None),
                                                call('public', None),
                                                call('cluster')])
+
+    @patch('charmhelpers.contrib.openstack.context.local_address')
+    @patch('charmhelpers.contrib.openstack.context.local_unit')
+    def test_haproxy_context_with_data_check_tuning(self, local_unit,
+                                                    local_address):
+        '''Test haproxy context with backend health-check tuning'''
+        cluster_relation = {
+            'cluster:0': {
+                'peer/1': {
+                    'private-address': 'cluster-peer1.localnet',
+                },
+                'peer/2': {
+                    'private-address': 'cluster-peer2.localnet',
+                },
+            },
+        }
+        local_unit.return_value = 'peer/0'
+        self.get_relation_ip.side_effect = [None, None, None,
+                                            'cluster-peer0.localnet']
+        relation = FakeRelation(cluster_relation)
+        self.relation_ids.side_effect = relation.relation_ids
+        self.relation_get.side_effect = relation.get
+        self.related_units.side_effect = relation.relation_units
+        self.get_netmask_for_address.return_value = '255.255.0.0'
+        self.maxDiff = None
+        c = fake_config(HAPROXY_CHECK_CONFIG)
+        c.data['prefer-ipv6'] = False
+        self.config.side_effect = c
+        self.is_ipv6_disabled.return_value = True
+        haproxy = context.HAProxyContext()
+        with patch_open() as (_open, _file):
+            result = haproxy()
+        self.assertEqual(5000, result['haproxy_check_timeout'])
+        self.assertEqual(2000, result['haproxy_check_inter'])
+
+    def test_apache_mpm_event_context_unset(self):
+        # No mpm-* options set: context is empty so the distro-provided
+        # mpm_event.conf is left untouched.
+        self.config.side_effect = fake_config({})
+        ctxt = context.ApacheMPMEventContext()
+        self.assertEqual(ctxt(), {})
+
+    def test_apache_mpm_event_context_all_set(self):
+        self.config.side_effect = fake_config({
+            'mpm-max-request-workers': 400,
+            'mpm-server-limit': 16,
+            'mpm-threads-per-child': 25,
+        })
+        ctxt = context.ApacheMPMEventContext()
+        self.assertEqual(ctxt(), {
+            'mpm_server_limit': 16,
+            'mpm_threads_per_child': 25,
+            'mpm_thread_limit': 64,
+            'mpm_max_request_workers': 400,
+        })
+
+    def test_apache_mpm_event_context_derives_max_request_workers(self):
+        # Only server-limit set: max_request_workers defaults to
+        # server_limit * threads_per_child and defaults fill the rest.
+        self.config.side_effect = fake_config({'mpm-server-limit': 32})
+        ctxt = context.ApacheMPMEventContext()
+        self.assertEqual(ctxt(), {
+            'mpm_server_limit': 32,
+            'mpm_threads_per_child': 25,
+            'mpm_thread_limit': 64,
+            'mpm_max_request_workers': 800,
+        })
+
+    def test_apache_mpm_event_context_thread_limit_follows_threads(self):
+        # ThreadLimit must be >= ThreadsPerChild.
+        self.config.side_effect = fake_config({'mpm-threads-per-child': 100})
+        ctxt = context.ApacheMPMEventContext()
+        self.assertEqual(ctxt()['mpm_thread_limit'], 100)
 
     @patch('charmhelpers.contrib.openstack.context.local_address')
     @patch('charmhelpers.contrib.openstack.context.local_unit')
