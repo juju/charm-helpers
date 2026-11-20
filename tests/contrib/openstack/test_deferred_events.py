@@ -70,10 +70,18 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
             service='svcB',
             reason='ReasonB',
             action='restart')
+        self.exp_event_d = deferred_events.ServiceEvent(
+            timestamp=423,
+            service='svcC',
+            reason='ReasonC',
+            action='restart',
+            policy_requestor_name='notmyapp',
+            policy_requestor_type='charm')
         self.base_expect_events = [
             self.exp_event_a,
             self.exp_event_b,
-            self.exp_event_c]
+            self.exp_event_c,
+            self.exp_event_d]
         self.event_file_pair = []
         for index, event in enumerate(self.base_expect_events):
             event_file = '{}/{}.deferred'.format('/tmpdir', str(index))
@@ -118,9 +126,10 @@ class DeferredCharmServiceEventsTestCase(tests.utils.BaseTestCase):
             with open(event_file, 'w') as f:
                 yaml.dump(vars(event), f)
             event_files.append(event_file)
-            expect.append((
-                event_file,
-                event))
+            if event.policy_requestor_name == 'myapp':
+                expect.append((
+                    event_file,
+                    event))
         deferred_events_files.return_value = event_files
         self.assertEqual(
             deferred_events.deferred_events(),
